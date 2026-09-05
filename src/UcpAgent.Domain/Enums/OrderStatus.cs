@@ -1,0 +1,12 @@
+namespace UcpAgent.Domain.Enums;
+
+public enum OrderStatus
+{
+    Pending,
+    Confirmed,
+    Processing,
+    Shipped,
+    Delivered,
+    Cancelled,
+    Refunded
+}
