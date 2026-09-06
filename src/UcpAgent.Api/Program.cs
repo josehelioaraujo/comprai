@@ -1,3 +1,4 @@
+﻿using UcpAgent.Application.IntentRouter;
 using UcpAgent.Infrastructure.Messaging;
 using Microsoft.Extensions.Caching.Hybrid;
 using OpenTelemetry.Resources;
@@ -114,6 +115,7 @@ else
     builder.Services.AddSingleton<IEventPublisher, NullEventPublisher>();
 }
 
+builder.Services.AddSingleton<IIntentRouterService, IntentRouterService>();
 var app = builder.Build();
 
 app.MapOpenApi();

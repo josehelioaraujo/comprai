@@ -1,0 +1,12 @@
+﻿namespace UcpAgent.Application.IntentRouter;
+
+public enum IntentType
+{
+    SearchProducts,
+    AddToCart,
+    RemoveFromCart,
+    ViewCart,
+    Checkout,
+    GetOrder,
+    Unknown
+}
