@@ -10,10 +10,6 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 ## [Unreleased]
 
 ### Planejado
-- Fase 2: Plugin Mercado Livre
-- Fase 3: Plugin VTEX Catalog
-- Fase 4: Plugin VTEX Intelligent Search
-- Fase 5: Plugin Open Food Facts
 - Fase 6: Feature Search
 - Fase 7: Feature Cart
 - Fase 8: Feature Checkout
@@ -29,6 +25,28 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 - Fase 18: K3s + CI/CD
 - Fase 19: Plugin VTEX Orders (autenticado)
 - Fase 20: Segundo plugin catálogo (WooCommerce / Shopify)
+
+---
+
+## [0.5.0] — Fases 3-5: Plugins VTEX e Open Food Facts
+
+### Adicionado
+- **VtexCatalogPlugin**: busca via API pública `catalog_system/pub/products/search`, suporte a filtro de preço, mapeamento de SKUs e imagens
+- **VtexSearchPlugin**: busca via VTEX Intelligent Search `/_v/api/intelligent-search/product_search`, suporte a categoria e paginação
+- **OpenFoodFactsPlugin**: busca via `world.openfoodfacts.org`, retorna produtos alimentícios com imagem e categoria
+- Configuração `VtexCatalog:AccountName` e `VtexSearch:AccountName` em `appsettings.json`
+- Registro automático de todos os plugins com `HttpClient` isolado por plugin quando `UsarMockDados = false`
+
+---
+
+## [0.4.0] — Fase 2: Plugin Mercado Livre
+
+### Adicionado
+- **MercadoLivrePlugin**: busca via API pública MLB (`/sites/MLB/search`), suporte a filtro de categoria e faixa de preço, paginação por offset
+- `MercadoLivreResponse` — DTOs internos para deserialização da API
+- Registro via `AddHttpClient<MercadoLivrePlugin>()` + `IProductCatalogPort` quando `UsarMockDados = false`
+- Referência ao projeto plugin no `UcpAgent.Api.csproj`
+- Pacote `OpenTelemetry.Instrumentation.Http` adicionado para rastreamento de chamadas HTTP
 
 ---
 
@@ -74,6 +92,8 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 ---
 
 <!-- Links de comparação -->
-[Unreleased]: https://github.com/josehelioaraujo/comprai/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/josehelioaraujo/comprai/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/josehelioaraujo/comprai/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/josehelioaraujo/comprai/compare/v0.2.0...v0.4.0
 [0.2.0]: https://github.com/josehelioaraujo/comprai/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/josehelioaraujo/comprai/releases/tag/v0.1.0
