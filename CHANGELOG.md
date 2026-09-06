@@ -1,3 +1,32 @@
+﻿## [1.0.0] - 2026-09-06
+
+### Added
+- **Phase 10 - Kafka Messaging**: porta IEventPublisher no SharedKernel
+- KafkaEventPublisher com Confluent.Kafka (Acks=Leader, timeout 5s)
+- NullEventPublisher para ambientes sem Kafka (UsarKafka=false)
+- Evento OrderCreatedEvent publicado no topico order.created apos checkout
+- Evento SearchQueryLoggedEvent publicado no topico search.query.logged apos busca
+- Feature flag UsarKafka + config Kafka:BootstrapServers no appsettings
+
+## [1.0.0] - 2026-09-06
+
+### Added
+- **Phase 10 - Kafka Messaging**: porta IEventPublisher no SharedKernel
+- KafkaEventPublisher com Confluent.Kafka (Acks=Leader, timeout 5s)
+- NullEventPublisher para ambientes sem Kafka (UsarKafka=false)
+- Evento OrderCreatedEvent publicado no topico order.created apos checkout
+- Evento SearchQueryLoggedEvent publicado no topico search.query.logged apos busca
+- Feature flag UsarKafka + config Kafka:BootstrapServers no appsettings
+
+## [1.0.0] - 2026-09-06
+
+### Added
+- **Phase 10  Kafka Messaging**: porta IEventPublisher no SharedKernel
+- KafkaEventPublisher usando Confluent.Kafka (Acks=Leader, timeout 5s)
+- NullEventPublisher para ambientes sem Kafka (UsarKafka=false)
+- Evento OrderCreatedEvent publicado no tópico order.created após checkout
+- Evento SearchQueryLoggedEvent publicado no tópico search.query.logged após busca
+- Feature flag UsarKafka + configuração Kafka:BootstrapServers no appsettings
 # Changelog
 
 Todas as alterações relevantes do projeto **Comprai** são documentadas aqui.
@@ -122,3 +151,4 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 [0.4.0]: https://github.com/josehelioaraujo/comprai/compare/v0.2.0...v0.4.0
 [0.2.0]: https://github.com/josehelioaraujo/comprai/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/josehelioaraujo/comprai/releases/tag/v0.1.0
+

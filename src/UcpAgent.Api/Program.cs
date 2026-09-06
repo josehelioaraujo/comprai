@@ -1,3 +1,4 @@
+﻿using UcpAgent.Infrastructure.Messaging;
 using Microsoft.Extensions.Caching.Hybrid;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -92,6 +93,17 @@ else
     }
 }
 
+
+// IEventPublisher
+if (features.GetValue<bool>("UsarKafka"))
+{
+    var bootstrapServers = builder.Configuration["Kafka:BootstrapServers"] ?? "localhost:9092";
+    builder.Services.AddSingleton<IEventPublisher>(_ => new KafkaEventPublisher(bootstrapServers));
+}
+else
+{
+    builder.Services.AddSingleton<IEventPublisher, NullEventPublisher>();
+}
 var app = builder.Build();
 
 app.MapOpenApi();
@@ -174,3 +186,4 @@ app.Run();
 
 // ── Request DTOs ──────────────────────────────────────────────────────────────
 record AddToCartRequest(UcpAgent.SharedKernel.Models.ProductDto Product, int Quantity = 1);
+

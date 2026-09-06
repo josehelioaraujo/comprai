@@ -1,3 +1,4 @@
+﻿using UcpAgent.SharedKernel.Events;
 using MediatR;
 using UcpAgent.SharedKernel;
 using UcpAgent.SharedKernel.Models;
@@ -5,7 +6,7 @@ using UcpAgent.SharedKernel.Ports;
 
 namespace UcpAgent.Application.Search;
 
-public sealed class SearchProductsHandler(IEnumerable<IProductCatalogPort> catalogs)
+public sealed class SearchProductsHandler(IEnumerable<IProductCatalogPort> catalogs, IEventPublisher events)
     : IRequestHandler<SearchProductsQuery, Result<SearchResult>>
 {
     public async Task<Result<SearchResult>> Handle(
@@ -39,3 +40,4 @@ public sealed class SearchProductsHandler(IEnumerable<IProductCatalogPort> catal
             new SearchResult(items, total, request.Page, request.PageSize, "aggregated"));
     }
 }
+
