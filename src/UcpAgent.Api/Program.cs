@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Caching.Hybrid;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using StackExchange.Redis;
 using UcpAgent.Application.Search;
 using UcpAgent.Application.Cart;
 using UcpAgent.Application.Checkout;
@@ -11,6 +12,9 @@ using UcpAgent.Catalog.MercadoLivre;
 using UcpAgent.Catalog.VtexCatalog;
 using UcpAgent.Catalog.VtexSearch;
 using UcpAgent.Catalog.OpenFoodFacts;
+using UcpAgent.Infrastructure.Cart;
+using UcpAgent.Infrastructure.Checkout;
+using UcpAgent.Infrastructure.Orders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,7 +30,7 @@ builder.Services.AddHybridCache(opt =>
 {
     opt.DefaultEntryOptions = new HybridCacheEntryOptions
     {
-        Expiration         = TimeSpan.FromMinutes(5),
+        Expiration           = TimeSpan.FromMinutes(5),
         LocalCacheExpiration = TimeSpan.FromMinutes(1)
     };
 });
@@ -46,7 +50,8 @@ builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks();
 
 // ── Ports / Adapters ──────────────────────────────────────────────────────────
-var usarMock = builder.Configuration.GetValue<bool>("Features:UsarMockDados");
+var usarMock  = builder.Configuration.GetValue<bool>("Features:UsarMockDados");
+var usarRedis = builder.Configuration.GetValue<bool>("Features:UsarRedis");
 
 if (usarMock)
 {
@@ -57,21 +62,34 @@ if (usarMock)
 }
 else
 {
+    // Plugins de catálogo
     builder.Services.AddHttpClient<MercadoLivrePlugin>();
     builder.Services.AddSingleton<IProductCatalogPort, MercadoLivrePlugin>();
-
     builder.Services.AddHttpClient<VtexCatalogPlugin>();
     builder.Services.AddSingleton<IProductCatalogPort, VtexCatalogPlugin>();
-
     builder.Services.AddHttpClient<VtexSearchPlugin>();
     builder.Services.AddSingleton<IProductCatalogPort, VtexSearchPlugin>();
-
     builder.Services.AddHttpClient<OpenFoodFactsPlugin>();
     builder.Services.AddSingleton<IProductCatalogPort, OpenFoodFactsPlugin>();
 
-    builder.Services.AddSingleton<ICartPort, InMemoryCartPort>();
-    builder.Services.AddSingleton<ICheckoutPort, MockCheckoutPort>();
-    builder.Services.AddSingleton<IOrderPort, MockOrderPort>();
+    if (usarRedis)
+    {
+        // Conexão Redis compartilhada
+        builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
+            ConnectionMultiplexer.Connect(builder.Configuration["Redis:ConnectionString"]!));
+
+        // Cart, Checkout e Order via Redis
+        builder.Services.AddSingleton<ICartPort, RedisCartAdapter>();
+        builder.Services.AddSingleton<RedisOrderAdapter>();
+        builder.Services.AddSingleton<IOrderPort>(sp => sp.GetRequiredService<RedisOrderAdapter>());
+        builder.Services.AddSingleton<ICheckoutPort, RedisCheckoutAdapter>();
+    }
+    else
+    {
+        builder.Services.AddSingleton<ICartPort, InMemoryCartPort>();
+        builder.Services.AddSingleton<ICheckoutPort, MockCheckoutPort>();
+        builder.Services.AddSingleton<IOrderPort, MockOrderPort>();
+    }
 }
 
 var app = builder.Build();
@@ -86,26 +104,31 @@ app.MapGet("/health/live", () => Results.Ok(new { status = "alive" }))
 app.MapGet("/health/ready", () => Results.Ok(new { status = "ready" }))
    .WithTags("Health");
 
-// ── Search (com cache HybridCache 5 min) ─────────────────────────────────────
+// ── Search (cache 5 min) ──────────────────────────────────────────────────────
 app.MapGet("/api/search", async (
     string q, int page, int pageSize,
     string? category, decimal? minPrice, decimal? maxPrice,
     IMediator mediator, HybridCache cache, CancellationToken ct) =>
 {
     var cacheKey = $"search:{q}:{page}:{pageSize}:{category}:{minPrice}:{maxPrice}";
-
     var result = await cache.GetOrCreateAsync(
         cacheKey,
         async token => await mediator.Send(
             new SearchProductsQuery(q, page, pageSize, category, minPrice, maxPrice), token),
         cancellationToken: ct);
-
     return result.IsSuccess ? Results.Ok(result.Value) : Results.Problem(result.Error);
 })
-.WithTags("Search")
-.WithName("SearchProducts");
+.WithTags("Search").WithName("SearchProducts");
 
 // ── Cart ──────────────────────────────────────────────────────────────────────
+app.MapGet("/api/cart/{sessionId}", async (
+    string sessionId, ICartPort cart, CancellationToken ct) =>
+{
+    var items = await cart.GetItemsAsync(sessionId, ct);
+    return Results.Ok(new { sessionId, items, total = items.Sum(i => i.Subtotal) });
+})
+.WithTags("Cart").WithName("GetCart");
+
 app.MapPost("/api/cart/{sessionId}/items", async (
     string sessionId, AddToCartRequest req,
     IMediator mediator, CancellationToken ct) =>
@@ -113,8 +136,15 @@ app.MapPost("/api/cart/{sessionId}/items", async (
     var result = await mediator.Send(new AddToCartCommand(sessionId, req.Product, req.Quantity), ct);
     return result.IsSuccess ? Results.Ok(new { itemId = result.Value }) : Results.Problem(result.Error);
 })
-.WithTags("Cart")
-.WithName("AddToCart");
+.WithTags("Cart").WithName("AddToCart");
+
+app.MapDelete("/api/cart/{sessionId}/items/{itemId}", async (
+    string sessionId, string itemId, ICartPort cart, CancellationToken ct) =>
+{
+    await cart.RemoveItemAsync(sessionId, itemId, ct);
+    return Results.NoContent();
+})
+.WithTags("Cart").WithName("RemoveCartItem");
 
 // ── Checkout ──────────────────────────────────────────────────────────────────
 app.MapPost("/api/checkout/{sessionId}", async (
@@ -122,10 +152,12 @@ app.MapPost("/api/checkout/{sessionId}", async (
     IMediator mediator, CancellationToken ct) =>
 {
     var result = await mediator.Send(new CheckoutCommand(sessionId, customer), ct);
-    return result.IsSuccess ? Results.Ok(result.Value) : Results.Problem(result.Error);
+    if (!result.IsSuccess) return Results.Problem(result.Error);
+    return result.Value.Success
+        ? Results.Ok(result.Value)
+        : Results.BadRequest(new { error = result.Value.Error });
 })
-.WithTags("Checkout")
-.WithName("Checkout");
+.WithTags("Checkout").WithName("Checkout");
 
 // ── Order ─────────────────────────────────────────────────────────────────────
 app.MapGet("/api/orders/{orderId}", async (
@@ -136,8 +168,7 @@ app.MapGet("/api/orders/{orderId}", async (
         ? (result.Value is null ? Results.NotFound() : Results.Ok(result.Value))
         : Results.Problem(result.Error);
 })
-.WithTags("Order")
-.WithName("GetOrder");
+.WithTags("Order").WithName("GetOrder");
 
 app.Run();
 

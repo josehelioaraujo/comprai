@@ -6,4 +6,4 @@ public interface ICheckoutPort
 }
 
 public record CustomerDto(string Name, string Email, string Phone, string Address);
-public record CheckoutResultDto(string OrderId, string Status, string? CheckoutUrl);
+public record CheckoutResultDto(string OrderId, bool Success, string? Error);

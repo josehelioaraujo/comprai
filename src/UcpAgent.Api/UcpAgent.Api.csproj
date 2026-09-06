@@ -19,6 +19,7 @@
   <ItemGroup>
     <ProjectReference Include="..\UcpAgent.Application\UcpAgent.Application.csproj" />
     <ProjectReference Include="..\UcpAgent.SharedKernel\UcpAgent.SharedKernel.csproj" />
+    <ProjectReference Include="..\UcpAgent.Infrastructure\UcpAgent.Infrastructure.csproj" />
     <ProjectReference Include="..\plugins\UcpAgent.Catalog.MercadoLivre\UcpAgent.Catalog.MercadoLivre.csproj" />
     <ProjectReference Include="..\plugins\UcpAgent.Catalog.VtexCatalog\UcpAgent.Catalog.VtexCatalog.csproj" />
     <ProjectReference Include="..\plugins\UcpAgent.Catalog.VtexSearch\UcpAgent.Catalog.VtexSearch.csproj" />

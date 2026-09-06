@@ -8,6 +8,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UcpAgent.Domain", "src\UcpA
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UcpAgent.Application", "src\UcpAgent.Application\UcpAgent.Application.csproj", "{C3D4E5F6-A7B8-9012-CDEF-123456789003}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UcpAgent.Infrastructure", "src\UcpAgent.Infrastructure\UcpAgent.Infrastructure.csproj", "{F7A8B9C0-D1E2-3456-F012-345678901212}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UcpAgent.Api", "src\UcpAgent.Api\UcpAgent.Api.csproj", "{D4E5F6A7-B8C9-0123-DEF0-234567890004}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UcpAgent.Catalog.MercadoLivre", "src\plugins\UcpAgent.Catalog.MercadoLivre\UcpAgent.Catalog.MercadoLivre.csproj", "{E5F6A7B8-C9D0-1234-EF01-345678901005}"
@@ -36,6 +38,8 @@ Global
 		{B2C3D4E5-F6A7-8901-BCDE-F12345678902}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C3D4E5F6-A7B8-9012-CDEF-123456789003}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{C3D4E5F6-A7B8-9012-CDEF-123456789003}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F7A8B9C0-D1E2-3456-F012-345678901212}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F7A8B9C0-D1E2-3456-F012-345678901212}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D4E5F6A7-B8C9-0123-DEF0-234567890004}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{D4E5F6A7-B8C9-0123-DEF0-234567890004}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E5F6A7B8-C9D0-1234-EF01-345678901005}.Debug|Any CPU.ActiveCfg = Debug|Any CPU

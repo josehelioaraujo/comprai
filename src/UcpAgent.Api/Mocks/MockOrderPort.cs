@@ -4,17 +4,23 @@ namespace UcpAgent.Api.Mocks;
 
 public sealed class MockOrderPort : IOrderPort
 {
-    private static readonly string[] _statuses = ["Pending", "Confirmed", "Processing", "Shipped", "Delivered"];
+    private static readonly string[] Statuses =
+        ["Pending", "Confirmed", "Processing", "Shipped", "Delivered"];
 
-    public Task<OrderStatusDto?> GetStatusAsync(string orderId, CancellationToken cancellationToken = default)
+    public Task<OrderStatusDto?> GetStatusAsync(string orderId, CancellationToken ct = default)
     {
-        if (!orderId.StartsWith("MOCK-", StringComparison.OrdinalIgnoreCase))
+        if (!orderId.StartsWith("MOCK-") && !orderId.StartsWith("ORDER-"))
             return Task.FromResult<OrderStatusDto?>(null);
 
-        var status = _statuses[new Random().Next(_statuses.Length)];
-        var tracking = status is "Shipped" or "Delivered" ? $"BR{orderId.Replace("MOCK-", "")}BR" : null;
+        var status = Statuses[Random.Shared.Next(Statuses.Length)];
+        var dto = new OrderStatusDto(
+            OrderId:     orderId,
+            Status:      status,
+            Total:       0,
+            Customer:    null,
+            ItemsJson:   null,
+            CreatedAt:   DateTime.UtcNow);
 
-        return Task.FromResult<OrderStatusDto?>(
-            new OrderStatusDto(orderId, status, tracking, DateTime.UtcNow.AddHours(-2)));
+        return Task.FromResult<OrderStatusDto?>(dto);
     }
 }

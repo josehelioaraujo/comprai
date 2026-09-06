@@ -5,4 +5,11 @@ public interface IOrderPort
     Task<OrderStatusDto?> GetStatusAsync(string orderId, CancellationToken cancellationToken = default);
 }
 
-public record OrderStatusDto(string OrderId, string Status, string? TrackingCode, DateTime CreatedAt);
+public record OrderStatusDto(
+    string OrderId,
+    string Status,
+    decimal Total,
+    CustomerDto? Customer,
+    string? ItemsJson,
+    DateTime CreatedAt,
+    string? TrackingCode = null);
