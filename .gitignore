@@ -431,3 +431,5 @@ FodyWeavers.xsd
 # Claude Cowork outputs
 Claude outputs/
 aplicar-fase*.ps1
+# Scripts PowerShell locais — não subir ao repositório
+*.ps1
