@@ -6,7 +6,7 @@ services:
       dockerfile: src/UcpAgent.Api/Dockerfile
     container_name: comprai-api
     ports:
-      - '5020:5020'
+      - '5020:8080'
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       Features__UsarMockDados: 'true'
@@ -17,6 +17,7 @@ services:
       Kafka__BootstrapServers: kafka:9094
       RabbitMQ__Host:          rabbitmq
       OTEL_EXPORTER_OTLP_ENDPOINT: http://172.18.0.7:4317
+      ASPNETCORE_HTTP_PORTS: '5020'
       OTEL_SERVICE_NAME: comprai-api
       Otel__Endpoint:    http://172.18.0.7:4317
       Otel__ServiceName: comprai-api
@@ -38,11 +39,12 @@ services:
       dockerfile: src/UcpAgent.McpServer/Dockerfile
     container_name: comprai-mcp
     ports:
-      - '5030:5030'
+      - '5030:8080'
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       CompraApi__BaseUrl: http://comprai-api:5020
       OTEL_EXPORTER_OTLP_ENDPOINT: http://172.18.0.7:4317
+      ASPNETCORE_HTTP_PORTS: '5030'
       OTEL_SERVICE_NAME: comprai-mcp
       Otel__Endpoint:    http://172.18.0.7:4317
       Otel__ServiceName: comprai-mcp
