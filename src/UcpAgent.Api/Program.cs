@@ -1,4 +1,4 @@
-﻿using UcpAgent.Application.IntentRouter;
+using UcpAgent.Application.IntentRouter;
 using UcpAgent.Infrastructure.Messaging;
 using Microsoft.Extensions.Caching.Hybrid;
 using OpenTelemetry.Resources;
@@ -19,6 +19,7 @@ using UcpAgent.Infrastructure.Checkout;
 using UcpAgent.Infrastructure.Orders;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddObservabilidade(builder.Configuration);
 
 // ── MediatR ──────────────────────────────────────────────────────────────────
 builder.Services.AddMediatR(cfg =>

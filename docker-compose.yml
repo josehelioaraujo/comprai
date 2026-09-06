@@ -1,0 +1,220 @@
+﻿services:
+
+  comprai-api:
+    build:
+      context: .
+      dockerfile: src/UcpAgent.Api/Dockerfile
+    container_name: comprai-api
+    ports:
+      - '5020:5020'
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      Features__UsarMockDados: 'true'
+      Features__UsarRedis:     'false'
+      Features__UsarKafka:     'false'
+      Features__UsarRabbitMQ:  'false'
+      Redis__ConnectionString: redis:6379
+      Kafka__BootstrapServers: kafka:9094
+      RabbitMQ__Host:          rabbitmq
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: comprai-api
+      Otel__Endpoint:    http://jaeger:4317
+      Otel__ServiceName: comprai-api
+    depends_on:
+      - redis
+    networks:
+      - comprai-network
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+        tag: '{{.Name}}'
+
+  comprai-mcp:
+    build:
+      context: .
+      dockerfile: src/UcpAgent.McpServer/Dockerfile
+    container_name: comprai-mcp
+    ports:
+      - '5030:5030'
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      CompraApi__BaseUrl: http://comprai-api:5020
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: comprai-mcp
+      Otel__Endpoint:    http://jaeger:4317
+      Otel__ServiceName: comprai-mcp
+    depends_on:
+      - comprai-api
+    networks:
+      - comprai-network
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+        tag: '{{.Name}}'
+
+  redis:
+    image: redis:7-alpine
+    container_name: comprai-redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    networks:
+      - comprai-network
+    restart: unless-stopped
+
+  kafka:
+    image: apache/kafka:3.9.0
+    container_name: comprai-kafka
+    hostname: comprai-kafka
+    ports:
+      - '9094:9094'
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://comprai-kafka:9094,CONTROLLER://comprai-kafka:9095
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://comprai-kafka:9094
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@comprai-kafka:9095
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      CLUSTER_ID: Q29tcHJhaUthZmthQ2x1c3Rl
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - comprai-network
+    profiles:
+      - kafka
+    restart: unless-stopped
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: comprai-kafka-ui
+    ports:
+      - '8083:8080'
+    environment:
+      KAFKA_CLUSTERS_0_NAME: comprai
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: comprai-kafka:9094
+    depends_on:
+      - kafka
+    networks:
+      - comprai-network
+    profiles:
+      - kafka
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    container_name: comprai-rabbitmq
+    ports:
+      - '5673:5672'
+      - '15673:15672'
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - comprai-network
+    profiles:
+      - rabbitmq
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: comprai-prometheus
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - '9091:9090'
+    networks:
+      - comprai-network
+    profiles:
+      - monitoring
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: comprai-grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./observability/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./observability/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+    ports:
+      - '3001:3000'
+    depends_on:
+      - prometheus
+    networks:
+      - comprai-network
+    profiles:
+      - monitoring
+    restart: unless-stopped
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: comprai-jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - '16687:16686'
+      - '4317:4317'
+      - '4318:4318'
+    networks:
+      - comprai-network
+    profiles:
+      - monitoring
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:latest
+    container_name: comprai-loki
+    command: -config.file=/etc/loki/loki.yml
+    volumes:
+      - ./observability/loki/loki.yml:/etc/loki/loki.yml:ro
+      - loki_data:/loki
+    ports:
+      - '3101:3100'
+    networks:
+      - comprai-network
+    profiles:
+      - monitoring
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: comprai-promtail
+    command: -config.file=/etc/promtail/promtail.yml
+    volumes:
+      - ./observability/promtail/promtail.yml:/etc/promtail/promtail.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - comprai-network
+    profiles:
+      - monitoring
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  kafka_data:
+  rabbitmq_data:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+
+networks:
+  comprai-network:
+    driver: bridge
+

@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.4.0] - 2026-09-06
+
+### Added
+- **Fase 17 - Observabilidade (OpenTelemetry + Jaeger + Grafana + Loki)**
+  - Pacotes OTel adicionados em UcpAgent.Api e UcpAgent.McpServer
+  - OtelExtensions.cs com AddObservabilidade() - traces OTLP exportados para Jaeger
+  - appsettings.json com secao Otel (Endpoint + ServiceName)
+  - observability/prometheus/prometheus.yml - scrape comprai-api e comprai-mcp
+  - observability/loki/loki.yml - armazenamento de logs
+  - observability/promtail/promtail.yml - coleta logs JSON dos containers via docker.sock
+  - observability/grafana/datasources/datasources.yml - Prometheus + Loki + Jaeger
+  - observability/grafana/dashboards/dashboards.yml - provider pasta Comprai
+  - docker-compose.yml atualizado com profile monitoring (Prometheus, Grafana, Jaeger, Loki, Promtail)
+  - .env com feature flags
+
+### Endpoints VPS
+  - Jaeger    : http://2.25.122.11:16687
+  - Grafana   : http://2.25.122.11:3001
+  - Prometheus: http://2.25.122.11:9091
+
+
 Todas as alterações relevantes do projeto **Comprai** são documentadas aqui.
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/).
