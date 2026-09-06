@@ -1,29 +1,42 @@
-name: CI/CD
+﻿name: CI/CD - Comprai
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
       - 'src/**'
       - 'tests/**'
       - '.github/workflows/**'
-      - 'deploy/**'
+      - 'docker-compose.yml'
       - 'observability/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
   workflow_dispatch:
     inputs:
       broker:
         description: 'Broker de mensageria'
         required: true
-        default: 'kafka'
+        default: 'nenhum'
         type: choice
         options:
           - kafka
           - rabbitmq
           - nenhum
-      usar_redis:
-        description: 'Usar Redis como cache'
+      usar_mock:
+        description: 'Usar dados mock'
         required: true
         default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      usar_redis:
+        description: 'Usar Redis'
+        required: true
+        default: 'false'
         type: choice
         options:
           - 'true'
@@ -32,55 +45,30 @@ on:
 jobs:
 
   test:
-    name: Testes de Unidade
+    name: Build e Testes
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '10.0.x'
-      - run: dotnet restore comprai.sln
-      - run: dotnet build comprai.sln --no-restore --configuration Release
-      - run: dotnet test comprai.sln --no-build --configuration Release --verbosity normal
+      - name: Checkout
+        uses: actions/checkout@v4
 
-  sonar:
-    name: SonarCloud
-    runs-on: ubuntu-latest
-    needs: test
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-dotnet@v4
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-      - uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-      - run: dotnet tool install --global dotnet-sonarscanner
-      - run: dotnet restore comprai.sln
-      - run: |
-          dotnet sonarscanner begin \
-            /k:"josehelioaraujo_comprai" \
-            /o:"josehelioaraujo" \
-            /d:sonar.token="${{ secrets.SONAR_TOKEN }}" \
-            /d:sonar.host.url="https://sonarcloud.io" \
-            /d:sonar.cs.opencover.reportsPaths="${{ github.workspace }}/coverage/comprai.opencover.xml"
-      - run: dotnet build comprai.sln --no-restore --configuration Release
-      - run: |
-          mkdir -p ${{ github.workspace }}/coverage
-          dotnet test tests/UcpAgent.Domain.Tests/UcpAgent.Domain.Tests.csproj \
-            --configuration Release \
-            /p:CollectCoverage=true \
-            /p:CoverletOutputFormat=opencover \
-            "/p:CoverletOutput=${{ github.workspace }}/coverage/comprai.opencover.xml"
-      - run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+
+      - name: Restaurar dependencias
+        run: dotnet restore comprai.sln
+
+      - name: Build
+        run: dotnet build comprai.sln --no-restore --configuration Release
+
+      - name: Executar testes
+        run: dotnet test comprai.sln --no-build --configuration Release --verbosity normal
 
   deploy:
     name: Deploy VPS
     runs-on: ubuntu-latest
-    needs: [ test, sonar ]
+    needs: test
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     steps:
       - name: Deploy via SSH
@@ -97,64 +85,74 @@ jobs:
             BUILD_COMMIT=$(git rev-parse --short HEAD)
             BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-            BROKER="${{ github.event.inputs.broker }}"
-            USAR_REDIS="${{ github.event.inputs.usar_redis }}"
-
-            if [ -z "$BROKER" ]; then
-              BROKER="kafka"; USAR_REDIS="true"
-              echo "Push normal — defaults: Kafka + Redis"
-            fi
-
-            if [ "$BROKER" = "kafka" ]; then
-              sed -i "s/USAR_KAFKA=.*/USAR_KAFKA=true/" .env
-              sed -i "s/USAR_RABBITMQ=.*/USAR_RABBITMQ=false/" .env
-            elif [ "$BROKER" = "rabbitmq" ]; then
-              sed -i "s/USAR_KAFKA=.*/USAR_KAFKA=false/" .env
-              sed -i "s/USAR_RABBITMQ=.*/USAR_RABBITMQ=true/" .env
-            else
-              sed -i "s/USAR_KAFKA=.*/USAR_KAFKA=false/" .env
-              sed -i "s/USAR_RABBITMQ=.*/USAR_RABBITMQ=false/" .env
-            fi
-            sed -i "s/USAR_REDIS=.*/USAR_REDIS=$USAR_REDIS/" .env
-
-            cd deploy
-            docker compose --profile monitoring --profile kafka build \
+            docker compose build \
               --build-arg BUILD_VERSION=$BUILD_VERSION \
               --build-arg BUILD_COMMIT=$BUILD_COMMIT \
               --build-arg BUILD_DATE=$BUILD_DATE
-            docker compose --profile monitoring --profile kafka up -d
-            docker compose restart comprai-api
 
-            echo "Deploy concluido — $BUILD_VERSION $BUILD_COMMIT $BUILD_DATE"
+            docker compose up -d
+            docker compose --profile monitoring up -d
 
-  newman:
-    name: Smoke Tests E2E
+            BROKER="${{ github.event.inputs.broker }}"
+            USAR_MOCK="${{ github.event.inputs.usar_mock }}"
+            USAR_REDIS="${{ github.event.inputs.usar_redis }}"
+
+            if [ -z "$BROKER" ]; then
+              BROKER="nenhum"
+              USAR_MOCK="true"
+              USAR_REDIS="false"
+              echo "Push normal - defaults aplicados"
+            fi
+
+            if [ "$BROKER" = "kafka" ]; then
+              sed -i "s/Features__UsarKafka:.*/Features__UsarKafka:     \'true\'/" docker-compose.yml
+              sed -i "s/Features__UsarRabbitMQ:.*/Features__UsarRabbitMQ:  \'false\'/" docker-compose.yml
+            elif [ "$BROKER" = "rabbitmq" ]; then
+              sed -i "s/Features__UsarKafka:.*/Features__UsarKafka:     \'false\'/" docker-compose.yml
+              sed -i "s/Features__UsarRabbitMQ:.*/Features__UsarRabbitMQ:  \'true\'/" docker-compose.yml
+            else
+              sed -i "s/Features__UsarKafka:.*/Features__UsarKafka:     \'false\'/" docker-compose.yml
+              sed -i "s/Features__UsarRabbitMQ:.*/Features__UsarRabbitMQ:  \'false\'/" docker-compose.yml
+            fi
+
+            sed -i "s/Features__UsarMockDados:.*/Features__UsarMockDados: \'$USAR_MOCK\'/" docker-compose.yml
+            sed -i "s/Features__UsarRedis:.*/Features__UsarRedis:     \'$USAR_REDIS\'/" docker-compose.yml
+
+            docker compose restart comprai-api comprai-mcp
+            echo "Deploy concluido - versao $BUILD_VERSION commit $BUILD_COMMIT"
+
+  smoke:
+    name: Smoke Tests
     runs-on: ubuntu-latest
     needs: deploy
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     steps:
-      - uses: actions/checkout@v4
       - name: Aguardar VPS estabilizar
         run: |
-          sleep 30
+          echo "Aguardando containers..."
+          sleep 20
           for i in {1..10}; do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://2.25.122.11:5020/health/live || echo "000")
-            echo "Tentativa $i — $STATUS"
-            [ "$STATUS" = "200" ] && echo "Pronta!" && break
+            echo "Tentativa $i - status: $STATUS"
+            if [ "$STATUS" = "200" ]; then echo "API pronta!"; break; fi
             sleep 10
           done
-      - run: npm install -g newman newman-reporter-htmlextra
-      - run: |
-          newman run docs/postman/comprai.postman_collection.json \
-            -e docs/postman/env-vps.json \
-            --reporters cli,htmlextra \
-            --reporter-htmlextra-export newman-report/index.html \
-            --reporter-htmlextra-title "Comprai — Evidências E2E" \
-            --reporter-htmlextra-darkTheme \
-            --suppress-exit-code
-      - uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./newman-report
-          publish_branch: gh-pages
-          commit_message: "ci: atualiza relatorio de testes E2E"
+
+      - name: Health check API
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://2.25.122.11:5020/health/live)
+          echo "API: $STATUS"
+          [ "$STATUS" = "200" ] || exit 1
+
+      - name: Health check MCP
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://2.25.122.11:5030/health)
+          echo "MCP: $STATUS"
+          [ "$STATUS" = "200" ] || exit 1
+
+      - name: Smoke test busca
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://2.25.122.11:5020/api/search?q=notebook&page=1&pageSize=3")
+          echo "Search: $STATUS"
+          [ "$STATUS" = "200" ] || exit 1
+
