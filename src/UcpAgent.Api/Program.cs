@@ -1,3 +1,6 @@
+using UcpAgent.Api;
+using Scalar.AspNetCore;
+using MediatR;
 using UcpAgent.Application.IntentRouter;
 using UcpAgent.Infrastructure.Messaging;
 using Microsoft.Extensions.Caching.Hybrid;
