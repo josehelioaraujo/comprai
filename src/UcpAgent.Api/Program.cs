@@ -6,6 +6,10 @@ using UcpAgent.Application.Checkout;
 using UcpAgent.Application.Order;
 using UcpAgent.Api.Mocks;
 using UcpAgent.SharedKernel.Ports;
+using UcpAgent.Catalog.MercadoLivre;
+using UcpAgent.Catalog.VtexCatalog;
+using UcpAgent.Catalog.VtexSearch;
+using UcpAgent.Catalog.OpenFoodFacts;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,6 +43,26 @@ var usarMock = builder.Configuration.GetValue<bool>("Features:UsarMockDados");
 if (usarMock)
 {
     builder.Services.AddSingleton<IProductCatalogPort, MockCatalogPlugin>();
+    builder.Services.AddSingleton<ICartPort, InMemoryCartPort>();
+    builder.Services.AddSingleton<ICheckoutPort, MockCheckoutPort>();
+    builder.Services.AddSingleton<IOrderPort, MockOrderPort>();
+}
+else
+{
+    // Plugins de catálogo reais — cada um com seu HttpClient isolado
+    builder.Services.AddHttpClient<MercadoLivrePlugin>();
+    builder.Services.AddSingleton<IProductCatalogPort, MercadoLivrePlugin>();
+
+    builder.Services.AddHttpClient<VtexCatalogPlugin>();
+    builder.Services.AddSingleton<IProductCatalogPort, VtexCatalogPlugin>();
+
+    builder.Services.AddHttpClient<VtexSearchPlugin>();
+    builder.Services.AddSingleton<IProductCatalogPort, VtexSearchPlugin>();
+
+    builder.Services.AddHttpClient<OpenFoodFactsPlugin>();
+    builder.Services.AddSingleton<IProductCatalogPort, OpenFoodFactsPlugin>();
+
+    // Cart / Checkout / Order — InMemory até Fase 7+
     builder.Services.AddSingleton<ICartPort, InMemoryCartPort>();
     builder.Services.AddSingleton<ICheckoutPort, MockCheckoutPort>();
     builder.Services.AddSingleton<IOrderPort, MockOrderPort>();

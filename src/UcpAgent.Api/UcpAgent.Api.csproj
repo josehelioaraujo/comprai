@@ -12,11 +12,16 @@
     <PackageReference Include="StackExchange.Redis" Version="2.*" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.*" />
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.*" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.*" />
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.*" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.*" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\UcpAgent.Application\UcpAgent.Application.csproj" />
     <ProjectReference Include="..\UcpAgent.SharedKernel\UcpAgent.SharedKernel.csproj" />
+    <ProjectReference Include="..\plugins\UcpAgent.Catalog.MercadoLivre\UcpAgent.Catalog.MercadoLivre.csproj" />
+    <ProjectReference Include="..\plugins\UcpAgent.Catalog.VtexCatalog\UcpAgent.Catalog.VtexCatalog.csproj" />
+    <ProjectReference Include="..\plugins\UcpAgent.Catalog.VtexSearch\UcpAgent.Catalog.VtexSearch.csproj" />
+    <ProjectReference Include="..\plugins\UcpAgent.Catalog.OpenFoodFacts\UcpAgent.Catalog.OpenFoodFacts.csproj" />
   </ItemGroup>
 </Project>
