@@ -57,7 +57,7 @@ public sealed class RedisCartAdapter(IConnectionMultiplexer redis) : ICartPort
     {
         var json = await Db.StringGetAsync(key);
         if (json.IsNullOrEmpty) return [];
-        return JsonSerializer.Deserialize<List<CartItemDto>>(json!, JsonOpts) ?? [];
+        return JsonSerializer.Deserialize<List<CartItemDto>>((string)json!, JsonOpts) ?? [];
     }
 
     private async Task SaveAsync(string key, List<CartItemDto> items)

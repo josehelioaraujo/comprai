@@ -17,7 +17,7 @@ public sealed class RedisOrderAdapter(IConnectionMultiplexer redis) : IOrderPort
     {
         var json = await Db.StringGetAsync(Key(orderId));
         if (json.IsNullOrEmpty) return null;
-        return JsonSerializer.Deserialize<OrderStatusDto>(json!, JsonOpts);
+        return JsonSerializer.Deserialize<OrderStatusDto>((string)json!, JsonOpts);
     }
 
     public async Task SaveAsync(OrderStatusDto order)
