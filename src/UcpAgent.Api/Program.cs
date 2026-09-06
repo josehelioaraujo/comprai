@@ -120,6 +120,14 @@ else
 }
 
 builder.Services.AddSingleton<IIntentRouterService, IntentRouterService>();
+
+//  MercadoLivre OAuth + Orders 
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient("MlAuth");
+builder.Services.AddHttpClient("MlApi");
+builder.Services.AddSingleton<UcpAgent.Catalog.MercadoLivreOrders.MlTokenService>();
+builder.Services.AddSingleton<UcpAgent.Catalog.MercadoLivreOrders.MlOrdersService>();
+builder.Services.AddSingleton<UcpAgent.Catalog.MercadoLivreOrders.MlWebhookService>();
 var app = builder.Build();
 
 app.MapOpenApi();
@@ -198,6 +206,39 @@ app.MapGet("/api/orders/{orderId}", async (
 })
 .WithTags("Order").WithName("GetOrder");
 
+
+//  ML Auth 
+app.MapGet("/api/ml/auth", (UcpAgent.Catalog.MercadoLivreOrders.MlTokenService ml) =>
+    Results.Redirect(ml.GetAuthorizationUrl()))
+   .WithTags("MercadoLivre");
+
+app.MapGet("/callback", async (string code, UcpAgent.Catalog.MercadoLivreOrders.MlTokenService ml, CancellationToken ct) => {
+    var token = await ml.ExchangeCodeAsync(code, ct);
+    return Results.Ok(new { message = "Autenticado com sucesso!", userId = token.UserId });
+}).WithTags("MercadoLivre");
+
+//  ML Orders 
+app.MapGet("/api/ml/orders", async (
+    string? status, int limit, int offset,
+    UcpAgent.Catalog.MercadoLivreOrders.MlOrdersService orders, CancellationToken ct) => {
+    var result = await orders.GetOrdersAsync(status, limit == 0 ? 20 : limit, offset, ct);
+    return Results.Ok(new { data = result, total = result.Count });
+}).WithTags("MercadoLivre");
+
+app.MapGet("/api/ml/orders/{orderId}", async (
+    string orderId,
+    UcpAgent.Catalog.MercadoLivreOrders.MlOrdersService orders, CancellationToken ct) => {
+    var order = await orders.GetOrderAsync(orderId, ct);
+    return order is null ? Results.NotFound() : Results.Ok(order);
+}).WithTags("MercadoLivre");
+
+//  ML Webhook 
+app.MapPost("/webhook/ml", async (
+    UcpAgent.Catalog.MercadoLivreOrders.MlWebhookPayload payload,
+    UcpAgent.Catalog.MercadoLivreOrders.MlWebhookService webhook, CancellationToken ct) => {
+    var result = await webhook.ProcessAsync(payload, ct);
+    return Results.Ok(result);
+}).WithTags("MercadoLivre");
 app.Run();
 
 // ── Request DTOs ──────────────────────────────────────────────────────────────

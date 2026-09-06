@@ -31,4 +31,8 @@
     <ProjectReference Include="..\plugins\UcpAgent.Catalog.OpenFoodFacts\UcpAgent.Catalog.OpenFoodFacts.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\plugins\UcpAgent.Catalog.MercadoLivreOrders\UcpAgent.Catalog.MercadoLivreOrders.csproj" />
+  </ItemGroup>
+
 </Project>

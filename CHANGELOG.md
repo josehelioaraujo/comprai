@@ -1,17 +1,5 @@
 # Changelog
 
-## [1.5.0] - 2026-09-06
-
-### Added
-- **Fase 18 - CI/CD (GitHub Actions + Deploy automatico na VPS)**
-  - Workflow .github/workflows/ci-cd.yml com 3 jobs: Build e Testes, Deploy VPS, Smoke Tests
-  - Deploy automatico via SSH (appleboy/ssh-action@v1.2.0) para root@2.25.122.11
-  - Build com BUILD_VERSION, BUILD_COMMIT e BUILD_DATE injetados via build-arg
-  - Feature flags configuradas via workflow_dispatch: broker, usar_mock, usar_redis
-  - Smoke test de busca condicional - roda apenas quando usar_mock=false (modo real)
-  - paths-ignore para .md, .txt, docs/ e CHANGELOG.md - push de docs nao dispara pipeline
-  - Secret VPS_HOSTINGER_SSH_KEY configurado no repositorio comprai
-
 ## [1.4.0] - 2026-09-06
 
 ### Added
