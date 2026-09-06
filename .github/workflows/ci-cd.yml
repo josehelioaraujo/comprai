@@ -41,6 +41,14 @@ on:
         options:
           - 'true'
           - 'false'
+      force_rebuild:
+        description: 'Forcar rebuild das imagens Docker'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
 
 jobs:
 
@@ -71,6 +79,12 @@ jobs:
     needs: test
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     steps:
+      - name: Verificar se Dockerfile mudou
+        id: dockerfile_changed
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -85,10 +99,16 @@ jobs:
             BUILD_COMMIT=$(git rev-parse --short HEAD)
             BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-            docker compose build \
-              --build-arg BUILD_VERSION=$BUILD_VERSION \
-              --build-arg BUILD_COMMIT=$BUILD_COMMIT \
-              --build-arg BUILD_DATE=$BUILD_DATE
+            # Verifica se Dockerfile ou csproj mudaram (rebuild necessario)
+            CHANGED=$(git diff HEAD~1 --name-only 2>/dev/null | grep -E "Dockerfile|\.csproj|Program\.cs" || true)
+            FORCE="${{ github.event.inputs.force_rebuild }}"
+
+            if [ -n "$CHANGED" ] || [ "$FORCE" = "true" ]; then
+              echo "Mudancas detectadas ou rebuild forcado  rebuilding..."
+              docker compose build                 --build-arg BUILD_VERSION=$BUILD_VERSION                 --build-arg BUILD_COMMIT=$BUILD_COMMIT                 --build-arg BUILD_DATE=$BUILD_DATE
+            else
+              echo "Sem mudancas em Dockerfile/csproj  pulando rebuild"
+            fi
 
             docker compose up -d
             docker compose --profile monitoring up -d
@@ -101,7 +121,6 @@ jobs:
               BROKER="nenhum"
               USAR_MOCK="true"
               USAR_REDIS="false"
-              echo "Push normal - defaults aplicados"
             fi
 
             if [ "$BROKER" = "kafka" ]; then
@@ -118,7 +137,6 @@ jobs:
             sed -i "s/Features__UsarMockDados:.*/Features__UsarMockDados: \'$USAR_MOCK\'/" docker-compose.yml
             sed -i "s/Features__UsarRedis:.*/Features__UsarRedis:     \'$USAR_REDIS\'/" docker-compose.yml
 
-            docker compose restart comprai-api comprai-mcp
             echo "Deploy concluido - versao $BUILD_VERSION commit $BUILD_COMMIT"
 
   smoke:
@@ -129,9 +147,8 @@ jobs:
     steps:
       - name: Aguardar VPS estabilizar
         run: |
-          echo "Aguardando containers..."
-          sleep 20
-          for i in {1..10}; do
+          echo "Aguardando API..."
+          for i in {1..15}; do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://2.25.122.11:5020/health/live || echo "000")
             echo "Tentativa $i - status: $STATUS"
             if [ "$STATUS" = "200" ]; then echo "API pronta!"; break; fi
@@ -153,7 +170,6 @@ jobs:
       - name: Smoke test busca (apenas modo real)
         if: github.event.inputs.usar_mock == 'false'
         run: |
-          echo "Modo real ativo - testando busca..."
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://2.25.122.11:5020/api/search?q=notebook&page=1&pageSize=3")
           echo "Search: $STATUS"
           [ "$STATUS" = "200" ] || exit 1
