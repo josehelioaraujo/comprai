@@ -9,6 +9,7 @@ services:
       - '5020:5020'
     environment:
       ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: 'http://+:5020'
       Features__UsarMockDados: 'true'
       Features__UsarRedis:     'false'
       Features__UsarKafka:     'false'
@@ -17,7 +18,6 @@ services:
       Kafka__BootstrapServers: kafka:9094
       RabbitMQ__Host:          rabbitmq
       OTEL_EXPORTER_OTLP_ENDPOINT: http://comprai-jaeger:4317
-      ASPNETCORE_URLS: 'http://+:5020'
       OTEL_SERVICE_NAME: comprai-api
       Otel__Endpoint:    http://comprai-jaeger:4317
       Otel__ServiceName: comprai-api
@@ -42,9 +42,9 @@ services:
       - '5030:5030'
     environment:
       ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: 'http://+:5030'
       CompraApi__BaseUrl: http://comprai-api:5020
       OTEL_EXPORTER_OTLP_ENDPOINT: http://comprai-jaeger:4317
-      ASPNETCORE_URLS: 'http://+:5030'
       OTEL_SERVICE_NAME: comprai-mcp
       Otel__Endpoint:    http://comprai-jaeger:4317
       Otel__ServiceName: comprai-mcp
@@ -129,6 +129,21 @@ services:
       - rabbitmq
     restart: unless-stopped
 
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: comprai-jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - '16687:16686'
+      - '4319:4317'
+      - '4320:4318'
+    networks:
+      - comprai-network
+    profiles:
+      - monitoring
+    restart: unless-stopped
+
   prometheus:
     image: prom/prometheus:latest
     container_name: comprai-prometheus
@@ -164,35 +179,6 @@ services:
       - monitoring
     restart: unless-stopped
 
-  jaeger:
-    image: jaegertracing/all-in-one:latest
-    container_name: comprai-jaeger
-    environment:
-      - COLLECTOR_OTLP_ENABLED=true
-    ports:
-      - '16687:16686'
-      - '4317:4317'
-      - '4318:4318'
-    networks:
-      - comprai-network
-    profiles:
-      - monitoring
-    restart: unless-stopped
-
-  comprai-jaeger:
-    image: jaegertracing/all-in-one:latest
-    container_name: comprai-jaeger
-    environment:
-      - COLLECTOR_OTLP_ENABLED=true
-    ports:
-      - '16687:16686'
-      - '4319:4317'
-      - '4320:4318'
-    networks:
-      - comprai-network
-    profiles:
-      - monitoring
-    restart: unless-stopped
   loki:
     image: grafana/loki:latest
     container_name: comprai-loki
@@ -233,4 +219,3 @@ volumes:
 networks:
   comprai-network:
     driver: bridge
-
