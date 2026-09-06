@@ -9,8 +9,10 @@
     <PackageReference Include="Confluent.Kafka" Version="2.6.3" />
     <PackageReference Include="RabbitMQ.Client" Version="6.8.1" />
     <PackageReference Include="StackExchange.Redis" Version="2.*" />
+    <ProjectReference Include="..\UcpAgent.Domain\UcpAgent.Domain.csproj" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\UcpAgent.SharedKernel\UcpAgent.SharedKernel.csproj" />
+    <ProjectReference Include="..\UcpAgent.Domain\UcpAgent.Domain.csproj" />
   </ItemGroup>
 </Project>
