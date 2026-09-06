@@ -1,4 +1,4 @@
-﻿name: CI/CD - Comprai
+﻿name: CI/CD
 
 on:
   push:
@@ -9,11 +9,21 @@ on:
       - '.github/workflows/**'
       - 'docker-compose.yml'
       - 'observability/**'
+    paths-ignore:
+      - '**.md'
+      - '**.txt'
+      - 'docs/**'
+      - 'CHANGELOG.md'
+      - 'LICENSE'
   pull_request:
     branches: [main]
     paths:
       - 'src/**'
       - 'tests/**'
+    paths-ignore:
+      - '**.md'
+      - '**.txt'
+      - 'docs/**'
   workflow_dispatch:
     inputs:
       broker:
@@ -70,11 +80,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: test
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-    outputs:
-      usar_mock: ${{ steps.flags.outputs.usar_mock }}
     steps:
       - name: Deploy via SSH
-        id: flags
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: 2.25.122.11
