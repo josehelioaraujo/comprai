@@ -1,6 +1,7 @@
 using System.Text.Json;
 using UcpAgent.SharedKernel.Events;
 using UcpAgent.SharedKernel.Ports;
+using UcpAgent.Infrastructure.Orders;
 
 namespace UcpAgent.Infrastructure.Checkout;
 
