@@ -1,4 +1,4 @@
-﻿using UcpAgent.Infrastructure.Messaging;
+using UcpAgent.Infrastructure.Messaging;
 using Microsoft.Extensions.Caching.Hybrid;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -51,8 +51,10 @@ builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks();
 
 // ── Ports / Adapters ──────────────────────────────────────────────────────────
-var usarMock  = builder.Configuration.GetValue<bool>("Features:UsarMockDados");
-var usarRedis = builder.Configuration.GetValue<bool>("Features:UsarRedis");
+var usarMock    = builder.Configuration.GetValue<bool>("Features:UsarMockDados");
+var usarRedis   = builder.Configuration.GetValue<bool>("Features:UsarRedis");
+var usarKafka   = builder.Configuration.GetValue<bool>("Features:UsarKafka");
+var usarRabbitMq = builder.Configuration.GetValue<bool>("Features:UsarRabbitMQ");
 
 if (usarMock)
 {
@@ -93,17 +95,25 @@ else
     }
 }
 
-
-// IEventPublisher
-if (features.GetValue<bool>("UsarKafka"))
+// ── IEventPublisher ───────────────────────────────────────────────────────────
+if (usarKafka)
 {
     var bootstrapServers = builder.Configuration["Kafka:BootstrapServers"] ?? "localhost:9092";
     builder.Services.AddSingleton<IEventPublisher>(_ => new KafkaEventPublisher(bootstrapServers));
+}
+else if (usarRabbitMq)
+{
+    var host     = builder.Configuration["RabbitMq:Host"]     ?? "localhost";
+    var user     = builder.Configuration["RabbitMq:UserName"] ?? "guest";
+    var password = builder.Configuration["RabbitMq:Password"] ?? "guest";
+    builder.Services.AddSingleton<IEventPublisher>(_ =>
+        new RabbitMqEventPublisher(host, user, password));
 }
 else
 {
     builder.Services.AddSingleton<IEventPublisher, NullEventPublisher>();
 }
+
 var app = builder.Build();
 
 app.MapOpenApi();
@@ -186,4 +196,3 @@ app.Run();
 
 // ── Request DTOs ──────────────────────────────────────────────────────────────
 record AddToCartRequest(UcpAgent.SharedKernel.Models.ProductDto Product, int Quantity = 1);
-

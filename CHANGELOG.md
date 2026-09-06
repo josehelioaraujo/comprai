@@ -1,32 +1,3 @@
-﻿## [1.0.0] - 2026-09-06
-
-### Added
-- **Phase 10 - Kafka Messaging**: porta IEventPublisher no SharedKernel
-- KafkaEventPublisher com Confluent.Kafka (Acks=Leader, timeout 5s)
-- NullEventPublisher para ambientes sem Kafka (UsarKafka=false)
-- Evento OrderCreatedEvent publicado no topico order.created apos checkout
-- Evento SearchQueryLoggedEvent publicado no topico search.query.logged apos busca
-- Feature flag UsarKafka + config Kafka:BootstrapServers no appsettings
-
-## [1.0.0] - 2026-09-06
-
-### Added
-- **Phase 10 - Kafka Messaging**: porta IEventPublisher no SharedKernel
-- KafkaEventPublisher com Confluent.Kafka (Acks=Leader, timeout 5s)
-- NullEventPublisher para ambientes sem Kafka (UsarKafka=false)
-- Evento OrderCreatedEvent publicado no topico order.created apos checkout
-- Evento SearchQueryLoggedEvent publicado no topico search.query.logged apos busca
-- Feature flag UsarKafka + config Kafka:BootstrapServers no appsettings
-
-## [1.0.0] - 2026-09-06
-
-### Added
-- **Phase 10  Kafka Messaging**: porta IEventPublisher no SharedKernel
-- KafkaEventPublisher usando Confluent.Kafka (Acks=Leader, timeout 5s)
-- NullEventPublisher para ambientes sem Kafka (UsarKafka=false)
-- Evento OrderCreatedEvent publicado no tópico order.created após checkout
-- Evento SearchQueryLoggedEvent publicado no tópico search.query.logged após busca
-- Feature flag UsarKafka + configuração Kafka:BootstrapServers no appsettings
 # Changelog
 
 Todas as alterações relevantes do projeto **Comprai** são documentadas aqui.
@@ -39,6 +10,15 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 ## [Unreleased]
 
 ### Planejado
+- Fase 1: Domain + SharedKernel
+- Fase 2: Plugin Mercado Livre
+- Fase 3: Plugin VTEX Catalog
+- Fase 4: Plugin VTEX Intelligent Search
+- Fase 5: Plugin Open Food Facts
+- Fase 6: Feature Search
+- Fase 7: Feature Cart
+- Fase 8: Feature Checkout
+- Fase 9: Feature Order
 - Fase 10: Mensageria Kafka
 - Fase 11: Mensageria RabbitMQ
 - Fase 12: Intent Router (linguagem natural)
@@ -53,78 +33,16 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ---
 
-## [0.9.0] — Fases 8-9: Checkout e Order com Redis
-
-### Adicionado
-- **RedisCheckoutAdapter**: valida carrinho não vazio, gera `ORDER-XXXXXXXX`, persiste pedido em Redis (TTL 30 dias), limpa carrinho após checkout
-- **RedisOrderAdapter**: persiste e recupera `OrderStatusDto` em Redis (`order:{orderId}`), TTL 30 dias, método `SaveAsync` interno
-- **UcpAgent.Infrastructure**: novo projeto com `Cart/`, `Checkout/` e `Orders/` — camada de adapters reais sem dependência do Domain
-- `OrderStatusDto` atualizado: campos `Total`, `Customer`, `ItemsJson` adicionados
-- `CheckoutResultDto` atualizado: `bool Success` + `string? Error` no lugar de `Status`/`CheckoutUrl`
-- Endpoints adicionais: `GET /api/cart/{sessionId}` e `DELETE /api/cart/{sessionId}/items/{itemId}`
-- Registro condicional: Redis habilitado (`Features:UsarRedis=true`) usa adapters reais; senão usa InMemory/Mock
-
----
-
-## [0.7.0] — Fase 7: Feature Cart com Redis
-
-### Adicionado
-- **RedisCartAdapter**: carrinho persistido em Redis, TTL 72h renovado a cada operação, merge automático de itens duplicados (mesmo `Id+Source`), thread-safe via operações atômicas Redis
-- `IConnectionMultiplexer` registrado via `ConnectionMultiplexer.Connect()` no DI
-- Registro condicional: `UsarRedis=true` usa `RedisCartAdapter`; senão mantém `InMemoryCartPort`
-
----
-
-## [0.6.0] — Fase 6: Feature Search agregada
-
-### Adicionado
-- `SearchProductsHandler` refatorado: fan-out paralelo com tratamento de falhas individuais por plugin, deduplicação por `Source:Id`, ranking (disponíveis primeiro → menor preço)
-- Cache `HybridCache` no endpoint `/api/search`: TTL 5 min (distribuído) + 1 min (local L1), chave baseada em todos os parâmetros da busca
-- `SearchProductsQuery` retorna `Result<SearchResult>` único agregado (antes retornava lista por source)
-
----
-
-## [0.5.0] — Fases 3-5: Plugins VTEX e Open Food Facts
-
-### Adicionado
-- **VtexCatalogPlugin**: busca via `catalog_system/pub/products/search`, filtro de preço, mapeamento de SKUs e imagens
-- **VtexSearchPlugin**: busca via VTEX Intelligent Search `/_v/api/intelligent-search/product_search`, suporte a categoria e paginação
-- **OpenFoodFactsPlugin**: busca via `world.openfoodfacts.org`, produtos alimentícios com imagem e categoria
-- Configuração `VtexCatalog:AccountName` e `VtexSearch:AccountName` em `appsettings.json`
-- Registro automático de todos os plugins com `HttpClient` isolado por plugin
-
----
-
-## [0.4.0] — Fase 2: Plugin Mercado Livre
-
-### Adicionado
-- **MercadoLivrePlugin**: busca via API pública MLB (`/sites/MLB/search`), filtro de categoria e faixa de preço, paginação por offset
-- `MercadoLivreResponse` — DTOs internos para deserialização
-- Pacote `OpenTelemetry.Instrumentation.Http` para rastreamento de chamadas HTTP
-
----
-
-## [0.2.0] — Fase 1: Domain + SharedKernel + API Bootstrap
-
-### Adicionado
-- **SharedKernel**: `Result<T>`, ports, models, `CatalogPluginAttribute`
-- **Domain**: entidades `Product`, `Cart`, `CartItem`, `Order`, `OrderItem`, enum `OrderStatus`
-- **Application**: handlers MediatR para search, cart, checkout, order
-- **Api**: Minimal API, endpoints principais, HybridCache+Redis, OpenTelemetry, OpenAPI+Scalar
-- **Mocks**: `MockCatalogPlugin`, `InMemoryCartPort`, `MockCheckoutPort`, `MockOrderPort`
-- **Feature flag** `Features:UsarMockDados`
-- **Testes**: `CartTests` — 5 testes unitários xunit
-
----
-
 ## [0.1.0] — Infraestrutura Base
 
 ### Adicionado
 - Estrutura de solução `comprai.sln` com projetos separados por responsabilidade
 - `docker-compose.yml` com perfis: `monitoring`, `kafka`, `rabbitmq`, `tools`
-- `.github/workflows/ci-cd.yml`: test → sonar → deploy SSH → newman
+- `.github/workflows/ci-cd.yml` com pipeline: test → sonar → deploy SSH → newman
 - Redis como cache principal (HybridCache .NET 10)
-- Integração SonarCloud, smoke tests Newman, deploy SSH Hostinger
+- Integração com SonarCloud para análise de qualidade
+- Smoke tests E2E via Newman com relatório publicado no GitHub Pages
+- Deploy automatizado via SSH na VPS Hostinger
 
 ### Portas configuradas
 | Serviço         | Porta  |
@@ -143,12 +61,5 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 ---
 
 <!-- Links de comparação -->
-[Unreleased]: https://github.com/josehelioaraujo/comprai/compare/v0.9.0...HEAD
-[0.9.0]: https://github.com/josehelioaraujo/comprai/compare/v0.7.0...v0.9.0
-[0.7.0]: https://github.com/josehelioaraujo/comprai/compare/v0.6.0...v0.7.0
-[0.6.0]: https://github.com/josehelioaraujo/comprai/compare/v0.5.0...v0.6.0
-[0.5.0]: https://github.com/josehelioaraujo/comprai/compare/v0.4.0...v0.5.0
-[0.4.0]: https://github.com/josehelioaraujo/comprai/compare/v0.2.0...v0.4.0
-[0.2.0]: https://github.com/josehelioaraujo/comprai/compare/v0.1.0...v0.2.0
+[Unreleased]: https://github.com/josehelioaraujo/comprai/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/josehelioaraujo/comprai/releases/tag/v0.1.0
-
