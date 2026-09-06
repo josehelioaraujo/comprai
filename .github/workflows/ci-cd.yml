@@ -70,8 +70,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: test
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    outputs:
+      usar_mock: ${{ steps.flags.outputs.usar_mock }}
     steps:
       - name: Deploy via SSH
+        id: flags
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: 2.25.122.11
@@ -150,9 +153,19 @@ jobs:
           echo "MCP: $STATUS"
           [ "$STATUS" = "200" ] || exit 1
 
-      - name: Smoke test busca
+      - name: Smoke test busca (apenas modo real)
+        if: github.event.inputs.usar_mock == 'false'
         run: |
+          echo "Modo real ativo - testando busca..."
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://2.25.122.11:5020/api/search?q=notebook&page=1&pageSize=3")
           echo "Search: $STATUS"
           [ "$STATUS" = "200" ] || exit 1
+
+      - name: Resumo
+        run: |
+          echo "Smoke tests concluidos!"
+          echo "API    : http://2.25.122.11:5020"
+          echo "MCP    : http://2.25.122.11:5030"
+          echo "Jaeger : http://2.25.122.11:16687"
+          echo "Grafana: http://2.25.122.11:3001"
 
