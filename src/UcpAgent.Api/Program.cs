@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Caching.Hybrid;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using UcpAgent.Application.Search;
@@ -21,7 +22,14 @@ builder.Services.AddMediatR(cfg =>
 builder.Services.AddStackExchangeRedisCache(opt =>
     opt.Configuration = builder.Configuration["Redis:ConnectionString"]);
 
-builder.Services.AddHybridCache();
+builder.Services.AddHybridCache(opt =>
+{
+    opt.DefaultEntryOptions = new HybridCacheEntryOptions
+    {
+        Expiration         = TimeSpan.FromMinutes(5),
+        LocalCacheExpiration = TimeSpan.FromMinutes(1)
+    };
+});
 
 // ── OpenTelemetry ─────────────────────────────────────────────────────────────
 builder.Services.AddOpenTelemetry()
@@ -49,7 +57,6 @@ if (usarMock)
 }
 else
 {
-    // Plugins de catálogo reais — cada um com seu HttpClient isolado
     builder.Services.AddHttpClient<MercadoLivrePlugin>();
     builder.Services.AddSingleton<IProductCatalogPort, MercadoLivrePlugin>();
 
@@ -62,7 +69,6 @@ else
     builder.Services.AddHttpClient<OpenFoodFactsPlugin>();
     builder.Services.AddSingleton<IProductCatalogPort, OpenFoodFactsPlugin>();
 
-    // Cart / Checkout / Order — InMemory até Fase 7+
     builder.Services.AddSingleton<ICartPort, InMemoryCartPort>();
     builder.Services.AddSingleton<ICheckoutPort, MockCheckoutPort>();
     builder.Services.AddSingleton<IOrderPort, MockOrderPort>();
@@ -80,14 +86,19 @@ app.MapGet("/health/live", () => Results.Ok(new { status = "alive" }))
 app.MapGet("/health/ready", () => Results.Ok(new { status = "ready" }))
    .WithTags("Health");
 
-// ── Search ────────────────────────────────────────────────────────────────────
+// ── Search (com cache HybridCache 5 min) ─────────────────────────────────────
 app.MapGet("/api/search", async (
     string q, int page, int pageSize,
     string? category, decimal? minPrice, decimal? maxPrice,
-    IMediator mediator, CancellationToken ct) =>
+    IMediator mediator, HybridCache cache, CancellationToken ct) =>
 {
-    var result = await mediator.Send(
-        new SearchProductsQuery(q, page, pageSize, category, minPrice, maxPrice), ct);
+    var cacheKey = $"search:{q}:{page}:{pageSize}:{category}:{minPrice}:{maxPrice}";
+
+    var result = await cache.GetOrCreateAsync(
+        cacheKey,
+        async token => await mediator.Send(
+            new SearchProductsQuery(q, page, pageSize, category, minPrice, maxPrice), token),
+        cancellationToken: ct);
 
     return result.IsSuccess ? Results.Ok(result.Value) : Results.Problem(result.Error);
 })

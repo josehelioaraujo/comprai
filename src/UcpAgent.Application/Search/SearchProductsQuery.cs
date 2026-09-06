@@ -11,4 +11,4 @@ public record SearchProductsQuery(
     string? Category = null,
     decimal? MinPrice = null,
     decimal? MaxPrice = null
-) : IRequest<Result<IReadOnlyList<SearchResult>>>;
+) : IRequest<Result<SearchResult>>;

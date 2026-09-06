@@ -6,18 +6,36 @@ using UcpAgent.SharedKernel.Ports;
 namespace UcpAgent.Application.Search;
 
 public sealed class SearchProductsHandler(IEnumerable<IProductCatalogPort> catalogs)
-    : IRequestHandler<SearchProductsQuery, Result<IReadOnlyList<SearchResult>>>
+    : IRequestHandler<SearchProductsQuery, Result<SearchResult>>
 {
-    public async Task<Result<IReadOnlyList<SearchResult>>> Handle(
+    public async Task<Result<SearchResult>> Handle(
         SearchProductsQuery request, CancellationToken cancellationToken)
     {
         var searchRequest = new SearchRequest(
             request.Query, request.Page, request.PageSize,
             request.Category, request.MinPrice, request.MaxPrice);
 
-        var tasks = catalogs.Select(c => c.SearchAsync(searchRequest, cancellationToken));
+        // Fan-out paralelo — falhas individuais não derrubam a busca
+        var tasks = catalogs.Select(async c =>
+        {
+            try   { return await c.SearchAsync(searchRequest, cancellationToken); }
+            catch { return new SearchResult([], 0, request.Page, request.PageSize, c.SourceName); }
+        });
+
         var results = await Task.WhenAll(tasks);
 
-        return Result<IReadOnlyList<SearchResult>>.Ok(results);
+        // Agrega, deduplica por (Id+Source) e rankeia
+        var seen  = new HashSet<string>();
+        var items = results
+            .SelectMany(r => r.Items)
+            .Where(p => seen.Add($"{p.Source}:{p.Id}"))   // deduplicação
+            .OrderByDescending(p => p.AvailableQuantity > 0) // disponíveis primeiro
+            .ThenBy(p => p.Price)                            // menor preço
+            .ToList();
+
+        var total = results.Sum(r => r.TotalItems);
+
+        return Result<SearchResult>.Ok(
+            new SearchResult(items, total, request.Page, request.PageSize, "aggregated"));
     }
 }
