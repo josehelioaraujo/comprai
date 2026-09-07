@@ -1,4 +1,4 @@
-﻿using UcpAgent.SharedKernel;
+using UcpAgent.SharedKernel;
 using UcpAgent.SharedKernel.Ports;
 
 namespace UcpAgent.Application.Orders;

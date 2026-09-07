@@ -1,15 +1,7 @@
-namespace UcpAgent.SharedKernel.Ports;
+﻿namespace UcpAgent.SharedKernel.Ports;
 
 public interface IOrderPort
 {
     Task<OrderStatusDto?> GetStatusAsync(string orderId, CancellationToken cancellationToken = default);
+    Task<string?> GetOrderIdBySessionAsync(string sessionId, CancellationToken ct = default);
 }
-
-public record OrderStatusDto(
-    string OrderId,
-    string Status,
-    decimal Total,
-    CustomerDto? Customer,
-    string? ItemsJson,
-    DateTime CreatedAt,
-    string? TrackingCode = null);

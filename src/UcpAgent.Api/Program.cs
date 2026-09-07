@@ -1,4 +1,5 @@
-﻿using UcpAgent.Api.Endpoints;
+﻿using UcpAgent.Application.Orders;
+using UcpAgent.Api.Endpoints;
 using UcpAgent.Api;
 using Scalar.AspNetCore;
 using MediatR;
@@ -129,6 +130,10 @@ builder.Services.AddHttpClient("MlApi");
 builder.Services.AddSingleton<UcpAgent.Catalog.MercadoLivreOrders.MlTokenService>();
 builder.Services.AddSingleton<UcpAgent.Catalog.MercadoLivreOrders.MlOrdersService>();
 builder.Services.AddSingleton<UcpAgent.Catalog.MercadoLivreOrders.MlWebhookService>();
+builder.Services.AddScoped<ISearchService, SearchService>();
+builder.Services.AddScoped<ICartService, CartService>();
+builder.Services.AddScoped<ICheckoutService, CheckoutService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
 var app = builder.Build();
 
 app.MapOpenApi();
@@ -252,3 +257,6 @@ record AddToCartRequest(UcpAgent.SharedKernel.Models.ProductDto Product, int Qua
 
 
 
+
+
+public partial class Program { }

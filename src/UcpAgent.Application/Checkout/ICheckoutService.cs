@@ -1,8 +1,9 @@
 ﻿using UcpAgent.SharedKernel;
+using UcpAgent.SharedKernel.Ports;
 
 namespace UcpAgent.Application.Checkout;
 
 public interface ICheckoutService
 {
-    Task<Result<object>> CheckoutAsync(string sessionId, CancellationToken ct = default);
+    Task<Result<CheckoutResultDto>> CheckoutAsync(string sessionId, CustomerDto customer, CancellationToken ct = default);
 }
