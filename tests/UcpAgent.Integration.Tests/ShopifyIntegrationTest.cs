@@ -59,9 +59,8 @@ public class ShopifyIntegrationTest : IClassFixture<CompraApiFactory>
             .Where(p => string.Equals(p.Source, "shopify", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        // Plugin REST não suporta busca por texto — retorna vazio.
-        // Skip até migração GraphQL (install-shopify-graphql.ps1).
-        Skip.If(shopifyItems.Count == 0, "Plugin REST retornou 0 itens Shopify — aguardando GraphQL.");
+        Assert.True(shopifyItems.Count > 0,
+            "Plugin GraphQL deve retornar ao menos 1 item Shopify para 'snowboard'");
 
         foreach (var item in shopifyItems)
         {
@@ -87,10 +86,8 @@ public class ShopifyIntegrationTest : IClassFixture<CompraApiFactory>
         var temShopify = result!.Items
             .Any(p => string.Equals(p.Source, "shopify", StringComparison.OrdinalIgnoreCase));
 
-        // Plugin REST retorna vazio — Skip até GraphQL.
-        Skip.If(!temShopify, "Nenhum item source=shopify — aguardando migração GraphQL.");
-
-        Assert.True(temShopify);
+        Assert.True(temShopify,
+            "Ao menos 1 item deve ter source='shopify' após migração GraphQL");
     }
 
     // ── Records auxiliares ────────────────────────────────────────────────────
