@@ -41,7 +41,7 @@ public class ShopifyIntegrationTest : IClassFixture<CompraApiFactory>
     public async Task SearchShopify_ComToken_RetornaSourceShopify()
     {
         Skip.If(!_tokenDisponivel, "SHOPIFY_ACCESS_TOKEN ausente - teste pulado");
-        var response = await _client.GetAsync("/api/search?q=nike&page=1&pageSize=10");
+        var response = await _client.GetAsync("/api/search?q=snowboard&page=1&pageSize=10");
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadAsStringAsync();
         Assert.Contains("Shopify", body, StringComparison.OrdinalIgnoreCase);
