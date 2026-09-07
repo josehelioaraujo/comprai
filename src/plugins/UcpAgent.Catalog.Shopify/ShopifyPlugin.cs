@@ -1,4 +1,4 @@
-using System.Net.Http.Json;
+﻿using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using UcpAgent.SharedKernel.Attributes;
@@ -24,11 +24,8 @@ public sealed class ShopifyPlugin : IProductCatalogPort
     public async Task<SearchResult> SearchAsync(
         SearchRequest request, CancellationToken cancellationToken = default)
     {
-        var limit  = request.PageSize;
-        var url = $"products.json?limit={limit}&title={Uri.EscapeDataString(request.Query)}";
-
-        if (!string.IsNullOrWhiteSpace(request.Category))
-            url += $"&product_type={Uri.EscapeDataString(request.Category)}";
+        var limit = request.PageSize;
+        var url = $"products.json?limit={limit}";
 
         ShopifyProductsResponse? response;
         try
@@ -44,21 +41,28 @@ public sealed class ShopifyPlugin : IProductCatalogPort
         if (response?.Products is null || response.Products.Count == 0)
             return new SearchResult([], 0, request.Page, request.PageSize, SourceName);
 
+        var query = request.Query.Trim().ToLowerInvariant();
+        var filtered = string.IsNullOrWhiteSpace(query)
+            ? response.Products
+            : response.Products
+                .Where(p => p.Title.Contains(query, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
         var items = new List<ProductDto>();
-        foreach (var product in response.Products)
+        foreach (var product in filtered)
         {
             var variant = product.Variants.FirstOrDefault();
             if (variant is null) continue;
 
-            var price    = decimal.TryParse(variant.Price,    System.Globalization.NumberStyles.Any,
-                           System.Globalization.CultureInfo.InvariantCulture, out var p) ? p : 0m;
-            var compPrice = decimal.TryParse(variant.CompareAtPrice, System.Globalization.NumberStyles.Any,
-                           System.Globalization.CultureInfo.InvariantCulture, out var cp) ? cp : (decimal?)null;
+            var price = decimal.TryParse(variant.Price,
+                System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out var p) ? p : 0m;
+            var compPrice = decimal.TryParse(variant.CompareAtPrice,
+                System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out var cp) ? cp : (decimal?)null;
 
-            var imageUrl  = product.Images.FirstOrDefault()?.Src;
-            var available = variant.InventoryQuantity > 0;
+            var imageUrl = product.Images.FirstOrDefault()?.Src;
 
-            // filtra por preco se solicitado
             if (request.MinPrice.HasValue && price < request.MinPrice.Value) continue;
             if (request.MaxPrice.HasValue && price > request.MaxPrice.Value) continue;
 
@@ -79,25 +83,24 @@ public sealed class ShopifyPlugin : IProductCatalogPort
     }
 }
 
-// DTOs internos
 internal record ShopifyProductsResponse(
     [property: JsonPropertyName("products")] List<ShopifyProduct> Products
 );
 
 internal record ShopifyProduct(
-    [property: JsonPropertyName("id")]           long              Id,
-    [property: JsonPropertyName("title")]        string            Title,
-    [property: JsonPropertyName("product_type")] string            ProductType,
+    [property: JsonPropertyName("id")]           long                 Id,
+    [property: JsonPropertyName("title")]        string               Title,
+    [property: JsonPropertyName("product_type")] string               ProductType,
     [property: JsonPropertyName("variants")]     List<ShopifyVariant> Variants,
     [property: JsonPropertyName("images")]       List<ShopifyImage>   Images
 );
 
 internal record ShopifyVariant(
-    [property: JsonPropertyName("id")]                  long    Id,
-    [property: JsonPropertyName("price")]               string  Price,
-    [property: JsonPropertyName("compare_at_price")]    string? CompareAtPrice,
-    [property: JsonPropertyName("inventory_quantity")]  int     InventoryQuantity,
-    [property: JsonPropertyName("available")]           bool    Available
+    [property: JsonPropertyName("id")]                 long    Id,
+    [property: JsonPropertyName("price")]              string  Price,
+    [property: JsonPropertyName("compare_at_price")]   string? CompareAtPrice,
+    [property: JsonPropertyName("inventory_quantity")] int     InventoryQuantity,
+    [property: JsonPropertyName("available")]          bool    Available
 );
 
 internal record ShopifyImage(

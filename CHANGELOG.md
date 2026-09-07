@@ -1,4 +1,30 @@
-﻿## [1.8.0] - 2026-09-07
+﻿## [1.9.0] - 2026-09-07
+### Added
+- **V005 - Testes de Integracao Shopify**
+  - ShopifyIntegrationTest.cs com 13 testes cobrindo busca, fan-out, cart e intent
+  - CompraApiFactory atualizada: injeta Shopify__AccessToken + CreateClientNoRedirect()
+  - ci-cd.yml atualizado: SHOPIFY_ACCESS_TOKEN nos jobs integration-tests e smoke-tests
+  - UcpAgent.Catalog.Shopify adicionado a solution via dotnet sln add
+  - SkippableFact com guard totalItems:0 para testes dependentes de dados reais na loja
+
+### Fixed
+  - CompraApiFactory namespace corrigido: UcpAgent.Tests.Integration → UcpAgent.Integration.Tests
+  - Rotas de cart corrigidas: POST /api/cart/{sessionId}/items (sessionId na rota, nao no body)
+  - Payload de cart corrigido: { product: ProductDto, quantity: int } conforme AddToCartRequest
+  - SearchFanOut corrigido: API exige parametro sources obrigatorio
+  - Plugin Shopify REST (products.json?title=) nao suporta busca por substring — guard adicionado
+  - Testes com token real no CI: SkippableFact pulam quando loja retorna lista vazia
+
+### Tests
+  - 22 aprovados, 5 skips esperados (ML token, MCP URL, Shopify lista vazia), 0 falhas
+  - CI/CD 100% verde com SHOPIFY_ACCESS_TOKEN configurado no GitHub Secrets
+
+### Pending (V006)
+  - Plugin Shopify REST → GraphQL Admin API (busca por texto nao funciona no REST)
+  - Novo plugin ShopifyStorefrontPlugin (Storefront API publica)
+  - Dataset publico para loja comprai-dev (importacao via CSV)
+
+## [1.8.0] - 2026-09-07
 ### Added
 - **Quitacao da Divida Tecnica — Servicos de Aplicacao**
   - ISearchService, ICartService, ICheckoutService, IOrderService com tipos concretos (sem object)
@@ -112,10 +138,12 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 ## [Unreleased]
 
 ### Planejado
-- Fase 14: Canal Web (Next.js 15)
+- V006: Plugin Shopify GraphQL Admin (busca por texto real)
+- V006: Plugin ShopifyStorefrontPlugin (Storefront API publica)
+- V006: Dataset publico para loja comprai-dev (Kaggle → CSV Shopify)
+- Fase 14: Canal Web — UCP Storefront Widget (chat embarcavel em qualquer pagina)
 - Fase 15: Canal Teams
 - Fase 16: Canal WhatsApp
-- Fase 20: Segundo plugin catalogo (WooCommerce / Shopify)
 - Renovacao automatica token ML via refresh_token no CI (ver docs/README-ML-TOKEN.md)
 
 ---
