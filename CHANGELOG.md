@@ -1,4 +1,35 @@
-﻿## [1.7.0] - 2026-09-07
+﻿## [1.8.0] - 2026-09-07
+### Added
+- **Quitacao da Divida Tecnica — Servicos de Aplicacao**
+  - ISearchService, ICartService, ICheckoutService, IOrderService com tipos concretos (sem object)
+  - SearchService, CartService, CheckoutService, OrderService implementados via MediatR ISender
+  - GetCartQuery + GetCartQueryHandler
+  - RemoveFromCartCommand + RemoveFromCartCommandHandler
+  - GetOrderBySessionQuery + GetOrderBySessionQueryHandler
+  - OrderStatusDto criado em UcpAgent.SharedKernel.Ports
+  - RedisOrderAdapter: SessionKey + GetOrderIdBySessionAsync (indice sessao → orderId)
+  - RedisCheckoutAdapter: salva order:session:{sessionId} no Redis apos checkout
+  - MockOrderPort atualizado com GetOrderIdBySessionAsync
+  - CompraApiFactory corrigida com mocks tipados (SearchResult, CartItemDto, CheckoutResultDto, OrderStatusDto)
+  - public partial class Program adicionado ao Program.cs para testes de integracao
+  - Build.0 adicionado para todos os projetos na solution (fix de race condition no build)
+
+### Fixed
+  - Solution nao compilava projetos como UcpAgent.Api e UcpAgent.Application por ausencia de Build.0
+  - CompraApiFactory usava tipos object nas interfaces — corrigido para tipos concretos
+  - MlOrdersIntegrationTest: trocado [Fact] por [SkippableFact] e adicionada flag ML_SKIP_TOKEN_TEST
+  - GetMlOrders nao pulava no CI mesmo com token expirado — corrigido via _tokenFromEnv + ML_SKIP_TOKEN_TEST
+
+### Tests
+  - 12 testes unitarios adicionados em UcpAgent.Application.Tests
+    - GetCartQueryHandlerTests (3 testes)
+    - RemoveFromCartCommandHandlerTests (2 testes)
+    - GetOrderBySessionQueryHandlerTests (3 testes)
+    - ResultTests (4 testes)
+  - Stack de testes: xUnit + NSubstitute + FluentAssertions + Bogus (pt_BR)
+  - Esteira CI/CD 100% verde: unit-tests → integration-tests → deploy → smoke-tests
+
+## [1.7.0] - 2026-09-07
 ### Added
 - **Testes de Integracao e CI/CD completo (4 jobs)**
   - Projeto UcpAgent.Integration.Tests com 17 testes (15 passando, 2 skip esperados)
@@ -19,7 +50,6 @@
   - MlTokenService aceita token via configuracao (MercadoLivre:AccessToken) para CI/CD
   - IntentEndpoints reescrito para usar MediatR em vez de ISearchService/ICartService nao implementados
   - MapIntentEndpoints registrado no Program.cs com using UcpAgent.Api.Endpoints
-# Changelog
 
 ## [1.6.0] - 2026-09-06
 
@@ -72,7 +102,7 @@
   - Prometheus: http://2.25.122.11:9091
 
 
-Todas as alteraÃ§Ãµes relevantes do projeto **Comprai** sÃ£o documentadas aqui.
+Todas as alteracoes relevantes do projeto **Comprai** sao documentadas aqui.
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/).
 Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
@@ -82,42 +112,26 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 ## [Unreleased]
 
 ### Planejado
-- Fase 1: Domain + SharedKernel
-- Fase 2: Plugin Mercado Livre
-- Fase 3: Plugin VTEX Catalog
-- Fase 4: Plugin VTEX Intelligent Search
-- Fase 5: Plugin Open Food Facts
-- Fase 6: Feature Search
-- Fase 7: Feature Cart
-- Fase 8: Feature Checkout
-- Fase 9: Feature Order
-- Fase 10: Mensageria Kafka
-- Fase 11: Mensageria RabbitMQ
-- Fase 12: Intent Router (linguagem natural)
-- Fase 13: MCP Server
 - Fase 14: Canal Web (Next.js 15)
 - Fase 15: Canal Teams
 - Fase 16: Canal WhatsApp
-- Fase 17: Observabilidade (OpenTelemetry + Jaeger + Grafana + Loki)
-- Fase 18: K3s + CI/CD
-- Fase 19: Plugin VTEX Orders (autenticado)
-- Fase 20: Segundo plugin catÃ¡logo (WooCommerce / Shopify)
+- Fase 20: Segundo plugin catalogo (WooCommerce / Shopify)
+- Renovacao automatica token ML via refresh_token no CI (ver docs/README-ML-TOKEN.md)
 
 ---
 
-## [0.1.0] â€” Infraestrutura Base
+## [0.1.0] - Infraestrutura Base
 
 ### Adicionado
-- Estrutura de soluÃ§Ã£o `comprai.sln` com projetos separados por responsabilidade
-- `docker-compose.yml` com perfis: `monitoring`, `kafka`, `rabbitmq`, `tools`
-- `.github/workflows/ci-cd.yml` com pipeline: test â†’ sonar â†’ deploy SSH â†’ newman
+- Estrutura de solucao comprai.sln com projetos separados por responsabilidade
+- docker-compose.yml com perfis: monitoring, kafka, rabbitmq, tools
+- .github/workflows/ci-cd.yml com pipeline: test -> deploy SSH -> newman
 - Redis como cache principal (HybridCache .NET 10)
-- IntegraÃ§Ã£o com SonarCloud para anÃ¡lise de qualidade
-- Smoke tests E2E via Newman com relatÃ³rio publicado no GitHub Pages
+- Smoke tests E2E via Newman com relatorio publicado via artifact
 - Deploy automatizado via SSH na VPS Hostinger
 
 ### Portas configuradas
-| ServiÃ§o         | Porta  |
+| Servico         | Porta  |
 |----------------|--------|
 | comprai-api     | 5020   |
 | Redis           | 6379   |
@@ -132,7 +146,5 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ---
 
-<!-- Links de comparaÃ§Ã£o -->
 [Unreleased]: https://github.com/josehelioaraujo/comprai/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/josehelioaraujo/comprai/releases/tag/v0.1.0
-
