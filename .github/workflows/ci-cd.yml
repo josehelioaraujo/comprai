@@ -142,7 +142,7 @@ jobs:
   smoke:
     name: Smoke Tests
     runs-on: ubuntu-latest
-    needs: deployv
+    needs: deploy
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     steps:
       - name: Aguardar VPS estabilizar
