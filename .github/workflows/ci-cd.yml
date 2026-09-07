@@ -100,12 +100,14 @@ jobs:
           ML_ACCESS_TOKEN: ${{ secrets.ML_ACCESS_TOKEN }}
           ML_SKIP_TOKEN_TEST: 'true'
           SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
+          SHOPIFY_STORE_URL: 'comprai-dev.myshopify.com'
           Features__UsarMockDados: 'false'
           Features__UsarRedis: 'false'
           Features__UsarKafka: 'false'
           Features__UsarRabbitMQ: 'false'
           MercadoLivre__AccessToken: ${{ secrets.ML_ACCESS_TOKEN }}
           Shopify__AccessToken: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
+          Shopify__StoreUrl: 'comprai-dev.myshopify.com'
         run: |
           dotnet test tests/UcpAgent.Integration.Tests/UcpAgent.Integration.Tests.csproj \
             --configuration Release \
