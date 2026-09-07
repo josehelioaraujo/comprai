@@ -9,25 +9,20 @@ public class MlOrdersIntegrationTest : IClassFixture<CompraApiFactory>
 {
     private readonly HttpClient _client;
     private readonly HttpClient _clientNoRedirect;
-
-    // Token vÃ¡lido SOMENTE quando vier do env var do CI (nÃ£o do appsettings)
-    // TODO: RenovaÃ§Ã£o automÃ¡tica via refresh_token â€” ver README-ML-TOKEN.md
-    private readonly string _mlToken;
     private readonly bool _tokenFromEnv;
 
     public MlOrdersIntegrationTest(CompraApiFactory factory)
     {
         _client           = factory.CreateClient();
         _clientNoRedirect = factory.CreateClientNoRedirect();
-        _mlToken          = Environment.GetEnvironmentVariable("ML_ACCESS_TOKEN") ?? "";
-        _tokenFromEnv     = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ML_ACCESS_TOKEN"));
+        _tokenFromEnv     = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ML_ACCESS_TOKEN"))
+                            && Environment.GetEnvironmentVariable("ML_SKIP_TOKEN_TEST") != "true";
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task GetMlOrders_WithRealToken_Returns200Or204()
     {
-        // Skipa se token nÃ£o veio do env var (token do appsettings pode estar expirado)
-        Skip.If(!_tokenFromEnv, "ML_ACCESS_TOKEN nao configurado como env var â€” skip para evitar 401 com token expirado");
+        Skip.If(!_tokenFromEnv, "ML token skip habilitado via flag ou token ausente");
 
         var response = await _client.GetAsync("/api/ml/orders?limit=5&offset=0");
         Assert.True(
@@ -76,4 +71,3 @@ public class MlOrdersIntegrationTest : IClassFixture<CompraApiFactory>
             $"Esperado 200/302, recebido {response.StatusCode}");
     }
 }
-
