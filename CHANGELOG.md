@@ -1,3 +1,24 @@
+﻿## [1.7.0] - 2026-09-07
+### Added
+- **Testes de Integracao e CI/CD completo (4 jobs)**
+  - Projeto UcpAgent.Integration.Tests com 17 testes (15 passando, 2 skip esperados)
+  - UcpFlowIntegrationTest: fluxo completo Search -> Cart -> Checkout -> Order
+  - IntentRouterIntegrationTest: 7 intencoes via Theory
+  - MlOrdersIntegrationTest: OAuth token via config, Webhook, Callback, Auth redirect
+  - McpServerIntegrationTest: skip permanente ate MCP_BASE_URL configurado
+  - CompraApiFactory com mocks inline (MockSearchService, MockCartService, MockCheckoutService, MockOrderService)
+  - appsettings.IntegrationTest.json para desabilitar Redis nos testes
+  - Colecao Newman comprai-smoke.json com 11 requests encadeados
+  - Pipeline CI/CD reescrito com 4 jobs: unit-tests -> integration-tests -> deploy -> smoke-tests
+  - Job unit-tests: build por projeto sem incluir projeto de integracao
+  - Job integration-tests: dotnet test com env vars do GitHub Secrets
+  - Job smoke-tests: Newman + htmlextra publicado via artifact
+
+### Fixed
+  - Result<T> corrigido com [JsonConstructor] para suportar HybridCache deserializacao
+  - MlTokenService aceita token via configuracao (MercadoLivre:AccessToken) para CI/CD
+  - IntentEndpoints reescrito para usar MediatR em vez de ISearchService/ICartService nao implementados
+  - MapIntentEndpoints registrado no Program.cs com using UcpAgent.Api.Endpoints
 # Changelog
 
 ## [1.6.0] - 2026-09-06
@@ -51,7 +72,7 @@
   - Prometheus: http://2.25.122.11:9091
 
 
-Todas as alterações relevantes do projeto **Comprai** são documentadas aqui.
+Todas as alteraÃ§Ãµes relevantes do projeto **Comprai** sÃ£o documentadas aqui.
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/).
 Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
@@ -80,23 +101,23 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 - Fase 17: Observabilidade (OpenTelemetry + Jaeger + Grafana + Loki)
 - Fase 18: K3s + CI/CD
 - Fase 19: Plugin VTEX Orders (autenticado)
-- Fase 20: Segundo plugin catálogo (WooCommerce / Shopify)
+- Fase 20: Segundo plugin catÃ¡logo (WooCommerce / Shopify)
 
 ---
 
-## [0.1.0] — Infraestrutura Base
+## [0.1.0] â€” Infraestrutura Base
 
 ### Adicionado
-- Estrutura de solução `comprai.sln` com projetos separados por responsabilidade
+- Estrutura de soluÃ§Ã£o `comprai.sln` com projetos separados por responsabilidade
 - `docker-compose.yml` com perfis: `monitoring`, `kafka`, `rabbitmq`, `tools`
-- `.github/workflows/ci-cd.yml` com pipeline: test → sonar → deploy SSH → newman
+- `.github/workflows/ci-cd.yml` com pipeline: test â†’ sonar â†’ deploy SSH â†’ newman
 - Redis como cache principal (HybridCache .NET 10)
-- Integração com SonarCloud para análise de qualidade
-- Smoke tests E2E via Newman com relatório publicado no GitHub Pages
+- IntegraÃ§Ã£o com SonarCloud para anÃ¡lise de qualidade
+- Smoke tests E2E via Newman com relatÃ³rio publicado no GitHub Pages
 - Deploy automatizado via SSH na VPS Hostinger
 
 ### Portas configuradas
-| Serviço         | Porta  |
+| ServiÃ§o         | Porta  |
 |----------------|--------|
 | comprai-api     | 5020   |
 | Redis           | 6379   |
@@ -111,6 +132,7 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ---
 
-<!-- Links de comparação -->
+<!-- Links de comparaÃ§Ã£o -->
 [Unreleased]: https://github.com/josehelioaraujo/comprai/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/josehelioaraujo/comprai/releases/tag/v0.1.0
+
