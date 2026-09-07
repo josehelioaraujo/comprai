@@ -3,7 +3,10 @@ using UcpAgent.Application.IntentRouter;
 using UcpAgent.Application.Search;
 using UcpAgent.Application.Cart;
 using UcpAgent.Application.Checkout;
-using UcpAgent.Application.Orders;
+using UcpAgent.Application.Order;
+using UcpAgent.SharedKernel.Models;
+using UcpAgent.SharedKernel.Ports;
+using MediatR;
 
 namespace UcpAgent.Api.Endpoints;
 
@@ -14,22 +17,18 @@ public static class IntentEndpoints
         app.MapPost("/api/intent", async (
             IntentRequest        req,
             IIntentRouterService router,
-            ISearchService       search,
-            ICartService         cart,
-            ICheckoutService     checkout,
-            IOrderService        orders) =>
+            IMediator            mediator) =>
         {
             var intent = router.Detect(req.Text, req.SessionId);
 
             var (success, data, message) = intent.Intent switch
             {
-                IntentType.SearchProducts  => await HandleSearch(intent, search),
-                IntentType.AddToCart       => await HandleAddToCart(intent, cart),
-                IntentType.RemoveFromCart  => await HandleRemoveFromCart(intent, cart),
-                IntentType.ViewCart        => await HandleViewCart(intent, cart),
-                IntentType.Checkout        => await HandleCheckout(intent, checkout),
-                IntentType.GetOrder        => await HandleGetOrder(intent, orders),
-                _                          => (false, (object?)null, "N\u00e3o entendi. Tente: buscar produto, ver carrinho, finalizar pedido.")
+                IntentType.SearchProducts => await HandleSearch(intent, mediator),
+                IntentType.AddToCart      => await HandleAddToCart(intent, mediator),
+                IntentType.ViewCart       => await HandleViewCart(intent),
+                IntentType.Checkout       => await HandleCheckout(intent, mediator),
+                IntentType.GetOrder       => await HandleGetOrder(intent, mediator),
+                _                         => (false, (object?)null, "Nao entendi. Tente: buscar produto, ver carrinho, finalizar pedido.")
             };
 
             var response = new IntentResponse(intent.Intent.ToString(), success, data, message);
@@ -42,49 +41,37 @@ public static class IntentEndpoints
         .WithOpenApi();
     }
 
-    private static async Task<(bool, object?, string?)> HandleSearch(IntentResult i, ISearchService s)
+    private static async Task<(bool, object?, string?)> HandleSearch(IntentResult i, IMediator m)
     {
-        var r = await s.SearchAsync(i.ExtractedQuery ?? i.RawInput, limit: 10);
-        return r.IsSuccess ? (true, r.Value, null) : (false, null, r.Error);
+        var r = await m.Send(new SearchProductsQuery(i.ExtractedQuery ?? i.RawInput, 1, 10, null, null, null));
+        return r.IsSuccess ? (true, (object?)r.Value, null) : (false, null, r.Error);
     }
 
-    private static async Task<(bool, object?, string?)> HandleAddToCart(IntentResult i, ICartService c)
+    private static async Task<(bool, object?, string?)> HandleAddToCart(IntentResult i, IMediator m)
     {
-        if (i.SessionId is null) return (false, null, "SessionId obrigat\u00f3rio.");
+        if (i.SessionId is null) return (false, null, "SessionId obrigatorio.");
         if (i.ProductId is null) return (false, null, "Informe o ID do produto.");
-        var r = await c.AddItemAsync(i.SessionId, i.ProductId, 1);
-        return r.IsSuccess ? (true, r.Value, null) : (false, null, r.Error);
+        var product = new ProductDto(i.ProductId, i.ProductId, 0, null, null, null, "Unknown");
+        var r = await m.Send(new AddToCartCommand(i.SessionId, product, 1));
+        return r.IsSuccess ? (true, (object?)r.Value, null) : (false, null, r.Error);
     }
 
-    private static async Task<(bool, object?, string?)> HandleRemoveFromCart(IntentResult i, ICartService c)
+    private static Task<(bool, object?, string?)> HandleViewCart(IntentResult i)
+        => Task.FromResult<(bool, object?, string?)>((true, (object?)new { sessionId = i.SessionId, message = "Use GET /api/cart/{sessionId}" }, null));
+
+    private static async Task<(bool, object?, string?)> HandleCheckout(IntentResult i, IMediator m)
     {
-        if (i.SessionId is null) return (false, null, "SessionId obrigat\u00f3rio.");
-        if (i.ProductId is null) return (false, null, "Informe o ID do produto.");
-        var r = await c.RemoveItemAsync(i.SessionId, i.ProductId);
-        return r.IsSuccess ? (true, r.Value, null) : (false, null, r.Error);
+        if (i.SessionId is null) return (false, null, "SessionId obrigatorio.");
+        var customer = new CustomerDto("", "", "", "");
+        var r = await m.Send(new CheckoutCommand(i.SessionId, customer));
+        return r.IsSuccess ? (true, (object?)r.Value, null) : (false, null, r.Error);
     }
 
-    private static async Task<(bool, object?, string?)> HandleViewCart(IntentResult i, ICartService c)
+    private static async Task<(bool, object?, string?)> HandleGetOrder(IntentResult i, IMediator m)
     {
-        if (i.SessionId is null) return (false, null, "SessionId obrigat\u00f3rio.");
-        var r = await c.GetCartAsync(i.SessionId);
-        return r.IsSuccess ? (true, r.Value, null) : (false, null, r.Error);
-    }
-
-    private static async Task<(bool, object?, string?)> HandleCheckout(IntentResult i, ICheckoutService c)
-    {
-        if (i.SessionId is null) return (false, null, "SessionId obrigat\u00f3rio.");
-        var r = await c.CheckoutAsync(i.SessionId);
-        return r.IsSuccess ? (true, r.Value, null) : (false, null, r.Error);
-    }
-
-    private static async Task<(bool, object?, string?)> HandleGetOrder(IntentResult i, IOrderService o)
-    {
-        if (i.OrderId is null && i.SessionId is null)
-            return (false, null, "Informe ORDER-XXXXXXXX ou sessionId.");
-        var r = i.OrderId is not null
-            ? await o.GetByIdAsync(i.OrderId)
-            : await o.GetBySessionAsync(i.SessionId!);
-        return r.IsSuccess ? (true, r.Value, null) : (false, null, r.Error);
+        if (i.OrderId is null) return (false, null, "Informe ORDER-XXXXXXXX.");
+        var r = await m.Send(new GetOrderQuery(i.OrderId));
+        return r.IsSuccess ? (true, (object?)r.Value, null) : (false, null, r.Error);
     }
 }
+
