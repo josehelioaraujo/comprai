@@ -9,15 +9,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="MediatR"                                      Version="12.4.1" />
-    <PackageReference Include="Microsoft.Extensions.Caching.Hybrid"          Version="9.4.0" />
+    <PackageReference Include="MediatR" Version="12.4.1" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="9.4.0" />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.0" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi"                 Version="10.0.0" />
-    <PackageReference Include="Scalar.AspNetCore"                            Version="2.5.12" />
-    <PackageReference Include="StackExchange.Redis"                          Version="2.8.41" />
-    <PackageReference Include="OpenTelemetry.Extensions.Hosting"             Version="1.11.2" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore"      Version="1.11.2" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.Http"            Version="1.11.2" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.0" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.5.12" />
+    <PackageReference Include="StackExchange.Redis" Version="2.8.41" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.11.2" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.11.2" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.11.2" />
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.11.2" />
   </ItemGroup>
 
@@ -33,6 +33,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\plugins\UcpAgent.Catalog.MercadoLivreOrders\UcpAgent.Catalog.MercadoLivreOrders.csproj" />
+    <ProjectReference Include="..\plugins\UcpAgent.Catalog.Shopify\UcpAgent.Catalog.Shopify.csproj" />
   </ItemGroup>
 
   <ItemGroup>

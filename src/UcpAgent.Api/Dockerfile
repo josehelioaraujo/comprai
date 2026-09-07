@@ -17,6 +17,7 @@ COPY ["src/plugins/UcpAgent.Catalog.VtexCatalog/UcpAgent.Catalog.VtexCatalog.csp
 COPY ["src/plugins/UcpAgent.Catalog.VtexSearch/UcpAgent.Catalog.VtexSearch.csproj", "src/plugins/UcpAgent.Catalog.VtexSearch/"]
 COPY ["src/plugins/UcpAgent.Catalog.OpenFoodFacts/UcpAgent.Catalog.OpenFoodFacts.csproj", "src/plugins/UcpAgent.Catalog.OpenFoodFacts/"]
 COPY ["src/plugins/UcpAgent.Catalog.MercadoLivreOrders/UcpAgent.Catalog.MercadoLivreOrders.csproj", "src/plugins/UcpAgent.Catalog.MercadoLivreOrders/"]
+COPY ["src/plugins/UcpAgent.Catalog.Shopify/UcpAgent.Catalog.Shopify.csproj", "src/plugins/UcpAgent.Catalog.Shopify/"]
 RUN dotnet restore "src/UcpAgent.Api/UcpAgent.Api.csproj"
 COPY . .
 WORKDIR "/src/src/UcpAgent.Api"

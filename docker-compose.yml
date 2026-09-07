@@ -1,4 +1,4 @@
-services:
+﻿services:
 
   comprai-api:
     build:
@@ -21,6 +21,7 @@ services:
       OTEL_SERVICE_NAME: comprai-api
       Otel__Endpoint:    http://comprai-jaeger:4317
       Otel__ServiceName: comprai-api
+      Shopify__AccessToken: ${SHOPIFY_ACCESS_TOKEN}
     depends_on:
       - redis
     networks:
