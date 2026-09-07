@@ -1,14 +1,15 @@
 ﻿using System.Net.Http.Json;
-using System.Text.Json;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace UcpAgent.Catalog.MercadoLivreOrders;
 
 public sealed class MlTokenService(
     IHttpClientFactory httpFactory,
     IMemoryCache cache,
-    IConfiguration config)
+    IConfiguration config,
+    ILogger<MlTokenService> logger)
 {
     private const string CacheKey = "ml_access_token";
 
@@ -16,7 +17,6 @@ public sealed class MlTokenService(
     private string ClientSecret => config["MercadoLivre:ClientSecret"] ?? throw new InvalidOperationException("MercadoLivre:ClientSecret nao configurado");
     private string RedirectUri  => config["MercadoLivre:RedirectUri"]  ?? "http://localhost:5020/callback";
 
-    // Troca authorization code por access_token
     public async Task<MlTokenResponse> ExchangeCodeAsync(string code, CancellationToken ct = default)
     {
         var client = httpFactory.CreateClient("MlAuth");
@@ -35,21 +35,24 @@ public sealed class MlTokenService(
         var token = await response.Content.ReadFromJsonAsync<MlTokenResponse>(cancellationToken: ct)
                     ?? throw new InvalidOperationException("Resposta de token invalida");
 
-        // Armazena em cache com margem de 5 min
         var expiry = TimeSpan.FromSeconds(token.ExpiresIn - 300);
         cache.Set(CacheKey, token, expiry);
         cache.Set("ml_refresh_token", token.RefreshToken, TimeSpan.FromDays(180));
 
+        logger.LogWarning("=== ML TOKEN CAPTURADO ===");
+        logger.LogWarning("ACCESS_TOKEN={AccessToken}", token.AccessToken);
+        logger.LogWarning("REFRESH_TOKEN={RefreshToken}", token.RefreshToken);
+        logger.LogWarning("EXPIRES_IN={ExpiresIn}s USER_ID={UserId}", token.ExpiresIn, token.UserId);
+        logger.LogWarning("==========================");
+
         return token;
     }
 
-    // Obtem token valido (renova automaticamente)
     public async Task<string> GetAccessTokenAsync(CancellationToken ct = default)
     {
         if (cache.TryGetValue(CacheKey, out MlTokenResponse? cached) && cached != null)
             return cached.AccessToken;
 
-        // Tenta refresh
         if (cache.TryGetValue("ml_refresh_token", out string? refreshToken) && refreshToken != null)
             return await RefreshAsync(refreshToken, ct);
 
@@ -79,6 +82,11 @@ public sealed class MlTokenService(
         cache.Set(CacheKey, token, expiry);
         cache.Set("ml_refresh_token", token.RefreshToken, TimeSpan.FromDays(180));
 
+        logger.LogWarning("=== ML TOKEN RENOVADO ===");
+        logger.LogWarning("ACCESS_TOKEN={AccessToken}", token.AccessToken);
+        logger.LogWarning("REFRESH_TOKEN={RefreshToken}", token.RefreshToken);
+        logger.LogWarning("=========================");
+
         return token.AccessToken;
     }
 
@@ -94,5 +102,3 @@ public record MlTokenResponse(
     [property: System.Text.Json.Serialization.JsonPropertyName("expires_in")]    int    ExpiresIn,
     [property: System.Text.Json.Serialization.JsonPropertyName("user_id")]       long   UserId
 );
-
-
