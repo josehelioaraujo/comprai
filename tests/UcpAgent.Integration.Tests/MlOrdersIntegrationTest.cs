@@ -9,19 +9,25 @@ public class MlOrdersIntegrationTest : IClassFixture<CompraApiFactory>
 {
     private readonly HttpClient _client;
     private readonly HttpClient _clientNoRedirect;
+
+    // Token válido SOMENTE quando vier do env var do CI (não do appsettings)
+    // TODO: Renovação automática via refresh_token — ver README-ML-TOKEN.md
     private readonly string _mlToken;
+    private readonly bool _tokenFromEnv;
 
     public MlOrdersIntegrationTest(CompraApiFactory factory)
     {
         _client           = factory.CreateClient();
         _clientNoRedirect = factory.CreateClientNoRedirect();
         _mlToken          = Environment.GetEnvironmentVariable("ML_ACCESS_TOKEN") ?? "";
+        _tokenFromEnv     = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ML_ACCESS_TOKEN"));
     }
 
     [Fact]
     public async Task GetMlOrders_WithRealToken_Returns200Or204()
     {
-        Skip.If(string.IsNullOrEmpty(_mlToken), "ML_ACCESS_TOKEN nao configurado");
+        // Skipa se token não veio do env var (token do appsettings pode estar expirado)
+        Skip.If(!_tokenFromEnv, "ML_ACCESS_TOKEN nao configurado como env var — skip para evitar 401 com token expirado");
 
         var response = await _client.GetAsync("/api/ml/orders?limit=5&offset=0");
         Assert.True(
@@ -42,7 +48,6 @@ public class MlOrdersIntegrationTest : IClassFixture<CompraApiFactory>
             sent            = DateTime.UtcNow.ToString("o"),
             received        = DateTime.UtcNow.ToString("o")
         };
-
         var response = await _client.PostAsJsonAsync("/webhook/ml", payload);
         Assert.True(
             response.StatusCode == HttpStatusCode.OK ||
@@ -54,7 +59,6 @@ public class MlOrdersIntegrationTest : IClassFixture<CompraApiFactory>
     [Fact]
     public async Task MlCallback_SemCode_RetornaBadRequest()
     {
-        // /callback sem ?code= deve retornar 400
         var response = await _client.GetAsync("/callback");
         Assert.True(
             (int)response.StatusCode >= 400,
@@ -64,7 +68,6 @@ public class MlOrdersIntegrationTest : IClassFixture<CompraApiFactory>
     [Fact]
     public async Task MlAuth_ReturnsRedirect()
     {
-        // /api/ml/auth retorna Redirect — desabilita follow
         var response = await _clientNoRedirect.GetAsync("/api/ml/auth");
         Assert.True(
             response.StatusCode == HttpStatusCode.Redirect ||
