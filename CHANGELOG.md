@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.6.0] - 2026-09-06
+
+### Added
+- **Fase 19 - Plugin MercadoLivre Orders (OAuth + Webhook)**
+  - UcpAgent.Catalog.MercadoLivreOrders  novo plugin de pedidos ML
+  - MlTokenService  OAuth flow completo: authorization code, refresh token automatico, cache em memoria
+  - MlOrdersService  lista pedidos do vendedor, busca pedido por ID via API ML
+  - MlWebhookService  processa notificacoes de status de pedidos do ML
+  - Endpoint GET /api/ml/auth  redireciona para autorizacao ML
+  - Endpoint GET /callback  recebe code OAuth e salva token
+  - Endpoint GET /api/ml/orders  lista pedidos do vendedor autenticado
+  - Endpoint GET /api/ml/orders/{id}  busca pedido especifico
+  - Endpoint POST /webhook/ml  recebe e processa notificacoes ML
+  - App ML criada: ucp-compra.mercadolivre (Client ID: 2786639248653015)
+  - ngrok instalado na VPS para tunnel HTTPS em POC
+
+
+## [1.5.0] - 2026-09-06
+
+### Added
+- **Fase 18 - CI/CD (GitHub Actions + Deploy automatico na VPS)**
+  - Workflow ci-cd.yml com 3 jobs: Build e Testes, Deploy VPS, Smoke Tests
+  - Deploy automatico via SSH (appleboy/ssh-action@v1.2.0) para root@2.25.122.11
+  - Rebuild condicional: so reconstroi imagens quando Dockerfile/csproj/Program.cs mudam
+  - Feature flags via workflow_dispatch: broker, usar_mock, usar_redis, force_rebuild
+  - Smoke test de busca condicional - roda apenas quando usar_mock=false
+  - paths-ignore para .md, .txt, docs/ - push de docs nao dispara pipeline
+  - Secret VPS_HOSTINGER_SSH_KEY configurado no repositorio
+
+
 ## [1.4.0] - 2026-09-06
 
 ### Added
