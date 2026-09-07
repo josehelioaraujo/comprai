@@ -1,4 +1,4 @@
-﻿using UcpAgent.Catalog.Shopify;
+using UcpAgent.Catalog.Shopify;
 using UcpAgent.Application.Orders;
 using UcpAgent.Api.Endpoints;
 using UcpAgent.Api;
@@ -81,8 +81,9 @@ else
     builder.Services.AddHttpClient<VtexSearchPlugin>();
     builder.Services.AddSingleton<IProductCatalogPort, VtexSearchPlugin>();
     builder.Services.AddHttpClient<OpenFoodFactsPlugin>();
-    builder.Services.AddHttpClient<ShopifyPlugin>(c => { var s = builder.Configuration["Shopify:StoreUrl"] ?? ""; var t = builder.Configuration["Shopify:AccessToken"] ?? ""; c.BaseAddress = new Uri($"https://{s}/admin/api/2024-01/"); c.DefaultRequestHeaders.Add("X-Shopify-Access-Token", t); });
-    builder.Services.AddSingleton<IProductCatalogPort, ShopifyPlugin>();
+    builder.Services.Configure<ShopifyOptions>(builder.Configuration.GetSection("Shopify"));
+    builder.Services.AddHttpClient<ShopifyPlugin>(c => { c.Timeout = TimeSpan.FromSeconds(15); });
+    builder.Services.AddTransient<IProductCatalogPort, ShopifyPlugin>();
     builder.Services.AddSingleton<IProductCatalogPort, OpenFoodFactsPlugin>();
 
     if (usarRedis)
