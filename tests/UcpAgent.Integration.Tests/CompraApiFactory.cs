@@ -76,3 +76,4 @@ public class CompraApiFactory : WebApplicationFactory<Program>
     public HttpClient CreateClientNoRedirect() =>
         CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 }
+

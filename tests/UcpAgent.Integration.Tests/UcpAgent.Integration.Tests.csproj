@@ -14,5 +14,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\UcpAgent.Api\UcpAgent.Api.csproj" />
+    <ProjectReference Include="..\..\src\UcpAgent.Application\UcpAgent.Application.csproj" />
+    <ProjectReference Include="..\..\src\UcpAgent.SharedKernel\UcpAgent.SharedKernel.csproj" />
   </ItemGroup>
 </Project>

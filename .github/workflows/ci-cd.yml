@@ -1,4 +1,4 @@
-name: Comprai — CI/CD
+﻿name: Comprai â€” CI/CD
 
 on:
   push:
@@ -32,11 +32,11 @@ env:
 
 jobs:
 
-  # ─────────────────────────────────────────────────────────────────────────────
-  # JOB 1 — Unit Tests
-  # ─────────────────────────────────────────────────────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # JOB 1 â€” Unit Tests
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   unit-tests:
-    name: 🧪 Testes Unitários
+    name: ðŸ§ª Testes UnitÃ¡rios
     runs-on: ubuntu-latest
 
     steps:
@@ -46,6 +46,9 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore comprai.sln
 
       - name: Restore
         run: dotnet restore comprai.sln
@@ -69,11 +72,11 @@ jobs:
           name: unit-test-results
           path: ./test-results/unit/*.trx
 
-  # ─────────────────────────────────────────────────────────────────────────────
-  # JOB 2 — Integration Tests
-  # ─────────────────────────────────────────────────────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # JOB 2 â€” Integration Tests
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   integration-tests:
-    name: 🔗 Testes de Integração
+    name: ðŸ”— Testes de IntegraÃ§Ã£o
     runs-on: ubuntu-latest
     needs: unit-tests
 
@@ -94,6 +97,9 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore comprai.sln
 
       - name: Restore
         run: dotnet restore comprai.sln
@@ -124,11 +130,11 @@ jobs:
           name: integration-test-results
           path: ./test-results/integration/*.trx
 
-  # ─────────────────────────────────────────────────────────────────────────────
-  # JOB 3 — Deploy VPS
-  # ─────────────────────────────────────────────────────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # JOB 3 â€” Deploy VPS
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   deploy:
-    name: 🚀 Deploy VPS Hostinger
+    name: ðŸš€ Deploy VPS Hostinger
     runs-on: ubuntu-latest
     needs: integration-tests
 
@@ -161,15 +167,15 @@ jobs:
             echo "Aguardando API subir..."
             sleep 15
 
-            # Health check pós-deploy
+            # Health check pÃ³s-deploy
             curl -f http://localhost:${{ env.API_PORT }}/health/live || exit 1
-            echo "✅ Deploy OK — v${{ env.BUILD_VERSION }}"
+            echo "âœ… Deploy OK â€” v${{ env.BUILD_VERSION }}"
 
-  # ─────────────────────────────────────────────────────────────────────────────
-  # JOB 4 — Smoke Tests Newman
-  # ─────────────────────────────────────────────────────────────────────────────
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # JOB 4 â€” Smoke Tests Newman
+  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   smoke-tests:
-    name: 💨 Smoke Tests Newman
+    name: ðŸ’¨ Smoke Tests Newman
     runs-on: ubuntu-latest
     needs: deploy
 
@@ -194,7 +200,7 @@ jobs:
             --env-var "ML_ACCESS_TOKEN=${ML_ACCESS_TOKEN}" \
             --reporters cli,htmlextra \
             --reporter-htmlextra-export ./newman-report/smoke-report.html \
-            --reporter-htmlextra-title "Comprai Smoke Tests — v${{ env.BUILD_VERSION }}" \
+            --reporter-htmlextra-title "Comprai Smoke Tests â€” v${{ env.BUILD_VERSION }}" \
             --bail
 
       - name: Upload Newman Report
@@ -216,6 +222,7 @@ jobs:
         if: always()
         run: |
           STATUS="${{ job.status }}"
-          echo "### 💨 Smoke Tests — v${{ env.BUILD_VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "### ðŸ’¨ Smoke Tests â€” v${{ env.BUILD_VERSION }}" >> $GITHUB_STEP_SUMMARY
           echo "Status: **${STATUS}**" >> $GITHUB_STEP_SUMMARY
           echo "Report: https://${{ github.repository_owner }}.github.io/comprai/smoke/${{ env.BUILD_VERSION }}/smoke-report.html" >> $GITHUB_STEP_SUMMARY
+
