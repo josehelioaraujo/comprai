@@ -1,3 +1,4 @@
+﻿using UcpAgent.Api.Endpoints;
 using UcpAgent.Api;
 using Scalar.AspNetCore;
 using MediatR;
@@ -24,11 +25,11 @@ using UcpAgent.Infrastructure.Orders;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddObservabilidade(builder.Configuration);
 
-// ── MediatR ──────────────────────────────────────────────────────────────────
+// â”€â”€ MediatR â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssemblyContaining<SearchProductsHandler>());
 
-// ── HybridCache + Redis ───────────────────────────────────────────────────────
+// â”€â”€ HybridCache + Redis â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 builder.Services.AddStackExchangeRedisCache(opt =>
     opt.Configuration = builder.Configuration["Redis:ConnectionString"]);
 
@@ -41,7 +42,7 @@ builder.Services.AddHybridCache(opt =>
     };
 });
 
-// ── OpenTelemetry ─────────────────────────────────────────────────────────────
+// â”€â”€ OpenTelemetry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(r => r.AddService("comprai-api"))
     .WithTracing(t => t
@@ -49,13 +50,13 @@ builder.Services.AddOpenTelemetry()
         .AddHttpClientInstrumentation()
         .AddOtlpExporter());
 
-// ── OpenAPI ───────────────────────────────────────────────────────────────────
+// â”€â”€ OpenAPI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 builder.Services.AddOpenApi();
 
-// ── Health Checks ─────────────────────────────────────────────────────────────
+// â”€â”€ Health Checks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 builder.Services.AddHealthChecks();
 
-// ── Ports / Adapters ──────────────────────────────────────────────────────────
+// â”€â”€ Ports / Adapters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 var usarMock    = builder.Configuration.GetValue<bool>("Features:UsarMockDados");
 var usarRedis   = builder.Configuration.GetValue<bool>("Features:UsarRedis");
 var usarKafka   = builder.Configuration.GetValue<bool>("Features:UsarKafka");
@@ -70,7 +71,7 @@ if (usarMock)
 }
 else
 {
-    // Plugins de catálogo
+    // Plugins de catÃ¡logo
     builder.Services.AddHttpClient<MercadoLivrePlugin>();
     builder.Services.AddSingleton<IProductCatalogPort, MercadoLivrePlugin>();
     builder.Services.AddHttpClient<VtexCatalogPlugin>();
@@ -82,7 +83,7 @@ else
 
     if (usarRedis)
     {
-        // Conexão Redis compartilhada
+        // ConexÃ£o Redis compartilhada
         builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
             ConnectionMultiplexer.Connect(builder.Configuration["Redis:ConnectionString"]!));
 
@@ -100,7 +101,7 @@ else
     }
 }
 
-// ── IEventPublisher ───────────────────────────────────────────────────────────
+// â”€â”€ IEventPublisher â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 if (usarKafka)
 {
     var bootstrapServers = builder.Configuration["Kafka:BootstrapServers"] ?? "localhost:9092";
@@ -133,14 +134,14 @@ var app = builder.Build();
 app.MapOpenApi();
 app.MapScalarApiReference();
 
-// ── Health ────────────────────────────────────────────────────────────────────
+// â”€â”€ Health â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 app.MapGet("/health/live", () => Results.Ok(new { status = "alive" }))
    .WithTags("Health");
 
 app.MapGet("/health/ready", () => Results.Ok(new { status = "ready" }))
    .WithTags("Health");
 
-// ── Search (cache 5 min) ──────────────────────────────────────────────────────
+// â”€â”€ Search (cache 5 min) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 app.MapGet("/api/search", async (
     string q, int page, int pageSize,
     string? category, decimal? minPrice, decimal? maxPrice,
@@ -156,7 +157,7 @@ app.MapGet("/api/search", async (
 })
 .WithTags("Search").WithName("SearchProducts");
 
-// ── Cart ──────────────────────────────────────────────────────────────────────
+// â”€â”€ Cart â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 app.MapGet("/api/cart/{sessionId}", async (
     string sessionId, ICartPort cart, CancellationToken ct) =>
 {
@@ -182,7 +183,7 @@ app.MapDelete("/api/cart/{sessionId}/items/{itemId}", async (
 })
 .WithTags("Cart").WithName("RemoveCartItem");
 
-// ── Checkout ──────────────────────────────────────────────────────────────────
+// â”€â”€ Checkout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 app.MapPost("/api/checkout/{sessionId}", async (
     string sessionId, CustomerDto customer,
     IMediator mediator, CancellationToken ct) =>
@@ -195,7 +196,7 @@ app.MapPost("/api/checkout/{sessionId}", async (
 })
 .WithTags("Checkout").WithName("Checkout");
 
-// ── Order ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Order â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 app.MapGet("/api/orders/{orderId}", async (
     string orderId, IMediator mediator, CancellationToken ct) =>
 {
@@ -239,7 +240,13 @@ app.MapPost("/webhook/ml", async (
     var result = await webhook.ProcessAsync(payload, ct);
     return Results.Ok(result);
 }).WithTags("MercadoLivre");
+app.MapIntentEndpoints();
+app.MapGet("/api/ml/token-debug", async (UcpAgent.Catalog.MercadoLivreOrders.MlTokenService ml, CancellationToken ct) => { try { var t = await ml.GetAccessTokenAsync(ct); return Results.Ok(new { access_token = t }); } catch (Exception ex) { return Results.BadRequest(new { error = ex.Message }); } }).WithTags("Debug");
 app.Run();
 
-// ── Request DTOs ──────────────────────────────────────────────────────────────
+// â”€â”€ Request DTOs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 record AddToCartRequest(UcpAgent.SharedKernel.Models.ProductDto Product, int Quantity = 1);
+
+
+
+

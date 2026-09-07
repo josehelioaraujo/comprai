@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -35,4 +35,7 @@
     <ProjectReference Include="..\plugins\UcpAgent.Catalog.MercadoLivreOrders\UcpAgent.Catalog.MercadoLivreOrders.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="UcpAgent.Integration.Tests" />
+  </ItemGroup>
 </Project>

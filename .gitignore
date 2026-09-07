@@ -433,3 +433,6 @@ Claude outputs/
 aplicar-fase*.ps1
 # Scripts PowerShell locais — não subir ao repositório
 *.ps1
+
+test-results/
+newman-report/

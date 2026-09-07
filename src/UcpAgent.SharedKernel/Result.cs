@@ -1,3 +1,5 @@
+﻿using System.Text.Json.Serialization;
+
 namespace UcpAgent.SharedKernel;
 
 public class Result<T>
@@ -6,11 +8,16 @@ public class Result<T>
     public T? Value { get; }
     public string? Error { get; }
 
-    private Result(T value) { IsSuccess = true; Value = value; }
-    private Result(string error) { IsSuccess = false; Error = error; }
+    [JsonConstructor]
+    public Result(bool isSuccess, T? value, string? error)
+    {
+        IsSuccess = isSuccess;
+        Value = value;
+        Error = error;
+    }
 
-    public static Result<T> Ok(T value) => new(value);
-    public static Result<T> Fail(string error) => new(error);
+    public static Result<T> Ok(T value) => new(true, value, null);
+    public static Result<T> Fail(string error) => new(false, default, error);
 }
 
 public class Result
@@ -18,7 +25,12 @@ public class Result
     public bool IsSuccess { get; }
     public string? Error { get; }
 
-    private Result(bool success, string? error) { IsSuccess = success; Error = error; }
+    [JsonConstructor]
+    public Result(bool isSuccess, string? error)
+    {
+        IsSuccess = isSuccess;
+        Error = error;
+    }
 
     public static Result Ok() => new(true, null);
     public static Result Fail(string error) => new(false, error);

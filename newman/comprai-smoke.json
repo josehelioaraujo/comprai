@@ -1,0 +1,209 @@
+{
+  "info": {
+    "name": "Comprai — Smoke Tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",        "value": "http://2.25.122.11:5020" },
+    { "key": "mcpUrl",         "value": "http://2.25.122.11:5030" },
+    { "key": "ML_ACCESS_TOKEN","value": "{{ML_ACCESS_TOKEN}}"     },
+    { "key": "cartId",         "value": ""                        },
+    { "key": "orderId",        "value": ""                        },
+    { "key": "productId",      "value": ""                        }
+  ],
+  "item": [
+    {
+      "name": "01 — Health Check API",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/health/live"
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "exec": [
+          "pm.test('API healthy', () => pm.response.to.have.status(200));"
+        ]}
+      }]
+    },
+    {
+      "name": "02 — Health Check MCP",
+      "request": {
+        "method": "GET",
+        "url": "{{mcpUrl}}/health"
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "exec": [
+          "pm.test('MCP healthy', () => {",
+          "  pm.expect(pm.response.code).to.be.oneOf([200, 204]);",
+          "});"
+        ]}
+      }]
+    },
+    {
+      "name": "03 — Search MercadoLivre",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/products/search?q=notebook&source=MercadoLivre&limit=3",
+          "query": [
+            { "key": "q",      "value": "notebook"        },
+            { "key": "source", "value": "MercadoLivre"    },
+            { "key": "limit",  "value": "3"               }
+          ]
+        }
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "exec": [
+          "pm.test('Status 200', () => pm.response.to.have.status(200));",
+          "const body = pm.response.json();",
+          "pm.test('Retornou produtos', () => pm.expect(body.products.length).to.be.above(0));",
+          "pm.collectionVariables.set('productId', body.products[0].id);"
+        ]}
+      }]
+    },
+    {
+      "name": "04 — Intent Router: Search",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/intent",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"message\": \"quero comprar notebook\"}" }
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "exec": [
+          "pm.test('Status 200', () => pm.response.to.have.status(200));",
+          "const body = pm.response.json();",
+          "pm.test('Intent = search', () => pm.expect(body.intent).to.eql('search'));"
+        ]}
+      }]
+    },
+    {
+      "name": "05 — Add to Cart",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/cart",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"productId\": \"{{productId}}\", \"quantity\": 1, \"source\": \"MercadoLivre\"}"
+        }
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "exec": [
+          "pm.test('Status 200', () => pm.response.to.have.status(200));",
+          "const body = pm.response.json();",
+          "pm.test('CartId gerado', () => pm.expect(body.cartId).to.be.a('string'));",
+          "pm.collectionVariables.set('cartId', body.cartId);"
+        ]}
+      }]
+    },
+    {
+      "name": "06 — Get Cart",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/cart/{{cartId}}"
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "exec": [
+          "pm.test('Status 200', () => pm.response.to.have.status(200));",
+          "const body = pm.response.json();",
+          "pm.test('Carrinho tem itens', () => pm.expect(body.items.length).to.be.above(0));"
+        ]}
+      }]
+    },
+    {
+      "name": "07 — Checkout",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/checkout",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"cartId\": \"{{cartId}}\"}" }
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "exec": [
+          "pm.test('Status 200', () => pm.response.to.have.status(200));",
+          "const body = pm.response.json();",
+          "pm.test('OrderId gerado com prefixo ORDER-', () => pm.expect(body.orderId).to.match(/^ORDER-/));",
+          "pm.collectionVariables.set('orderId', body.orderId);"
+        ]}
+      }]
+    },
+    {
+      "name": "08 — Get Order",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/orders/{{orderId}}"
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "exec": [
+          "pm.test('Status 200', () => pm.response.to.have.status(200));",
+          "const body = pm.response.json();",
+          "pm.test('Order tem status', () => pm.expect(body.status).to.be.a('string'));"
+        ]}
+      }]
+    },
+    {
+      "name": "09 — ML Orders (token real)",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/ml/orders",
+        "header": [{ "key": "Authorization", "value": "Bearer {{ML_ACCESS_TOKEN}}" }]
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "exec": [
+          "pm.test('ML Orders 200 ou 204', () => {",
+          "  pm.expect(pm.response.code).to.be.oneOf([200, 204]);",
+          "});"
+        ]}
+      }]
+    },
+    {
+      "name": "10 — MCP tools/list",
+      "request": {
+        "method": "POST",
+        "url": "{{mcpUrl}}/mcp",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{}}"
+        }
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "exec": [
+          "pm.test('Status 200', () => pm.response.to.have.status(200));",
+          "const body = pm.response.json();",
+          "pm.test('7 tools registradas', () => pm.expect(body.result.tools.length).to.eql(7));"
+        ]}
+      }]
+    },
+    {
+      "name": "11 — ML Webhook simulado",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/ml/webhook",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"resource\":\"/orders/ORDER-ML-SMOKE\",\"user_id\":123456789,\"topic\":\"orders\",\"application_id\":2786639248653015,\"attempts\":1}"
+        }
+      },
+      "event": [{
+        "listen": "test",
+        "script": { "exec": [
+          "pm.test('Webhook aceito', () => {",
+          "  pm.expect(pm.response.code).to.be.oneOf([200, 202]);",
+          "});"
+        ]}
+      }]
+    }
+  ]
+}
