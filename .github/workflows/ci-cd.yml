@@ -148,7 +148,7 @@ jobs:
       - name: Aguardar VPS estabilizar
         run: |
           echo "Aguardando API..."
-          for i in {1..15}; do
+          for i in {1..2}; do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://2.25.122.11:5020/health/live || echo "000")
             echo "Tentativa $i - status: $STATUS"
             if [ "$STATUS" = "200" ]; then echo "API pronta!"; break; fi
