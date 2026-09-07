@@ -170,7 +170,7 @@ jobs:
             --reporters cli \
             --reporters htmlextra \
             --reporter-htmlextra-export ./newman-report/smoke-report.html \
-            --bail || true
+            --bail || true || true
 
       - name: Upload Newman Report
         if: always()
@@ -179,4 +179,5 @@ jobs:
           name: smoke-test-report
           path: ./newman-report/smoke-report.html
           if-no-files-found: ignore
+
 
