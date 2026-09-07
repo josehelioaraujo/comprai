@@ -53,6 +53,8 @@ public sealed class MlTokenService(
         if (cache.TryGetValue("ml_refresh_token", out string? refreshToken) && refreshToken != null)
             return await RefreshAsync(refreshToken, ct);
 
+        var configToken = config["MercadoLivre:AccessToken"];
+        if (!string.IsNullOrEmpty(configToken)) return configToken;
         throw new InvalidOperationException("Nenhum token ML disponivel. Autorize a aplicacao primeiro via /api/ml/auth");
     }
 
@@ -92,4 +94,5 @@ public record MlTokenResponse(
     [property: System.Text.Json.Serialization.JsonPropertyName("expires_in")]    int    ExpiresIn,
     [property: System.Text.Json.Serialization.JsonPropertyName("user_id")]       long   UserId
 );
+
 
