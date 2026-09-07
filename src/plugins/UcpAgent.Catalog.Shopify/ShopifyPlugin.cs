@@ -17,6 +17,9 @@ public sealed class ShopifyPlugin : IProductCatalogPort
     private readonly ShopifyOptions _options;
     private readonly ILogger<ShopifyPlugin> _logger;
 
+    // Versão estável da Admin API (2024-10 é a mais recente GA)
+    private const string ApiVersion = "2024-10";
+
     private static readonly JsonSerializerOptions _jsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -79,9 +82,15 @@ public sealed class ShopifyPlugin : IProductCatalogPort
             return new SearchResult([], 0, request.Page, request.PageSize, SourceName);
         }
 
+        if (string.IsNullOrWhiteSpace(_options.StoreUrl))
+        {
+            _logger.LogWarning("[Shopify] StoreUrl nao configurado - ignorando.");
+            return new SearchResult([], 0, request.Page, request.PageSize, SourceName);
+        }
+
         try
         {
-            var cursor = await ResolveCursorAsync(request.Query, request.Page, request.PageSize, cancellationToken);
+            var cursor   = await ResolveCursorAsync(request.Query, request.Page, request.PageSize, cancellationToken);
             var products = await FetchPageAsync(request.Query, request.PageSize, cursor, cancellationToken);
 
             var filtered = products;
@@ -90,11 +99,18 @@ public sealed class ShopifyPlugin : IProductCatalogPort
             if (request.MaxPrice.HasValue)
                 filtered = filtered.Where(p => p.Price <= request.MaxPrice.Value).ToList();
 
+            _logger.LogInformation("[Shopify] Retornando {Count} produtos para '{Query}'", filtered.Count, request.Query);
             return new SearchResult(filtered, filtered.Count, request.Page, request.PageSize, SourceName);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "[Shopify] HTTP erro ao buscar produtos — StoreUrl={StoreUrl} ApiVersion={ApiVersion} Status={Status}",
+                _options.StoreUrl, ApiVersion, ex.StatusCode);
+            return new SearchResult([], 0, request.Page, request.PageSize, SourceName);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[Shopify] Erro ao buscar produtos via GraphQL.");
+            _logger.LogError(ex, "[Shopify] Erro inesperado ao buscar produtos via GraphQL.");
             return new SearchResult([], 0, request.Page, request.PageSize, SourceName);
         }
     }
@@ -115,7 +131,7 @@ public sealed class ShopifyPlugin : IProductCatalogPort
         string? cursor = null;
         for (int i = 1; i < page; i++)
         {
-            var payload = BuildPayload(CursorQuery, query, pageSize, cursor);
+            var payload  = BuildPayload(CursorQuery, query, pageSize, cursor);
             var response = await PostGraphQlAsync(payload, ct);
             cursor = response?.Data?.Products?.PageInfo?.EndCursor;
             if (cursor is null) break;
@@ -127,7 +143,7 @@ public sealed class ShopifyPlugin : IProductCatalogPort
     private async Task<List<ProductDto>> FetchPageAsync(
         string query, int pageSize, string? cursor, CancellationToken ct)
     {
-        var payload = BuildPayload(ProductsQuery, query, pageSize, cursor);
+        var payload  = BuildPayload(ProductsQuery, query, pageSize, cursor);
         var response = await PostGraphQlAsync(payload, ct);
         if (response is null) return [];
 
@@ -138,12 +154,19 @@ public sealed class ShopifyPlugin : IProductCatalogPort
 
     private async Task<ShopifyGraphQlResponse?> PostGraphQlAsync(object payload, CancellationToken ct)
     {
-        var url = $"https://{_options.StoreUrl}/admin/api/2026-07/graphql.json";
-        var json = JsonSerializer.Serialize(payload, _jsonOptions);
+        var url     = $"https://{_options.StoreUrl}/admin/api/{ApiVersion}/graphql.json";
+        var json    = JsonSerializer.Serialize(payload, _jsonOptions);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
+        _logger.LogDebug("[Shopify] POST {Url}", url);
         var httpResponse = await _http.PostAsync(url, content, ct);
-        httpResponse.EnsureSuccessStatusCode();
+
+        if (!httpResponse.IsSuccessStatusCode)
+        {
+            var body = await httpResponse.Content.ReadAsStringAsync(ct);
+            _logger.LogError("[Shopify] API retornou {Status}: {Body}", (int)httpResponse.StatusCode, body[..Math.Min(500, body.Length)]);
+            httpResponse.EnsureSuccessStatusCode();
+        }
 
         return await httpResponse.Content
             .ReadFromJsonAsync<ShopifyGraphQlResponse>(_jsonOptions, ct);
@@ -151,14 +174,14 @@ public sealed class ShopifyPlugin : IProductCatalogPort
 
     private static object BuildPayload(string gqlQuery, string search, int first, string? after) => new
     {
-        query = gqlQuery,
+        query     = gqlQuery,
         variables = new { query = search, first, after },
     };
 
     private static ProductDto MapToProduct(ProductNode node)
     {
         var firstVariant = node.Variants.Edges.FirstOrDefault()?.Node;
-        var priceStr = firstVariant?.Price.Amount ?? node.PriceRangeV2.MinVariantPrice.Amount;
+        var priceStr     = firstVariant?.Price.Amount ?? node.PriceRangeV2.MinVariantPrice.Amount;
 
         decimal.TryParse(priceStr,
             System.Globalization.NumberStyles.Any,
@@ -185,7 +208,7 @@ public sealed class ShopifyPlugin : IProductCatalogPort
 
 public sealed class ShopifyOptions
 {
-    public string StoreUrl { get; set; } = string.Empty;
+    public string StoreUrl    { get; set; } = string.Empty;
     public string AccessToken { get; set; } = string.Empty;
 }
 
