@@ -1,4 +1,34 @@
-﻿## [1.9.0] - 2026-09-07
+## [2.0.0] - 2026-09-07
+### Added
+- **V007 - Shopify GraphQL Admin API funcional end-to-end**
+  - ShopifyPlugin migrado para Admin API 2024-10 (variants.price como escalar string)
+  - Tratamento robusto de nulos em todos os records GraphQL
+  - Logs detalhados de erro HTTP e body de resposta no ShopifyPlugin
+  - CompraApiFactory injeta Shopify__StoreUrl via env var SHOPIFY_STORE_URL
+  - docker-compose.yml: Shopify__StoreUrl adicionado ao servico comprai-api
+  - ci-cd.yml: SHOPIFY_STORE_URL e Shopify__StoreUrl adicionados ao job integration-tests
+
+### Fixed
+  - Cache invalido: GetOrCreateAsync substituido por SetAsync condicional no /api/search
+    — resultado vazio nao e mais cacheado, evitando que falha temporaria de plugin fique presa no Redis
+  - ShopifyPlugin: guard de StoreUrl vazio adicionado (retorna lista vazia sem erro)
+  - GraphQL query: variants.node.price era objeto MoneyV2, corrigido para escalar string (Admin API 2024-10)
+  - Token Shopify truncado no GitHub Secrets — corrigido com token completo shpat_...b15d
+  - Features__UsarMockDados hardcoded como true no docker-compose.yml — corrigido para false
+  - Shopify__StoreUrl ausente no container da VPS — adicionado via sed no docker-compose.yml
+
+### Tests
+  - SkippableFacts Shopify passando no CI com token real e StoreUrl configurados
+  - 10 produtos retornados via GraphQL Admin API (loja comprai-dev.myshopify.com)
+  - CI/CD #62 100% verde: Testes Unitarios + Integracao + Deploy + Smoke Tests (3m 23s)
+
+### Pending (V007+)
+  - Dataset publico para loja comprai-dev (importacao via CSV — Fase 21 FakeCatalog)
+  - Novo plugin ShopifyStorefrontPlugin (Storefront API publica)
+  - Fase 21: FakeCatalog Generator (UcpAgent.FakeCatalog + exportadores CSV/JSON)
+  - Fase 22: Price Watcher (BackgroundService + SignalR + RabbitMQ + Resend)
+
+## [1.9.0] - 2026-09-07
 ### Added
 - **V005 - Testes de Integracao Shopify**
   - ShopifyIntegrationTest.cs com 13 testes cobrindo busca, fan-out, cart e intent
