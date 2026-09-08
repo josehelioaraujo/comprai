@@ -1,4 +1,4 @@
-name: Comprai -- CI/CD
+name: CI/CD
 
 on:
   push:
@@ -139,7 +139,7 @@ jobs:
           script: |
             set -e
             cd ${{ env.VPS_PATH }}
-            git pull origin main
+            git checkout -- . && git pull origin main
             BROKER="${{ github.event.inputs.broker || 'nenhum' }}"
             USAR_BANCO="${{ github.event.inputs.usar_banco || 'false' }}"
             sed -i "s/UsarRedis=.*/UsarRedis=${USAR_BANCO}/" .env
