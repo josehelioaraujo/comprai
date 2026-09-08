@@ -157,29 +157,13 @@ app.MapGet("/api/search", async (
     IMediator mediator, HybridCache cache, CancellationToken ct) =>
 {
     var cacheKey = $"search:{q}:{page}:{pageSize}:{category}:{minPrice}:{maxPrice}";
-    Result<SearchResult>? result = null;
-    try
-    {
-        result = await cache.GetOrCreateAsync(
-            cacheKey,
-            async token =>
-            {
-                var r = await mediator.Send(
-                    new SearchProductsQuery(q, page, pageSize, category, minPrice, maxPrice), token);
-                // Nao cacheia resultado vazio — evita que falha temporaria de plugin fique cacheada
-                if (r.IsSuccess && r.Value.Items.Count == 0)
-                    throw new InvalidOperationException("__skip_cache__");
-                return r;
-            },
-            cancellationToken: ct);
-    }
-    catch (InvalidOperationException ex) when (ex.Message == "__skip_cache__")
-    {
-        // Resultado vazio: executa sem cache
-        result = await mediator.Send(
-            new SearchProductsQuery(q, page, pageSize, category, minPrice, maxPrice), ct);
-    }
-    return result!.IsSuccess ? Results.Ok(result.Value) : Results.Problem(result.Error);
+    // Executa sem cache primeiro para verificar se tem resultados
+    var result = await mediator.Send(
+        new SearchProductsQuery(q, page, pageSize, category, minPrice, maxPrice), ct);
+    // So cacheia se tiver ao menos 1 item — evita cachear falha temporaria de plugin
+    if (result.IsSuccess && result.Value.Items.Count > 0)
+        await cache.SetAsync(cacheKey, result, cancellationToken: ct);
+    return result.IsSuccess ? Results.Ok(result.Value) : Results.Problem(result.Error);
 })
 .WithTags("Search").WithName("SearchProducts");
 
