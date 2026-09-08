@@ -52,6 +52,7 @@ jobs:
           dotnet build src/UcpAgent.Domain/UcpAgent.Domain.csproj --configuration Release --no-restore
           dotnet build src/UcpAgent.Application/UcpAgent.Application.csproj --configuration Release --no-restore
           dotnet build src/UcpAgent.Infrastructure/UcpAgent.Infrastructure.csproj --configuration Release --no-restore
+          dotnet build src/plugins/UcpAgent.FakeCatalog/UcpAgent.FakeCatalog.csproj --configuration Release --no-restore
           dotnet build src/UcpAgent.Api/UcpAgent.Api.csproj --configuration Release --no-restore
 
       - name: Run Unit Tests
