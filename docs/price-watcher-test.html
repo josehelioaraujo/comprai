@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Comprai — Price Watcher Test</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; padding: 24px; }
+    h1 { color: #38bdf8; font-size: 1.5rem; margin-bottom: 4px; }
+    .subtitle { color: #64748b; font-size: 0.85rem; margin-bottom: 24px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 1100px; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px; }
+    .card h2 { font-size: 1rem; color: #94a3b8; margin-bottom: 16px; text-transform: uppercase; letter-spacing: .05em; }
+    label { display: block; font-size: 0.8rem; color: #64748b; margin-bottom: 4px; margin-top: 12px; }
+    input { width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 8px 10px; color: #e2e8f0; font-size: 0.9rem; }
+    input:focus { outline: none; border-color: #38bdf8; }
+    button { margin-top: 14px; width: 100%; padding: 10px; border: none; border-radius: 6px; font-size: 0.9rem; cursor: pointer; font-weight: 600; transition: opacity .2s; }
+    button:hover { opacity: .85; }
+    .btn-primary { background: #0ea5e9; color: #fff; }
+    .btn-danger  { background: #ef4444; color: #fff; }
+    .btn-info    { background: #6366f1; color: #fff; }
+    .status-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; font-size: 0.85rem; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; }
+    .dot.connected { background: #22c55e; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .log { background: #0f172a; border: 1px solid #1e293b; border-radius: 8px; padding: 12px; font-family: monospace; font-size: 0.78rem; height: 300px; overflow-y: auto; }
+    .log-entry { padding: 4px 0; border-bottom: 1px solid #1e293b; }
+    .log-entry.alert { color: #22c55e; font-weight: bold; }
+    .log-entry.info  { color: #38bdf8; }
+    .log-entry.error { color: #ef4444; }
+    .log-entry.warn  { color: #f59e0b; }
+    .watch-list { max-height: 300px; overflow-y: auto; }
+    .watch-item { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 12px; margin-bottom: 8px; }
+    .watch-item .title { font-weight: 600; color: #e2e8f0; font-size: 0.9rem; }
+    .watch-item .prices { display: flex; gap: 16px; margin-top: 6px; font-size: 0.8rem; color: #64748b; }
+    .watch-item .prices span b { color: #38bdf8; }
+    .watch-item .remove { float: right; background: none; border: 1px solid #ef4444; color: #ef4444; border-radius: 4px; padding: 2px 8px; font-size: 0.75rem; cursor: pointer; margin-top: -2px; width: auto; }
+    .alert-banner { background: #052e16; border: 1px solid #22c55e; border-radius: 8px; padding: 14px; margin-bottom: 10px; }
+    .alert-banner .alert-title { color: #22c55e; font-weight: 700; font-size: 1rem; }
+    .alert-banner .alert-body  { color: #86efac; font-size: 0.85rem; margin-top: 4px; }
+    .empty { color: #475569; font-size: 0.85rem; text-align: center; padding: 30px 0; }
+    .full-width { grid-column: 1 / -1; }
+  </style>
+</head>
+<body>
+
+<h1>🛒 Comprai — Price Watcher</h1>
+<p class="subtitle">Teste em tempo real via SignalR · Backend: <span id="apiUrl"></span></p>
+
+<div class="grid">
+
+  <!-- Config -->
+  <div class="card">
+    <h2>⚙️ Configuração</h2>
+    <label>API Base URL</label>
+    <input id="baseUrl" value="http://2.25.122.11:5020" />
+    <label>Session ID</label>
+    <input id="sessionId" value="session-teste-001" />
+    <button class="btn-primary" onclick="connectSignalR()">🔌 Conectar SignalR</button>
+    <div class="status-bar" style="margin-top:12px">
+      <div class="dot" id="dot"></div>
+      <span id="connStatus">Desconectado</span>
+    </div>
+  </div>
+
+  <!-- Adicionar Watch -->
+  <div class="card">
+    <h2>➕ Adicionar Watch</h2>
+    <label>Product ID</label>
+    <input id="productId" value="SKU12345-BR" />
+    <label>Título</label>
+    <input id="title" value="Notebook Samsung BR" />
+    <label>Preço Atual (R$)</label>
+    <input id="currentPrice" type="number" value="2999.90" step="0.01" />
+    <label>Preço Alvo (R$)</label>
+    <input id="targetPrice" type="number" value="2500.00" step="0.01" />
+    <label>Email (opcional)</label>
+    <input id="email" type="email" placeholder="seu@email.com" />
+    <button class="btn-primary" onclick="addWatch()">📌 Monitorar Preço</button>
+  </div>
+
+  <!-- Alertas -->
+  <div class="card">
+    <h2>🔔 Alertas Recebidos</h2>
+    <div id="alertList"><p class="empty">Nenhum alerta ainda — aguardando SignalR...</p></div>
+  </div>
+
+  <!-- Watches ativos -->
+  <div class="card">
+    <h2>👁️ Watches Ativos</h2>
+    <button class="btn-info" onclick="listWatches()" style="margin-bottom:12px">🔄 Atualizar</button>
+    <div class="watch-list" id="watchList"><p class="empty">Clique em Atualizar</p></div>
+  </div>
+
+  <!-- Log -->
+  <div class="card full-width">
+    <h2>📋 Log</h2>
+    <div class="log" id="log"></div>
+  </div>
+
+</div>
+
+<script>
+  let connection = null;
+
+  function log(msg, type = 'info') {
+    const el = document.getElementById('log');
+    const d  = new Date().toLocaleTimeString('pt-BR');
+    el.innerHTML += `<div class="log-entry ${type}">[${d}] ${msg}</div>`;
+    el.scrollTop  = el.scrollHeight;
+  }
+
+  function getBase() { return document.getElementById('baseUrl').value.trim(); }
+  function getSession() { return document.getElementById('sessionId').value.trim(); }
+
+  document.getElementById('apiUrl').textContent = getBase();
+
+  async function connectSignalR() {
+    if (connection) { await connection.stop(); }
+    const url = getBase() + '/hubs/price';
+    log(`Conectando em ${url}...`, 'info');
+
+    connection = new signalR.HubConnectionBuilder()
+      .withUrl(url)
+      .withAutomaticReconnect()
+      .build();
+
+    connection.on('PriceAlert', (alert) => {
+      log(`🎉 ALERTA: ${alert.title} — de R$${alert.oldPrice} para R$${alert.newPrice} (alvo: R$${alert.targetPrice})`, 'alert');
+      const list = document.getElementById('alertList');
+      if (list.querySelector('.empty')) list.innerHTML = '';
+      list.innerHTML = `
+        <div class="alert-banner">
+          <div class="alert-title">🎉 ${alert.title}</div>
+          <div class="alert-body">
+            Preço baixou de <b>R$ ${alert.oldPrice.toFixed(2)}</b> para
+            <b style="color:#22c55e">R$ ${alert.newPrice.toFixed(2)}</b>
+            (seu alvo era R$ ${alert.targetPrice.toFixed(2)})
+            <br><small style="color:#4ade80">Watch ID: ${alert.watchId} · ${new Date(alert.alertedAt).toLocaleString('pt-BR')}</small>
+          </div>
+        </div>` + list.innerHTML;
+    });
+
+    connection.onreconnecting(() => {
+      log('Reconectando...', 'warn');
+      document.getElementById('dot').classList.remove('connected');
+      document.getElementById('connStatus').textContent = 'Reconectando...';
+    });
+
+    connection.onreconnected(() => {
+      log('Reconectado!', 'info');
+      joinGroup();
+    });
+
+    try {
+      await connection.start();
+      log('SignalR conectado ✅', 'info');
+      document.getElementById('dot').classList.add('connected');
+      document.getElementById('connStatus').textContent = 'Conectado';
+      await joinGroup();
+    } catch(e) {
+      log('Erro ao conectar: ' + e.message, 'error');
+    }
+  }
+
+  async function joinGroup() {
+    const session = getSession();
+    await connection.invoke('JoinSession', session);
+    log(`Entrou no grupo: ${session}`, 'info');
+  }
+
+  async function addWatch() {
+    const base    = getBase();
+    const session = getSession();
+    const body = {
+      productId:    document.getElementById('productId').value,
+      title:        document.getElementById('title').value,
+      currentPrice: parseFloat(document.getElementById('currentPrice').value),
+      targetPrice:  parseFloat(document.getElementById('targetPrice').value),
+      imageUrl:     null,
+      email:        document.getElementById('email').value || null
+    };
+
+    log(`Adicionando watch: ${body.title} alvo=R$${body.targetPrice}`, 'info');
+
+    try {
+      const res  = await fetch(`${base}/api/price-watch?sessionId=${session}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      log(`Watch criado: ${data.watchId} — ${data.message}`, 'info');
+      await listWatches();
+    } catch(e) {
+      log('Erro ao adicionar watch: ' + e.message, 'error');
+    }
+  }
+
+  async function listWatches() {
+    const base    = getBase();
+    const session = getSession();
+    try {
+      const res  = await fetch(`${base}/api/price-watch/${session}`);
+      const data = await res.json();
+      const list = document.getElementById('watchList');
+      if (!data.watches.length) {
+        list.innerHTML = '<p class="empty">Nenhum watch ativo</p>';
+        return;
+      }
+      list.innerHTML = data.watches.map(w => `
+        <div class="watch-item">
+          <span class="title">${w.title}</span>
+          <button class="remove" onclick="removeWatch('${w.watchId}')">✕</button>
+          <div class="prices">
+            <span>Atual: <b>R$ ${w.currentPrice.toFixed(2)}</b></span>
+            <span>Alvo: <b>R$ ${w.targetPrice.toFixed(2)}</b></span>
+            <span>ID: <b>${w.watchId}</b></span>
+          </div>
+        </div>`).join('');
+      log(`${data.total} watch(es) ativo(s)`, 'info');
+    } catch(e) {
+      log('Erro ao listar: ' + e.message, 'error');
+    }
+  }
+
+  async function removeWatch(watchId) {
+    const base    = getBase();
+    const session = getSession();
+    try {
+      await fetch(`${base}/api/price-watch/${session}/${watchId}`, { method: 'DELETE' });
+      log(`Watch ${watchId} removido`, 'warn');
+      await listWatches();
+    } catch(e) {
+      log('Erro ao remover: ' + e.message, 'error');
+    }
+  }
+</script>
+</body>
+</html>

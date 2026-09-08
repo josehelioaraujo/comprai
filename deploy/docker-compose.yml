@@ -16,6 +16,7 @@ services:
       Features__UsarRedis:    ${USAR_REDIS:-true}
       Features__UsarRabbitMQ: ${USAR_RABBITMQ:-false}
       Features__UsarKafka:    ${USAR_KAFKA:-false}
+      Features__UsarPriceWatcher: ${USAR_PRICE_WATCHER:-true}
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://comprai-jaeger:4319"
       OTEL_SERVICE_NAME: "comprai-api"
     depends_on:
