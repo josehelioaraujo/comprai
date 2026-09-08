@@ -10,7 +10,7 @@
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: 'http://+:5020'
-      Features__UsarMockDados: 'true'
+      Features__UsarMockDados: 'false'
       Features__UsarRedis:     'false'
       Features__UsarKafka:     'false'
       Features__UsarRabbitMQ:  'false'
@@ -22,6 +22,7 @@
       Otel__Endpoint:    http://comprai-jaeger:4317
       Otel__ServiceName: comprai-api
       Shopify__AccessToken: ${SHOPIFY_ACCESS_TOKEN}
+      Shopify__StoreUrl:    ${SHOPIFY_STORE_URL:-comprai-dev.myshopify.com}
     depends_on:
       - redis
     networks:
