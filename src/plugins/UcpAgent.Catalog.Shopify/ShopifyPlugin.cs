@@ -17,7 +17,6 @@ public sealed class ShopifyPlugin : IProductCatalogPort
     private readonly ShopifyOptions _options;
     private readonly ILogger<ShopifyPlugin> _logger;
 
-    // Versão estável da Admin API (2024-10 é a mais recente GA)
     private const string ApiVersion = "2024-10";
 
     private static readonly JsonSerializerOptions _jsonOptions = new()
@@ -34,11 +33,9 @@ public sealed class ShopifyPlugin : IProductCatalogPort
               node {
                 id
                 title
-                description
                 vendor
                 productType
                 handle
-                tags
                 featuredImage { url }
                 priceRangeV2 {
                   minVariantPrice { amount currencyCode }
@@ -78,20 +75,19 @@ public sealed class ShopifyPlugin : IProductCatalogPort
     {
         if (string.IsNullOrWhiteSpace(_options.AccessToken))
         {
-            _logger.LogWarning("[Shopify] AccessToken nao configurado - ignorando.");
+            _logger.LogWarning("[Shopify] AccessToken nao configurado.");
             return new SearchResult([], 0, request.Page, request.PageSize, SourceName);
         }
 
         if (string.IsNullOrWhiteSpace(_options.StoreUrl))
         {
-            _logger.LogWarning("[Shopify] StoreUrl nao configurado - ignorando.");
+            _logger.LogWarning("[Shopify] StoreUrl nao configurado.");
             return new SearchResult([], 0, request.Page, request.PageSize, SourceName);
         }
 
         try
         {
-            var cursor   = await ResolveCursorAsync(request.Query, request.Page, request.PageSize, cancellationToken);
-            var products = await FetchPageAsync(request.Query, request.PageSize, cursor, cancellationToken);
+            var products = await FetchPageAsync(request.Query, request.PageSize, null, cancellationToken);
 
             var filtered = products;
             if (request.MinPrice.HasValue)
@@ -99,100 +95,71 @@ public sealed class ShopifyPlugin : IProductCatalogPort
             if (request.MaxPrice.HasValue)
                 filtered = filtered.Where(p => p.Price <= request.MaxPrice.Value).ToList();
 
-            _logger.LogInformation("[Shopify] Retornando {Count} produtos para '{Query}'", filtered.Count, request.Query);
+            _logger.LogInformation("[Shopify] {Count} produtos para '{Query}'", filtered.Count, request.Query);
             return new SearchResult(filtered, filtered.Count, request.Page, request.PageSize, SourceName);
-        }
-        catch (HttpRequestException ex)
-        {
-            _logger.LogError(ex, "[Shopify] HTTP erro ao buscar produtos — StoreUrl={StoreUrl} ApiVersion={ApiVersion} Status={Status}",
-                _options.StoreUrl, ApiVersion, ex.StatusCode);
-            return new SearchResult([], 0, request.Page, request.PageSize, SourceName);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[Shopify] Erro inesperado ao buscar produtos via GraphQL.");
+            _logger.LogError(ex, "[Shopify] Erro ao buscar produtos.");
             return new SearchResult([], 0, request.Page, request.PageSize, SourceName);
         }
-    }
-
-    private async Task<string?> ResolveCursorAsync(
-        string query, int page, int pageSize, CancellationToken ct)
-    {
-        if (page <= 1) return null;
-
-        const string CursorQuery = """
-            query GetCursor($query: String!, $first: Int!, $after: String) {
-              products(query: $query, first: $first, after: $after) {
-                pageInfo { hasNextPage endCursor }
-              }
-            }
-            """;
-
-        string? cursor = null;
-        for (int i = 1; i < page; i++)
-        {
-            var payload  = BuildPayload(CursorQuery, query, pageSize, cursor);
-            var response = await PostGraphQlAsync(payload, ct);
-            cursor = response?.Data?.Products?.PageInfo?.EndCursor;
-            if (cursor is null) break;
-        }
-
-        return cursor;
     }
 
     private async Task<List<ProductDto>> FetchPageAsync(
         string query, int pageSize, string? cursor, CancellationToken ct)
     {
-        var payload  = BuildPayload(ProductsQuery, query, pageSize, cursor);
-        var response = await PostGraphQlAsync(payload, ct);
-        if (response is null) return [];
+        var payload = new
+        {
+            query     = ProductsQuery,
+            variables = new { query, first = pageSize, after = cursor }
+        };
 
-        return response.Data.Products.Edges
-            .Select(e => MapToProduct(e.Node))
-            .ToList();
-    }
-
-    private async Task<ShopifyGraphQlResponse?> PostGraphQlAsync(object payload, CancellationToken ct)
-    {
         var url     = $"https://{_options.StoreUrl}/admin/api/{ApiVersion}/graphql.json";
         var json    = JsonSerializer.Serialize(payload, _jsonOptions);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        _logger.LogDebug("[Shopify] POST {Url}", url);
         var httpResponse = await _http.PostAsync(url, content, ct);
+        var rawBody      = await httpResponse.Content.ReadAsStringAsync(ct);
 
         if (!httpResponse.IsSuccessStatusCode)
         {
-            var body = await httpResponse.Content.ReadAsStringAsync(ct);
-            _logger.LogError("[Shopify] API retornou {Status}: {Body}", (int)httpResponse.StatusCode, body[..Math.Min(500, body.Length)]);
-            httpResponse.EnsureSuccessStatusCode();
+            _logger.LogError("[Shopify] HTTP {Status}: {Body}", (int)httpResponse.StatusCode, rawBody[..Math.Min(500, rawBody.Length)]);
+            return [];
         }
 
-        return await httpResponse.Content
-            .ReadFromJsonAsync<ShopifyGraphQlResponse>(_jsonOptions, ct);
-    }
+        _logger.LogDebug("[Shopify] Response: {Body}", rawBody[..Math.Min(1000, rawBody.Length)]);
 
-    private static object BuildPayload(string gqlQuery, string search, int first, string? after) => new
-    {
-        query     = gqlQuery,
-        variables = new { query = search, first, after },
-    };
+        var response = JsonSerializer.Deserialize<ShopifyGraphQlResponse>(rawBody, _jsonOptions);
+
+        if (response?.Data?.Products?.Edges is null)
+        {
+            _logger.LogWarning("[Shopify] Response.Data.Products.Edges nulo. Body: {Body}", rawBody[..Math.Min(500, rawBody.Length)]);
+            return [];
+        }
+
+        return response.Data.Products.Edges
+            .Where(e => e?.Node is not null)
+            .Select(e => MapToProduct(e.Node!))
+            .ToList();
+    }
 
     private static ProductDto MapToProduct(ProductNode node)
     {
-        var firstVariant = node.Variants.Edges.FirstOrDefault()?.Node;
-        var priceStr     = firstVariant?.Price.Amount ?? node.PriceRangeV2.MinVariantPrice.Amount;
+        var firstVariant = node.Variants?.Edges?.FirstOrDefault()?.Node;
+        var priceStr     = firstVariant?.Price?.Amount
+                           ?? node.PriceRangeV2?.MinVariantPrice?.Amount
+                           ?? "0";
 
         decimal.TryParse(priceStr,
             System.Globalization.NumberStyles.Any,
             System.Globalization.CultureInfo.InvariantCulture,
             out var price);
 
-        var id = node.Id.Split('/').LastOrDefault() ?? node.Id;
+        var id = node.Id?.Split('/').LastOrDefault() ?? node.Id ?? "0";
 
         return new ProductDto(
             Id:                $"shopify-{id}",
-            Title:             node.Title,
+            Title:             node.Title ?? string.Empty,
             Price:             price,
             ImageUrl:          node.FeaturedImage?.Url ?? string.Empty,
             Url:               $"https://{node.Handle}.myshopify.com/products/{node.Handle}",
@@ -214,18 +181,18 @@ public sealed class ShopifyOptions
 
 // ── GraphQL Models ────────────────────────────────────────────────────────────
 
-internal sealed record ShopifyGraphQlResponse(ShopifyGraphQlData Data);
-internal sealed record ShopifyGraphQlData(ProductConnection Products);
-internal sealed record ProductConnection(List<ProductEdge> Edges, PageInfo PageInfo);
-internal sealed record ProductEdge(ProductNode Node);
+internal sealed record ShopifyGraphQlResponse(ShopifyGraphQlData? Data);
+internal sealed record ShopifyGraphQlData(ProductConnection? Products);
+internal sealed record ProductConnection(List<ProductEdge>? Edges, PageInfo? PageInfo);
+internal sealed record ProductEdge(ProductNode? Node);
 internal sealed record PageInfo(bool HasNextPage, string? EndCursor);
 internal sealed record ProductNode(
-    string Id, string Title, string? Description, string? Vendor,
-    string? ProductType, string? Handle, List<string> Tags,
-    FeaturedImage? FeaturedImage, PriceRangeV2 PriceRangeV2, VariantConnection Variants);
+    string? Id, string? Title, string? Vendor,
+    string? ProductType, string? Handle,
+    FeaturedImage? FeaturedImage, PriceRangeV2? PriceRangeV2, VariantConnection? Variants);
 internal sealed record FeaturedImage(string? Url);
-internal sealed record PriceRangeV2(MoneyV2 MinVariantPrice);
-internal sealed record MoneyV2(string Amount, string CurrencyCode);
-internal sealed record VariantConnection(List<VariantEdge> Edges);
-internal sealed record VariantEdge(VariantNode Node);
-internal sealed record VariantNode(string? Sku, MoneyV2 Price);
+internal sealed record PriceRangeV2(MoneyV2? MinVariantPrice);
+internal sealed record MoneyV2(string? Amount, string? CurrencyCode);
+internal sealed record VariantConnection(List<VariantEdge>? Edges);
+internal sealed record VariantEdge(VariantNode? Node);
+internal sealed record VariantNode(string? Sku, MoneyV2? Price);
