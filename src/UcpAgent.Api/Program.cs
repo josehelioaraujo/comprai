@@ -23,6 +23,7 @@ using UcpAgent.Catalog.OpenFoodFacts;
 using UcpAgent.Infrastructure.Cart;
 using UcpAgent.Infrastructure.Checkout;
 using UcpAgent.Infrastructure.Orders;
+using UcpAgent.FakeCatalog;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddObservabilidade(builder.Configuration);
@@ -251,6 +252,7 @@ app.MapPost("/webhook/ml", async (
     return Results.Ok(result);
 }).WithTags("MercadoLivre");
 app.MapIntentEndpoints();
+app.MapFakeCatalogEndpoints();
 app.MapGet("/api/ml/token-debug", async (UcpAgent.Catalog.MercadoLivreOrders.MlTokenService ml, CancellationToken ct) => { try { var t = await ml.GetAccessTokenAsync(ct); return Results.Ok(new { access_token = t }); } catch (Exception ex) { return Results.BadRequest(new { error = ex.Message }); } }).WithTags("Debug");
 app.Run();
 
