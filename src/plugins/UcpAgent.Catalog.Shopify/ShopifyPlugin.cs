@@ -26,6 +26,9 @@ public sealed class ShopifyPlugin : IProductCatalogPort
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
+    // Na Admin API 2024-10:
+    // - variants.node.price é Money (escalar string), não objeto
+    // - priceRangeV2.minVariantPrice é MoneyV2 (objeto com amount/currencyCode)
     private const string ProductsQuery = """
         query SearchProducts($query: String!, $first: Int!, $after: String) {
           products(query: $query, first: $first, after: $after, sortKey: RELEVANCE) {
@@ -44,7 +47,7 @@ public sealed class ShopifyPlugin : IProductCatalogPort
                   edges {
                     node {
                       sku
-                      price { amount currencyCode }
+                      price
                     }
                   }
                 }
@@ -114,9 +117,9 @@ public sealed class ShopifyPlugin : IProductCatalogPort
             variables = new { query, first = pageSize, after = cursor }
         };
 
-        var url     = $"https://{_options.StoreUrl}/admin/api/{ApiVersion}/graphql.json";
-        var json    = JsonSerializer.Serialize(payload, _jsonOptions);
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
+        var url      = $"https://{_options.StoreUrl}/admin/api/{ApiVersion}/graphql.json";
+        var json     = JsonSerializer.Serialize(payload, _jsonOptions);
+        var content  = new StringContent(json, Encoding.UTF8, "application/json");
 
         var httpResponse = await _http.PostAsync(url, content, ct);
         var rawBody      = await httpResponse.Content.ReadAsStringAsync(ct);
@@ -127,13 +130,11 @@ public sealed class ShopifyPlugin : IProductCatalogPort
             return [];
         }
 
-        _logger.LogDebug("[Shopify] Response: {Body}", rawBody[..Math.Min(1000, rawBody.Length)]);
-
         var response = JsonSerializer.Deserialize<ShopifyGraphQlResponse>(rawBody, _jsonOptions);
 
         if (response?.Data?.Products?.Edges is null)
         {
-            _logger.LogWarning("[Shopify] Response.Data.Products.Edges nulo. Body: {Body}", rawBody[..Math.Min(500, rawBody.Length)]);
+            _logger.LogWarning("[Shopify] Edges nulo. Body: {Body}", rawBody[..Math.Min(500, rawBody.Length)]);
             return [];
         }
 
@@ -145,8 +146,9 @@ public sealed class ShopifyPlugin : IProductCatalogPort
 
     private static ProductDto MapToProduct(ProductNode node)
     {
-        var firstVariant = node.Variants?.Edges?.FirstOrDefault()?.Node;
-        var priceStr     = firstVariant?.Price?.Amount
+        // price no variant é string escalar (ex: "699.95")
+        var variantPrice = node.Variants?.Edges?.FirstOrDefault()?.Node?.Price;
+        var priceStr     = variantPrice
                            ?? node.PriceRangeV2?.MinVariantPrice?.Amount
                            ?? "0";
 
@@ -195,4 +197,5 @@ internal sealed record PriceRangeV2(MoneyV2? MinVariantPrice);
 internal sealed record MoneyV2(string? Amount, string? CurrencyCode);
 internal sealed record VariantConnection(List<VariantEdge>? Edges);
 internal sealed record VariantEdge(VariantNode? Node);
-internal sealed record VariantNode(string? Sku, MoneyV2? Price);
+// price é string escalar na Admin API 2024-10
+internal sealed record VariantNode(string? Sku, string? Price);
