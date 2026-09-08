@@ -34,6 +34,7 @@
   <ItemGroup>
     <ProjectReference Include="..\plugins\UcpAgent.Catalog.MercadoLivreOrders\UcpAgent.Catalog.MercadoLivreOrders.csproj" />
     <ProjectReference Include="..\plugins\UcpAgent.Catalog.Shopify\UcpAgent.Catalog.Shopify.csproj" />
+    <ProjectReference Include="..\plugins\UcpAgent.FakeCatalog\UcpAgent.FakeCatalog.csproj" />
   </ItemGroup>
 
   <ItemGroup>
