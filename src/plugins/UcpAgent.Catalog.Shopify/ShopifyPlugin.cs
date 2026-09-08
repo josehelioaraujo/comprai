@@ -111,10 +111,12 @@ public sealed class ShopifyPlugin : IProductCatalogPort
     private async Task<List<ProductDto>> FetchPageAsync(
         string query, int pageSize, string? cursor, CancellationToken ct)
     {
+        // Filtra apenas produtos ativos — evita retornar Draft e Archived
+        var activeQuery = $"status:active AND ({query})";
         var payload = new
         {
             query     = ProductsQuery,
-            variables = new { query, first = pageSize, after = cursor }
+            variables = new { query = activeQuery, first = pageSize, after = cursor }
         };
 
         var url      = $"https://{_options.StoreUrl}/admin/api/{ApiVersion}/graphql.json";
