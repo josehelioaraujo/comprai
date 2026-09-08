@@ -24,6 +24,9 @@ using UcpAgent.Infrastructure.Cart;
 using UcpAgent.Infrastructure.Checkout;
 using UcpAgent.Infrastructure.Orders;
 using UcpAgent.FakeCatalog;
+using UcpAgent.PriceWatcher;
+using UcpAgent.PriceWatcher.Channels;
+using UcpAgent.PriceWatcher.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddObservabilidade(builder.Configuration);
@@ -127,6 +130,28 @@ else
 }
 
 builder.Services.AddSingleton<IIntentRouterService, IntentRouterService>();
+
+// ── Price Watcher ──────────────────────────────────────────────────────────────
+var usarPriceWatcher = builder.Configuration.GetValue<bool>("Features:UsarPriceWatcher");
+if (usarPriceWatcher)
+{
+    builder.Services.AddSignalR();
+    var usarRabbitPw = builder.Configuration.GetValue<bool>("Features:UsarRabbitMQ");
+    if (usarRabbitPw)
+    {
+        var pwHost = builder.Configuration["RabbitMq:Host"]     ?? "localhost";
+        var pwUser = builder.Configuration["RabbitMq:UserName"] ?? "guest";
+        var pwPass = builder.Configuration["RabbitMq:Password"] ?? "guest";
+        builder.Services.AddSingleton<IPriceAlertChannel>(sp =>
+            new RabbitMqAlertChannel(pwHost, pwUser, pwPass,
+                sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<RabbitMqAlertChannel>>()));
+    }
+    else
+        builder.Services.AddSingleton<IPriceAlertChannel, NullAlertChannel>();
+
+    builder.Services.AddSingleton<PriceWatcherService>();
+    builder.Services.AddHostedService(sp => sp.GetRequiredService<PriceWatcherService>());
+}
 
 //  MercadoLivre OAuth + Orders 
 builder.Services.AddMemoryCache();
@@ -253,6 +278,13 @@ app.MapPost("/webhook/ml", async (
 }).WithTags("MercadoLivre");
 app.MapIntentEndpoints();
 app.MapFakeCatalogEndpoints();
+
+var pwEnabled = app.Configuration.GetValue<bool>("Features:UsarPriceWatcher");
+if (pwEnabled)
+{
+    app.MapHub<PriceHub>("/hubs/price");
+    app.MapPriceWatcherEndpoints();
+}
 app.MapGet("/api/ml/token-debug", async (UcpAgent.Catalog.MercadoLivreOrders.MlTokenService ml, CancellationToken ct) => { try { var t = await ml.GetAccessTokenAsync(ct); return Results.Ok(new { access_token = t }); } catch (Exception ex) { return Results.BadRequest(new { error = ex.Message }); } }).WithTags("Debug");
 app.Run();
 
