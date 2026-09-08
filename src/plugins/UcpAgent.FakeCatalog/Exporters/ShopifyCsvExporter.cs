@@ -1,7 +1,5 @@
 using System.Globalization;
 using System.Text;
-using CsvHelper;
-using CsvHelper.Configuration;
 using UcpAgent.SharedKernel.Models;
 
 namespace UcpAgent.FakeCatalog.Exporters;
@@ -12,48 +10,34 @@ public sealed class ShopifyCsvExporter : ICatalogExporter
 
     public string Export(IReadOnlyList<ProductDto> products)
     {
-        var sb  = new StringBuilder();
-        var cfg = new CsvConfiguration(CultureInfo.InvariantCulture) { HasHeaderRecord = true };
-
-        using var writer = new StringWriter(sb);
-        using var csv    = new CsvWriter(writer, cfg);
-
-        // Header
-        csv.WriteField("Title"); csv.WriteField("URL handle"); csv.WriteField("Description");
-        csv.WriteField("Vendor"); csv.WriteField("Type"); csv.WriteField("Tags");
-        csv.WriteField("Published on online store"); csv.WriteField("Status");
-        csv.WriteField("SKU"); csv.WriteField("Option1 name"); csv.WriteField("Option1 value");
-        csv.WriteField("Price"); csv.WriteField("Compare-at price");
-        csv.WriteField("Inventory quantity"); csv.WriteField("Weight value (grams)");
-        csv.WriteField("Requires shipping"); csv.WriteField("Product image URL");
-        csv.NextRecord();
+        var sb = new StringBuilder();
+        sb.AppendLine("Title,URL handle,Description,Vendor,Type,Tags,Published on online store,Status,SKU,Option1 name,Option1 value,Price,Compare-at price,Inventory quantity,Weight value (grams),Requires shipping,Product image URL");
 
         foreach (var p in products)
         {
-            var handle      = p.Id.Replace("fake-sku", "").Trim('-');
-            var vendorLower = p.Title.Split(' ').Last().ToLower();
-            var tags        = $"{p.Category}, Brasil, {p.Title.Split(' ').Last()}, {vendorLower}";
+            var vendor      = p.Title.Split(' ').Last();
+            var vendorLower = vendor.ToLower();
+            var handle      = p.Id.Replace("fake-", "");
+            var sku         = p.Id.Replace("fake-", "").ToUpper();
+            var tags        = $"{p.Category}, Brasil, {vendor}, {vendorLower}";
+            var price       = p.Price.ToString("F2", CultureInfo.InvariantCulture);
+            var compare     = p.OriginalPrice?.ToString("F2", CultureInfo.InvariantCulture) ?? "";
+            var qty         = p.AvailableQuantity?.ToString() ?? "100";
+            var desc        = $"Produto {p.Title} — melhor preço para o mercado brasileiro.";
 
-            csv.WriteField(p.Title);
-            csv.WriteField(handle);
-            csv.WriteField($"Produto {p.Title} — melhor preço para o mercado brasileiro.");
-            csv.WriteField(p.Title.Split(' ').Last()); // vendor = última palavra
-            csv.WriteField(p.Category);
-            csv.WriteField(tags);
-            csv.WriteField("TRUE");
-            csv.WriteField("Active");
-            csv.WriteField(p.Id.Replace("fake-", "").ToUpper());
-            csv.WriteField("Título");
-            csv.WriteField("Padrão");
-            csv.WriteField(p.Price.ToString("F2", CultureInfo.InvariantCulture));
-            csv.WriteField(p.OriginalPrice?.ToString("F2", CultureInfo.InvariantCulture) ?? "");
-            csv.WriteField(p.AvailableQuantity?.ToString() ?? "100");
-            csv.WriteField("300");
-            csv.WriteField("TRUE");
-            csv.WriteField(p.ImageUrl ?? "");
-            csv.NextRecord();
+            sb.AppendLine(string.Join(",", [
+                Csv(p.Title), Csv(handle), Csv(desc), Csv(vendor),
+                Csv(p.Category ?? ""), Csv(tags),
+                "TRUE", "Active", Csv(sku),
+                "Título", "Padrão",
+                price, compare, qty, "300", "TRUE",
+                Csv(p.ImageUrl ?? "")
+            ]));
         }
-
         return sb.ToString();
     }
+
+    private static string Csv(string v) =>
+        v.Contains(',') || v.Contains('"') || v.Contains('\n')
+            ? $"\"{v.Replace("\"", "\"\"")}\"" : v;
 }
