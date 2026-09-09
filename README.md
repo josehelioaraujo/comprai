@@ -2,21 +2,89 @@
 
 Comprai é um agente de IA para compras baseado no **Universal Commerce Protocol (UCP)** que integra múltiplos e-commerces (MercadoLivre, Shopify, VTEX, OpenFoodFacts) através de plugins plugáveis. Oferece uma interface conversacional (via MCP Server) e suporta operações multi-canal: busca federada de produtos, carrinho, checkout e rastreamento de pedidos com rastreabilidade OAuth.
 
-## Stack
+---
 
-- **Linguagem:** C# (.NET 10)
-- **Framework / runtime:** ASP.NET Core 10 + MediatR (CQRS) + HybridCache (Redis)
-- **Padrões:** Clean Architecture (Ports & Adapters), Domain-Driven Design
-- **Observabilidade:** OpenTelemetry + Jaeger + Prometheus + Grafana + Loki
-- **Notáveis:** StackExchange.Redis, Kafka, RabbitMQ (switcháveis), Shopify/MercadoLivre SDKs
+## 📑 Índice
+
+- [🌐 Universal Commerce Protocol (UCP)](#-universal-commerce-protocol-ucp)
+- [🏗️ Arquitetura do Sistema](#%EF%B8%8F-arquitetura-do-sistema)
+- [🧩 Componentes e Camadas](#-componentes-e-camadas)
+- [📁 Estrutura do Projeto](#-estrutura-do-projeto)
+- [🔄 Fluxo de Execução](#-fluxo-de-execução)
+- [🚀 Stack Tecnológica](#-stack-tecnológica)
+- [▶️ Como Rodar](#%EF%B8%8F-como-rodar)
+- [🧪 Testes](#-testes)
+- [⚙️ Variáveis de Ambiente](#%EF%B8%8F-variáveis-de-ambiente)
+- [📊 Portais de Observabilidade](#-portais-de-observabilidade)
+- [🔁 CI/CD Pipeline](#-cicd-pipeline)
+- [🗺️ Roadmap](#%EF%B8%8F-roadmap)
+- [📄 Licença](#-licença)
 
 ---
 
-## Arquitetura do Sistema
+## 🌐 Universal Commerce Protocol (UCP)
 
-### Visão Geral
+O **Comprai** é construído sobre o **Universal Commerce Protocol (UCP)**, um padrão aberto lançado pelo Google em janeiro de 2026, co-desenvolvido com a Shopify e endossado por mais de 20 empresas globais — incluindo Visa, Mastercard, Stripe, Walmart, Target e Best Buy.
 
-Comprai implementa uma arquitetura de **Portas e Adaptadores** (Hexagonal) com separação clara de responsabilidades:
+> 💡 O Brasil ainda não tem nenhuma implementação pública do UCP.
+> O Comprai é uma das primeiras referências nacionais do protocolo.
+
+<details>
+<summary>❓ O problema que o UCP resolve</summary>
+
+O comércio digital atual é fragmentado: cada loja tem sua própria API, seu próprio carrinho, seu próprio fluxo de checkout. Quando um agente de IA tenta comprar algo em nome do usuário, ele precisa entender o idioma específico de cada plataforma — tornando a integração complexa, frágil e impossível de escalar.
+
+O UCP resolve isso definindo uma **linguagem comum e primitivas funcionais** para que qualquer agente, plataforma ou provedor de pagamento consiga interagir com qualquer loja de forma padronizada e segura — da descoberta do produto ao pós-venda.
+
+</details>
+
+<details>
+<summary>⚙️ Como funciona</summary>
+
+O protocolo define quatro operações centrais:
+
+| Operação | Descrição |
+|----------|-----------|
+| **Search / Catalog** | Busca e descoberta de produtos em tempo real com variantes, estoque e preço |
+| **Cart** | Adição de múltiplos produtos de múltiplos lojistas em um único carrinho unificado |
+| **Checkout** | Sessão de checkout segura, com ou sem intervenção humana |
+| **Order** | Rastreamento de status, entrega e devoluções via webhooks |
+
+O UCP é **agnóstico de transporte** — funciona via REST, MCP (Model Context Protocol) ou A2A (Agent-to-Agent), e é compatível com o Agent Payments Protocol (AP2) para pagamentos seguros.
+
+</details>
+
+<details>
+<summary>🏢 Quem já está usando</summary>
+
+| Empresa | Papel |
+|---------|-------|
+| **Google** | Criador — integrado ao AI Mode, Gemini e YouTube Shopping |
+| **Shopify** | Co-desenvolvedor — suporte nativo ativo para todos os merchants |
+| **Stripe** | Membro do UCP Tech Council — payment handler oficial publicado |
+| **Salesforce / Commerce Inc.** | Implementação anunciada para 2026 |
+| **Etsy, Wayfair, Target, Walmart** | Parceiros fundadores |
+
+</details>
+
+<details>
+<summary>📚 Referências</summary>
+
+- 📄 [Especificação oficial — ucp.dev](https://ucp.dev)
+- 🐙 [Repositório GitHub — Universal-Commerce-Protocol/ucp](https://github.com/Universal-Commerce-Protocol/ucp)
+- 📝 [Google Developers Blog — Under the Hood: UCP (jan/2026)](https://developers.googleblog.com/under-the-hood-universal-commerce-protocol-ucp/)
+- 🛍️ [Google Blog — New tech and tools for retailers (jan/2026)](https://blog.google/products/ads-commerce/agentic-commerce-ai-tools-protocol-retailers-platforms/)
+- 🔄 [Google Blog — UCP updates: Cart, Catalog, Identity Linking (mar/2026)](https://blog.google/products-and-platforms/products/shopping/ucp-updates/)
+- 🏗️ [Shopify Engineering — Building the Universal Commerce Protocol](https://shopify.engineering/ucp)
+- 💳 [Stripe — UCP Protocol & Payment Handlers](https://docs.stripe.com/agentic-commerce/protocol.md)
+
+</details>
+
+---
+
+## 🏗️ Arquitetura do Sistema
+
+O Comprai implementa uma arquitetura de **Portas e Adaptadores** (Hexagonal) com separação clara de responsabilidades:
 
 - **Camada de Apresentação:** ASP.NET Core Minimal APIs + MCP Server
 - **Camada de Aplicação:** MediatR (CQRS) com Queries e Commands
@@ -24,7 +92,8 @@ Comprai implementa uma arquitetura de **Portas e Adaptadores** (Hexagonal) com s
 - **Camada de Infraestrutura:** Implementações de portas (Redis, Kafka, Plugins)
 - **Plugins:** Adaptadores para e-commerces externos (MercadoLivre, Shopify, VTEX, etc.)
 
-### Diagrama Funcional
+<details>
+<summary>📐 Ver Diagrama Funcional</summary>
 
 ```mermaid
 graph TB
@@ -72,27 +141,27 @@ graph TB
     MEDIATOR -->|Route| CART
     MEDIATOR -->|Route| CHECKOUT
     MEDIATOR -->|Route| ORDERS
-    
+
     SEARCH -->|Fan-out paralelo| ML
     SEARCH -->|Fan-out paralelo| VTEX
     SEARCH -->|Fan-out paralelo| SHOPIFY
     SEARCH -->|Fan-out paralelo| OFF
-    
+
     SEARCH -->|Aggregação + Cache| REDIS
     CART -->|Porta ICartPort| REDIS
     CART -->|Fallback| INMEM
     CHECKOUT -->|Porta ICheckoutPort| REDIS
     ORDERS -->|Porta IOrderPort| REDIS
-    
+
     SEARCH -->|Publish Event| EVENTS
     CHECKOUT -->|Publish Event| EVENTS
     ORDERS -->|Publish Event| EVENTS
-    
+
     SEARCH -->|Trace| OTEL
     CART -->|Trace| OTEL
     CHECKOUT -->|Trace| OTEL
     ORDERS -->|Trace| OTEL
-    
+
     OTEL -->|Export OTLP| JAEGER
     OTEL -->|Scrape Metrics| PROMETHEUS
     PROMETHEUS -->|Datasource| GRAFANA
@@ -110,56 +179,50 @@ graph TB
     style OTEL fill:#50C878
 ```
 
+</details>
+
 ---
 
-## Componentes / Camadas
+## 🧩 Componentes e Camadas
 
-### Tabela de Camadas e Responsabilidades
+<details>
+<summary>📋 Ver tabela completa de camadas e responsabilidades</summary>
 
 | **Camada** | **Componente** | **Tecnologia** | **Objetivo** | **Exemplos** |
 |---|---|---|---|---|
-| **Apresentação** | ASP.NET Core Minimal APIs | .NET 10 + Scalar OpenAPI | Expor endpoints HTTP REST para consumo direto ou via UI | `GET /api/search`, `POST /api/cart/{sessionId}/items`, `POST /api/checkout/{sessionId}` |
-| **Apresentação** | MCP Server | Model Context Protocol | Interface padrão para integração com agentes de IA e LLMs | Expor operações de compra como tools para Claude/OpenAI |
-| **Aplicação** | MediatR Handlers | MediatR CQRS | Orquestração de lógica de negócio via Command/Query Pattern | `SearchProductsHandler`, `AddToCartCommandHandler`, `CheckoutCommandHandler` |
-| **Aplicação** | Services | Interfaces Tipadas | Abstração de processos multi-etapa com tipos concretos | `ISearchService`, `ICartService`, `ICheckoutService`, `IOrderService` |
-| **Aplicação** | Queries & Commands | DTOs + Records | Definição estruturada de entrada/saída | `SearchProductsQuery`, `AddToCartCommand`, `CheckoutCommand` |
+| **Apresentação** | ASP.NET Core Minimal APIs | .NET 10 + Scalar OpenAPI | Expor endpoints HTTP REST | `GET /api/search`, `POST /api/cart/{sessionId}/items` |
+| **Apresentação** | MCP Server | Model Context Protocol | Interface padrão para agentes de IA e LLMs | Expor operações de compra como tools para Claude/OpenAI |
+| **Aplicação** | MediatR Handlers | MediatR CQRS | Orquestração de lógica de negócio | `SearchProductsHandler`, `AddToCartCommandHandler` |
+| **Aplicação** | Queries & Commands | DTOs + Records | Definição estruturada de entrada/saída | `SearchProductsQuery`, `AddToCartCommand` |
 | **Domínio** | Entities & Value Objects | C# Records | Representação imutável de conceitos do negócio | `Product`, `CartItem`, `Order`, `Customer` |
-| **Domínio** | Domain Events | Events | Eventos de domínio emitidos após transações | `ProductSearchedEvent`, `ItemAddedToCartEvent`, `OrderCreatedEvent` |
-| **Infraestrutura** | Portas (Interfaces) | SharedKernel | Contrato abstrato entre camadas | `IProductCatalogPort`, `ICartPort`, `ICheckoutPort`, `IOrderPort` |
-| **Infraestrutura** | Redis Adapters | StackExchange.Redis | Persistência e cache de cart/checkout/orders | `RedisCartAdapter`, `RedisCheckoutAdapter`, `RedisOrderAdapter` |
-| **Infraestrutura** | In-Memory Adapters | Collections .NET | Fallback para dev/testes sem banco externo | `InMemoryCartPort`, `MockCheckoutPort`, `MockOrderPort` |
-| **Infraestrutura** | Event Publishers | Kafka / RabbitMQ / Null | Pub/sub de eventos assíncronos entre serviços | `KafkaEventPublisher`, `RabbitMqEventPublisher`, `NullEventPublisher` |
+| **Domínio** | Domain Events | Events | Eventos emitidos após transações | `ProductSearchedEvent`, `OrderCreatedEvent` |
+| **Infraestrutura** | Portas (Interfaces) | SharedKernel | Contrato abstrato entre camadas | `IProductCatalogPort`, `ICartPort`, `ICheckoutPort` |
+| **Infraestrutura** | Redis Adapters | StackExchange.Redis | Persistência e cache de cart/checkout/orders | `RedisCartAdapter`, `RedisCheckoutAdapter` |
+| **Infraestrutura** | In-Memory Adapters | Collections .NET | Fallback para dev/testes sem banco externo | `InMemoryCartPort`, `MockCheckoutPort` |
+| **Infraestrutura** | Event Publishers | Kafka / RabbitMQ / Null | Pub/sub de eventos assíncronos | `KafkaEventPublisher`, `RabbitMqEventPublisher` |
 | **Infraestrutura** | HybridCache | Redis + L1 Local | Cache L1/L2 para buscas federadas (TTL 5min) | Resultado de `/api/search?q=notebook` |
-| **Plugins** | Catalog Plugins | HTTP Clients | Implementações de `IProductCatalogPort` para e-commerces | `MercadoLivrePlugin`, `ShopifyPlugin`, `VtexCatalogPlugin`, `OpenFoodFactsPlugin` |
-| **Plugins** | MercadoLivre Orders | OAuth 2.0 + Webhooks | Autenticação e sincronização de pedidos ML | `MlTokenService`, `MlOrdersService`, `MlWebhookService` |
+| **Plugins** | Catalog Plugins | HTTP Clients | Implementações de `IProductCatalogPort` | `MercadoLivrePlugin`, `ShopifyPlugin`, `VtexCatalogPlugin` |
 | **Observabilidade** | OpenTelemetry | OTel SDK | Instrumentação de traces distribuídos | Traces de cada Query/Command |
-| **Observabilidade** | Jaeger | Jaeger UI | Visualização de traces e latências | Port 16687 |
-| **Observabilidade** | Prometheus | Prometheus Server | Coleta de métricas (requests, latência, erros) | Port 9091 |
-| **Observabilidade** | Grafana** | Grafana Dashboard | Visualização de métricas e logs em tempo real | Port 3001 |
-| **Observabilidade** | Loki** | Log Aggregation | Agregação centralizada de logs JSON | Port 3101 |
+| **Observabilidade** | Jaeger + Prometheus + Grafana + Loki | Docker | Visualização de traces, métricas e logs | Ports 16687, 9091, 3001, 3101 |
 
----
+</details>
 
-### Detalhamento das Camadas
+<details>
+<summary>🎨 Camada de Apresentação</summary>
 
-#### 🎨 Camada de Apresentação
+**ASP.NET Core Minimal APIs** — Roteamento HTTP simples e declarativo:
+- `/api/search` → `GET` com cache 5min
+- `/api/cart/{sessionId}` → `GET`, `POST /items`, `DELETE /items/{itemId}`
+- `/api/checkout/{sessionId}` → `POST`
+- `/api/orders/{orderId}` → `GET`
+- `/api/ml/*` → OAuth + webhooks MercadoLivre
 
-**Responsabilidade:** Expor APIs consumíveis por clientes (web, mobile, agentes).
+**MCP Server** — Expõe operações como "tools" para agentes de IA (OpenAI, Anthropic). Roda na porta 5030 isolada.
 
-- **ASP.NET Core Minimal APIs:** Roteamento HTTP simples e declarativo
-  - `/api/search` → `GET` com cache 5min
-  - `/api/cart/{sessionId}` → `GET`, `POST /items`, `DELETE /items/{itemId}`
-  - `/api/checkout/{sessionId}` → `POST`
-  - `/api/orders/{orderId}` → `GET`
-  - `/api/ml/*` → OAuth + webhooks MercadoLivre
+</details>
 
-- **MCP Server:** Expõe operações como "tools" para agentes de IA
-  - Protocolo padrão de Model Context (OpenAI, Anthropic)
-  - Roda na porta 5030 isolada
-
-#### 🔄 Camada de Aplicação (CQRS)
-
-**Responsabilidade:** Orquestração de casos de uso com MediatR.
+<details>
+<summary>🔄 Camada de Aplicação (CQRS)</summary>
 
 **Queries (Leitura):**
 - `SearchProductsQuery` → Handler faz fan-out paralelo para todos os plugins
@@ -170,140 +233,109 @@ graph TB
 - `AddToCartCommand` → Adiciona/atualiza item no carrinho
 - `RemoveFromCartCommand` → Remove item do carrinho
 - `CheckoutCommand` → Finaliza pedido, persiste em Redis
-- Cada handler valida, executa lógica, publica evento, retorna `Result<T>`
 
-#### 🎯 Camada de Domínio
+Cada handler valida, executa lógica, publica evento e retorna `Result<T>`.
 
-**Responsabilidade:** Entidades e regras puras de negócio.
+</details>
 
-- **Entities:**
-  - `Product` — identificação única por `(Source, Id)`
-  - `CartItem` — produto + quantidade + subtotal
-  - `Order` — pedido com status
-  - `Customer` — dados de entrega
+<details>
+<summary>🔌 Camada de Plugins</summary>
 
-- **Domain Events:**
-  - Emitidos após mudanças de estado
-  - Podem disparar fluxos assíncronos (publicados no event bus)
-
-#### 🔌 Camada de Infraestrutura
-
-**Responsabilidade:** Implementações concretas de portas.
-
-**Portas (Interfaces em SharedKernel):**
-```csharp
-IProductCatalogPort      // Busca de produtos (implementado por plugins)
-ICartPort               // Persistência de carrinho
-ICheckoutPort           // Persistência de checkout
-IOrderPort              // Persistência de pedidos
-IEventPublisher         // Publicação de eventos
-IIntentRouterService    // Roteamento de intenções conversacionais
-```
-
-**Adaptadores:**
-- **Redis:** `RedisCartAdapter`, `RedisCheckoutAdapter`, `RedisOrderAdapter`
-  - Serialização JSON, TTL de 72h para cart
-  - Chave pattern: `cart:{sessionId}`, `checkout:{orderId}`, `order:session:{sessionId}`
-
-- **In-Memory:** Fallback quando Redis está desabilitado
-  - `InMemoryCartPort`, `MockCheckoutPort`, `MockOrderPort`
-  - Perfeito para dev/testes sem dependências externas
-
-- **Event Publishers:**
-  - `KafkaEventPublisher` — tópicos auto-criados
-  - `RabbitMqEventPublisher` — exchanges/queues
-  - `NullEventPublisher` — dev/testes (no-op)
-
-#### 🧩 Camada de Plugins
-
-**Responsabilidade:** Adaptadores para e-commerces externos.
-
-Cada plugin implementa `IProductCatalogPort`:
+Cada plugin implementa `IProductCatalogPort`. Fan-out paralelo via `Task.WhenAll` — falha isolada por plugin, agregação e deduplicação por `(Source:Id)`.
 
 | Plugin | API | Auth | Recursos |
 |---|---|---|---|
 | **MercadoLivrePlugin** | REST | Público | Busca por texto, fan-out eficiente |
 | **MercadoLivreOrders** | REST + Webhooks | OAuth 2.0 | Listar/buscar pedidos, notificações |
-| **ShopifyPlugin** | REST | Access Token | Busca por title (limitações substring) |
+| **ShopifyPlugin** | GraphQL Admin | Access Token | Busca com Admin API 2024-10 |
 | **VtexCatalogPlugin** | REST | API Key | Catálogo completo |
 | **VtexSearchPlugin** | REST | API Key | Busca com filtros avançados |
 | **OpenFoodFactsPlugin** | REST | Público | Base de dados de alimentos |
+| **DummyJsonPlugin** | REST | Público | 190+ produtos reais sem auth (dev) |
 
-**Fan-out paralelo:**
-- `SearchProductsHandler` invoca todos os plugins simultaneamente via `Task.WhenAll`
-- Falha isolada: se um plugin cai, os outros continuam
-- Agregação: resultados combinados, deduplicados por `(Source:Id)`, ranqueados por disponibilidade → preço
+</details>
 
-#### 📊 Camada de Observabilidade
+<details>
+<summary>🔧 Portas (Interfaces SharedKernel)</summary>
 
-**Responsabilidade:** Visibilidade de traces, métricas e logs.
+```csharp
+IProductCatalogPort      // Busca de produtos (implementado por plugins)
+ICartPort                // Persistência de carrinho
+ICheckoutPort            // Persistência de checkout
+IOrderPort               // Persistência de pedidos
+IEventPublisher          // Publicação de eventos
+IIntentRouterService     // Roteamento de intenções conversacionais
+```
 
-- **OpenTelemetry:** Instrumentação padrão (AspNetCore, HttpClient, MediatR)
-- **Jaeger:** Visualização de traces distribuídos
-- **Prometheus:** Métricas de requests, latência, erros
-- **Grafana:** Dashboards customizados
-- **Loki:** Logs centralizados (estruturados em JSON)
-- **Promtail:** Coleta de logs via Docker socket
+**Redis Adapters** — TTL 72h para cart, chaves no padrão `cart:{sessionId}`, `order:session:{sessionId}`.
+
+**Event Publishers** — Kafka (tópicos auto-criados), RabbitMQ (exchanges/queues), NullEventPublisher (dev/no-op).
+
+</details>
 
 ---
 
-## Como está Organizado
+## 📁 Estrutura do Projeto
+
+<details>
+<summary>📂 Ver estrutura completa</summary>
 
 ```
 src/
-  UcpAgent.SharedKernel/     Tipos compartilhados, interfaces de porta (IProductCatalogPort, ICartPort, ICheckoutPort, IOrderPort)
-  UcpAgent.Domain/           Entidades de domínio e regras de negócio
-  UcpAgent.Application/      Casos de uso (Search, Cart, Checkout, Orders) — MediatR Handlers
-    └─ Search/               SearchProductsQuery + Handler (fan-out para todos os plugins)
-    └─ Cart/                 AddToCartCommand, RemoveFromCartCommand, GetCartQuery
-    └─ Checkout/             CheckoutCommand
-    └─ Orders/               GetOrderQuery, GetOrderBySessionQuery
-  
-  UcpAgent.Infrastructure/   Implementações concretas de portas
-    └─ Cart/                 RedisCartAdapter, InMemoryCartPort
-    └─ Checkout/             RedisCheckoutAdapter, MockCheckoutPort
-    └─ Orders/               RedisOrderAdapter, MockOrderPort
-    └─ Messaging/            KafkaEventPublisher, RabbitMqEventPublisher, NullEventPublisher
-  
-  UcpAgent.Api/              ASP.NET Core host
-    └─ Program.cs            Setup DI, endpoints (Minimal APIs + MediatR)
-    └─ Endpoints/            Mappers de rotas (/api/search, /api/cart, /api/checkout, /api/orders)
-    └─ Mocks/                MockCatalogPlugin, MockCartPort, MockCheckoutPort, MockOrderPort
-    └─ Models/               DTOs (ProductDto, CartItemDto, CustomerDto, CheckoutResultDto, OrderStatusDto)
-  
-  UcpAgent.McpServer/        Model Context Protocol Server — integração com agentes de IA
-  
-  plugins/
-    ├─ UcpAgent.Catalog.MercadoLivre       Busca de produtos via API REST pública
-    ├─ UcpAgent.Catalog.MercadoLivreOrders OAuth + Pedidos (token refresh, webhook)
-    ├─ UcpAgent.Catalog.VtexCatalog        Busca de catálogo VTEX
-    ├─ UcpAgent.Catalog.VtexSearch         Busca de produtos VTEX
-    ├─ UcpAgent.Catalog.OpenFoodFacts      Base de dados aberta de alimentos
-    └─ UcpAgent.Catalog.Shopify            Busca de produtos Shopify REST API
+  UcpAgent.SharedKernel/       Tipos compartilhados, interfaces de porta
+  UcpAgent.Domain/             Entidades de domínio e regras de negócio
+  UcpAgent.Application/        Casos de uso — MediatR Handlers
+    └─ Search/                 SearchProductsQuery + Handler (fan-out para todos os plugins)
+    └─ Cart/                   AddToCartCommand, RemoveFromCartCommand, GetCartQuery
+    └─ Checkout/               CheckoutCommand
+    └─ Orders/                 GetOrderQuery, GetOrderBySessionQuery
+  UcpAgent.Infrastructure/     Implementações concretas de portas
+    └─ Cart/                   RedisCartAdapter, InMemoryCartPort
+    └─ Checkout/               RedisCheckoutAdapter, MockCheckoutPort
+    └─ Orders/                 RedisOrderAdapter, MockOrderPort
+    └─ Messaging/              KafkaEventPublisher, RabbitMqEventPublisher, NullEventPublisher
+  UcpAgent.Api/                ASP.NET Core host
+    └─ Program.cs              Setup DI, endpoints (Minimal APIs + MediatR)
+    └─ Endpoints/              Mappers de rotas
+    └─ Mocks/                  MockCatalogPlugin, MockCartPort, etc.
+    └─ Models/                 DTOs
+  UcpAgent.McpServer/          Model Context Protocol Server
+  UcpAgent.FakeCatalog/        Gerador de catálogo com Bogus BR + exportadores multi-plataforma
+  UcpAgent.PriceWatcher/       BackgroundService + SignalR Hub para monitoramento de preços
+
+plugins/
+  ├─ UcpAgent.Catalog.MercadoLivre
+  ├─ UcpAgent.Catalog.MercadoLivreOrders
+  ├─ UcpAgent.Catalog.VtexCatalog
+  ├─ UcpAgent.Catalog.VtexSearch
+  ├─ UcpAgent.Catalog.OpenFoodFacts
+  ├─ UcpAgent.Catalog.Shopify
+  └─ UcpAgent.Catalog.DummyJSON
 
 tests/
-  ├─ UcpAgent.Domain.Tests           Testes unitários de domínio
-  ├─ UcpAgent.Application.Tests      Testes de handlers MediatR (mocks tipados)
+  ├─ UcpAgent.Domain.Tests
+  ├─ UcpAgent.Application.Tests
   ├─ UcpAgent.Catalog.MercadoLivre.Tests
-  └─ UcpAgent.Integration.Tests      Testes E2E com CompraApiFactory (fluxo completo)
+  └─ UcpAgent.Integration.Tests       Testes E2E com CompraApiFactory (fluxo completo)
 
 .github/workflows/
-  └─ ci-cd.yml                       Pipeline: unit-tests → integration-tests → deploy SSH → smoke-tests (Newman)
+  └─ ci-cd.yml                        Pipeline: unit-tests → integration-tests → deploy → smoke-tests
 
 deploy/
-  └─ docker-compose.yml              Produção com healthchecks, volumes, profiles (monitoring, kafka, rabbitmq, tools)
-
-docker-compose.yml                  Desenvolvimento com mocks/redis desabilitados por padrão
+  └─ docker-compose.yml               Produção com healthchecks, volumes e profiles
 
 newman/
-  └─ comprai-smoke.json              Testes E2E POST-DEPLOY: search → cart → checkout → orders
+  └─ comprai-smoke.json               Testes E2E pós-deploy: search → cart → checkout → orders
 ```
+
+</details>
 
 ---
 
-## Fluxo de Execução
+## 🔄 Fluxo de Execução
 
-### 1. Busca de Produtos (Search Flow)
+<details>
+<summary>🔍 Busca de Produtos (Search Flow)</summary>
 
 ```
 GET /api/search?q=notebook
@@ -327,14 +359,17 @@ HybridCache (TTL 5min)
 Result<SearchResult> retorna ao cliente
 ```
 
-### 2. Carrinho e Checkout (Cart/Checkout Flow)
+</details>
+
+<details>
+<summary>🛒 Carrinho e Checkout (Cart/Checkout Flow)</summary>
 
 ```
 POST /api/cart/{sessionId}/items
   ↓
 AddToCartCommand
   ↓
-ICartPort.AddItemAsync() 
+ICartPort.AddItemAsync()
   → RedisCartAdapter (produção)
   → InMemoryCartPort (dev/testes)
   ↓
@@ -350,10 +385,13 @@ Order criada e persistida
   ↓
 IEventPublisher.PublishAsync(OrderCreatedEvent)
   ↓
-Kafka/RabbitMQ recebe evento (para fulfillment, etc.)
+Kafka/RabbitMQ recebe evento (fulfillment, etc.)
 ```
 
-### 3. Rastreamento de Pedidos (Orders Flow)
+</details>
+
+<details>
+<summary>📦 Rastreamento de Pedidos (Orders Flow)</summary>
 
 ```
 MercadoLivre Webhook → /webhook/ml
@@ -367,27 +405,43 @@ OrderStatusChangedEvent publicado
 GET /api/orders/{orderId} retorna status atualizado
 ```
 
+</details>
+
 ---
 
-## Como Rodar
+## 🚀 Stack Tecnológica
 
-### Desenvolvimento Local com Mocks
+| Categoria | Tecnologia |
+|---|---|
+| **Linguagem / Runtime** | C# (.NET 10), ASP.NET Core Minimal APIs |
+| **Padrões** | Clean Architecture (Hexagonal), DDD, CQRS (MediatR) |
+| **Cache** | HybridCache (.NET 10) + Redis (StackExchange.Redis) |
+| **Mensageria** | Kafka, RabbitMQ (switcháveis via feature flag) |
+| **Observabilidade** | OpenTelemetry + Jaeger + Prometheus + Grafana + Loki |
+| **Testes** | xUnit, Moq, CompraApiFactory, Newman (smoke E2E) |
+| **CI/CD** | GitHub Actions (4 jobs), Docker, appleboy/ssh-action |
+| **Protocolos** | UCP (Universal Commerce Protocol), MCP (Model Context Protocol) |
+
+---
+
+## ▶️ Como Rodar
+
+<details>
+<summary>💻 Desenvolvimento Local com Mocks</summary>
 
 ```bash
-# Clone e restaure dependências
 git clone https://github.com/josehelioaraujo/comprai.git
 cd comprai
 dotnet restore comprai.sln
-
-# Build
 dotnet build src/UcpAgent.Api/UcpAgent.Api.csproj
-
-# Executar (sem Redis/Kafka/RabbitMQ)
 dotnet run --project src/UcpAgent.Api
-# Acessa http://localhost:5020/scalar (OpenAPI interativo)
+# Acessa http://localhost:5020/scalar
 ```
 
-### Com Docker (Recomendado)
+</details>
+
+<details>
+<summary>🐳 Com Docker (Recomendado)</summary>
 
 ```bash
 # Desenvolvimento
@@ -397,12 +451,24 @@ docker compose up -d comprai-api comprai-mcp redis
 curl http://localhost:5020/health/live
 curl http://localhost:5020/health/ready
 
-# Produção (com todas as camadas)
-cd deploy
-docker compose up -d
+# Produção completa
+cd deploy && docker compose up -d
+
+# Com observabilidade
+docker compose --profile monitoring up -d
+
+# Com Kafka
+docker compose --profile kafka up -d
 ```
 
-### Testes
+</details>
+
+---
+
+## 🧪 Testes
+
+<details>
+<summary>Ver comandos de teste</summary>
 
 ```bash
 # Unitários
@@ -415,15 +481,20 @@ export ML_ACCESS_TOKEN=xxx
 export SHOPIFY_ACCESS_TOKEN=yyy
 dotnet test tests/UcpAgent.Integration.Tests
 
-# Smoke tests (E2E pós-deploy)
+# Smoke tests E2E pós-deploy
 newman run newman/comprai-smoke.json \
   --env-var baseUrl=http://localhost:5020 \
   --env-var mcpUrl=http://localhost:5030
 ```
 
+</details>
+
 ---
 
-## Variáveis de Ambiente
+## ⚙️ Variáveis de Ambiente
+
+<details>
+<summary>Ver todas as variáveis</summary>
 
 | Var | Padrão | Descrição |
 |---|---|---|
@@ -435,14 +506,16 @@ newman run newman/comprai-smoke.json \
 | `Redis__ConnectionString` | `localhost:6379` | Conexão Redis |
 | `Kafka__BootstrapServers` | `localhost:9092` | Bootstrap Kafka |
 | `RabbitMQ__Host` | `localhost` | Host RabbitMQ |
-| `MercadoLivre__AccessToken` | N/A | Token OAuth ML (para testes) |
+| `MercadoLivre__AccessToken` | N/A | Token OAuth ML |
 | `Shopify__AccessToken` | N/A | Token de acesso Shopify |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4317` | Endpoint Jaeger OTLP |
 | `ML_SKIP_TOKEN_TEST` | `false` | Skip testes que precisam token ML |
 
+</details>
+
 ---
 
-## Portais de Observabilidade
+## 📊 Portais de Observabilidade
 
 | Serviço | URL | Credenciais |
 |---|---|---|
@@ -459,39 +532,48 @@ newman run newman/comprai-smoke.json \
 
 ---
 
-## CI/CD Pipeline
+## 🔁 CI/CD Pipeline
 
-O repositório inclui um workflow GitHub Actions (`.github/workflows/ci-cd.yml`) que:
+<details>
+<summary>Ver detalhes do pipeline</summary>
 
-1. **unit-tests:** Constrói e testa UcpAgent.Domain, Application, Infrastructure, Api
-2. **integration-tests:** Roda testes E2E com env vars de ML/Shopify
-3. **deploy:** SSH na VPS Hostinger (2.25.122.11), pull code, docker compose up
-4. **smoke-tests:** Newman faz requisições pós-deploy
+Workflow em `.github/workflows/ci-cd.yml` com 4 jobs sequenciais:
+
+1. **unit-tests** — Build + testes de Domain, Application, Infrastructure, Api
+2. **integration-tests** — Testes E2E com env vars de ML/Shopify
+3. **deploy** — SSH na VPS (Hostinger KVM2), pull + docker compose up
+4. **smoke-tests** — Newman valida o fluxo completo pós-deploy
 
 **Feature flags no workflow:**
 - `broker`: Escolher message broker (nenhum, kafka, rabbitmq)
 - `usar_banco`: Ativar Redis em produção
 
----
-
-## Próximos Passos / Roadmap
-
-- **V006:** Migrar Shopify REST → GraphQL Admin (resolver limitação de busca por substring)
-- **V006:** Novo plugin ShopifyStorefrontPlugin (Storefront API pública)
-- **Fase 14:** Canal Web — UCP Storefront Widget (chat embarcável)
-- **Fase 15:** Canal Teams
-- **Fase 16:** Canal WhatsApp
-- Renovação automática de token ML via refresh_token no CI
+</details>
 
 ---
 
-## Licença
+## 🗺️ Roadmap
+
+<details>
+<summary>Ver próximas fases</summary>
+
+| Fase | Descrição | Status |
+|---|---|---|
+| **IPaymentPort** | MockPayment + Stripe + MercadoPago — fecha o fluxo UCP end-to-end | 🔜 V009 |
+| **ILlmPort** | Intent Router em linguagem natural com Ollama (Gemma 2 PT-BR) | 🔜 V009 |
+| **Canal WhatsApp** | Evolution API self-hosted na VPS — compra por mensagem | 🔜 V009 |
+| **Extensão Chrome** | Price Watcher, Universal Cart e Intent Bar nativos no browser | 🔜 Futuro |
+| **Canal Web** | Next.js 15 + shadcn/ui — painel admin + storefront UCP | 🔜 Futuro |
+| **Canal Teams** | Bot Framework SDK | 🔜 Futuro |
+| **OBSVIEW** | Status Page dedicada (FastAPI + React) | 🔜 Futuro |
+
+</details>
+
+---
+
+## 📄 Licença
 
 MIT License — veja [LICENSE](LICENSE) para detalhes.
-
----
-
-## Contato & Contribuições
 
 **Autor:** [@josehelioaraujo](https://github.com/josehelioaraujo)
 
