@@ -49,7 +49,16 @@ jobs:
         run: dotnet restore comprai.sln
 
       - name: Build Solution
-        run: dotnet build comprai.sln --configuration Release --no-restore
+        run: |
+          dotnet build src/UcpAgent.SharedKernel/UcpAgent.SharedKernel.csproj --configuration Release --no-restore
+          dotnet build src/UcpAgent.Domain/UcpAgent.Domain.csproj --configuration Release --no-restore
+          dotnet build src/UcpAgent.Application/UcpAgent.Application.csproj --configuration Release --no-restore
+          dotnet build src/UcpAgent.Infrastructure/UcpAgent.Infrastructure.csproj --configuration Release --no-restore
+          dotnet build src/UcpAgent.Api/UcpAgent.Api.csproj --configuration Release --no-restore
+          dotnet build src/plugins/UcpAgent.FakeCatalog/UcpAgent.FakeCatalog.csproj --configuration Release --no-restore
+          dotnet build tests/UcpAgent.Domain.Tests/UcpAgent.Domain.Tests.csproj --configuration Release --no-restore
+          dotnet build tests/UcpAgent.Application.Tests/UcpAgent.Application.Tests.csproj --configuration Release --no-restore
+          dotnet build tests/UcpAgent.Catalog.MercadoLivre.Tests/UcpAgent.Catalog.MercadoLivre.Tests.csproj --configuration Release --no-restore
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
