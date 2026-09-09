@@ -19,6 +19,7 @@ COPY ["src/plugins/UcpAgent.Catalog.OpenFoodFacts/UcpAgent.Catalog.OpenFoodFacts
 COPY ["src/plugins/UcpAgent.Catalog.MercadoLivreOrders/UcpAgent.Catalog.MercadoLivreOrders.csproj", "src/plugins/UcpAgent.Catalog.MercadoLivreOrders/"]
 COPY ["src/plugins/UcpAgent.Catalog.Shopify/UcpAgent.Catalog.Shopify.csproj", "src/plugins/UcpAgent.Catalog.Shopify/"]
 COPY ["src/plugins/UcpAgent.FakeCatalog/UcpAgent.FakeCatalog.csproj", "src/plugins/UcpAgent.FakeCatalog/"]
+COPY ["src/plugins/UcpAgent.Catalog.DummyJSON/UcpAgent.Catalog.DummyJSON.csproj", "src/plugins/UcpAgent.Catalog.DummyJSON/"]
 COPY ["src/plugins/UcpAgent.PriceWatcher/UcpAgent.PriceWatcher.csproj", "src/plugins/UcpAgent.PriceWatcher/"]
 RUN dotnet restore "src/UcpAgent.Api/UcpAgent.Api.csproj"
 COPY . .
