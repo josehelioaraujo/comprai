@@ -123,10 +123,9 @@ public sealed class IntentRouterServiceTests
     [Fact]
     public void Detect_PalavrasSimples_RetornaSearchProducts()
     {
-        // até 5 palavras sem intenção clara → trata como busca
         var result = _sut.Detect("notebook gamer RTX");
         result.Intent.Should().Be(IntentType.SearchProducts);
-        result.Query.Should().NotBeNullOrWhiteSpace();
+        result.ExtractedQuery.Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact]
@@ -134,8 +133,8 @@ public sealed class IntentRouterServiceTests
     {
         var result = _sut.Detect("quero um notebook barato");
         result.Intent.Should().Be(IntentType.SearchProducts);
-        result.Query.Should().NotContain("quero");
-        result.Query.Should().Contain("notebook");
+        result.ExtractedQuery.Should().NotContain("quero");
+        result.ExtractedQuery.Should().Contain("notebook");
     }
 
     // ── Unknown ───────────────────────────────────────────────────────────────
@@ -143,7 +142,6 @@ public sealed class IntentRouterServiceTests
     [Fact]
     public void Detect_FraseLongaSemIntencao_RetornaUnknown()
     {
-        // mais de 5 palavras sem match de regex → Unknown
         var result = _sut.Detect("essa é uma frase muito longa sem nenhuma intenção clara de compra");
         result.Intent.Should().Be(IntentType.Unknown);
     }
@@ -164,13 +162,20 @@ public sealed class IntentRouterServiceTests
         result.SessionId.Should().BeNull();
     }
 
-    // ── Prioridade de intenções ───────────────────────────────────────────────
+    // ── Prioridade ────────────────────────────────────────────────────────────
 
     [Fact]
     public void Detect_CheckoutTemPrioridade_SobreSearch()
     {
-        // "finalizar" deve bater checkout antes de qualquer outra intenção
         var result = _sut.Detect("finalizar minha compra agora");
         result.Intent.Should().Be(IntentType.Checkout);
+    }
+
+    [Fact]
+    public void Detect_RawInput_SemprePreservado()
+    {
+        var input = "buscar notebook gamer";
+        var result = _sut.Detect(input);
+        result.RawInput.Should().Be(input);
     }
 }
