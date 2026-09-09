@@ -96,29 +96,25 @@ jobs:
 
       - name: Run Unit Tests com cobertura
         run: |
-          dotnet test tests/UcpAgent.Domain.Tests/UcpAgent.Domain.Tests.csproj \
-            --configuration Release \
-            --no-build \
-            --settings coverlet.runsettings \
-            --logger "trx;LogFileName=unit-domain.trx" \
-            --results-directory ./test-results/unit \
-            --collect:"XPlat Code Coverage" \
+          dotnet tool install --global coverlet.console || true
 
-          dotnet test tests/UcpAgent.Application.Tests/UcpAgent.Application.Tests.csproj \
-            --configuration Release \
-            --no-build \
-            --settings coverlet.runsettings \
-            --logger "trx;LogFileName=unit-app.trx" \
-            --results-directory ./test-results/unit \
-            --collect:"XPlat Code Coverage" \
+          coverlet tests/UcpAgent.Domain.Tests/bin/Release/net10.0/UcpAgent.Domain.Tests.dll \
+            --target "dotnet" \
+            --targetargs "test tests/UcpAgent.Domain.Tests/UcpAgent.Domain.Tests.csproj --no-build --configuration Release --logger trx;LogFileName=unit-domain.trx --results-directory ./test-results/unit" \
+            --format cobertura \
+            --output ./coverage/domain.cobertura.xml || true
 
-          dotnet test tests/UcpAgent.Catalog.MercadoLivre.Tests/UcpAgent.Catalog.MercadoLivre.Tests.csproj \
-            --configuration Release \
-            --no-build \
-            --settings coverlet.runsettings \
-            --logger "trx;LogFileName=unit-ml.trx" \
-            --results-directory ./test-results/unit \
-            --collect:"XPlat Code Coverage" \
+          coverlet tests/UcpAgent.Application.Tests/bin/Release/net10.0/UcpAgent.Application.Tests.dll \
+            --target "dotnet" \
+            --targetargs "test tests/UcpAgent.Application.Tests/UcpAgent.Application.Tests.csproj --no-build --configuration Release --logger trx;LogFileName=unit-app.trx --results-directory ./test-results/unit" \
+            --format cobertura \
+            --output ./coverage/app.cobertura.xml || true
+
+          coverlet tests/UcpAgent.Catalog.MercadoLivre.Tests/bin/Release/net10.0/UcpAgent.Catalog.MercadoLivre.Tests.dll \
+            --target "dotnet" \
+            --targetargs "test tests/UcpAgent.Catalog.MercadoLivre.Tests/UcpAgent.Catalog.MercadoLivre.Tests.csproj --no-build --configuration Release --logger trx;LogFileName=unit-ml.trx --results-directory ./test-results/unit" \
+            --format cobertura \
+            --output ./coverage/ml.cobertura.xml || true
 
       - name: Instalar ReportGenerator
         run: dotnet tool install --global dotnet-reportgenerator-globaltool
