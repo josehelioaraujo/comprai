@@ -1,8 +1,10 @@
 # Comprai — Plataforma de Comércio Agêntico baseada em UCP
 
 [![CI/CD](https://github.com/josehelioaraujo/comprai/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/josehelioaraujo/comprai/actions/workflows/ci-cd.yml)
-[![Coverage](https://img.shields.io/badge/Coverage-97.1%25-brightgreen)](https://github.com/josehelioaraujo/comprai/actions/workflows/ci-cd.yml)
-[![Quality Gate](https://img.shields.io/badge/Quality%20Gate-90%25%20min-brightgreen)](https://github.com/josehelioaraujo/comprai/actions/workflows/ci-cd.yml)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=josehelioaraujo_comprai&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=josehelioaraujo_comprai)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=josehelioaraujo_comprai&metric=coverage)](https://sonarcloud.io/summary/new_code?id=josehelioaraujo_comprai)
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=josehelioaraujo_comprai&metric=bugs)](https://sonarcloud.io/summary/new_code?id=josehelioaraujo_comprai)
+[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=josehelioaraujo_comprai&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=josehelioaraujo_comprai)
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)
 [![UCP](https://img.shields.io/badge/Protocol-UCP-FF6B35)](https://ucp.dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
