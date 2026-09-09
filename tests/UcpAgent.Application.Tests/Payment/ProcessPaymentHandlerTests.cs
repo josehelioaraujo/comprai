@@ -1,5 +1,6 @@
-using Moq;
+using NSubstitute;
 using UcpAgent.Application.Payment;
+using UcpAgent.Api.Mocks;
 using UcpAgent.SharedKernel.Ports;
 using Xunit;
 
@@ -7,23 +8,21 @@ namespace UcpAgent.Application.Tests.Payment;
 
 public sealed class ProcessPaymentHandlerTests
 {
-    private readonly Mock<IPaymentPort> _paymentMock = new();
+    private readonly IPaymentPort _paymentPort = Substitute.For<IPaymentPort>();
     private readonly ProcessPaymentHandler _handler;
 
     public ProcessPaymentHandlerTests()
-        => _handler = new ProcessPaymentHandler(_paymentMock.Object);
+        => _handler = new ProcessPaymentHandler(_paymentPort);
 
     [Fact]
     public async Task Handle_ApprovedPayment_ReturnsSuccess()
     {
         // Arrange
-        var method = new PaymentMethodDto("mock", null, null);
+        var method  = new PaymentMethodDto("mock", null, null);
         var command = new ProcessPaymentCommand("ORDER-001", 250m, "BRL", method);
 
-        _paymentMock.Setup(p => p.ProcessAsync(
-                command.OrderId, command.Amount, command.Currency, method, default))
-            .ReturnsAsync(new PaymentResultDto(
-                "MOCK-PAY-001", true, "approved", null, null, null));
+        _paymentPort.ProcessAsync(command.OrderId, command.Amount, command.Currency, method)
+            .Returns(new PaymentResultDto("MOCK-PAY-001", true, "approved", null, null, null));
 
         // Act
         var result = await _handler.Handle(command, default);
@@ -37,13 +36,11 @@ public sealed class ProcessPaymentHandlerTests
     public async Task Handle_FailedPayment_ReturnsError()
     {
         // Arrange
-        var method = new PaymentMethodDto("stripe", "pm_card_declined", null);
+        var method  = new PaymentMethodDto("stripe", "pm_card_declined", null);
         var command = new ProcessPaymentCommand("ORDER-002", 100m, "BRL", method);
 
-        _paymentMock.Setup(p => p.ProcessAsync(
-                command.OrderId, command.Amount, command.Currency, method, default))
-            .ReturnsAsync(new PaymentResultDto(
-                string.Empty, false, "failed", null, null, "Cartão recusado"));
+        _paymentPort.ProcessAsync(command.OrderId, command.Amount, command.Currency, method)
+            .Returns(new PaymentResultDto(string.Empty, false, "failed", null, null, "Cartão recusado"));
 
         // Act
         var result = await _handler.Handle(command, default);
