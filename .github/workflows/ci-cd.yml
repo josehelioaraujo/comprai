@@ -98,24 +98,24 @@ jobs:
         run: |
           dotnet test tests/UcpAgent.Domain.Tests/UcpAgent.Domain.Tests.csproj \
             --configuration Release \
+            --no-build \
             --logger "trx;LogFileName=unit-domain.trx" \
             --results-directory ./test-results/unit \
             --collect:"XPlat Code Coverage" \
-            --results-directory ./coverage
 
           dotnet test tests/UcpAgent.Application.Tests/UcpAgent.Application.Tests.csproj \
             --configuration Release \
+            --no-build \
             --logger "trx;LogFileName=unit-app.trx" \
             --results-directory ./test-results/unit \
             --collect:"XPlat Code Coverage" \
-            --results-directory ./coverage
 
           dotnet test tests/UcpAgent.Catalog.MercadoLivre.Tests/UcpAgent.Catalog.MercadoLivre.Tests.csproj \
             --configuration Release \
+            --no-build \
             --logger "trx;LogFileName=unit-ml.trx" \
             --results-directory ./test-results/unit \
             --collect:"XPlat Code Coverage" \
-            --results-directory ./coverage
 
       - name: Instalar ReportGenerator
         run: dotnet tool install --global dotnet-reportgenerator-globaltool
