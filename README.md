@@ -422,7 +422,7 @@ GET /api/orders/{orderId} retorna status atualizado
 | Categoria | Tecnologia |
 |---|---|
 | **Linguagem / Runtime** | C# (.NET 10), ASP.NET Core Minimal APIs |
-| **Padrões** | Clean Architecture (Hexagonal), DDD, CQRS (MediatR) |
+| **Padrões** | Arquitetura Hexagonal, Vertical Slice, DDD, CQRS (MediatR) |
 | **Cache** | HybridCache (.NET 10) + Redis (StackExchange.Redis) |
 | **Mensageria** | Kafka, RabbitMQ (switcháveis via feature flag) |
 | **Observabilidade** | OpenTelemetry + Jaeger + Prometheus + Grafana + Loki |
