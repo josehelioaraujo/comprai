@@ -41,16 +41,16 @@ public sealed class DummyJsonPlugin : IProductCatalogPort
             }
 
             if (response is null || response.Products.Count == 0)
-                return SearchResult.Empty(request.Query);
+                return new SearchResult([], 0, request.Page, request.PageSize, SourceName);
 
             var items = response.Products.Select(MapToDto).ToList();
             _logger.LogInformation("DummyJSON: {Count} produtos para '{Query}'", items.Count, request.Query);
-            return new SearchResult(request.Query, items, response.Total);
+            return new SearchResult(items, response.Total, request.Page, request.PageSize, SourceName);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "DummyJSON: erro ao buscar '{Query}'", request.Query);
-            return SearchResult.Empty(request.Query);
+            return new SearchResult([], 0, request.Page, request.PageSize, SourceName);
         }
     }
 
