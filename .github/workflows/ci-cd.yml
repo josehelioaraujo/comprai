@@ -29,11 +29,13 @@ env:
   VPS_PATH: '/home/projetos/comprai'
   API_PORT: '5020'
   MCP_PORT: '5030'
+  COVERAGE_THRESHOLD: '60'
 
 jobs:
 
-  unit-tests:
-    name: Testes Unitarios
+  # ── 1. BUILD ────────────────────────────────────────────────────────────────
+  build:
+    name: 🔨 Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -46,31 +48,84 @@ jobs:
       - name: Restore
         run: dotnet restore comprai.sln
 
-      - name: Build solution sem projeto de integracao
-        run: |
-          dotnet build src/UcpAgent.SharedKernel/UcpAgent.SharedKernel.csproj --configuration Release --no-restore
-          dotnet build src/UcpAgent.Domain/UcpAgent.Domain.csproj --configuration Release --no-restore
-          dotnet build src/UcpAgent.Application/UcpAgent.Application.csproj --configuration Release --no-restore
-          dotnet build src/UcpAgent.Infrastructure/UcpAgent.Infrastructure.csproj --configuration Release --no-restore
-          dotnet build src/plugins/UcpAgent.FakeCatalog/UcpAgent.FakeCatalog.csproj --configuration Release --no-restore
-          dotnet build src/UcpAgent.Api/UcpAgent.Api.csproj --configuration Release --no-restore
+      - name: Build Solution
+        run: dotnet build comprai.sln --configuration Release --no-restore
 
-      - name: Run Unit Tests
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: |
+            src/**/bin/Release/
+            src/**/obj/Release/
+          retention-days: 1
+
+  # ── 2. TESTES UNITÁRIOS + QUALITY GATE ─────────────────────────────────────
+  unit-tests:
+    name: 🧪 Testes Unitários
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore comprai.sln
+
+      - name: Run Unit Tests com cobertura
         run: |
           dotnet test tests/UcpAgent.Domain.Tests/UcpAgent.Domain.Tests.csproj \
             --configuration Release \
             --logger "trx;LogFileName=unit-domain.trx" \
-            --results-directory ./test-results/unit || true
+            --results-directory ./test-results/unit \
+            --collect:"XPlat Code Coverage" \
+            --results-directory ./coverage
+
           dotnet test tests/UcpAgent.Application.Tests/UcpAgent.Application.Tests.csproj \
             --configuration Release \
             --logger "trx;LogFileName=unit-app.trx" \
-            --results-directory ./test-results/unit || true
+            --results-directory ./test-results/unit \
+            --collect:"XPlat Code Coverage" \
+            --results-directory ./coverage
+
           dotnet test tests/UcpAgent.Catalog.MercadoLivre.Tests/UcpAgent.Catalog.MercadoLivre.Tests.csproj \
             --configuration Release \
             --logger "trx;LogFileName=unit-ml.trx" \
-            --results-directory ./test-results/unit || true
+            --results-directory ./test-results/unit \
+            --collect:"XPlat Code Coverage" \
+            --results-directory ./coverage
 
-      - name: Upload Unit Test Results
+      - name: Instalar ReportGenerator
+        run: dotnet tool install --global dotnet-reportgenerator-globaltool
+
+      - name: Gerar relatório de cobertura
+        run: |
+          reportgenerator \
+            -reports:"./coverage/**/coverage.cobertura.xml" \
+            -targetdir:"./coverage-report" \
+            -reporttypes:"Cobertura;TextSummary"
+
+      - name: Quality Gate — cobertura mínima ${{ env.COVERAGE_THRESHOLD }}%
+        run: |
+          COVERAGE=$(grep -oP '(?<=<summary lineRate=")[^"]+' ./coverage-report/Cobertura.xml | head -1)
+          COVERAGE_PCT=$(python3 -c "print(round(float('$COVERAGE') * 100, 2))")
+          echo "📊 Cobertura atual: ${COVERAGE_PCT}%"
+          echo "🎯 Threshold: ${{ env.COVERAGE_THRESHOLD }}%"
+          python3 -c "
+          coverage = float('$COVERAGE') * 100
+          threshold = float('${{ env.COVERAGE_THRESHOLD }}')
+          if coverage < threshold:
+              print(f'❌ Quality Gate FALHOU: {coverage:.1f}% < {threshold}%')
+              exit(1)
+          else:
+              print(f'✅ Quality Gate OK: {coverage:.1f}% >= {threshold}%')
+          "
+
+      - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -78,8 +133,17 @@ jobs:
           path: ./test-results/unit/*.trx
           if-no-files-found: ignore
 
+      - name: Upload Coverage Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: ./coverage-report/
+          if-no-files-found: ignore
+
+  # ── 3. TESTES DE INTEGRAÇÃO ─────────────────────────────────────────────────
   integration-tests:
-    name: Testes de Integracao
+    name: 🔗 Testes de Integração
     runs-on: ubuntu-latest
     needs: unit-tests
     steps:
@@ -124,8 +188,9 @@ jobs:
           path: ./test-results/integration/*.trx
           if-no-files-found: ignore
 
+  # ── 4. DEPLOY VPS ───────────────────────────────────────────────────────────
   deploy:
-    name: Deploy VPS Hostinger
+    name: 🚀 Deploy VPS Hostinger
     runs-on: ubuntu-latest
     needs: integration-tests
     steps:
@@ -154,8 +219,9 @@ jobs:
             sleep 20
             curl -f http://localhost:${{ env.API_PORT }}/health/live || exit 1
 
+  # ── 5. SMOKE TESTS ──────────────────────────────────────────────────────────
   smoke-tests:
-    name: Smoke Tests Newman
+    name: 💨 Smoke Tests Newman
     runs-on: ubuntu-latest
     needs: deploy
     steps:
@@ -180,10 +246,8 @@ jobs:
             --env-var "mcpUrl=http://${{ env.VPS_HOST }}:${{ env.MCP_PORT }}" \
             --env-var "ML_ACCESS_TOKEN=${ML_ACCESS_TOKEN}" \
             --env-var "SHOPIFY_ACCESS_TOKEN=${SHOPIFY_ACCESS_TOKEN}" \
-            --reporters cli \
-            --reporters htmlextra \
-            --reporter-htmlextra-export ./newman-report/smoke-report.html \
-            --bail || true || true || true
+            --reporters cli,htmlextra \
+            --reporter-htmlextra-export ./newman-report/smoke-report.html
 
       - name: Upload Newman Report
         if: always()
