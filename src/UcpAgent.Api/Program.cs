@@ -1,3 +1,5 @@
+using UcpAgent.Infrastructure.Payment;
+using UcpAgent.Application.Payment;
 using UcpAgent.Catalog.Shopify;
 using UcpAgent.Application.Orders;
 using UcpAgent.Api.Endpoints;
@@ -129,6 +131,14 @@ else
 {
     builder.Services.AddSingleton<IEventPublisher, NullEventPublisher>();
 }
+
+
+// ── Payment ────────────────────────────────────────────────────────────────────
+var paymentProvider = builder.Configuration["Features:PaymentProvider"] ?? "mock";
+if (paymentProvider == "stripe")
+    builder.Services.AddSingleton<IPaymentPort, StripePaymentAdapter>();
+else
+    builder.Services.AddSingleton<IPaymentPort, MockPaymentAdapter>();
 
 builder.Services.AddSingleton<IIntentRouterService, IntentRouterService>();
 
@@ -291,6 +301,20 @@ app.MapPost("/webhook/ml", async (
     var result = await webhook.ProcessAsync(payload, ct);
     return Results.Ok(result);
 }).WithTags("MercadoLivre");
+
+// ── Payment ────────────────────────────────────────────────────────────────────
+app.MapPost("/api/payment/{orderId}", async (
+    string orderId, PaymentRequestDto req,
+    IMediator mediator, CancellationToken ct) =>
+{
+    var result = await mediator.Send(
+        new ProcessPaymentCommand(orderId, req.Amount, req.Currency, req.Method), ct);
+    return result.IsSuccess
+        ? Results.Ok(result.Value)
+        : Results.BadRequest(new { error = result.Error });
+})
+.WithTags("Payment").WithName("ProcessPayment");
+
 app.MapIntentEndpoints();
 app.MapFakeCatalogEndpoints();
 
@@ -325,3 +349,7 @@ app.Run();
 
 // ── Request DTOs ──────────────────────────────────────────────────────────────
 record AddToCartRequest(UcpAgent.SharedKernel.Models.ProductDto Product, int Quantity = 1);
+record PaymentRequestDto(
+    decimal Amount,
+    string Currency,
+    UcpAgent.SharedKernel.Ports.PaymentMethodDto Method);
