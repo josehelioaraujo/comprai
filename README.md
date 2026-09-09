@@ -2,6 +2,8 @@
 
 Comprai é um agente de IA para compras baseado no **Universal Commerce Protocol (UCP)** que integra múltiplos e-commerces (MercadoLivre, Shopify, VTEX, OpenFoodFacts) através de plugins plugáveis. Oferece uma interface conversacional (via MCP Server) e suporta operações multi-canal: busca federada de produtos, carrinho, checkout e rastreamento de pedidos com rastreabilidade OAuth.
 
+> 📋 Veja o histórico completo de versões em [CHANGELOG.md](CHANGELOG.md)
+
 ---
 
 ## 📑 Índice
