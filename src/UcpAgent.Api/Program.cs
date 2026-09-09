@@ -132,9 +132,6 @@ else
 
 builder.Services.AddSingleton<IIntentRouterService, IntentRouterService>();
 
-// ── DummyJSON Plugin ──────────────────────────────────────────────────────────
-builder.Services.AddHttpClient<DummyJsonPlugin>();
-builder.Services.AddSingleton<IProductCatalogPort>(sp => sp.GetRequiredService<DummyJsonPlugin>());
 
 // ── Price Watcher ──────────────────────────────────────────────────────────────
 var usarPriceWatcher = builder.Configuration.GetValue<bool>("Features:UsarPriceWatcher");
