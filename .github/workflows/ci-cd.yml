@@ -123,7 +123,7 @@ jobs:
       - name: Gerar relatório de cobertura
         run: |
           reportgenerator \
-            -reports:"./test-results/unit/**/coverage.cobertura.xml" \
+            -reports:"./test-results/unit/**/coverage.cobertura.xml;./TestResults/**/coverage.cobertura.xml" \
             -targetdir:"./coverage-report" \
             -reporttypes:"Cobertura;TextSummary"
 
