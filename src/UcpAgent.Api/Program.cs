@@ -1,4 +1,4 @@
-using UcpAgent.Infrastructure.Payment;
+using UcpAgent.Api.Adapters;
 using UcpAgent.Application.Payment;
 using UcpAgent.Catalog.Shopify;
 using UcpAgent.Application.Orders;
