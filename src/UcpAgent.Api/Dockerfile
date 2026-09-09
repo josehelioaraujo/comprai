@@ -32,5 +32,4 @@ RUN dotnet publish "UcpAgent.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-COPY src/UcpAgent.Api/wwwroot ./wwwroot
 ENTRYPOINT ["dotnet", "UcpAgent.Api.dll"]

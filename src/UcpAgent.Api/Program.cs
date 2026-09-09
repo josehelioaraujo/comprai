@@ -306,8 +306,14 @@ app.MapGet("/api/ml/token-debug", async (UcpAgent.Catalog.MercadoLivreOrders.MlT
 // ── Price Watcher Test Page ────────────────────────────────────────────────────
 app.MapGet("/price-watcher-test", async (CancellationToken ct) =>
 {
-    var path = Path.Combine(AppContext.BaseDirectory, "wwwroot", "price-watcher-test.html");
-    if (!File.Exists(path)) return Results.NotFound("Arquivo não encontrado");
+    // Procura em docs/ relativo ao repositório na VPS, depois em wwwroot/ como fallback
+    var candidates = new[]
+    {
+        Path.Combine(AppContext.BaseDirectory, "wwwroot", "price-watcher-test.html"),
+        Path.Combine(Directory.GetCurrentDirectory(), "docs", "price-watcher-test.html"),
+    };
+    var path = candidates.FirstOrDefault(File.Exists);
+    if (path is null) return Results.NotFound("price-watcher-test.html não encontrado");
     var html = await File.ReadAllTextAsync(path, ct);
     return Results.Content(html, "text/html");
 })
