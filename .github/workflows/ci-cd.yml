@@ -45,8 +45,14 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Restore
+      - name: Restore — Solution
         run: dotnet restore comprai.sln
+
+      - name: Restore — Projetos de Teste
+        run: |
+          dotnet restore tests/UcpAgent.Domain.Tests/UcpAgent.Domain.Tests.csproj
+          dotnet restore tests/UcpAgent.Application.Tests/UcpAgent.Application.Tests.csproj
+          dotnet restore tests/UcpAgent.Catalog.MercadoLivre.Tests/UcpAgent.Catalog.MercadoLivre.Tests.csproj
 
       - name: Build Solution
         run: |
@@ -56,6 +62,9 @@ jobs:
           dotnet build src/UcpAgent.Infrastructure/UcpAgent.Infrastructure.csproj --configuration Release --no-restore
           dotnet build src/UcpAgent.Api/UcpAgent.Api.csproj --configuration Release --no-restore
           dotnet build src/plugins/UcpAgent.FakeCatalog/UcpAgent.FakeCatalog.csproj --configuration Release --no-restore
+
+      - name: Build Projetos de Teste
+        run: |
           dotnet build tests/UcpAgent.Domain.Tests/UcpAgent.Domain.Tests.csproj --configuration Release --no-restore
           dotnet build tests/UcpAgent.Application.Tests/UcpAgent.Application.Tests.csproj --configuration Release --no-restore
           dotnet build tests/UcpAgent.Catalog.MercadoLivre.Tests/UcpAgent.Catalog.MercadoLivre.Tests.csproj --configuration Release --no-restore
