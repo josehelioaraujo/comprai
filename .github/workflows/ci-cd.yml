@@ -99,6 +99,7 @@ jobs:
           dotnet test tests/UcpAgent.Domain.Tests/UcpAgent.Domain.Tests.csproj \
             --configuration Release \
             --no-build \
+            --settings coverlet.runsettings \
             --logger "trx;LogFileName=unit-domain.trx" \
             --results-directory ./test-results/unit \
             --collect:"XPlat Code Coverage" \
@@ -106,6 +107,7 @@ jobs:
           dotnet test tests/UcpAgent.Application.Tests/UcpAgent.Application.Tests.csproj \
             --configuration Release \
             --no-build \
+            --settings coverlet.runsettings \
             --logger "trx;LogFileName=unit-app.trx" \
             --results-directory ./test-results/unit \
             --collect:"XPlat Code Coverage" \
@@ -113,6 +115,7 @@ jobs:
           dotnet test tests/UcpAgent.Catalog.MercadoLivre.Tests/UcpAgent.Catalog.MercadoLivre.Tests.csproj \
             --configuration Release \
             --no-build \
+            --settings coverlet.runsettings \
             --logger "trx;LogFileName=unit-ml.trx" \
             --results-directory ./test-results/unit \
             --collect:"XPlat Code Coverage" \
