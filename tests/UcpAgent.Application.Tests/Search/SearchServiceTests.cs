@@ -71,6 +71,6 @@ public sealed class SearchServiceTests
 
         result.IsSuccess.Should().BeTrue();
         result.Value!.Items.Should().BeEmpty();
-        result.Value.TotalCount.Should().Be(0);
+        result.Value.TotalItems.Should().Be(0);
     }
 }
