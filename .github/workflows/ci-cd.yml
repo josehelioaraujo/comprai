@@ -130,8 +130,7 @@ jobs:
 
       - name: Gerar relatório de cobertura
         run: |
-          COVERAGE_FILES=$(find ./test-results/unit -name "coverage.cobertura.xml" | tr '
-' ';' | sed 's/;$//')
+          COVERAGE_FILES=$(find ./test-results/unit -name "coverage.cobertura.xml" | paste -sd ';' -)
           echo "Arquivos encontrados: $COVERAGE_FILES"
           reportgenerator \
             -reports:"$COVERAGE_FILES" \
@@ -292,3 +291,4 @@ jobs:
           name: smoke-test-report
           path: ./newman-report/smoke-report.html
           if-no-files-found: ignore
+
