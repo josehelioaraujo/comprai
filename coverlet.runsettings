@@ -5,8 +5,26 @@
       <DataCollector friendlyName="XPlat Code Coverage">
         <Configuration>
           <Format>cobertura</Format>
-          <Exclude>[*.Tests]*</Exclude>
-          <ExcludeByFile>**/Migrations/**,**/Program.cs</ExcludeByFile>
+          <!-- Excluir assemblies que não são foco de testes unitários -->
+          <Exclude>
+            [UcpAgent.Api]*Mocks*,
+            [UcpAgent.Api]*Adapters*,
+            [UcpAgent.Api]*Endpoints*,
+            [UcpAgent.Api]Program,
+            [UcpAgent.Infrastructure]*,
+            [UcpAgent.Catalog.*]*,
+            [UcpAgent.FakeCatalog]*,
+            [UcpAgent.PriceWatcher]*,
+            [UcpAgent.McpServer]*,
+            [*.Tests]*
+          </Exclude>
+          <!-- Incluir apenas Domain, Application e SharedKernel -->
+          <Include>
+            [UcpAgent.Domain]*,
+            [UcpAgent.Application]*,
+            [UcpAgent.SharedKernel]*
+          </Include>
+          <ExcludeByFile>**/Program.cs,**/Migrations/**</ExcludeByFile>
         </Configuration>
       </DataCollector>
     </DataCollectors>
