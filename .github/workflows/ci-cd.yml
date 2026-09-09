@@ -29,7 +29,7 @@ env:
   VPS_PATH: '/home/projetos/comprai'
   API_PORT: '5020'
   MCP_PORT: '5030'
-  COVERAGE_THRESHOLD: '13'
+  COVERAGE_THRESHOLD: '80'
 
 jobs:
 
