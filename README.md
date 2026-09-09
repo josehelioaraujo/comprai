@@ -489,7 +489,7 @@ GET /api/orders/{orderId} retorna status atualizado
 | **Linguagem / Runtime** | C# (.NET 10), ASP.NET Core Minimal APIs |
 | **Padrões** | Arquitetura Hexagonal, Vertical Slice, DDD, CQRS (MediatR), Plugin Pattern, Outbox Pattern |
 | **Cache** | HybridCache (.NET 10) — L1 in-memory + L2 Redis (StackExchange.Redis), TTL configurável |
-| **Mensageria** | Kafka, RabbitMQ — switcháveis via feature flag, NullPublisher para dev |
+| **Mensageria** | Kafka, RabbitMQ — switcháveis via feature flag |
 | **Pagamentos** | Stripe, Efí (Pix nativo BACEN), Mock — arquitetura agnóstica via IPaymentPort |
 | **Observabilidade** | OpenTelemetry (traces + métricas) + Jaeger + Prometheus + Grafana + Loki + Promtail |
 | **IA / LLM** | Ollama (self-hosted), Intent Router (NLP), integração MCP para agentes |
