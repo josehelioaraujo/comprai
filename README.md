@@ -487,13 +487,17 @@ GET /api/orders/{orderId} retorna status atualizado
 | Categoria | Tecnologia |
 |---|---|
 | **Linguagem / Runtime** | C# (.NET 10), ASP.NET Core Minimal APIs |
-| **Padrões** | Arquitetura Hexagonal, Vertical Slice, DDD, CQRS (MediatR) |
-| **Cache** | HybridCache (.NET 10) + Redis (StackExchange.Redis) |
-| **Mensageria** | Kafka, RabbitMQ (switcháveis via feature flag) |
-| **Observabilidade** | OpenTelemetry + Jaeger + Prometheus + Grafana + Loki |
-| **Testes** | xUnit, Moq, CompraApiFactory, Newman (smoke E2E) |
-| **CI/CD** | GitHub Actions (4 jobs), Docker, appleboy/ssh-action |
+| **Padrões** | Arquitetura Hexagonal, Vertical Slice, DDD, CQRS (MediatR), Plugin Pattern, Outbox Pattern |
+| **Cache** | HybridCache (.NET 10) — L1 in-memory + L2 Redis (StackExchange.Redis), TTL configurável |
+| **Mensageria** | Kafka, RabbitMQ — switcháveis via feature flag, NullPublisher para dev |
+| **Pagamentos** | Stripe, Efí (Pix nativo BACEN), Mock — arquitetura agnóstica via IPaymentPort |
+| **Observabilidade** | OpenTelemetry (traces + métricas) + Jaeger + Prometheus + Grafana + Loki + Promtail |
+| **IA / LLM** | Ollama (self-hosted), Intent Router (NLP), integração MCP para agentes |
+| **Testes** | xUnit, Moq, NSubstitute, Bogus BR, FluentAssertions, Newman (smoke E2E), coverlet (97.1%) |
+| **CI/CD** | GitHub Actions (5 jobs: Build → Unit → Integration → Deploy → Smoke), Docker, Quality Gate 90% |
 | **Protocolos** | UCP (Universal Commerce Protocol), MCP (Model Context Protocol) |
+| **Segurança** | Secrets via GitHub Actions Secrets + .env VPS, rotação manual de tokens OAuth |
+| **Infraestrutura** | Docker Compose, VPS Hostinger KVM2, deploy via SSH, profiles para Kafka/RabbitMQ/monitoring |
 
 ---
 
