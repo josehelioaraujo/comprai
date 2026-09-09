@@ -59,7 +59,7 @@ public sealed class CartHandlerTests
     {
         // Arrange
         var cart    = new Mock<ICartPort>();
-        var handler = new RemoveFromCartHandler(cart.Object);
+        var handler = new RemoveFromCartCommandHandler(cart.Object);
         var command = new RemoveFromCartCommand("session-1", "item-abc");
 
         cart.Setup(c => c.RemoveItemAsync("session-1", "item-abc", default))
@@ -78,7 +78,7 @@ public sealed class CartHandlerTests
     {
         // Arrange
         var cart    = new Mock<ICartPort>();
-        var handler = new RemoveFromCartHandler(cart.Object);
+        var handler = new RemoveFromCartCommandHandler(cart.Object);
         var command = new RemoveFromCartCommand("session-2", "item-xyz");
 
         cart.Setup(c => c.RemoveItemAsync(It.IsAny<string>(), It.IsAny<string>(), default))
