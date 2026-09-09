@@ -216,6 +216,7 @@
         <div class="watch-item">
           <span class="title">${w.title}</span>
           <button class="remove" onclick="removeWatch('${w.watchId}')">✕</button>
+          <button class="trigger" onclick="triggerAlert('${w.watchId}')">⚡ Testar</button>
           <div class="prices">
             <span>Atual: <b>R$ ${w.currentPrice.toFixed(2)}</b></span>
             <span>Alvo: <b>R$ ${w.targetPrice.toFixed(2)}</b></span>
