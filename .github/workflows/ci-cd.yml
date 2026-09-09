@@ -94,35 +94,43 @@ jobs:
       - name: Restore
         run: dotnet restore comprai.sln
 
-      - name: Run Unit Tests com cobertura
-        run: |
-          dotnet tool install --global coverlet.console || true
-
-          coverlet tests/UcpAgent.Domain.Tests/bin/Release/net10.0/UcpAgent.Domain.Tests.dll \
-            --target "dotnet" \
-            --targetargs "test tests/UcpAgent.Domain.Tests/UcpAgent.Domain.Tests.csproj --no-build --configuration Release --logger trx;LogFileName=unit-domain.trx --results-directory ./test-results/unit" \
-            --format cobertura \
-            --output ./coverage/domain.cobertura.xml || true
-
-          coverlet tests/UcpAgent.Application.Tests/bin/Release/net10.0/UcpAgent.Application.Tests.dll \
-            --target "dotnet" \
-            --targetargs "test tests/UcpAgent.Application.Tests/UcpAgent.Application.Tests.csproj --no-build --configuration Release --logger trx;LogFileName=unit-app.trx --results-directory ./test-results/unit" \
-            --format cobertura \
-            --output ./coverage/app.cobertura.xml || true
-
-          coverlet tests/UcpAgent.Catalog.MercadoLivre.Tests/bin/Release/net10.0/UcpAgent.Catalog.MercadoLivre.Tests.dll \
-            --target "dotnet" \
-            --targetargs "test tests/UcpAgent.Catalog.MercadoLivre.Tests/UcpAgent.Catalog.MercadoLivre.Tests.csproj --no-build --configuration Release --logger trx;LogFileName=unit-ml.trx --results-directory ./test-results/unit" \
-            --format cobertura \
-            --output ./coverage/ml.cobertura.xml || true
-
       - name: Instalar ReportGenerator
         run: dotnet tool install --global dotnet-reportgenerator-globaltool
 
+      - name: Restore projetos de teste
+        run: |
+          dotnet restore tests/UcpAgent.Domain.Tests/UcpAgent.Domain.Tests.csproj
+          dotnet restore tests/UcpAgent.Application.Tests/UcpAgent.Application.Tests.csproj
+          dotnet restore tests/UcpAgent.Catalog.MercadoLivre.Tests/UcpAgent.Catalog.MercadoLivre.Tests.csproj
+
+      - name: Run Unit Tests com cobertura
+        run: |
+          mkdir -p ./test-results/unit
+
+          dotnet test tests/UcpAgent.Domain.Tests/UcpAgent.Domain.Tests.csproj \
+            --configuration Release \
+            --logger "trx;LogFileName=unit-domain.trx" \
+            --results-directory ./test-results/unit \
+            --collect:"XPlat Code Coverage"
+
+          dotnet test tests/UcpAgent.Application.Tests/UcpAgent.Application.Tests.csproj \
+            --configuration Release \
+            --logger "trx;LogFileName=unit-app.trx" \
+            --results-directory ./test-results/unit \
+            --collect:"XPlat Code Coverage"
+
+          dotnet test tests/UcpAgent.Catalog.MercadoLivre.Tests/UcpAgent.Catalog.MercadoLivre.Tests.csproj \
+            --configuration Release \
+            --logger "trx;LogFileName=unit-ml.trx" \
+            --results-directory ./test-results/unit \
+            --collect:"XPlat Code Coverage"
+
       - name: Gerar relatório de cobertura
         run: |
+          COVERAGE_FILES=$(find ./test-results/unit -name "coverage.cobertura.xml" | tr '\n' ';' | sed 's/;$//')
+          echo "Arquivos encontrados: $COVERAGE_FILES"
           reportgenerator \
-            -reports:"./test-results/unit/**/coverage.cobertura.xml;./TestResults/**/coverage.cobertura.xml" \
+            -reports:"$COVERAGE_FILES" \
             -targetdir:"./coverage-report" \
             -reporttypes:"Cobertura;TextSummary"
 
