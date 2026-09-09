@@ -1,5 +1,12 @@
 # Comprai — Plataforma de Comércio Agêntico baseada em UCP
 
+[![CI/CD](https://github.com/josehelioaraujo/comprai/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/josehelioaraujo/comprai/actions/workflows/ci-cd.yml)
+[![Coverage](https://img.shields.io/badge/Coverage-87.5%25-brightgreen)](https://github.com/josehelioaraujo/comprai/actions/workflows/ci-cd.yml)
+[![Quality Gate](https://img.shields.io/badge/Quality%20Gate-80%25%20min-brightgreen)](https://github.com/josehelioaraujo/comprai/actions/workflows/ci-cd.yml)
+[![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)
+[![UCP](https://img.shields.io/badge/Protocol-UCP-FF6B35)](https://ucp.dev)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Comprai é um ecossistema modular open-source que implementa o **Universal Commerce Protocol (UCP)** no Brasil. Plugins de catálogo, canais de atendimento, agentes de IA, monitoramento de preços e pagamentos funcionam juntos ou separadamente — permitindo que qualquer superfície (chat, browser, WhatsApp, Teams) execute o fluxo completo de compras de forma autônoma.
 
 > 📋 Veja o histórico completo de versões em [CHANGELOG.md](CHANGELOG.md)
@@ -28,8 +35,7 @@ Comprai é um ecossistema modular open-source que implementa o **Universal Comme
 
 O **Comprai** é construído sobre o **Universal Commerce Protocol (UCP)**, um padrão aberto lançado pelo Google em janeiro de 2026, co-desenvolvido com a Shopify e endossado por mais de 20 empresas globais — incluindo Visa, Mastercard, Stripe, Walmart, Target e Best Buy.
 
-> 💡 O Brasil ainda não tem nenhuma implementação pública do UCP.
-> O Comprai é uma das primeiras referências nacionais do protocolo.
+> 💡 O mercado brasileiro ainda não conta com soluções que adotem o UCP em produção — o que representa uma grande oportunidade de inovação. O **Comprai** é uma iniciativa open-source para explorar esse padrão e ajudar desenvolvedores brasileiros a se posicionarem como early adopters de uma tecnologia que está redefinindo o comércio agêntico globalmente.
 
 <details>
 <summary>❓ O problema que o UCP resolve</summary>
