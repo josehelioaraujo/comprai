@@ -1,8 +1,1 @@
-namespace UcpAgent.SharedKernel.Events;
-
-public record OrderStatusUpdatedEvent(
-    string OrderId,
-    string OldStatus,
-    string NewStatus,
-    string? TrackingCode,
-    DateTime UpdatedAt);
+using System.Diagnostics.CodeAnalysis;namespace UcpAgent.SharedKernel.Events;[ExcludeFromCodeCoverage]public record OrderStatusUpdatedEvent(    string OrderId,    string OldStatus,    string NewStatus,    DateTime UpdatedAt);

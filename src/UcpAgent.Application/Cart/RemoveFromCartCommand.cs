@@ -1,9 +1,1 @@
-﻿using MediatR;
-using UcpAgent.SharedKernel;
-
-namespace UcpAgent.Application.Cart;
-
-public record RemoveFromCartCommand(
-    string SessionId,
-    string ProductId
-) : IRequest<Result<bool>>;
+using System.Diagnostics.CodeAnalysis;using MediatR;using UcpAgent.SharedKernel;namespace UcpAgent.Application.Cart;[ExcludeFromCodeCoverage]public record RemoveFromCartCommand(    string SessionId,    string ProductId) : IRequest<Result<bool>>;

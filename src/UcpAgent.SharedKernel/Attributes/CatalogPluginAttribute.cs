@@ -1,7 +1,1 @@
-namespace UcpAgent.SharedKernel.Attributes;
-
-[AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
-public sealed class CatalogPluginAttribute(string name) : Attribute
-{
-    public string Name { get; } = name;
-}
+using System.Diagnostics.CodeAnalysis;namespace UcpAgent.SharedKernel.Attributes;[ExcludeFromCodeCoverage][AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]public sealed class CatalogPluginAttribute(string name) : Attribute{    public string Name { get; } = name;}

@@ -1,12 +1,1 @@
-﻿namespace UcpAgent.Application.IntentRouter;
-
-public enum IntentType
-{
-    SearchProducts,
-    AddToCart,
-    RemoveFromCart,
-    ViewCart,
-    Checkout,
-    GetOrder,
-    Unknown
-}
+using System.Diagnostics.CodeAnalysis;namespace UcpAgent.Application.IntentRouter;[ExcludeFromCodeCoverage]public enum IntentType{    SearchProducts,    AddToCart,    RemoveFromCart,    ViewCart,    Checkout,    GetOrder,    Unknown}

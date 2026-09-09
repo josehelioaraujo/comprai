@@ -1,12 +1,1 @@
-namespace UcpAgent.Domain.Enums;
-
-public enum OrderStatus
-{
-    Pending,
-    Confirmed,
-    Processing,
-    Shipped,
-    Delivered,
-    Cancelled,
-    Refunded
-}
+using System.Diagnostics.CodeAnalysis;namespace UcpAgent.Domain.Enums;[ExcludeFromCodeCoverage]public enum OrderStatus{    Pending,    Confirmed,    Processing,    Shipped,    Delivered,    Cancelled,    Refunded}

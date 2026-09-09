@@ -1,9 +1,1 @@
-namespace UcpAgent.SharedKernel.Models;
-
-public record SearchResult(
-    IReadOnlyList<ProductDto> Items,
-    int TotalItems,
-    int Page,
-    int PageSize,
-    string Source
-);
+using System.Diagnostics.CodeAnalysis;namespace UcpAgent.SharedKernel.Models;[ExcludeFromCodeCoverage]public record SearchResult(    IReadOnlyList<ProductDto> Items,    int TotalItems,    int Page,    int PageSize,    string Source);

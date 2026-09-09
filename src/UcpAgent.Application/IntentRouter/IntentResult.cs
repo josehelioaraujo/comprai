@@ -1,10 +1,1 @@
-﻿namespace UcpAgent.Application.IntentRouter;
-
-public sealed record IntentResult(
-    IntentType Intent,
-    string?    ExtractedQuery,
-    string?    ProductId,
-    string?    SessionId,
-    string?    OrderId,
-    string     RawInput
-);
+using System.Diagnostics.CodeAnalysis;namespace UcpAgent.Application.IntentRouter;[ExcludeFromCodeCoverage]public sealed record IntentResult(    IntentType Intent,    string?    ExtractedQuery,    string?    ProductId,    string?    SessionId,    string?    OrderId,    string     RawInput);

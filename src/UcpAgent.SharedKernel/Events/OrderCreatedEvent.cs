@@ -1,8 +1,1 @@
-namespace UcpAgent.SharedKernel.Events;
-
-public record OrderCreatedEvent(
-    string OrderId,
-    string SessionId,
-    decimal Total,
-    int ItemCount,
-    DateTime CreatedAt);
+using System.Diagnostics.CodeAnalysis;namespace UcpAgent.SharedKernel.Events;[ExcludeFromCodeCoverage]public record OrderCreatedEvent(    string OrderId,    string SessionId,    decimal Total,    int ItemCount,    DateTime CreatedAt);

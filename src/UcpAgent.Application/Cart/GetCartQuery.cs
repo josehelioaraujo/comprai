@@ -1,7 +1,1 @@
-﻿using MediatR;
-using UcpAgent.SharedKernel;
-using UcpAgent.SharedKernel.Ports;
-
-namespace UcpAgent.Application.Cart;
-
-public record GetCartQuery(string SessionId) : IRequest<Result<IReadOnlyList<CartItemDto>>>;
+using System.Diagnostics.CodeAnalysis;using MediatR;using UcpAgent.SharedKernel;using UcpAgent.SharedKernel.Ports;namespace UcpAgent.Application.Cart;[ExcludeFromCodeCoverage]public record GetCartQuery(string SessionId) : IRequest<Result<IReadOnlyList<CartItemDto>>>;

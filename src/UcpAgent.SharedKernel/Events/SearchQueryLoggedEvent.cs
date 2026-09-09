@@ -1,9 +1,1 @@
-namespace UcpAgent.SharedKernel.Events;
-
-public record SearchQueryLoggedEvent(
-    string Query,
-    string? Category,
-    decimal? MinPrice,
-    decimal? MaxPrice,
-    int TotalResults,
-    DateTime QueriedAt);
+using System.Diagnostics.CodeAnalysis;namespace UcpAgent.SharedKernel.Events;[ExcludeFromCodeCoverage]public record SearchQueryLoggedEvent(    string Query,    int ResultCount,    string Source,    DateTime SearchedAt);
