@@ -1,3 +1,36 @@
+## [2.1.0] - 2026-09-09
+
+### Added
+- **Fase 21 — FakeCatalog Generator**: gerador de produtos falsos com Bogus BR
+  - 5 categorias (eletrônicos, moda, casa, beleza, esportes) e vendors reais BR
+  - Exportadores: `shopify-csv`, `woocommerce-csv`, `ucp-json`
+  - Endpoint `GET /api/catalog/generate?qty=N&category=X&format=Y`
+  - Endpoint `GET /api/catalog/formats`
+- **Fase 22 — Price Watcher**: monitoramento de preços em tempo real
+  - `BackgroundService` verifica preços a cada 5 minutos
+  - Hub SignalR `/hubs/price` com grupos por `sessionId`
+  - `RabbitMqAlertChannel` (fanout exchange `price.alert`) e `NullAlertChannel` fallback
+  - Endpoints `POST/GET/DELETE /api/price-watch`
+  - Endpoint `POST /api/price-watch/trigger-test` para demo/teste manual
+  - Feature flag `Features:UsarPriceWatcher`
+- **Plugin DummyJSON**: `UcpAgent.Catalog.Kaggle` com 190+ produtos reais sem autenticação
+  - Busca por texto e por categoria via `dummyjson.com`
+  - Mapeamento automático de `discountPercentage` para `OriginalPrice`
+- **Página de teste Price Watcher**: servida em `/price-watcher-test`
+  - Conecta via SignalR, cria watches e dispara alertas com botão ⚡ Testar
+- **CORS AllowAll**: habilitado para desenvolvimento e ferramentas externas
+
+### Fixed
+- Vendor tags searchable no CSV Shopify (lowercase + sem sufixo BR)
+- `git checkout -- .` antes do `git pull` no deploy — resolve conflito de arquivos locais
+- `docker compose down --remove-orphans` antes do `up` — resolve containers órfãos na VPS
+- Registro duplicado de `DummyJsonPlugin` após `builder.Build()` — `ServiceCollection` read-only
+- `record AddToCartRequest` restaurado e posicionado corretamente após `app.Run()`
+
+### Changed
+- **Padrão de commit**: Git Tree API (commit atômico) — 1 commit por feature, elimina runs intermediárias com falha
+- CI/CD: `docker compose -f deploy/docker-compose.yml` com path explícito em todos os steps
+
 ## [2.0.0] - 2026-09-07
 ### Added
 - **V007 - Shopify GraphQL Admin API funcional end-to-end**
