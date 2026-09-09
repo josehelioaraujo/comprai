@@ -1,209 +1,481 @@
 {
   "info": {
-    "name": "Comprai — Smoke Tests",
+    "name": "Comprai \u2014 Smoke Tests",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl",        "value": "http://2.25.122.11:5020" },
-    { "key": "mcpUrl",         "value": "http://2.25.122.11:5030" },
-    { "key": "ML_ACCESS_TOKEN","value": "{{ML_ACCESS_TOKEN}}"     },
-    { "key": "cartId",         "value": ""                        },
-    { "key": "orderId",        "value": ""                        },
-    { "key": "productId",      "value": ""                        }
+    {
+      "key": "baseUrl",
+      "value": "http://2.25.122.11:5020"
+    },
+    {
+      "key": "mcpUrl",
+      "value": "http://2.25.122.11:5030"
+    },
+    {
+      "key": "ML_ACCESS_TOKEN",
+      "value": "{{ML_ACCESS_TOKEN}}"
+    },
+    {
+      "key": "cartId",
+      "value": ""
+    },
+    {
+      "key": "orderId",
+      "value": ""
+    },
+    {
+      "key": "productId",
+      "value": ""
+    }
   ],
   "item": [
     {
-      "name": "01 — Health Check API",
+      "name": "01 \u2014 Health Check API",
       "request": {
         "method": "GET",
         "url": "{{baseUrl}}/health/live"
       },
-      "event": [{
-        "listen": "test",
-        "script": { "exec": [
-          "pm.test('API healthy', () => pm.response.to.have.status(200));"
-        ]}
-      }]
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('API healthy', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
     },
     {
-      "name": "02 — Health Check MCP",
+      "name": "02 \u2014 Health Check MCP",
       "request": {
         "method": "GET",
         "url": "{{mcpUrl}}/health"
       },
-      "event": [{
-        "listen": "test",
-        "script": { "exec": [
-          "pm.test('MCP healthy', () => {",
-          "  pm.expect(pm.response.code).to.be.oneOf([200, 204]);",
-          "});"
-        ]}
-      }]
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('MCP healthy', () => {",
+              "  pm.expect(pm.response.code).to.be.oneOf([200, 204]);",
+              "});"
+            ]
+          }
+        }
+      ]
     },
     {
-      "name": "03 — Search MercadoLivre",
+      "name": "03 \u2014 Search MercadoLivre",
       "request": {
         "method": "GET",
         "url": {
           "raw": "{{baseUrl}}/api/products/search?q=notebook&source=MercadoLivre&limit=3",
           "query": [
-            { "key": "q",      "value": "notebook"        },
-            { "key": "source", "value": "MercadoLivre"    },
-            { "key": "limit",  "value": "3"               }
+            {
+              "key": "q",
+              "value": "notebook"
+            },
+            {
+              "key": "source",
+              "value": "MercadoLivre"
+            },
+            {
+              "key": "limit",
+              "value": "3"
+            }
           ]
         }
       },
-      "event": [{
-        "listen": "test",
-        "script": { "exec": [
-          "pm.test('Status 200', () => pm.response.to.have.status(200));",
-          "const body = pm.response.json();",
-          "pm.test('Retornou produtos', () => pm.expect(body.products.length).to.be.above(0));",
-          "pm.collectionVariables.set('productId', body.products[0].id);"
-        ]}
-      }]
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('Retornou produtos', () => pm.expect(body.products.length).to.be.above(0));",
+              "pm.collectionVariables.set('productId', body.products[0].id);"
+            ]
+          }
+        }
+      ]
     },
     {
-      "name": "04 — Intent Router: Search",
+      "name": "04 \u2014 Intent Router: Search",
       "request": {
         "method": "POST",
         "url": "{{baseUrl}}/api/intent",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": { "mode": "raw", "raw": "{\"message\": \"quero comprar notebook\"}" }
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"message\": \"quero comprar notebook\"}"
+        }
       },
-      "event": [{
-        "listen": "test",
-        "script": { "exec": [
-          "pm.test('Status 200', () => pm.response.to.have.status(200));",
-          "const body = pm.response.json();",
-          "pm.test('Intent = search', () => pm.expect(body.intent).to.eql('search'));"
-        ]}
-      }]
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('Intent = search', () => pm.expect(body.intent).to.eql('search'));"
+            ]
+          }
+        }
+      ]
     },
     {
-      "name": "05 — Add to Cart",
+      "name": "05 \u2014 Add to Cart",
       "request": {
         "method": "POST",
         "url": "{{baseUrl}}/api/cart",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
         "body": {
           "mode": "raw",
           "raw": "{\"productId\": \"{{productId}}\", \"quantity\": 1, \"source\": \"MercadoLivre\"}"
         }
       },
-      "event": [{
-        "listen": "test",
-        "script": { "exec": [
-          "pm.test('Status 200', () => pm.response.to.have.status(200));",
-          "const body = pm.response.json();",
-          "pm.test('CartId gerado', () => pm.expect(body.cartId).to.be.a('string'));",
-          "pm.collectionVariables.set('cartId', body.cartId);"
-        ]}
-      }]
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('CartId gerado', () => pm.expect(body.cartId).to.be.a('string'));",
+              "pm.collectionVariables.set('cartId', body.cartId);"
+            ]
+          }
+        }
+      ]
     },
     {
-      "name": "06 — Get Cart",
+      "name": "06 \u2014 Get Cart",
       "request": {
         "method": "GET",
         "url": "{{baseUrl}}/api/cart/{{cartId}}"
       },
-      "event": [{
-        "listen": "test",
-        "script": { "exec": [
-          "pm.test('Status 200', () => pm.response.to.have.status(200));",
-          "const body = pm.response.json();",
-          "pm.test('Carrinho tem itens', () => pm.expect(body.items.length).to.be.above(0));"
-        ]}
-      }]
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('Carrinho tem itens', () => pm.expect(body.items.length).to.be.above(0));"
+            ]
+          }
+        }
+      ]
     },
     {
-      "name": "07 — Checkout",
+      "name": "07 \u2014 Checkout",
       "request": {
         "method": "POST",
         "url": "{{baseUrl}}/api/checkout",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": { "mode": "raw", "raw": "{\"cartId\": \"{{cartId}}\"}" }
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"cartId\": \"{{cartId}}\"}"
+        }
       },
-      "event": [{
-        "listen": "test",
-        "script": { "exec": [
-          "pm.test('Status 200', () => pm.response.to.have.status(200));",
-          "const body = pm.response.json();",
-          "pm.test('OrderId gerado com prefixo ORDER-', () => pm.expect(body.orderId).to.match(/^ORDER-/));",
-          "pm.collectionVariables.set('orderId', body.orderId);"
-        ]}
-      }]
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('OrderId gerado com prefixo ORDER-', () => pm.expect(body.orderId).to.match(/^ORDER-/));",
+              "pm.collectionVariables.set('orderId', body.orderId);"
+            ]
+          }
+        }
+      ]
     },
     {
-      "name": "08 — Get Order",
+      "name": "08 \u2014 Get Order",
       "request": {
         "method": "GET",
         "url": "{{baseUrl}}/api/orders/{{orderId}}"
       },
-      "event": [{
-        "listen": "test",
-        "script": { "exec": [
-          "pm.test('Status 200', () => pm.response.to.have.status(200));",
-          "const body = pm.response.json();",
-          "pm.test('Order tem status', () => pm.expect(body.status).to.be.a('string'));"
-        ]}
-      }]
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('Order tem status', () => pm.expect(body.status).to.be.a('string'));"
+            ]
+          }
+        }
+      ]
     },
     {
-      "name": "09 — ML Orders (token real)",
+      "name": "09 \u2014 ML Orders (token real)",
       "request": {
         "method": "GET",
         "url": "{{baseUrl}}/api/ml/orders",
-        "header": [{ "key": "Authorization", "value": "Bearer {{ML_ACCESS_TOKEN}}" }]
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{ML_ACCESS_TOKEN}}"
+          }
+        ]
       },
-      "event": [{
-        "listen": "test",
-        "script": { "exec": [
-          "pm.test('ML Orders 200 ou 204', () => {",
-          "  pm.expect(pm.response.code).to.be.oneOf([200, 204]);",
-          "});"
-        ]}
-      }]
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('ML Orders 200 ou 204', () => {",
+              "  pm.expect(pm.response.code).to.be.oneOf([200, 204]);",
+              "});"
+            ]
+          }
+        }
+      ]
     },
     {
-      "name": "10 — MCP tools/list",
+      "name": "10 \u2014 MCP tools/list",
       "request": {
         "method": "POST",
         "url": "{{mcpUrl}}/mcp",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
         "body": {
           "mode": "raw",
           "raw": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{}}"
         }
       },
-      "event": [{
-        "listen": "test",
-        "script": { "exec": [
-          "pm.test('Status 200', () => pm.response.to.have.status(200));",
-          "const body = pm.response.json();",
-          "pm.test('7 tools registradas', () => pm.expect(body.result.tools.length).to.eql(7));"
-        ]}
-      }]
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('7 tools registradas', () => pm.expect(body.result.tools.length).to.eql(7));"
+            ]
+          }
+        }
+      ]
     },
     {
-      "name": "11 — ML Webhook simulado",
+      "name": "11 \u2014 ML Webhook simulado",
       "request": {
         "method": "POST",
         "url": "{{baseUrl}}/api/ml/webhook",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
         "body": {
           "mode": "raw",
           "raw": "{\"resource\":\"/orders/ORDER-ML-SMOKE\",\"user_id\":123456789,\"topic\":\"orders\",\"application_id\":2786639248653015,\"attempts\":1}"
         }
       },
-      "event": [{
-        "listen": "test",
-        "script": { "exec": [
-          "pm.test('Webhook aceito', () => {",
-          "  pm.expect(pm.response.code).to.be.oneOf([200, 202]);",
-          "});"
-        ]}
-      }]
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Webhook aceito', () => {",
+              "  pm.expect(pm.response.code).to.be.oneOf([200, 202]);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "POST /api/payment/:orderId \u2014 Mock aprovado",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/payment/{{orderId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "payment",
+            "{{orderId}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"amount\": 99.9, \"currency\": \"BRL\", \"method\": {\"provider\": \"mock\", \"cardToken\": null, \"pixKey\": null}}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Payment aprovado', () => {",
+              "  pm.response.to.have.status(200);",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.success).to.be.true;",
+              "  pm.expect(body.status).to.eql('approved');",
+              "  pm.expect(body.paymentId).to.include('MOCK-PAY-');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "GET /health/live",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/health/live",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health",
+            "live"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Health live OK', () => pm.response.to.have.status(200));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "GET /health/ready",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/health/ready",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health",
+            "ready"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Health ready OK', () => pm.response.to.have.status(200));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "GET /api/search \u2014 query vazia retorna resultados",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/search?q=notebook",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "search"
+          ],
+          "query": [
+            {
+              "key": "q",
+              "value": "notebook"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Search retorna lista', () => {",
+              "  pm.response.to.have.status(200);",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.items).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "GET /api/cart/:sessionId \u2014 carrinho inexistente retorna vazio",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/cart/session-inexistente",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "cart",
+            "session-inexistente"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Carrinho inexistente retorna 200 ou 404', () => {",
+              "  pm.expect([200, 404]).to.include(pm.response.code);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
     }
   ]
 }
