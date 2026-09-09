@@ -9,7 +9,7 @@
     <PackageReference Include="Confluent.Kafka" Version="2.6.3" />
     <PackageReference Include="RabbitMQ.Client" Version="6.8.1" />
     <PackageReference Include="StackExchange.Redis" Version="2.*" />
-    <ProjectReference Include="..\UcpAgent.Domain\UcpAgent.Domain.csproj" />
+    <PackageReference Include="Stripe.net" Version="47.*" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\UcpAgent.SharedKernel\UcpAgent.SharedKernel.csproj" />
