@@ -32,6 +32,19 @@ public static class PriceWatcherEndpoints
         .WithTags("PriceWatcher")
         .WithName("GetPriceWatches");
 
+        // POST /api/price-watch/trigger-test — dispara alerta manualmente (dev/demo)
+        app.MapPost("/api/price-watch/trigger-test", async (
+            string sessionId, string watchId,
+            PriceWatcherService svc,
+            CancellationToken ct) =>
+        {
+            var ok = await svc.TriggerTestAsync(sessionId, watchId, ct);
+            return ok ? Results.Ok(new { message = "Alerta disparado via SignalR!" }) : Results.NotFound();
+        })
+        .WithTags("PriceWatcher")
+        .WithName("TriggerTestPriceAlert")
+        .WithSummary("Dispara alerta manualmente para demo/teste");
+
         // DELETE /api/price-watch/{sessionId}/{watchId}
         app.MapDelete("/api/price-watch/{sessionId}/{watchId}", (
             string sessionId, string watchId,

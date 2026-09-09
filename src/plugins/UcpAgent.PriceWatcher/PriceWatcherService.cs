@@ -45,6 +45,27 @@ public sealed class PriceWatcherService : BackgroundService
     public IEnumerable<PriceWatch> GetWatches(string sessionId) =>
         _watches.Values.Where(w => w.SessionId == sessionId);
 
+    public async Task<bool> TriggerTestAsync(string sessionId, string watchId, CancellationToken ct = default)
+    {
+        if (!_watches.TryGetValue(watchId, out var watch) || watch.SessionId != sessionId)
+            return false;
+
+        var alert = new PriceAlertMessage(
+            watch.WatchId, watch.SessionId,
+            watch.ProductId, watch.Title,
+            watch.CurrentPrice,
+            watch.TargetPrice - 1m,
+            watch.TargetPrice,
+            watch.ImageUrl,
+            DateTime.UtcNow);
+
+        await _hub.Clients.Group(sessionId).SendAsync("PriceAlert", alert, ct);
+        await _channel.PublishAsync(alert, watch.Email, ct);
+        _watches.TryRemove(watchId, out _);
+        _logger.LogInformation("[TriggerTest] Alerta manual disparado: {WatchId}", watchId);
+        return true;
+    }
+
     public bool RemoveWatch(string sessionId, string watchId) =>
         _watches.TryGetValue(watchId, out var w) && w.SessionId == sessionId && _watches.TryRemove(watchId, out _);
 

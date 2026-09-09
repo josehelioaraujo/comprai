@@ -36,7 +36,8 @@
     .watch-item .title { font-weight: 600; color: #e2e8f0; font-size: 0.9rem; }
     .watch-item .prices { display: flex; gap: 16px; margin-top: 6px; font-size: 0.8rem; color: #64748b; }
     .watch-item .prices span b { color: #38bdf8; }
-    .watch-item .remove { float: right; background: none; border: 1px solid #ef4444; color: #ef4444; border-radius: 4px; padding: 2px 8px; font-size: 0.75rem; cursor: pointer; margin-top: -2px; width: auto; }
+    .watch-item .remove  { float: right; background: none; border: 1px solid #ef4444; color: #ef4444; border-radius: 4px; padding: 2px 8px; font-size: 0.75rem; cursor: pointer; margin-top: -2px; width: auto; margin-left: 4px; }
+    .watch-item .trigger { float: right; background: none; border: 1px solid #22c55e; color: #22c55e; border-radius: 4px; padding: 2px 8px; font-size: 0.75rem; cursor: pointer; margin-top: -2px; width: auto; }
     .alert-banner { background: #052e16; border: 1px solid #22c55e; border-radius: 8px; padding: 14px; margin-bottom: 10px; }
     .alert-banner .alert-title { color: #22c55e; font-weight: 700; font-size: 1rem; }
     .alert-banner .alert-body  { color: #86efac; font-size: 0.85rem; margin-top: 4px; }
@@ -223,6 +224,20 @@
       log(`${data.total} watch(es) ativo(s)`, 'info');
     } catch(e) {
       log('Erro ao listar: ' + e.message, 'error');
+    }
+  }
+
+  async function triggerAlert(watchId) {
+    const base    = getBase();
+    const session = getSession();
+    log(`⚡ Disparando alerta manual: ${watchId}`, 'warn');
+    try {
+      const res  = await fetch(`${base}/api/price-watch/trigger-test?sessionId=${session}&watchId=${watchId}`, { method: 'POST' });
+      const data = await res.json();
+      log(`✅ ${data.message}`, 'alert');
+      await listWatches();
+    } catch(e) {
+      log('Erro ao disparar: ' + e.message, 'error');
     }
   }
 
