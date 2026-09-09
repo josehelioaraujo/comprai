@@ -1,8 +1,8 @@
 # Comprai — Plataforma de Comércio Agêntico baseada em UCP
 
 [![CI/CD](https://github.com/josehelioaraujo/comprai/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/josehelioaraujo/comprai/actions/workflows/ci-cd.yml)
-[![Coverage](https://img.shields.io/badge/Coverage-87.5%25-brightgreen)](https://github.com/josehelioaraujo/comprai/actions/workflows/ci-cd.yml)
-[![Quality Gate](https://img.shields.io/badge/Quality%20Gate-80%25%20min-brightgreen)](https://github.com/josehelioaraujo/comprai/actions/workflows/ci-cd.yml)
+[![Coverage](https://img.shields.io/badge/Coverage-97.1%25-brightgreen)](https://github.com/josehelioaraujo/comprai/actions/workflows/ci-cd.yml)
+[![Quality Gate](https://img.shields.io/badge/Quality%20Gate-90%25%20min-brightgreen)](https://github.com/josehelioaraujo/comprai/actions/workflows/ci-cd.yml)
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)
 [![UCP](https://img.shields.io/badge/Protocol-UCP-FF6B35)](https://ucp.dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
