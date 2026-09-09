@@ -303,6 +303,9 @@ if (pwEnabled)
 app.MapGet("/api/ml/token-debug", async (UcpAgent.Catalog.MercadoLivreOrders.MlTokenService ml, CancellationToken ct) => { try { var t = await ml.GetAccessTokenAsync(ct); return Results.Ok(new { access_token = t }); } catch (Exception ex) { return Results.BadRequest(new { error = ex.Message }); } }).WithTags("Debug");
 
 
+// ── Request DTOs ──────────────────────────────────────────────────────────────
+record AddToCartRequest(UcpAgent.SharedKernel.Models.ProductDto Product, int Quantity = 1);
+
 // ── Price Watcher Test Page ────────────────────────────────────────────────────
 app.MapGet("/price-watcher-test", async (CancellationToken ct) =>
 {
@@ -321,6 +324,3 @@ app.MapGet("/price-watcher-test", async (CancellationToken ct) =>
 .ExcludeFromDescription();
 
 app.Run();
-
-// ── Request DTOs ──────────────────────────────────────────────────────────────
-record AddToCartRequest(UcpAgent.SharedKernel.Models.ProductDto Product, int Quantity = 1);
