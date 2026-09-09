@@ -136,19 +136,26 @@ jobs:
 
       - name: Quality Gate — cobertura mínima ${{ env.COVERAGE_THRESHOLD }}%
         run: |
-          COVERAGE=$(grep -oP '(?<=<summary lineRate=")[^"]+' ./coverage-report/Cobertura.xml | head -1)
-          COVERAGE_PCT=$(python3 -c "print(round(float('$COVERAGE') * 100, 2))")
-          echo "📊 Cobertura atual: ${COVERAGE_PCT}%"
-          echo "🎯 Threshold: ${{ env.COVERAGE_THRESHOLD }}%"
-          python3 -c "
-          coverage = float('$COVERAGE') * 100
+          python3 << 'EOF'
+          import xml.etree.ElementTree as ET, sys
+
+          tree = ET.parse('./coverage-report/Cobertura.xml')
+          root = tree.getroot()
+
+          # atributo pode ser line-rate ou lineRate dependendo da versão
+          rate = root.attrib.get('line-rate') or root.attrib.get('lineRate') or '0'
+          coverage = float(rate) * 100
           threshold = float('${{ env.COVERAGE_THRESHOLD }}')
+
+          print(f'📊 Cobertura atual: {coverage:.1f}%')
+          print(f'🎯 Threshold: {threshold}%')
+
           if coverage < threshold:
               print(f'❌ Quality Gate FALHOU: {coverage:.1f}% < {threshold}%')
-              exit(1)
+              sys.exit(1)
           else:
               print(f'✅ Quality Gate OK: {coverage:.1f}% >= {threshold}%')
-          "
+          EOF
 
       - name: Upload Test Results
         if: always()
