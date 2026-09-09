@@ -56,7 +56,7 @@
   <div class="card">
     <h2>⚙️ Configuração</h2>
     <label>API Base URL</label>
-    <input id="baseUrl" value="http://2.25.122.11:5020" />
+    <input id="baseUrl" value="" />
     <label>Session ID</label>
     <input id="sessionId" value="session-teste-001" />
     <button class="btn-primary" onclick="connectSignalR()">🔌 Conectar SignalR</button>
@@ -113,7 +113,7 @@
     el.scrollTop  = el.scrollHeight;
   }
 
-  function getBase() { return document.getElementById('baseUrl').value.trim(); }
+  function getBase() { const v = document.getElementById('baseUrl').value.trim(); return v || window.location.origin; }
   function getSession() { return document.getElementById('sessionId').value.trim(); }
 
   document.getElementById('apiUrl').textContent = getBase();
