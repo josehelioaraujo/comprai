@@ -250,7 +250,11 @@ jobs:
         run: dotnet tool install --global dotnet-sonarscanner
 
       - name: Restaurar dependências
-        run: dotnet restore comprai.sln
+        run: |
+          dotnet restore comprai.sln
+          dotnet restore tests/UcpAgent.Domain.Tests/UcpAgent.Domain.Tests.csproj
+          dotnet restore tests/UcpAgent.Application.Tests/UcpAgent.Application.Tests.csproj
+          dotnet restore tests/UcpAgent.Catalog.MercadoLivre.Tests/UcpAgent.Catalog.MercadoLivre.Tests.csproj
 
       - name: Iniciar análise SonarCloud
         run: |
@@ -355,5 +359,6 @@ jobs:
           name: smoke-test-report
           path: ./newman-report/smoke-report.html
           if-no-files-found: ignore
+
 
 
