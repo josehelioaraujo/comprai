@@ -342,6 +342,71 @@ newman/
 
 ## 🔄 Fluxo de Execução
 
+O diagrama abaixo representa o fluxo completo do **Universal Commerce Protocol (UCP)** — da intenção do usuário à entrega do pedido:
+
+```mermaid
+flowchart TD
+    U(["👤 Usuário / Agente de IA"])
+    U -->|intenção em linguagem natural| IR["🧠 Intent Router
+(detecta Search, Cart, Checkout, Order)"]
+
+    IR -->|SearchProductsQuery| S["🔍 Search
+/api/search"]
+    S --> P1["🛒 MercadoLivre
+Plugin"]
+    S --> P2["🏪 Shopify
+Plugin"]
+    S --> P3["📦 VTEX
+Plugin"]
+    S --> P4["🍎 OpenFoodFacts
+Plugin"]
+    P1 & P2 & P3 & P4 -->|agregação + ranking| C["⚡ HybridCache
+Redis + L1 (TTL 5min)"]
+    C --> SR(["📋 SearchResult
+produtos rankeados"])
+
+    SR -->|AddToCartCommand| CT["🛒 Cart
+/api/cart"]
+    CT --> RCA["🗄️ RedisCartAdapter
+(produção)"]
+    CT --> IMA["💾 InMemoryCart
+(dev/testes)"]
+
+    RCA & IMA -->|CheckoutCommand| CK["✅ Checkout
+/api/checkout"]
+    CK --> PP["💳 Payment
+/api/payment"]
+    PP --> PMK["🎭 Mock
+Adapter"]
+    PP --> PST["💳 Stripe
+Adapter"]
+    PP --> PEF["🏦 Efí / Pix
+Adapter"]
+
+    PMK & PST & PEF -->|OrderCreatedEvent| EV["📡 Event Publisher"]
+    EV --> KF["🟡 Kafka"]
+    EV --> RB["🐰 RabbitMQ"]
+
+    KF & RB --> OR["📦 Order
+/api/orders"]
+    OR --> WH["🔔 Webhooks
+(ML, Shopify)"]
+    WH -->|status atualizado| OR
+
+    OR --> DEL(["🚚 Entrega
+rastreamento via Order status"])
+
+    style U fill:#4A90E2,color:#fff
+    style IR fill:#7B68EE,color:#fff
+    style S fill:#50C878,color:#fff
+    style CT fill:#50C878,color:#fff
+    style CK fill:#50C878,color:#fff
+    style PP fill:#FF6B6B,color:#fff
+    style EV fill:#FFD93D,color:#333
+    style OR fill:#50C878,color:#fff
+    style DEL fill:#4A90E2,color:#fff
+```
+
 <details>
 <summary>🔍 Busca de Produtos (Search Flow)</summary>
 
