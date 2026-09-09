@@ -321,3 +321,6 @@ app.MapGet("/price-watcher-test", async (CancellationToken ct) =>
 .ExcludeFromDescription();
 
 app.Run();
+
+// ── Request DTOs ──────────────────────────────────────────────────────────────
+record AddToCartRequest(UcpAgent.SharedKernel.Models.ProductDto Product, int Quantity = 1);
