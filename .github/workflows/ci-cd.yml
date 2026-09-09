@@ -147,10 +147,10 @@ jobs:
             sed -i "s/BUILD_VERSION=.*/BUILD_VERSION=${{ env.BUILD_VERSION }}/" .env
             mkdir -p wwwroot
             cp docs/price-watcher-test.html wwwroot/
-            docker compose -f deploy/docker-compose.yml down --remove-orphans || true
-            docker rm -f comprai-api comprai-redis || true
+            docker compose -f deploy/docker-compose.yml down --remove-orphans --volumes || true
+            docker rm -f comprai-api comprai-redis comprai-mcp || true
             docker compose -f deploy/docker-compose.yml build --no-cache
-            docker compose -f deploy/docker-compose.yml up -d
+            docker compose -f deploy/docker-compose.yml up -d --force-recreate
             sleep 20
             curl -f http://localhost:${{ env.API_PORT }}/health/live || exit 1
 
