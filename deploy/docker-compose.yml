@@ -17,7 +17,9 @@ services:
       Features__UsarRabbitMQ: ${USAR_RABBITMQ:-false}
       Features__UsarKafka:    ${USAR_KAFKA:-false}
       Features__UsarPriceWatcher: ${USAR_PRICE_WATCHER:-true}
-      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_ENDPOINT:-http://comprai-jaeger:4319}
+      # Em producao: OTEL_ENDPOINT=http://comprai-dd-agent:4317 (Datadog)
+      # Em dev local: OTEL_ENDPOINT=http://comprai-jaeger:4319  (Jaeger)
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_ENDPOINT:-http://comprai-dd-agent:4317}
       OTEL_SERVICE_NAME: "comprai-api"
     depends_on:
       comprai-redis:
@@ -210,6 +212,8 @@ services:
       - tools
 
   # ── Datadog Agent ─────────────────────────────────────────────────────────────
+  # Recebe traces OTel via gRPC (porta 4317) e encaminha para Datadog Cloud (US1)
+  # Subir com: docker compose --profile datadog up -d
   comprai-dd-agent:
     image: gcr.io/datadoghq/agent:7
     container_name: comprai-dd-agent
@@ -249,3 +253,4 @@ volumes:
 networks:
   comprai-network:
     driver: bridge
+
