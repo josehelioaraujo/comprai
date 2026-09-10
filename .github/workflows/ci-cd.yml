@@ -264,29 +264,29 @@ jobs:
             /d:sonar.token="${{ secrets.SONAR_TOKEN }}" \
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.projectBaseDir="${{ github.workspace }}" \
-            /d:sonar.cs.opencover.reportsPaths="${{ github.workspace }}/coverage/domain.opencover.xml,${{ github.workspace }}/coverage/application.opencover.xml"
+            "/d:sonar.cs.opencover.reportsPaths=${{ github.workspace }}/coverage/**/coverage.opencover.xml"
 
       - name: Build para análise
         run: dotnet build comprai.sln --no-restore --configuration Release
 
-      - name: Testes Domain com cobertura
+      - name: Testes com cobertura (OpenCover para Sonar)
         run: |
-          mkdir -p ${{ github.workspace }}/coverage
+          mkdir -p ${{ github.workspace }}/coverage/domain
+          mkdir -p ${{ github.workspace }}/coverage/application
+
           dotnet test tests/UcpAgent.Domain.Tests/UcpAgent.Domain.Tests.csproj \
             --configuration Release \
             --settings coverlet.runsettings \
-            /p:CollectCoverage=true \
-            /p:CoverletOutputFormat=opencover \
-            "/p:CoverletOutput=${{ github.workspace }}/coverage/domain.opencover.xml"
+            --collect:"XPlat Code Coverage" \
+            --results-directory ${{ github.workspace }}/coverage/domain \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
 
-      - name: Testes Application com cobertura
-        run: |
           dotnet test tests/UcpAgent.Application.Tests/UcpAgent.Application.Tests.csproj \
             --configuration Release \
             --settings coverlet.runsettings \
-            /p:CollectCoverage=true \
-            /p:CoverletOutputFormat=opencover \
-            "/p:CoverletOutput=${{ github.workspace }}/coverage/application.opencover.xml"
+            --collect:"XPlat Code Coverage" \
+            --results-directory ${{ github.workspace }}/coverage/application \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
 
       - name: Finalizar análise SonarCloud
         run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
@@ -359,6 +359,7 @@ jobs:
           name: smoke-test-report
           path: ./newman-report/smoke-report.html
           if-no-files-found: ignore
+
 
 
 
