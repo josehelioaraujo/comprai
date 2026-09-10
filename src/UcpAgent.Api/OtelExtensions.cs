@@ -1,3 +1,4 @@
+using OpenTelemetry.Exporter;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
@@ -23,9 +24,12 @@ public static class OtelExtensions
             .WithTracing(tracing => tracing
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation()
-                .AddOtlpExporter(o => o.Endpoint = new Uri(endpoint)));
+                .AddOtlpExporter(o =>
+                {
+                    o.Endpoint = new Uri(endpoint);
+                    o.Protocol = OtlpExportProtocol.Grpc;
+                }));
 
         return services;
     }
 }
-
