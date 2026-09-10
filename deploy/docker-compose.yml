@@ -17,7 +17,7 @@ services:
       Features__UsarRabbitMQ: ${USAR_RABBITMQ:-false}
       Features__UsarKafka:    ${USAR_KAFKA:-false}
       Features__UsarPriceWatcher: ${USAR_PRICE_WATCHER:-true}
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://comprai-jaeger:4319"
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_ENDPOINT:-http://comprai-jaeger:4319}
       OTEL_SERVICE_NAME: "comprai-api"
     depends_on:
       comprai-redis:
@@ -208,6 +208,35 @@ services:
       - comprai-network
     profiles:
       - tools
+
+  # ── Datadog Agent ─────────────────────────────────────────────────────────────
+  comprai-dd-agent:
+    image: gcr.io/datadoghq/agent:7
+    container_name: comprai-dd-agent
+    environment:
+      DD_API_KEY: ${DD_API_KEY}
+      DD_SITE: datadoghq.com
+      DD_ENV: prod
+      DD_SERVICE: comprai
+      DD_VERSION: ${BUILD_VERSION:-1.0.0}
+      DD_LOGS_ENABLED: "true"
+      DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL: "true"
+      DD_CONTAINER_EXCLUDE: "name:comprai-dd-agent"
+      DD_APM_ENABLED: "true"
+      DD_APM_NON_LOCAL_TRAFFIC: "true"
+      DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT: "0.0.0.0:4317"
+      DD_DOGSTATSD_NON_LOCAL_TRAFFIC: "true"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    ports:
+      - "4317:4317"
+    networks:
+      - comprai-network
+    profiles:
+      - datadog
+    restart: unless-stopped
 
 volumes:
   redis_data:
