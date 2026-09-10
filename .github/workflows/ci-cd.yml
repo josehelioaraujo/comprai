@@ -319,7 +319,6 @@ jobs:
             cd ${{ env.VPS_PATH }}
             git checkout -- . && git pull origin main
 
-            BROKER="${{ github.event.inputs.broker || 'nenhum' }}"
             USAR_BANCO="${{ github.event.inputs.usar_banco || 'false' }}"
             sed -i "s/UsarRedis=.*/UsarRedis=${USAR_BANCO}/" .env
             sed -i "s/BUILD_VERSION=.*/BUILD_VERSION=${{ env.BUILD_VERSION }}/" .env
@@ -329,8 +328,9 @@ jobs:
               && sed -i "s|^DD_API_KEY=.*|DD_API_KEY=${DATADOG_API_KEY}|" .env \
               || echo "DD_API_KEY=${DATADOG_API_KEY}" >> .env
 
-            # Garantir OTEL_ENDPOINT aponta para dd-agent
+            # Garantir OTEL_ENDPOINT aponta para dd-agent (Datadog)
             grep -q '^OTEL_ENDPOINT=' .env \
+              && sed -i "s|^OTEL_ENDPOINT=.*|OTEL_ENDPOINT=http://comprai-dd-agent:4317|" .env \
               || echo "OTEL_ENDPOINT=http://comprai-dd-agent:4317" >> .env
 
             mkdir -p wwwroot
