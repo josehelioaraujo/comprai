@@ -1,3 +1,4 @@
+using UcpAgent.Api.Resilience;
 using UcpAgent.Api.Adapters;
 using UcpAgent.Application.Payment;
 using UcpAgent.Catalog.Shopify;
@@ -81,15 +82,20 @@ if (usarMock)
 else
 {
     // Plugins de catÃ¡logo
-    builder.Services.AddHttpClient<MercadoLivrePlugin>();
+    builder.Services.AddHttpClient<MercadoLivrePlugin>()
+        .AddCatalogResilience(builder.Configuration);
     builder.Services.AddSingleton<IProductCatalogPort, MercadoLivrePlugin>();
-    builder.Services.AddHttpClient<VtexCatalogPlugin>();
+    builder.Services.AddHttpClient<VtexCatalogPlugin>()
+        .AddCatalogResilience(builder.Configuration);
     builder.Services.AddSingleton<IProductCatalogPort, VtexCatalogPlugin>();
-    builder.Services.AddHttpClient<VtexSearchPlugin>();
+    builder.Services.AddHttpClient<VtexSearchPlugin>()
+        .AddCatalogResilience(builder.Configuration);
     builder.Services.AddSingleton<IProductCatalogPort, VtexSearchPlugin>();
-    builder.Services.AddHttpClient<OpenFoodFactsPlugin>();
+    builder.Services.AddHttpClient<OpenFoodFactsPlugin>()
+        .AddCatalogResilience(builder.Configuration);
     builder.Services.Configure<ShopifyOptions>(builder.Configuration.GetSection("Shopify"));
-    builder.Services.AddHttpClient<ShopifyPlugin>(c => { c.Timeout = TimeSpan.FromSeconds(15); });
+    builder.Services.AddHttpClient<ShopifyPlugin>(c => { c.Timeout = TimeSpan.FromSeconds(15); })
+        .AddCatalogResilience(builder.Configuration);
     builder.Services.AddTransient<IProductCatalogPort, ShopifyPlugin>();
     builder.Services.AddSingleton<IProductCatalogPort, OpenFoodFactsPlugin>();
 
@@ -353,3 +359,4 @@ record PaymentRequestDto(
     decimal Amount,
     string Currency,
     UcpAgent.SharedKernel.Ports.PaymentMethodDto Method);
+
