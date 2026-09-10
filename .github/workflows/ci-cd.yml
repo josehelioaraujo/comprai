@@ -339,10 +339,10 @@ jobs:
             mkdir -p wwwroot
             cp docs/price-watcher-test.html wwwroot/
 
-            docker compose -f deploy/docker-compose.yml down --remove-orphans --volumes || true
+            docker compose -f deploy/docker-compose.yml --env-file .env down --remove-orphans --volumes || true
             docker rm -f comprai-api comprai-redis comprai-mcp comprai-dd-agent || true
-            docker compose -f deploy/docker-compose.yml build --no-cache
-            docker compose -f deploy/docker-compose.yml --profile datadog up -d --force-recreate
+            docker compose -f deploy/docker-compose.yml --env-file .env build --no-cache
+            docker compose -f deploy/docker-compose.yml --env-file .env --profile datadog up -d --force-recreate
             sleep 20
             curl -f http://localhost:${{ env.API_PORT }}/health/live || exit 1
 
@@ -383,6 +383,7 @@ jobs:
           name: smoke-test-report
           path: ./newman-report/smoke-report.html
           if-no-files-found: ignore
+
 
 
 
