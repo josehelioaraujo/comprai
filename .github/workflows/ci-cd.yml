@@ -145,7 +145,6 @@ jobs:
           tree = ET.parse('./coverage-report/Cobertura.xml')
           root = tree.getroot()
 
-          # atributo pode ser line-rate ou lineRate dependendo da versão
           rate = root.attrib.get('line-rate') or root.attrib.get('lineRate') or '0'
           coverage = float(rate) * 100
           threshold = float('${{ env.COVERAGE_THRESHOLD }}')
@@ -307,24 +306,40 @@ jobs:
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
+          BUILD_VERSION: ${{ env.BUILD_VERSION }}
         with:
           host: ${{ env.VPS_HOST }}
           username: ${{ env.VPS_USER }}
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          envs: DATADOG_API_KEY,BUILD_VERSION
           script: |
             set -e
             cd ${{ env.VPS_PATH }}
             git checkout -- . && git pull origin main
+
             BROKER="${{ github.event.inputs.broker || 'nenhum' }}"
             USAR_BANCO="${{ github.event.inputs.usar_banco || 'false' }}"
             sed -i "s/UsarRedis=.*/UsarRedis=${USAR_BANCO}/" .env
             sed -i "s/BUILD_VERSION=.*/BUILD_VERSION=${{ env.BUILD_VERSION }}/" .env
+
+            # Injetar/atualizar DD_API_KEY no .env
+            grep -q '^DD_API_KEY=' .env \
+              && sed -i "s|^DD_API_KEY=.*|DD_API_KEY=${DATADOG_API_KEY}|" .env \
+              || echo "DD_API_KEY=${DATADOG_API_KEY}" >> .env
+
+            # Garantir OTEL_ENDPOINT aponta para dd-agent
+            grep -q '^OTEL_ENDPOINT=' .env \
+              || echo "OTEL_ENDPOINT=http://comprai-dd-agent:4317" >> .env
+
             mkdir -p wwwroot
             cp docs/price-watcher-test.html wwwroot/
+
             docker compose -f deploy/docker-compose.yml down --remove-orphans --volumes || true
-            docker rm -f comprai-api comprai-redis comprai-mcp || true
+            docker rm -f comprai-api comprai-redis comprai-mcp comprai-dd-agent || true
             docker compose -f deploy/docker-compose.yml build --no-cache
-            docker compose -f deploy/docker-compose.yml up -d --force-recreate
+            docker compose -f deploy/docker-compose.yml --profile datadog up -d --force-recreate
             sleep 20
             curl -f http://localhost:${{ env.API_PORT }}/health/live || exit 1
 
@@ -365,8 +380,3 @@ jobs:
           name: smoke-test-report
           path: ./newman-report/smoke-report.html
           if-no-files-found: ignore
-
-
-
-
-
