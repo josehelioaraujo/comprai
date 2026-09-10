@@ -27,6 +27,7 @@ Comprai é um ecossistema modular open-source que implementa o **Universal Comme
 - [🧪 Testes](#-testes)
 - [⚙️ Variáveis de Ambiente](#%EF%B8%8F-variáveis-de-ambiente)
 - [📊 Portais de Observabilidade](#-portais-de-observabilidade)
+- [🛡️ Resiliência e Rate Limiting](#️-resiliência-e-rate-limiting)
 - [🔁 CI/CD Pipeline](#-cicd-pipeline)
 - [🗺️ Roadmap](#%EF%B8%8F-roadmap)
 - [📄 Licença](#-licença)
@@ -622,6 +623,85 @@ newman run newman/comprai-smoke.json \
 | **RabbitMQ Manager** | http://localhost:15673 | guest / guest |
 
 ---
+
+
+## 🛡️ Resiliência e Rate Limiting
+
+<details>
+<summary><strong>Polly v8 — Pipeline de Resiliência</strong></summary>
+
+Cada plugin de catálogo tem um `HttpClient` isolado com pipeline Polly encadeado automaticamente via `AddCatalogResilience()`.
+
+```
+Request HTTP
+     │
+     ▼
+┌─────────────┐    timeout     ┌──────────────────────┐
+│   Timeout   │ ──────────── ▶ │ TimeoutRejectedException│
+│    (5s)     │                └──────────────────────┘
+└──────┬──────┘
+       │ ok
+       ▼
+┌─────────────┐  5xx/408/429  ┌──────────────────────┐
+│    Retry    │ ◀──────────── │   Response Handler   │
+│  3x exp+jit │ ──────────── ▶│   Backoff + Jitter   │
+└──────┬──────┘                └──────────────────────┘
+       │ ok ou esgotado
+       ▼
+┌─────────────┐  falha > 50%  ┌──────────────────────┐
+│   Circuit   │ ──────────── ▶│  BrokenCircuitEx     │
+│   Breaker   │  janela 30s   │  pausa 15s           │
+└──────┬──────┘                └──────────────────────┘
+       │ ok
+       ▼
+   Plugin API
+```
+
+| Estratégia     | Parâmetro              | Valor padrão |
+|----------------|------------------------|--------------|
+| Timeout        | `TimeoutSeconds`       | 5s           |
+| Retry          | `MaxAttempts`          | 3            |
+| Retry          | `BaseDelaySeconds`     | 1s (exp+jit) |
+| Retry handles  | 5xx / 408 / 429        | —            |
+| Circuit Breaker| `FailureRatio`         | 50%          |
+| Circuit Breaker| `MinimumThroughput`    | 10 req       |
+| Circuit Breaker| `SamplingDuration`     | 30s          |
+| Circuit Breaker| `BreakDuration`        | 15s          |
+
+Todos os valores são sobrescrevíveis em `appsettings.json` → seção `Resilience`.
+
+</details>
+
+<details>
+<summary><strong>ASP.NET RateLimiter — Fixed Window</strong></summary>
+
+Middleware nativo `Microsoft.AspNetCore.RateLimiting` aplicado ao endpoint `/api/search`.  
+Requests acima do limite recebem **HTTP 429 Too Many Requests** imediatamente.
+
+```mermaid
+sequenceDiagram
+    participant C as Cliente
+    participant RL as RateLimiter<br/>(Fixed Window)
+    participant API as /api/search
+
+    C->>RL: GET /api/search (req 1..100)
+    RL-->>API: ✅ permitido
+    API-->>C: 200 OK
+
+    C->>RL: GET /api/search (req 101 / 10s)
+    RL-->>C: ❌ 429 Too Many Requests
+```
+
+| Parâmetro       | Valor padrão | Configuração                          |
+|-----------------|--------------|---------------------------------------|
+| `PermitLimit`   | 100 req      | `RateLimit:FixedWindow:PermitLimit`   |
+| `WindowSeconds` | 10s          | `RateLimit:FixedWindow:WindowSeconds` |
+| `QueueLimit`    | 0            | `RateLimit:FixedWindow:QueueLimit`    |
+
+A janela redefine automaticamente ao final de cada `WindowSeconds`.  
+Ajuste os valores em `appsettings.json` sem recompilar.
+
+</details>
 
 ## 🔁 CI/CD Pipeline
 

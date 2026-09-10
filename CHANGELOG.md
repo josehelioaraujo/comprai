@@ -1,3 +1,21 @@
+## [3.1.0] - 2026-09-10
+
+### Added
+- **Polly v8 — Pipeline de Resiliência por Plugin**
+  - Pacote `Microsoft.Extensions.Http.Resilience 9.*`
+  - `ResilienceOptions` com configuração fortemente tipada via `appsettings.json`
+  - `AddCatalogResilience` em `IHttpClientBuilder` — pipeline: Timeout → Retry → Circuit Breaker
+  - Retry com backoff exponencial + jitter (3 tentativas, handles 5xx / 408 / 429)
+  - Circuit Breaker: abre quando 50% de falha em janela de 30s, pausa por 15s
+  - Timeout: 5s por request antes de cancelar
+  - Aplicado em 5 plugins: MercadoLivre, VtexCatalog, VtexSearch, OpenFoodFacts, Shopify
+  - 6 testes unitários: retry em 500, retry em 429, sem retry em 200, CB abre, timeout, happy path
+- **ASP.NET RateLimiter — Fixed Window por Endpoint**
+  - Middleware nativo `Microsoft.AspNetCore.RateLimiting` (sem NuGet extra)
+  - `RateLimitOptions` configurável: PermitLimit, WindowSeconds, QueueLimit
+  - Política `catalog` aplicada ao `/api/search` — 100 req/10s, rejeição com HTTP 429
+  - 5 testes unitários: binding de config, defaults, permite até o limite, rejeita acima, fila zero
+
 ## [3.0.0] - 2026-09-10
 
 ### Added
