@@ -192,7 +192,8 @@ builder.Services.AddCors(options =>
 });
 
 // ── DummyJSON Plugin ──────────────────────────────────────────────────────────
-builder.Services.AddHttpClient<DummyJsonPlugin>();
+builder.Services.AddHttpClient<DummyJsonPlugin>()
+    .AddCatalogResilience(builder.Configuration);
 builder.Services.AddSingleton<IProductCatalogPort, DummyJsonPlugin>();
 
 builder.Services.AddCatalogRateLimiter(builder.Configuration);
