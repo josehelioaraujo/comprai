@@ -309,17 +309,17 @@ jobs:
         env:
           DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
           BUILD_VERSION: ${{ env.BUILD_VERSION }}
-          GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITHUB_PERSONAL_ACCESS_TOKEN }}
+          GH_PAT: ${{ secrets.GH_PAT }}
         with:
           host: ${{ env.VPS_HOST }}
           username: ${{ env.VPS_USER }}
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
-          envs: DATADOG_API_KEY,BUILD_VERSION,GITHUB_PERSONAL_ACCESS_TOKEN
+          envs: DATADOG_API_KEY,BUILD_VERSION,GH_PAT
           script: |
             set -e
             cd ${{ env.VPS_PATH }}
             git checkout -- .
-            git remote set-url origin https://x-access-token:${GITHUB_PERSONAL_ACCESS_TOKEN}@github.com/josehelioaraujo/comprai.git
+            git remote set-url origin https://x-access-token:${GH_PAT}@github.com/josehelioaraujo/comprai.git
             git pull origin main
 
             USAR_BANCO="${{ github.event.inputs.usar_banco || 'false' }}"
@@ -383,5 +383,6 @@ jobs:
           name: smoke-test-report
           path: ./newman-report/smoke-report.html
           if-no-files-found: ignore
+
 
 
