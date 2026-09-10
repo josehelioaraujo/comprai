@@ -19,7 +19,7 @@ services:
       Features__UsarPriceWatcher: ${USAR_PRICE_WATCHER:-true}
       # Em producao: OTEL_ENDPOINT=http://comprai-dd-agent:4317 (Datadog)
       # Em dev local: OTEL_ENDPOINT=http://comprai-jaeger:4319  (Jaeger)
-      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_ENDPOINT:-http://comprai-dd-agent:4317}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_ENDPOINT:-http://comprai-otel-collector:4317}
       OTEL_SERVICE_NAME: "comprai-api"
     depends_on:
       comprai-redis:
@@ -211,9 +211,25 @@ services:
     profiles:
       - tools
 
-  # ── Datadog Agent ─────────────────────────────────────────────────────────────
-  # Recebe traces OTel via gRPC (porta 4317) e encaminha para Datadog Cloud (US1)
+  # ── OTel Collector ────────────────────────────────────────────────────────────
+  # Recebe traces OTel via gRPC (4317) e exporta para Datadog Cloud (US1)
   # Subir com: docker compose --profile datadog up -d
+  comprai-otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: comprai-otel-collector
+    command: ["--config=/etc/otel/config.yaml"]
+    environment:
+      DD_API_KEY: ${DD_API_KEY}
+    volumes:
+      - ../observability/otel-collector-config.yaml:/etc/otel/config.yaml:ro
+    networks:
+      - comprai-network
+    profiles:
+      - datadog
+    restart: unless-stopped
+
+  # ── Datadog Agent ─────────────────────────────────────────────────────────────
+  # Coleta métricas de infra/containers e encaminha para Datadog Cloud (US1)
   comprai-dd-agent:
     image: gcr.io/datadoghq/agent:7
     container_name: comprai-dd-agent
@@ -226,9 +242,7 @@ services:
       DD_LOGS_ENABLED: "true"
       DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL: "true"
       DD_CONTAINER_EXCLUDE: "name:comprai-dd-agent"
-      DD_APM_ENABLED: "true"
-      DD_APM_NON_LOCAL_TRAFFIC: "true"
-      DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT: "0.0.0.0:4317"
+      DD_APM_ENABLED: "false"
       DD_DOGSTATSD_NON_LOCAL_TRAFFIC: "true"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -251,6 +265,7 @@ volumes:
 networks:
   comprai-network:
     driver: bridge
+
 
 
 
