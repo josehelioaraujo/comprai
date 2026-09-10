@@ -1,3 +1,38 @@
+## [3.0.0] - 2026-09-10
+
+### Added
+- **Cobertura de testes 97.1%** (coverlet) e **95.4%** (SonarCloud Overall Code)
+  - Quality Gate threshold: 90% mínimo no CI/CD
+  - Novos testes: `IntentRouterServiceTests`, `CartItemTests`, `CartRemoveEdgeCaseTests`, `CheckoutServiceTests`, `SearchServiceTests`, `GetOrderHandlerTests`, `OrderItemTests`, `OrderServiceTests`, `ResultTests`
+  - Teste fallback `Pagamento recusado` no `ProcessPaymentHandlerTests`
+  - `[ExcludeFromCodeCoverage]` em 24 classes sem lógica (records, enums, commands, queries, services delegadores)
+- **SonarCloud integrado ao CI/CD**
+  - Job `🔍 SonarCloud` paralelo ao `integration-tests`
+  - Badges no README: Quality Gate, Coverage, Bugs, Code Smells
+  - Quality Gate: **Passed — All conditions passed** ✅
+  - Coverage 97.1% | Duplications 0.0% | Security Rating A
+  - SONAR_TOKEN via `env:` (fix vulnerabilidade "expanding secrets in run block")
+- **README enriquecido**
+  - Badges no topo: CI/CD, Quality Gate, Coverage, Bugs, Code Smells, .NET 10, UCP, MIT
+  - Diagrama Mermaid do fluxo UCP completo: Search → Cart → Checkout → Payment → Order → Delivery
+  - Tabela Stack Tecnológica: Outbox Pattern, Plugin Pattern, Pagamentos, IA/LLM, Infra, Segurança
+  - Frase mercado BR: oportunidade de inovação, early adopters
+  - Padrões corrigidos: Arquitetura Hexagonal + Vertical Slice (removido "Clean Architecture")
+
+### Fixed
+- `--settings coverlet.runsettings` adicionado ao `dotnet test` no CI/CD — estava sendo ignorado
+- `tr '\n' ';'` substituído por `paste -sd ';' -` no workflow (fix YAML syntax)
+- `RemoveFromCartHandler` duplicado removido — `RemoveFromCartCommandHandler` é o handler correto
+- `[ExcludeFromCodeCoverage]` não aplicável em `interface` e `enum` — removido corretamente
+- Sonar exclusions: `**/*.html`, `**/wwwroot/**` — remove bugs de acessibilidade de páginas de teste
+- `IPaymentPort.cs` e `ProcessPaymentHandlerTests.cs` corrigidos via base64 (preserva quebras de linha)
+
+### Changed
+- CI/CD: pipeline com 6 jobs — Build → Unit Tests → SonarCloud + Integration Tests (paralelo) → Deploy → Smoke Tests
+- Quality Gate threshold: 13% → 90%
+- Sonar exclusions: Infrastructure, plugins, McpServer, Mocks, Endpoints, Adapters, tests, HTML, wwwroot
+- Tabela Stack: `NullPublisher` removido (detalhe interno), entradas de Pagamentos e IA/LLM adicionadas
+
 ## [2.1.0] - 2026-09-09
 
 ### Added
