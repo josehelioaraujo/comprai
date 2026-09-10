@@ -596,6 +596,18 @@ newman run newman/comprai-smoke.json \
 
 ## 📊 Portais de Observabilidade
 
+### ☁️ Cloud (Produção)
+
+| Serviço | URL | Descrição |
+|---|---|---|
+| **Datadog APM** | [app.datadoghq.com/apm/services](https://app.datadoghq.com/apm/services) | Traces distribuídos, latência por endpoint, throughput |
+| **Datadog Infrastructure** | [app.datadoghq.com/infrastructure](https://app.datadoghq.com/infrastructure) | Métricas de containers e hosts |
+| **Datadog Logs** | [app.datadoghq.com/logs](https://app.datadoghq.com/logs) | Logs centralizados de todos os containers |
+
+> Arquitetura: `comprai-api (OTel SDK)` → `OTel Collector` → `Datadog Cloud (US1)`
+
+### 🖥️ Local (Dev — `--profile monitoring`)
+
 | Serviço | URL | Credenciais |
 |---|---|---|
 | **API** | http://localhost:5020 | N/A |
@@ -657,3 +669,4 @@ MIT License — veja [LICENSE](LICENSE) para detalhes.
 **Autor:** [@josehelioaraujo](https://github.com/josehelioaraujo)
 
 Para dúvidas, issues ou contribuições, abra uma issue ou pull request no repositório.
+
