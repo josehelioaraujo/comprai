@@ -9,8 +9,14 @@ public static class OtelExtensions
         this IServiceCollection services,
         IConfiguration config)
     {
-        var endpoint = config["Otel:Endpoint"] ?? "http://localhost:4317";
-        var servico  = config["Otel:ServiceName"] ?? "comprai-api";
+        // Prioridade: env var padrão OTel → appsettings Otel:Endpoint → localhost
+        var endpoint = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT")
+                    ?? config["Otel:Endpoint"]
+                    ?? "http://localhost:4317";
+
+        var servico = Environment.GetEnvironmentVariable("OTEL_SERVICE_NAME")
+                   ?? config["Otel:ServiceName"]
+                   ?? "comprai-api";
 
         services.AddOpenTelemetry()
             .ConfigureResource(r => r.AddService(servico))
@@ -22,3 +28,4 @@ public static class OtelExtensions
         return services;
     }
 }
+
