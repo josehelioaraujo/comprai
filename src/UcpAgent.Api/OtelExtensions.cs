@@ -1,9 +1,11 @@
+using System.Diagnostics.CodeAnalysis;
 using OpenTelemetry.Exporter;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
 namespace UcpAgent.Api;
 
+[ExcludeFromCodeCoverage]
 public static class OtelExtensions
 {
     public static IServiceCollection AddObservabilidade(
