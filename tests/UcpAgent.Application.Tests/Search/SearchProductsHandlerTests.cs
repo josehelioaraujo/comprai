@@ -1,6 +1,5 @@
 using Moq;
 using UcpAgent.Application.Search;
-using UcpAgent.SharedKernel.Events;
 using UcpAgent.SharedKernel.Models;
 using UcpAgent.SharedKernel.Ports;
 using Xunit;
@@ -20,14 +19,13 @@ public sealed class SearchProductsHandlerTests
     {
         // Arrange
         var catalog = new Mock<IProductCatalogPort>();
-        var events  = new Mock<IEventPublisher>();
         var product = MakeProduct("1", "mock", 100m);
 
         catalog.Setup(c => c.SearchAsync(It.IsAny<SearchRequest>(), default))
                .ReturnsAsync(MakeResult([product], "mock"));
         catalog.Setup(c => c.SourceName).Returns("mock");
 
-        var handler = new SearchProductsHandler([catalog.Object], events.Object);
+        var handler = new SearchProductsHandler([catalog.Object]);
         var query   = new SearchProductsQuery("notebook");
 
         // Act
@@ -45,7 +43,6 @@ public sealed class SearchProductsHandlerTests
         // Arrange
         var catalog1 = new Mock<IProductCatalogPort>();
         var catalog2 = new Mock<IProductCatalogPort>();
-        var events   = new Mock<IEventPublisher>();
 
         catalog1.Setup(c => c.SearchAsync(It.IsAny<SearchRequest>(), default))
                 .ReturnsAsync(MakeResult([MakeProduct("A", "ml", 200m)], "ml"));
@@ -55,7 +52,7 @@ public sealed class SearchProductsHandlerTests
                 .ReturnsAsync(MakeResult([MakeProduct("B", "shopify", 150m)], "shopify"));
         catalog2.Setup(c => c.SourceName).Returns("shopify");
 
-        var handler = new SearchProductsHandler([catalog1.Object, catalog2.Object], events.Object);
+        var handler = new SearchProductsHandler([catalog1.Object, catalog2.Object]);
 
         // Act
         var result = await handler.Handle(new SearchProductsQuery("tênis"), default);
@@ -71,7 +68,6 @@ public sealed class SearchProductsHandlerTests
         // Arrange
         var catalog1 = new Mock<IProductCatalogPort>();
         var catalog2 = new Mock<IProductCatalogPort>();
-        var events   = new Mock<IEventPublisher>();
         var duplicate = MakeProduct("X", "ml", 100m);
 
         catalog1.Setup(c => c.SearchAsync(It.IsAny<SearchRequest>(), default))
@@ -82,7 +78,7 @@ public sealed class SearchProductsHandlerTests
                 .ReturnsAsync(MakeResult([duplicate], "ml")); // mesmo produto
         catalog2.Setup(c => c.SourceName).Returns("ml");
 
-        var handler = new SearchProductsHandler([catalog1.Object, catalog2.Object], events.Object);
+        var handler = new SearchProductsHandler([catalog1.Object, catalog2.Object]);
 
         // Act
         var result = await handler.Handle(new SearchProductsQuery("tênis"), default);
@@ -97,7 +93,6 @@ public sealed class SearchProductsHandlerTests
         // Arrange
         var okCatalog   = new Mock<IProductCatalogPort>();
         var failCatalog = new Mock<IProductCatalogPort>();
-        var events      = new Mock<IEventPublisher>();
 
         okCatalog.Setup(c => c.SearchAsync(It.IsAny<SearchRequest>(), default))
                  .ReturnsAsync(MakeResult([MakeProduct("1", "ok", 50m)], "ok"));
@@ -107,7 +102,7 @@ public sealed class SearchProductsHandlerTests
                    .ThrowsAsync(new HttpRequestException("timeout"));
         failCatalog.Setup(c => c.SourceName).Returns("fail");
 
-        var handler = new SearchProductsHandler([okCatalog.Object, failCatalog.Object], events.Object);
+        var handler = new SearchProductsHandler([okCatalog.Object, failCatalog.Object]);
 
         // Act
         var result = await handler.Handle(new SearchProductsQuery("produto"), default);
@@ -122,7 +117,6 @@ public sealed class SearchProductsHandlerTests
     {
         // Arrange
         var catalog = new Mock<IProductCatalogPort>();
-        var events  = new Mock<IEventPublisher>();
 
         var products = new[]
         {
@@ -135,7 +129,7 @@ public sealed class SearchProductsHandlerTests
                .ReturnsAsync(MakeResult(products, "ml"));
         catalog.Setup(c => c.SourceName).Returns("ml");
 
-        var handler = new SearchProductsHandler([catalog.Object], events.Object);
+        var handler = new SearchProductsHandler([catalog.Object]);
 
         // Act
         var result = await handler.Handle(new SearchProductsQuery("produto"), default);
@@ -147,3 +141,4 @@ public sealed class SearchProductsHandlerTests
         Assert.Equal("sem-estoque", items[2].Id);
     }
 }
+
