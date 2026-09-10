@@ -1,1 +1,31 @@
-<?xml version="1.0" encoding="utf-8" ?><RunSettings>  <DataCollectionRunSettings>    <DataCollectors>      <DataCollector friendlyName="XPlat Code Coverage">        <Configuration>          <Format>cobertura</Format>          <Exclude>            [UcpAgent.Api]*Mocks*,            [UcpAgent.Api]*Adapters*,            [UcpAgent.Api]*Endpoints*,            [UcpAgent.Api]Program,            [UcpAgent.Infrastructure]*,            [UcpAgent.Catalog.*]*,            [UcpAgent.FakeCatalog]*,            [UcpAgent.PriceWatcher]*,            [UcpAgent.McpServer]*,            [*.Tests]*          </Exclude>          <Include>            [UcpAgent.Domain]*,            [UcpAgent.Application]*,            [UcpAgent.SharedKernel]*          </Include>          <ExcludeByFile>**/Program.cs,**/Migrations/**,**/Enums/**</ExcludeByFile>        </Configuration>      </DataCollector>    </DataCollectors>  </DataCollectionRunSettings></RunSettings>
+<?xml version="1.0" encoding="utf-8" ?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat Code Coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+          <Exclude>
+            [UcpAgent.Api]*Mocks*,
+            [UcpAgent.Api]*Adapters*,
+            [UcpAgent.Api]*Endpoints*,
+            [UcpAgent.Api]Program,
+            [UcpAgent.Infrastructure]*,
+            [UcpAgent.Catalog.*]*,
+            [UcpAgent.FakeCatalog]*,
+            [UcpAgent.PriceWatcher]*,
+            [UcpAgent.McpServer]*,
+            [*.Tests]*
+          </Exclude>
+          <Include>
+            [UcpAgent.Domain]*,
+            [UcpAgent.Application]*,
+            [UcpAgent.SharedKernel]*
+          </Include>
+          <ExcludeByFile>**/Program.cs,**/Migrations/**,**/Enums/**</ExcludeByFile>
+          <ExcludeByAttribute>GeneratedCodeAttribute,CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>
