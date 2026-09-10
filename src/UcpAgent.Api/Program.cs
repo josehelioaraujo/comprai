@@ -1,4 +1,5 @@
 using UcpAgent.Api.Resilience;
+using UcpAgent.Api.RateLimit;
 using UcpAgent.Api.Adapters;
 using UcpAgent.Application.Payment;
 using UcpAgent.Catalog.Shopify;
@@ -194,9 +195,12 @@ builder.Services.AddCors(options =>
 builder.Services.AddHttpClient<DummyJsonPlugin>();
 builder.Services.AddSingleton<IProductCatalogPort, DummyJsonPlugin>();
 
+builder.Services.AddCatalogRateLimiter(builder.Configuration);
+
 var app = builder.Build();
 
 app.UseCors("AllowAll");
+app.UseRateLimiter();
 app.MapOpenApi();
 app.MapScalarApiReference();
 
@@ -222,7 +226,8 @@ app.MapGet("/api/search", async (
         await cache.SetAsync(cacheKey, result, cancellationToken: ct);
     return result.IsSuccess ? Results.Ok(result.Value) : Results.Problem(result.Error);
 })
-.WithTags("Search").WithName("SearchProducts");
+.WithTags("Search").WithName("SearchProducts")
+   .RequireRateLimiting(RateLimitExtensions.CatalogPolicy);
 
 // â”€â”€ Cart â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 app.MapGet("/api/cart/{sessionId}", async (
