@@ -234,8 +234,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /proc/:/host/proc/:ro
       - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
-    ports:
-      - "4317:4317"
     networks:
       - comprai-network
     profiles:
@@ -253,4 +251,6 @@ volumes:
 networks:
   comprai-network:
     driver: bridge
+
+
 
