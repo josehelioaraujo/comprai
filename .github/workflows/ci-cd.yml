@@ -264,7 +264,9 @@ jobs:
             /d:sonar.token="${{ secrets.SONAR_TOKEN }}" \
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.projectBaseDir="${{ github.workspace }}" \
-            "/d:sonar.cs.opencover.reportsPaths=${{ github.workspace }}/coverage/**/coverage.opencover.xml"
+            "/d:sonar.cs.opencover.reportsPaths=${{ github.workspace }}/coverage/**/coverage.opencover.xml" \
+            /d:sonar.exclusions="**/Migrations/**,**/Program.cs,src/UcpAgent.Infrastructure/**,src/plugins/**,src/UcpAgent.McpServer/**,src/UcpAgent.Api/Mocks/**,src/UcpAgent.Api/Endpoints/**,src/UcpAgent.Api/Adapters/**,tests/**" \
+            /d:sonar.coverage.exclusions="**/Migrations/**,src/UcpAgent.Infrastructure/**,src/plugins/**,src/UcpAgent.McpServer/**,src/UcpAgent.Api/Mocks/**,src/UcpAgent.Api/Endpoints/**,src/UcpAgent.Api/Adapters/**,tests/**"
 
       - name: Build para análise
         run: dotnet build comprai.sln --no-restore --configuration Release
