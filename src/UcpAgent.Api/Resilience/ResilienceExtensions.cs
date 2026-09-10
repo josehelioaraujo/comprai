@@ -13,12 +13,12 @@ public static class ResilienceExtensions
             .GetSection("Resilience")
             .Get<ResilienceOptions>() ?? new ResilienceOptions();
 
-        return builder.AddResilienceHandler("catalog-pipeline", pipeline =>
+        builder.AddResilienceHandler("catalog-pipeline", pipeline =>
         {
-            // 1️⃣ Timeout — cancela request lento
+            // 1️⃣ Timeout — cancela request se demorar demais
             pipeline.AddTimeout(TimeSpan.FromSeconds(options.Timeout.TimeoutSeconds));
 
-            // 2️⃣ Retry — backoff exponencial + jitter
+            // 2️⃣ Retry — backoff exponencial + jitter para evitar thundering herd
             pipeline.AddRetry(new HttpRetryStrategyOptions
             {
                 MaxRetryAttempts = options.Retry.MaxAttempts,
@@ -33,7 +33,7 @@ public static class ResilienceExtensions
                         r.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
             });
 
-            // 3️⃣ Circuit Breaker — abre quando taxa de falha excede o limiar
+            // 3️⃣ Circuit Breaker — abre o circuito quando taxa de falha excede o limiar
             pipeline.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
             {
                 FailureRatio = options.CircuitBreaker.FailureRatio,
@@ -45,5 +45,7 @@ public static class ResilienceExtensions
                     .HandleResult(r => (int)r.StatusCode >= 500)
             });
         });
+
+        return builder;
     }
 }
