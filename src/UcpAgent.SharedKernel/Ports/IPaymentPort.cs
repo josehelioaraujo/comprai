@@ -2,7 +2,6 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace UcpAgent.SharedKernel.Ports;
 
-[ExcludeFromCodeCoverage]
 public interface IPaymentPort
 {
     Task<PaymentResultDto> ProcessAsync(
