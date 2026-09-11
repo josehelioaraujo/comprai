@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using UcpAgent.Api.Adapters;
 using UcpAgent.SharedKernel.Ports;
@@ -10,24 +9,44 @@ namespace UcpAgent.Integration.Tests;
 
 public sealed class EfiPaymentIntegrationTest
 {
-    // Factory dedicada: ativa provider "efipay" com mock DI, sem credenciais reais
+    // Factory dedicada: usa ConfigureTestServices para injetar EfiPaymentAdapter
+    // independente de como Program.cs lê a configuração no momento do startup.
     private sealed class EfiPayFactory : WebApplicationFactory<Program>
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
-            builder.UseEnvironment("IntegrationTest");
+            builder.UseEnvironment("Test");
 
-            builder.ConfigureAppConfiguration((_, cfg) =>
-                cfg.AddInMemoryCollection(new Dictionary<string, string?>
+            builder.ConfigureTestServices(services =>
+            {
+                // Remove qualquer IPaymentPort registrado pelo Program.cs
+                var existing = services.SingleOrDefault(
+                    d => d.ServiceType == typeof(IPaymentPort));
+                if (existing is not null)
+                    services.Remove(existing);
+
+                // Registrar EfiPayOptions com valores de CI
+                var opts = new EfiPayOptions
                 {
-                    // usa mock para catálogo — evita dependências externas em CI
-                    ["Features:UsarMockDados"]   = "true",
-                    ["Features:PaymentProvider"] = "efipay",
-                    ["EfiPay:ClientId"]          = "ci-id",
-                    ["EfiPay:ClientSecret"]      = "ci-secret",
-                    ["EfiPay:ChavePix"]          = "ci@pix.com",
-                    ["EfiPay:Sandbox"]           = "true"
-                }));
+                    ClientId       = "ci-id",
+                    ClientSecret   = "ci-secret",
+                    ChavePix       = "ci@pix.com",
+                    Sandbox        = true
+                };
+                services.AddSingleton(opts);
+
+                // Registrar o HttpClient nomeado esperado pelo adapter
+                services.AddHttpClient("efipay-pix", c =>
+                    c.BaseAddress = new Uri(opts.BaseUrl));
+
+                // Registrar EfiPaymentAdapter como IPaymentPort
+                services.AddSingleton<IPaymentPort>(sp =>
+                    new EfiPaymentAdapter(
+                        opts,
+                        sp.GetRequiredService<IHttpClientFactory>(),
+                        sp.GetRequiredService<IMemoryCache>(),
+                        sp.GetRequiredService<ILogger<EfiPaymentAdapter>>()));
+            });
         }
     }
 
@@ -36,7 +55,6 @@ public sealed class EfiPaymentIntegrationTest
     {
         using var factory = new EfiPayFactory();
 
-        // Acionar a construção do host
         _ = factory.Server;
 
         var payment = factory.Services.GetRequiredService<IPaymentPort>();
