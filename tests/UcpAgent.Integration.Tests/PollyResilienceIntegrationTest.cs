@@ -12,8 +12,15 @@ namespace UcpAgent.Integration.Tests;
 
 /// <summary>
 /// Prova que o pipeline Polly (Timeout → Retry → Circuit Breaker) funciona de verdade
-/// no pipeline ASP.NET, injetando um handler primário que falha nas 2 primeiras chamadas
-/// e sucede na terceira — exatamente o comportamento de retry exponencial.
+/// no pipeline ASP.NET, injetando um handler primário via PostConfigure<HttpClientFactoryOptions>
+/// que falha nas 2 primeiras chamadas e sucede na terceira.
+///
+/// IMPORTANTE: usa PostConfigure<HttpClientFactoryOptions> em vez de IHttpMessageHandlerBuilderFilter.
+/// O IHttpMessageHandlerBuilderFilter foi marcado como obsoleto no .NET 8 e não é mais invocado
+/// pelo DefaultHttpClientFactory no .NET 10. PostConfigure<HttpClientFactoryOptions> garante
+/// que nossa ação (setar PrimaryHandler = stub) rode DEPOIS que o Polly já registrou
+/// seus ResilienceHandlers como AdditionalHandlers, produzindo a cadeia correta:
+/// Polly (retry/timeout/CB) → FailTwiceHandler (primary).
 /// </summary>
 public sealed class PollyResilienceIntegrationTest
 {
@@ -29,7 +36,7 @@ public sealed class PollyResilienceIntegrationTest
             {
                 cfg.AddInMemoryCollection(new Dictionary<string, string?>
                 {
-                    // Delay curto para o teste não demorar (padrão é 1 s)
+                    // Delay curto para o teste não demorar
                     ["Resilience:Retry:BaseDelaySeconds"] = "0.05",
                     ["Resilience:Retry:MaxAttempts"]      = "3",
                 });
@@ -37,19 +44,20 @@ public sealed class PollyResilienceIntegrationTest
 
             builder.ConfigureTestServices(services =>
             {
-                // Injeta o stub como primary handler do HttpClient de DummyJsonPlugin.
-                // Usamos IHttpMessageHandlerBuilderFilter em vez de Configure<HttpClientFactoryOptions>
-                // porque o filter chama next(builder) antes de substituir o PrimaryHandler,
-                // garantindo que o Polly adicione seus handlers (AdditionalHandlers) primeiro.
+                // PostConfigure roda DEPOIS de todos os Configure (inclusive o Polly).
+                // Resultado: Polly já adicionou seus handlers em AdditionalHandlers;
+                // nossa ação apenas seta o PrimaryHandler = stub.
                 // Cadeia final: Polly (retry/timeout/CB) → FailTwiceHandler
-                services.AddSingleton<IHttpMessageHandlerBuilderFilter>(
-                    new StubPrimaryHandlerFilter("DummyJsonPlugin", stub));
+                services.PostConfigure<HttpClientFactoryOptions>(
+                    "DummyJsonPlugin",
+                    options => options.HttpMessageHandlerBuilderActions.Add(
+                        b => b.PrimaryHandler = stub));
             });
         });
 
         var client = factory.CreateClient();
 
-        // Act – uma única chamada ao endpoint; Polly cuida das retentativas internamente
+        // Act – uma única chamada; Polly cuida das retentativas internamente
         var response = await client.GetAsync("/api/search?q=notebook&page=1&pageSize=5");
 
         // Assert – endpoint deve responder 200 após Polly ter reintentado com sucesso
@@ -57,34 +65,6 @@ public sealed class PollyResilienceIntegrationTest
 
         // O stub deve ter sido chamado 3 vezes: 1 original + 2 retentativas pelo Polly
         Assert.Equal(3, stub.CallCount);
-    }
-}
-
-/// <summary>
-/// IHttpMessageHandlerBuilderFilter que substitui o PrimaryHandler pelo stub de teste
-/// para um named/typed client específico.
-/// Chama next(builder) antes para que o Polly adicione seus ResilienceHandlers
-/// como AdditionalHandlers, e só então define PrimaryHandler = stub.
-/// </summary>
-internal sealed class StubPrimaryHandlerFilter : IHttpMessageHandlerBuilderFilter
-{
-    private readonly string _clientName;
-    private readonly HttpMessageHandler _stub;
-
-    public StubPrimaryHandlerFilter(string clientName, HttpMessageHandler stub)
-    {
-        _clientName = clientName;
-        _stub       = stub;
-    }
-
-    public Action<HttpMessageHandlerBuilder> Configure(Action<HttpMessageHandlerBuilder> next)
-    {
-        return builder =>
-        {
-            next(builder); // deixa o Polly (e outros filtros) adicionarem seus handlers
-            if (builder.Name == _clientName)
-                builder.PrimaryHandler = _stub;
-        };
     }
 }
 
