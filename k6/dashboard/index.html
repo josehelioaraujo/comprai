@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>K6 Stress Test Dashboard — Comprai</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --border: #2a2d3e;
+      --accent: #7c3aed;
+      --accent2: #06b6d4;
+      --accent3: #10b981;
+      --accent4: #f59e0b;
+      --red: #ef4444;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --pass: #10b981;
+      --fail: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+    }
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 32px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 16px;
+    }
+    .header-logo {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.5px;
+    }
+    .header-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px;
+      margin-left: auto;
+    }
+    .meta-item {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+    .meta-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .meta-value { font-size: 14px; font-weight: 600; color: var(--text); }
+    main { padding: 28px 32px; max-width: 1400px; margin: 0 auto; }
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 14px;
+      margin-top: 28px;
+    }
+    /* KPI Cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+      margin-bottom: 8px;
+    }
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--accent-color, var(--accent));
+      border-radius: 10px 10px 0 0;
+    }
+    .kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .kpi-value { font-size: 28px; font-weight: 700; color: var(--text); line-height: 1; }
+    .kpi-unit { font-size: 13px; color: var(--muted); font-weight: 400; margin-left: 3px; }
+    /* Charts */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 24px;
+    }
+    .chart-card.full-width { grid-column: 1 / -1; }
+    .chart-title { font-size: 14px; font-weight: 600; margin-bottom: 16px; color: var(--text); }
+    .chart-wrapper { position: relative; height: 220px; }
+    /* Thresholds table */
+    .threshold-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      background: rgba(255,255,255,0.04);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 12px 20px;
+      text-align: left;
+    }
+    td {
+      padding: 12px 20px;
+      font-size: 14px;
+      border-top: 1px solid var(--border);
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .badge-pass { background: rgba(16,185,129,0.15); color: var(--pass); }
+    .badge-fail { background: rgba(239,68,68,0.15); color: var(--fail); }
+    .badge::before { content: '●'; font-size: 8px; }
+    .no-data {
+      text-align: center;
+      padding: 48px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+    @media (max-width: 700px) {
+      header { padding: 16px; }
+      main { padding: 16px; }
+      .charts-grid { grid-template-columns: 1fr; }
+      .chart-card.full-width { grid-column: 1; }
+    }
+  </style>
+</head>
+<body>
+<script>
+// __DASHBOARD_DATA__ will be replaced by the CI step with real JSON
+// Fallback for local preview:
+var DASHBOARD_DATA = __DASHBOARD_DATA__;
+</script>
+
+<header>
+  <div class="header-logo">⚡ Comprai — K6 Dashboard</div>
+  <div class="header-meta">
+    <div class="meta-item">
+      <span class="meta-label">Tipo de Teste</span>
+      <span class="meta-value" id="hdr-type">—</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Target URL</span>
+      <span class="meta-value" id="hdr-url">—</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Data</span>
+      <span class="meta-value" id="hdr-date">—</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Run #</span>
+      <span class="meta-value" id="hdr-run">—</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="section-title">Métricas Gerais</div>
+  <div class="kpi-grid">
+    <div class="kpi-card" style="--accent-color:#7c3aed">
+      <div class="kpi-label">p50 Latência</div>
+      <div class="kpi-value" id="kpi-p50">—<span class="kpi-unit">ms</span></div>
+    </div>
+    <div class="kpi-card" style="--accent-color:#06b6d4">
+      <div class="kpi-label">p95 Latência</div>
+      <div class="kpi-value" id="kpi-p95">—<span class="kpi-unit">ms</span></div>
+    </div>
+    <div class="kpi-card" style="--accent-color:#8b5cf6">
+      <div class="kpi-label">p99 Latência</div>
+      <div class="kpi-value" id="kpi-p99">—<span class="kpi-unit">ms</span></div>
+    </div>
+    <div class="kpi-card" style="--accent-color:#10b981">
+      <div class="kpi-label">Média Latência</div>
+      <div class="kpi-value" id="kpi-avg">—<span class="kpi-unit">ms</span></div>
+    </div>
+    <div class="kpi-card" style="--accent-color:#f59e0b">
+      <div class="kpi-label">Req/s</div>
+      <div class="kpi-value" id="kpi-rps">—</div>
+    </div>
+    <div class="kpi-card" style="--accent-color:#06b6d4">
+      <div class="kpi-label">Total Requests</div>
+      <div class="kpi-value" id="kpi-total">—</div>
+    </div>
+    <div class="kpi-card" style="--accent-color:#ef4444">
+      <div class="kpi-label">Taxa de Erro</div>
+      <div class="kpi-value" id="kpi-err">—<span class="kpi-unit">%</span></div>
+    </div>
+  </div>
+
+  <div class="section-title">Série Temporal</div>
+  <div class="charts-grid">
+    <div class="chart-card full-width">
+      <div class="chart-title">Tempo de Resposta ao Longo do Tempo</div>
+      <div class="chart-wrapper"><canvas id="chart-rt"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">VUs Ativos</div>
+      <div class="chart-wrapper"><canvas id="chart-vus"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Requisições/s</div>
+      <div class="chart-wrapper"><canvas id="chart-rps"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section-title">Thresholds</div>
+  <div class="threshold-card">
+    <table>
+      <thead>
+        <tr>
+          <th>Métrica</th>
+          <th>Condição</th>
+          <th>Valor Atual</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="thresh-body">
+        <tr><td colspan="4" class="no-data">Nenhum threshold encontrado</td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<script>
+(function() {
+  var d = DASHBOARD_DATA;
+  if (!d) return;
+
+  // Header
+  document.getElementById('hdr-type').textContent = (d.meta && d.meta.test_type) || '—';
+  document.getElementById('hdr-url').textContent  = (d.meta && d.meta.target_url) || '—';
+  document.getElementById('hdr-date').textContent = (d.meta && d.meta.run_date) || '—';
+  document.getElementById('hdr-run').textContent  = (d.meta && d.meta.run_number) || '—';
+
+  // KPIs
+  function fmt(v, dec) { return (v == null) ? '—' : parseFloat(v).toFixed(dec || 0); }
+  if (d.kpis) {
+    document.getElementById('kpi-p50').innerHTML   = fmt(d.kpis.p50) + '<span class="kpi-unit">ms</span>';
+    document.getElementById('kpi-p95').innerHTML   = fmt(d.kpis.p95) + '<span class="kpi-unit">ms</span>';
+    document.getElementById('kpi-p99').innerHTML   = fmt(d.kpis.p99) + '<span class="kpi-unit">ms</span>';
+    document.getElementById('kpi-avg').innerHTML   = fmt(d.kpis.avg) + '<span class="kpi-unit">ms</span>';
+    document.getElementById('kpi-rps').textContent = fmt(d.kpis.rps, 1);
+    document.getElementById('kpi-total').textContent = d.kpis.total_requests != null ? d.kpis.total_requests.toLocaleString('pt-BR') : '—';
+    var errPct = d.kpis.error_rate != null ? (d.kpis.error_rate * 100).toFixed(2) : '—';
+    document.getElementById('kpi-err').innerHTML   = errPct + '<span class="kpi-unit">%</span>';
+  }
+
+  var chartDefaults = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    plugins: { legend: { labels: { color: '#94a3b8', font: { size: 12 } } } },
+    scales: {
+      x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8', maxTicksLimit: 10, font: { size: 11 } } },
+      y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8', font: { size: 11 } } }
+    }
+  };
+
+  // Chart 1 — Response Time
+  if (d.timeseries && d.timeseries.labels) {
+    var ts = d.timeseries;
+    new Chart(document.getElementById('chart-rt'), {
+      type: 'line',
+      data: {
+        labels: ts.labels,
+        datasets: [
+          { label: 'p95 (ms)', data: ts.p95, borderColor: '#06b6d4', backgroundColor: 'rgba(6,182,212,0.08)', borderWidth: 2, pointRadius: 0, fill: true, tension: 0.3 },
+          { label: 'avg (ms)', data: ts.avg, borderColor: '#7c3aed', backgroundColor: 'rgba(124,58,237,0.08)', borderWidth: 2, pointRadius: 0, fill: true, tension: 0.3 }
+        ]
+      },
+      options: Object.assign({}, chartDefaults, {
+        scales: Object.assign({}, chartDefaults.scales, {
+          y: Object.assign({}, chartDefaults.scales.y, { title: { display: true, text: 'ms', color: '#64748b', font: { size: 11 } } })
+        })
+      })
+    });
+  }
+
+  // Chart 2 — VUs
+  if (d.timeseries && d.timeseries.vus) {
+    var ts = d.timeseries;
+    new Chart(document.getElementById('chart-vus'), {
+      type: 'line',
+      data: {
+        labels: ts.labels,
+        datasets: [{ label: 'VUs', data: ts.vus, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.15)', borderWidth: 2, pointRadius: 0, fill: true, tension: 0.3 }]
+      },
+      options: chartDefaults
+    });
+  }
+
+  // Chart 3 — Req/s
+  if (d.timeseries && d.timeseries.rps) {
+    var ts = d.timeseries;
+    new Chart(document.getElementById('chart-rps'), {
+      type: 'bar',
+      data: {
+        labels: ts.labels,
+        datasets: [{ label: 'Req/s', data: ts.rps, backgroundColor: 'rgba(245,158,11,0.7)', borderColor: '#f59e0b', borderWidth: 1 }]
+      },
+      options: Object.assign({}, chartDefaults, { plugins: Object.assign({}, chartDefaults.plugins, {
+        legend: { display: false }
+      })})
+    });
+  }
+
+  // Thresholds table
+  if (d.thresholds && d.thresholds.length) {
+    var tbody = document.getElementById('thresh-body');
+    tbody.innerHTML = d.thresholds.map(function(t) {
+      var badge = t.passed
+        ? '<span class="badge badge-pass">OK</span>'
+        : '<span class="badge badge-fail">FALHOU</span>';
+      return '<tr><td>' + t.metric + '</td><td><code>' + t.condition + '</code></td><td>' + (t.actual != null ? t.actual : '—') + '</td><td>' + badge + '</td></tr>';
+    }).join('');
+  }
+})();
+</script>
+</body>
+</html>

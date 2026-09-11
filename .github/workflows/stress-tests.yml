@@ -1,45 +1,49 @@
-name: "⚡ Stress Tests (K6)"
+name: K6 Stress Tests
 
 on:
   workflow_dispatch:
     inputs:
       test_type:
-        description: "Tipo de teste"
+        description: 'Tipo de teste'
         required: true
         type: choice
+        options:
+          - smoke
+          - load
+          - stress
+          - spike
+          - soak
         default: smoke
-        options: [smoke, load, stress, spike, soak]
       target_url:
-        description: "URL base da API"
+        description: 'URL alvo (default: VPS de produção)'
         required: false
-        default: "http://2.25.122.11:5020"
+        default: 'http://2.25.122.11:5020'
       vus:
-        description: "VUs m\xe1ximos (vazio = pad\xe3o do script)"
+        description: 'Número de VUs (override — deixe vazio para usar o padrão do script)'
         required: false
-        default: ""
+        default: ''
       duration:
-        description: "Dura\xe7\xe3o override (ex: 30s, 5m, 1h — vazio = pad\xe3o)"
+        description: 'Duração (ex: 5m, 30m — override — deixe vazio para usar o padrão do script)'
         required: false
-        default: ""
+        default: ''
 
 concurrency:
   group: stress-tests
   cancel-in-progress: false
 
-env:
-  K6_TARGET_URL: ${{ inputs.target_url || 'http://2.25.122.11:5020' }}
-
 jobs:
-  k6:
-    name: "K6 ${{ inputs.test_type }} \u2014 ${{ inputs.target_url }}"
+  k6-test:
+    name: K6 — ${{ github.event.inputs.test_type }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Instalar K6
         run: |
+          sudo gpg -k
           sudo gpg --no-default-keyring \
             --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
             --keyserver hkp://keyserver.ubuntu.com:80 \
@@ -48,92 +52,251 @@ jobs:
             | sudo tee /etc/apt/sources.list.d/k6.list
           sudo apt-get update -qq
           sudo apt-get install -y k6
-          k6 version
 
-      - name: "Executar K6 — ${{ inputs.test_type }}"
+      - name: Criar diretório de resultados
+        run: mkdir -p k6/results
+
+      - name: Executar K6 — ${{ github.event.inputs.test_type }}
         id: k6run
         continue-on-error: true
         env:
-          TARGET_URL: ${{ env.K6_TARGET_URL }}
-          VUS_OVERRIDE: ${{ inputs.vus }}
-          DURATION_OVERRIDE: ${{ inputs.duration }}
+          TARGET_URL:        ${{ github.event.inputs.target_url }}
+          VUS_OVERRIDE:      ${{ github.event.inputs.vus }}
+          DURATION_OVERRIDE: ${{ github.event.inputs.duration }}
         run: |
-          mkdir -p k6/results
           k6 run \
             --out json=k6/results/raw.json \
             --summary-export=k6/results/summary.json \
-            k6/scripts/${{ inputs.test_type }}.js \
-            2>&1 | tee k6/results/output.log
-          echo "K6_EXIT=${PIPESTATUS[0]}" >> "$GITHUB_ENV"
+            k6/scripts/${{ github.event.inputs.test_type }}.js
 
-      - name: Gerar resumo no GitHub Actions
+      - name: Gerar dashboard HTML
         if: always()
         run: |
-          TYPE="${{ inputs.test_type }}"
-          URL="${{ env.K6_TARGET_URL }}"
-          RUN="#${{ github.run_number }}"
+          python3 - <<'PYEOF'
+          import json, re, os, sys
+          from pathlib import Path
+          from collections import defaultdict
 
-          echo "## ⚡ K6 Stress Test — ${TYPE}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Campo | Valor |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Tipo  | `${TYPE}` |" >> $GITHUB_STEP_SUMMARY
-          echo "| URL   | `${URL}` |" >> $GITHUB_STEP_SUMMARY
-          echo "| Run   | ${RUN} |" >> $GITHUB_STEP_SUMMARY
-          echo "| VUs override | `${{ inputs.vus || '(padrão do script)' }}` |" >> $GITHUB_STEP_SUMMARY
-          echo "| Duração override | `${{ inputs.duration || '(padrão do script)' }}` |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          TEST_TYPE   = os.environ.get('TEST_TYPE', '')
+          TARGET_URL  = os.environ.get('TARGET_URL', '')
+          RUN_NUMBER  = os.environ.get('RUN_NUMBER', '')
+          RUN_DATE    = os.environ.get('RUN_DATE', '')
 
-          if [ -f k6/results/summary.json ]; then
-            python3 << 'PYEOF'
-          import json, sys
+          summary_path  = Path('k6/results/summary.json')
+          raw_path      = Path('k6/results/raw.json')
+          template_path = Path('k6/dashboard/index.html')
+          output_path   = Path('k6/results/dashboard.html')
 
-          with open("k6/results/summary.json") as f:
-              d = json.load(f)
+          if not template_path.exists():
+              print('Template não encontrado; abortando geração do dashboard.')
+              sys.exit(0)
 
-          m = d.get("metrics", {})
+          # ── KPIs e thresholds ────────────────────────────────────────────────────
+          kpis = {}
+          thresholds = []
 
-          def v(metric, key):
+          if summary_path.exists():
               try:
-                  val = m[metric]["values"][key]
-                  return f"{round(float(val), 1)}" if isinstance(val, float) else str(val)
-              except Exception:
-                  return "N/A"
+                  s = json.loads(summary_path.read_text())
+                  dur = s.get('metrics', {}).get('http_req_duration', {})
+                  vals = dur.get('values', {})
+                  kpis['p50']            = round(vals.get('med',   0), 2)
+                  kpis['p95']            = round(vals.get('p(95)', 0), 2)
+                  kpis['p99']            = round(vals.get('p(99)', 0), 2)
+                  kpis['avg']            = round(vals.get('avg',   0), 2)
+                  reqs = s.get('metrics', {}).get('http_reqs', {}).get('values', {})
+                  kpis['rps']            = round(reqs.get('rate', 0), 2)
+                  kpis['total_requests'] = int(reqs.get('count', 0))
+                  errs = s.get('metrics', {}).get('http_req_failed', {}).get('values', {})
+                  kpis['error_rate']     = round(errs.get('rate', 0), 4)
 
-          rows = [
-              ("p(50) latência",   f"{v('http_req_duration', 'med')} ms"),
-              ("p(95) latência",   f"{v('http_req_duration', 'p(95)')} ms"),
-              ("p(99) latência",   f"{v('http_req_duration', 'p(99)')} ms"),
-              ("avg latência",     f"{v('http_req_duration', 'avg')} ms"),
-              ("Throughput",       f"{v('http_reqs', 'rate')} req/s"),
-              ("Total requests",   v("http_reqs", "count")),
-              ("Error rate",       f"{round(float(m.get('errors',{}).get('values',{}).get('rate',0))*100,2)} %"),
-          ]
+                  # Thresholds
+                  for metric_name, metric_data in s.get('metrics', {}).items():
+                      for cond, passed in metric_data.get('thresholds', {}).items():
+                          # Compute actual value for display
+                          actual = None
+                          mv = metric_data.get('values', {})
+                          m = re.match(r'p\((\d+)\)', cond.split('<')[0].split('>')[0].strip())
+                          if m:
+                              actual = round(mv.get(f'p({m.group(1)})', 0), 2)
+                          elif 'rate' in cond:
+                              actual = round(mv.get('rate', 0), 4)
+                          elif 'avg' in cond:
+                              actual = round(mv.get('avg', 0), 2)
+                          thresholds.append({
+                              'metric': metric_name,
+                              'condition': cond,
+                              'actual': actual,
+                              'passed': bool(passed)
+                          })
+              except Exception as e:
+                  print(f'Aviso: falha ao processar summary.json: {e}')
 
-          print("### Métricas")
-          print("| Métrica | Valor |")
-          print("|---------|-------|")
-          for label, val in rows:
-              print(f"| {label} | **{val}** |")
+          # ── Série temporal (raw.json NDJSON) ─────────────────────────────────────
+          ts_rt  = defaultdict(list)   # bucket_second -> list of http_req_duration values
+          ts_vus = {}                  # bucket_second -> vus value
+          ts_rps = defaultdict(int)    # bucket_second -> req count
+
+          if raw_path.exists():
+              try:
+                  with raw_path.open() as f:
+                      for line in f:
+                          line = line.strip()
+                          if not line:
+                              continue
+                          try:
+                              obj = json.loads(line)
+                          except json.JSONDecodeError:
+                              continue
+                          if obj.get('type') != 'Point':
+                              continue
+                          data   = obj.get('data', {})
+                          metric = obj.get('metric', '')
+                          t_str  = data.get('time', '')
+                          val    = data.get('value')
+                          if not t_str or val is None:
+                              continue
+                          # Parse ISO timestamp to second bucket (relative seconds from start)
+                          # We'll collect absolute timestamps and normalize later
+                          try:
+                              from datetime import datetime, timezone
+                              dt = datetime.fromisoformat(t_str.replace('Z', '+00:00'))
+                              ts_key = int(dt.timestamp())
+                          except Exception:
+                              continue
+
+                          if metric == 'http_req_duration':
+                              ts_rt[ts_key].append(val)
+                          elif metric == 'vus':
+                              ts_vus[ts_key] = val
+                          elif metric == 'http_reqs':
+                              ts_rps[ts_key] += 1
+              except Exception as e:
+                  print(f'Aviso: falha ao processar raw.json: {e}')
+
+          # Build unified label set (sorted, relative seconds)
+          all_keys = sorted(set(list(ts_rt.keys()) + list(ts_vus.keys()) + list(ts_rps.keys())))
+
+          # Downsample to max 300 points
+          MAX_POINTS = 300
+          if len(all_keys) > MAX_POINTS:
+              step = len(all_keys) // MAX_POINTS
+              all_keys = all_keys[::step]
+
+          if all_keys:
+              t0 = all_keys[0]
+              labels = [str(k - t0) + 's' for k in all_keys]
+              p95_series = [round(sorted(ts_rt.get(k, [0]))[int(len(ts_rt.get(k, [0])) * 0.95)] if ts_rt.get(k) else 0, 2) for k in all_keys]
+              avg_series = [round(sum(ts_rt.get(k, [0])) / max(len(ts_rt.get(k, [0])), 1), 2) for k in all_keys]
+              vus_series = [ts_vus.get(k, 0) for k in all_keys]
+              rps_series = [ts_rps.get(k, 0) for k in all_keys]
+          else:
+              labels = []
+              p95_series = avg_series = vus_series = rps_series = []
+
+          # ── Montar objeto de dados ────────────────────────────────────────────────
+          dashboard_data = {
+              'meta': {
+                  'test_type':  TEST_TYPE,
+                  'target_url': TARGET_URL,
+                  'run_number': RUN_NUMBER,
+                  'run_date':   RUN_DATE,
+              },
+              'kpis': kpis,
+              'thresholds': thresholds,
+              'timeseries': {
+                  'labels': labels,
+                  'p95': p95_series,
+                  'avg': avg_series,
+                  'vus': vus_series,
+                  'rps': rps_series,
+              }
+          }
+
+          # ── Injetar no template ───────────────────────────────────────────────────
+          template = template_path.read_text(encoding='utf-8')
+          data_json = json.dumps(dashboard_data, ensure_ascii=False)
+          result = template.replace('__DASHBOARD_DATA__', data_json)
+          output_path.write_text(result, encoding='utf-8')
+          print(f'Dashboard gerado em {output_path}')
           PYEOF
-          fi >> $GITHUB_STEP_SUMMARY
+        env:
+          TEST_TYPE:  ${{ github.event.inputs.test_type }}
+          TARGET_URL: ${{ github.event.inputs.target_url }}
+          RUN_NUMBER: ${{ github.run_number }}
+          RUN_DATE:   ${{ github.event.repository.updated_at || 'N/A' }}
 
-          STATUS="${{ steps.k6run.outcome }}"
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "$STATUS" = "success" ]; then
-            echo "> ✅ Todos os thresholds OK" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "> ❌ Threshold(s) violado(s) — verifique o log do K6" >> $GITHUB_STEP_SUMMARY
-          fi
-
-      - name: Upload resultados K6
-        uses: actions/upload-artifact@v4
+      - name: Publicar resumo no Job Summary
         if: always()
+        run: |
+          python3 - <<'PYEOF'
+          import json, os
+          from pathlib import Path
+
+          summary_path = Path('k6/results/summary.json')
+          test_type    = os.environ.get('TEST_TYPE', '?')
+          target_url   = os.environ.get('TARGET_URL', '?')
+
+          summary_md = f'## ⚡ K6 — `{test_type}` em `{target_url}`\n\n'
+
+          if summary_path.exists():
+              try:
+                  s = json.loads(summary_path.read_text())
+                  dur  = s.get('metrics', {}).get('http_req_duration', {}).get('values', {})
+                  reqs = s.get('metrics', {}).get('http_reqs',         {}).get('values', {})
+                  errs = s.get('metrics', {}).get('http_req_failed',   {}).get('values', {})
+
+                  p50  = dur.get('med',   0)
+                  p95  = dur.get('p(95)', 0)
+                  p99  = dur.get('p(99)', 0)
+                  avg  = dur.get('avg',   0)
+                  rps  = reqs.get('rate',  0)
+                  tot  = int(reqs.get('count', 0))
+                  err  = errs.get('rate', 0) * 100
+
+                  summary_md += (
+                      '| Métrica | Valor |\n'
+                      '|---------|-------|\n'
+                      f'| p50     | {p50:.1f} ms |\n'
+                      f'| p95     | {p95:.1f} ms |\n'
+                      f'| p99     | {p99:.1f} ms |\n'
+                      f'| avg     | {avg:.1f} ms |\n'
+                      f'| Req/s   | {rps:.2f} |\n'
+                      f'| Total   | {tot:,} |\n'
+                      f'| Erro %  | {err:.2f}% |\n\n'
+                  )
+
+                  thresholds_rows = []
+                  for mn, md in s.get('metrics', {}).items():
+                      for cond, passed in md.get('thresholds', {}).items():
+                          icon = '✅' if passed else '❌'
+                          thresholds_rows.append(f'| {mn} | `{cond}` | {icon} |')
+
+                  if thresholds_rows:
+                      summary_md += '### Thresholds\n\n| Métrica | Condição | Status |\n|---------|---------|--------|\n'
+                      summary_md += '\n'.join(thresholds_rows) + '\n'
+              except Exception as e:
+                  summary_md += f'> ⚠️ Falha ao processar resultados: {e}\n'
+          else:
+              summary_md += '> ⚠️ `summary.json` não encontrado — K6 pode ter falhado antes de gerar resultados.\n'
+
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
+              f.write(summary_md)
+          PYEOF
+        env:
+          TEST_TYPE:  ${{ github.event.inputs.test_type }}
+          TARGET_URL: ${{ github.event.inputs.target_url }}
+
+      - name: Upload artefatos K6
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: k6-${{ inputs.test_type }}-run${{ github.run_number }}
+          name: k6-${{ github.event.inputs.test_type }}-run${{ github.run_number }}
           path: k6/results/
           retention-days: 30
 
-      - name: Falhar se K6 violou thresholds
+      - name: Falhar se K6 reprovou
         if: steps.k6run.outcome == 'failure'
-        run: exit 1
+        run: |
+          echo "::error::K6 falhou — algum threshold foi violado ou o teste terminou com erro."
+          exit 1
