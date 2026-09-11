@@ -28,6 +28,33 @@ public sealed class RateLimiterIntegrationTest
         Assert.NotEqual(HttpStatusCode.TooManyRequests, r2.StatusCode);
         Assert.Equal(HttpStatusCode.TooManyRequests, r3.StatusCode);
     }
+
+    [Fact]
+    public async Task Search_QuandoRejeitado_DeveRetornarHeaderRetryAfter()
+    {
+        // Arrange – factory com PermitLimit=2
+        await using var factory = new RateLimitTestFactory();
+        var client = factory.CreateClient();
+
+        // Esgota o limite
+        await client.GetAsync("/api/search?q=a&page=1&pageSize=1");
+        await client.GetAsync("/api/search?q=b&page=1&pageSize=1");
+
+        // Act – requisição rejeitada
+        var rejected = await client.GetAsync("/api/search?q=c&page=1&pageSize=1");
+
+        // Assert – 429 com Retry-After numérico válido
+        Assert.Equal(HttpStatusCode.TooManyRequests, rejected.StatusCode);
+        Assert.True(
+            rejected.Headers.Contains("Retry-After"),
+            "Resposta 429 deve incluir o header Retry-After");
+
+        var retryAfterValue = rejected.Headers.GetValues("Retry-After").First();
+        Assert.True(
+            long.TryParse(retryAfterValue, out var seconds),
+            $"Retry-After deve ser um inteiro, mas veio '{retryAfterValue}'");
+        Assert.True(seconds > 0, "Retry-After deve ser maior que zero");
+    }
 }
 
 /// <summary>
