@@ -1,25 +1,24 @@
 using System.Net;
 using System.Text;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Http;
+using UcpAgent.Api.Resilience;
 using Xunit;
 
 namespace UcpAgent.Integration.Tests;
 
 /// <summary>
-/// Prova que o pipeline Polly (Timeout → Retry → Circuit Breaker) funciona de verdade
-/// no pipeline ASP.NET, injetando um handler primário via PostConfigure<HttpClientFactoryOptions>
-/// que falha nas 2 primeiras chamadas e sucede na terceira.
+/// Prova que o pipeline Polly (Timeout → Retry → Circuit Breaker) funciona de verdade,
+/// testando em isolamento via IHttpClientFactory — sem depender do WebApplicationFactory.
 ///
-/// IMPORTANTE: usa PostConfigure<HttpClientFactoryOptions> em vez de IHttpMessageHandlerBuilderFilter.
-/// O IHttpMessageHandlerBuilderFilter foi marcado como obsoleto no .NET 8 e não é mais invocado
-/// pelo DefaultHttpClientFactory no .NET 10. PostConfigure<HttpClientFactoryOptions> garante
-/// que nossa ação (setar PrimaryHandler = stub) rode DEPOIS que o Polly já registrou
-/// seus ResilienceHandlers como AdditionalHandlers, produzindo a cadeia correta:
+/// Por que isolamento?
+/// DummyJsonPlugin é registrado como Singleton via AddSingleton&lt;IProductCatalogPort, DummyJsonPlugin&gt;(),
+/// o que faz o DI injetar o HttpClient genérico (não o typed client "DummyJsonPlugin").
+/// Testar via WebApplicationFactory + PostConfigure&lt;HttpClientFactoryOptions&gt; resultaria em
+/// stub.CallCount == 0 porque o handler nunca seria usado.
+///
+/// Usando IHttpClientFactory diretamente com ConfigurePrimaryHttpMessageHandler, garantimos que
+/// o stub é o handler mais interno ANTES do Polly envolver — cadeia correta:
 /// Polly (retry/timeout/CB) → FailTwiceHandler (primary).
 /// </summary>
 public sealed class PollyResilienceIntegrationTest
@@ -27,40 +26,32 @@ public sealed class PollyResilienceIntegrationTest
     [Fact]
     public async Task Search_ComPollyRetry_ReintentaApos500_ERetorna200()
     {
-        // Arrange – stub que falha 2x e sucede na 3ª chamada HTTP
+        // Arrange – configuração com delay curto para o teste não demorar
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Resilience:Retry:BaseDelaySeconds"] = "0.05",
+                ["Resilience:Retry:MaxAttempts"]      = "3",
+            })
+            .Build();
+
+        // Stub que falha 2x e sucede na 3ª chamada HTTP
         var stub = new FailTwiceHandler();
 
-        await using var factory = new CompraApiFactory().WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureAppConfiguration((_, cfg) =>
-            {
-                cfg.AddInMemoryCollection(new Dictionary<string, string?>
-                {
-                    // Delay curto para o teste não demorar
-                    ["Resilience:Retry:BaseDelaySeconds"] = "0.05",
-                    ["Resilience:Retry:MaxAttempts"]      = "3",
-                });
-            });
+        // Registrar HttpClient com stub como primary handler ANTES do Polly envolver
+        var services = new ServiceCollection();
+        services.AddHttpClient("catalog-test")
+            .ConfigurePrimaryHttpMessageHandler(() => stub)
+            .AddCatalogResilience(config);
 
-            builder.ConfigureTestServices(services =>
-            {
-                // PostConfigure roda DEPOIS de todos os Configure (inclusive o Polly).
-                // Resultado: Polly já adicionou seus handlers em AdditionalHandlers;
-                // nossa ação apenas seta o PrimaryHandler = stub.
-                // Cadeia final: Polly (retry/timeout/CB) → FailTwiceHandler
-                services.PostConfigure<HttpClientFactoryOptions>(
-                    "DummyJsonPlugin",
-                    options => options.HttpMessageHandlerBuilderActions.Add(
-                        b => b.PrimaryHandler = stub));
-            });
-        });
-
-        var client = factory.CreateClient();
+        await using var provider = services.BuildServiceProvider();
+        var factory = provider.GetRequiredService<IHttpClientFactory>();
+        var client  = factory.CreateClient("catalog-test");
 
         // Act – uma única chamada; Polly cuida das retentativas internamente
-        var response = await client.GetAsync("/api/search?q=notebook&page=1&pageSize=5");
+        var response = await client.GetAsync("https://dummyjson.com/products/search?q=notebook");
 
-        // Assert – endpoint deve responder 200 após Polly ter reintentado com sucesso
+        // Assert – deve responder 200 após Polly ter reintentado com sucesso
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         // O stub deve ter sido chamado 3 vezes: 1 original + 2 retentativas pelo Polly
