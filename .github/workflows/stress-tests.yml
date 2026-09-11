@@ -1,0 +1,139 @@
+name: "⚡ Stress Tests (K6)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: "Tipo de teste"
+        required: true
+        type: choice
+        default: smoke
+        options: [smoke, load, stress, spike, soak]
+      target_url:
+        description: "URL base da API"
+        required: false
+        default: "http://2.25.122.11:5020"
+      vus:
+        description: "VUs m\xe1ximos (vazio = pad\xe3o do script)"
+        required: false
+        default: ""
+      duration:
+        description: "Dura\xe7\xe3o override (ex: 30s, 5m, 1h — vazio = pad\xe3o)"
+        required: false
+        default: ""
+
+concurrency:
+  group: stress-tests
+  cancel-in-progress: false
+
+env:
+  K6_TARGET_URL: ${{ inputs.target_url || 'http://2.25.122.11:5020' }}
+
+jobs:
+  k6:
+    name: "K6 ${{ inputs.test_type }} \u2014 ${{ inputs.target_url }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar K6
+        run: |
+          sudo gpg --no-default-keyring \
+            --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+            --keyserver hkp://keyserver.ubuntu.com:80 \
+            --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update -qq
+          sudo apt-get install -y k6
+          k6 version
+
+      - name: "Executar K6 — ${{ inputs.test_type }}"
+        id: k6run
+        continue-on-error: true
+        env:
+          TARGET_URL: ${{ env.K6_TARGET_URL }}
+          VUS_OVERRIDE: ${{ inputs.vus }}
+          DURATION_OVERRIDE: ${{ inputs.duration }}
+        run: |
+          mkdir -p k6/results
+          k6 run \
+            --out json=k6/results/raw.json \
+            --summary-export=k6/results/summary.json \
+            k6/scripts/${{ inputs.test_type }}.js \
+            2>&1 | tee k6/results/output.log
+          echo "K6_EXIT=${PIPESTATUS[0]}" >> "$GITHUB_ENV"
+
+      - name: Gerar resumo no GitHub Actions
+        if: always()
+        run: |
+          TYPE="${{ inputs.test_type }}"
+          URL="${{ env.K6_TARGET_URL }}"
+          RUN="#${{ github.run_number }}"
+
+          echo "## ⚡ K6 Stress Test — ${TYPE}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Campo | Valor |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Tipo  | `${TYPE}` |" >> $GITHUB_STEP_SUMMARY
+          echo "| URL   | `${URL}` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Run   | ${RUN} |" >> $GITHUB_STEP_SUMMARY
+          echo "| VUs override | `${{ inputs.vus || '(padrão do script)' }}` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Duração override | `${{ inputs.duration || '(padrão do script)' }}` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f k6/results/summary.json ]; then
+            python3 << 'PYEOF'
+          import json, sys
+
+          with open("k6/results/summary.json") as f:
+              d = json.load(f)
+
+          m = d.get("metrics", {})
+
+          def v(metric, key):
+              try:
+                  val = m[metric]["values"][key]
+                  return f"{round(float(val), 1)}" if isinstance(val, float) else str(val)
+              except Exception:
+                  return "N/A"
+
+          rows = [
+              ("p(50) latência",   f"{v('http_req_duration', 'med')} ms"),
+              ("p(95) latência",   f"{v('http_req_duration', 'p(95)')} ms"),
+              ("p(99) latência",   f"{v('http_req_duration', 'p(99)')} ms"),
+              ("avg latência",     f"{v('http_req_duration', 'avg')} ms"),
+              ("Throughput",       f"{v('http_reqs', 'rate')} req/s"),
+              ("Total requests",   v("http_reqs", "count")),
+              ("Error rate",       f"{round(float(m.get('errors',{}).get('values',{}).get('rate',0))*100,2)} %"),
+          ]
+
+          print("### Métricas")
+          print("| Métrica | Valor |")
+          print("|---------|-------|")
+          for label, val in rows:
+              print(f"| {label} | **{val}** |")
+          PYEOF
+          fi >> $GITHUB_STEP_SUMMARY
+
+          STATUS="${{ steps.k6run.outcome }}"
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "$STATUS" = "success" ]; then
+            echo "> ✅ Todos os thresholds OK" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "> ❌ Threshold(s) violado(s) — verifique o log do K6" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload resultados K6
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k6-${{ inputs.test_type }}-run${{ github.run_number }}
+          path: k6/results/
+          retention-days: 30
+
+      - name: Falhar se K6 violou thresholds
+        if: steps.k6run.outcome == 'failure'
+        run: exit 1
