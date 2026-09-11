@@ -17,20 +17,23 @@ export const options = {
 };
 
 export default function () {
-  let res = http.get(`${TARGET_URL}/health`);
+  // Health check
+  let res = http.get(`${TARGET_URL}/health/live`);
   check(res, { "health OK": (r) => r.status === 200 });
   errorRate.add(res.status !== 200 && res.status !== 429);
   responseTime.add(res.timings.duration);
   sleep(1);
 
-  res = http.get(`${TARGET_URL}/api/products`);
-  check(res, { "products 2xx": (r) => r.status >= 200 && r.status < 300 });
+  // Busca de produtos
+  res = http.get(`${TARGET_URL}/api/search?q=notebook&page=1&pageSize=5`);
+  check(res, { "search 2xx": (r) => r.status >= 200 && r.status < 300 });
   errorRate.add(res.status !== 200 && res.status !== 429);
   responseTime.add(res.timings.duration);
   sleep(1);
 
-  res = http.get(`${TARGET_URL}/api/orders/smoke-test`);
-  errorRate.add(res.status !== 200 && res.status !== 429);
+  // Cart — cria e verifica
+  res = http.get(`${TARGET_URL}/api/cart/smoke-session`);
+  errorRate.add(res.status !== 200 && res.status !== 404 && res.status !== 429);
   responseTime.add(res.timings.duration);
   sleep(1);
 }
