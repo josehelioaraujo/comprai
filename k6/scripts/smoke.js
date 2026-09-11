@@ -1,6 +1,7 @@
 import http from "k6/http";
 import { check, sleep } from "k6";
 import { Rate, Trend } from "k6/metrics";
+import { textSummary } from "https://jslib.k6.io/k6-summary/0.0.2/index.js";
 
 const errorRate = new Rate("errors");
 const responseTime = new Trend("response_time", true);
@@ -15,6 +16,13 @@ export const options = {
     errors: ["rate<0.01"],
   },
 };
+
+export function handleSummary(data) {
+  return {
+    "k6/results/summary.json": JSON.stringify(data, null, 2),
+    stdout: textSummary(data, { indent: "  ", enableColors: false }),
+  };
+}
 
 export default function () {
   // Health check

@@ -66,7 +66,6 @@ jobs:
         run: |
           k6 run \
             --out json=k6/results/raw.json \
-            --summary-export=k6/results/summary.json \
             k6/scripts/${{ github.event.inputs.test_type }}.js
 
       - name: Gerar dashboard HTML
@@ -123,11 +122,13 @@ jobs:
                               actual = round(mv.get('rate', 0), 4)
                           elif 'avg' in cond:
                               actual = round(mv.get('avg', 0), 2)
+                          # K6 v0.49+ retorna {"ok": bool} em vez de bool direto
+                          ok = passed if isinstance(passed, bool) else passed.get('ok', False)
                           thresholds.append({
                               'metric': metric_name,
                               'condition': cond,
                               'actual': actual,
-                              'passed': bool(passed)
+                              'passed': ok
                           })
               except Exception as e:
                   print(f'Aviso: falha ao processar summary.json: {e}')
@@ -269,7 +270,9 @@ jobs:
                   thresholds_rows = []
                   for mn, md in s.get('metrics', {}).items():
                       for cond, passed in md.get('thresholds', {}).items():
-                          icon = '✅' if passed else '❌'
+                          # K6 v0.49+ retorna {"ok": bool} em vez de bool direto
+                          ok = passed if isinstance(passed, bool) else passed.get('ok', False)
+                          icon = '✅' if ok else '❌'
                           thresholds_rows.append(f'| {mn} | `{cond}` | {icon} |')
 
                   if thresholds_rows:
@@ -280,12 +283,23 @@ jobs:
           else:
               summary_md += '> ⚠️ `summary.json` não encontrado — K6 pode ter falhado antes de gerar resultados.\n'
 
+          artifact_name = f'k6-{test_type}-run{os.environ.get("RUN_NUMBER", "?")}'
+          summary_md += (
+              '\n---\n'
+              '### 📊 Como ver o dashboard completo\n\n'
+              '1. Role até o final desta página → seção **Artifacts**\n'
+              f'2. Clique em **`{artifact_name}`** para baixar o zip\n'
+              '3. Extraia e abra **`dashboard.html`** no browser\n\n'
+              '> Os gráficos mostram latência p95/avg, VUs e Req/s ao longo do tempo.\n'
+          )
+
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
               f.write(summary_md)
           PYEOF
         env:
-          TEST_TYPE:  ${{ github.event.inputs.test_type }}
-          TARGET_URL: ${{ github.event.inputs.target_url }}
+          TEST_TYPE:   ${{ github.event.inputs.test_type }}
+          TARGET_URL:  ${{ github.event.inputs.target_url }}
+          RUN_NUMBER:  ${{ github.run_number }}
 
       - name: Upload artefatos K6
         if: always()
