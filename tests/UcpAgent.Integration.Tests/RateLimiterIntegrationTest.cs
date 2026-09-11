@@ -1,7 +1,6 @@
 using System.Net;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.Configuration;
 using Xunit;
 
 namespace UcpAgent.Integration.Tests;
@@ -34,6 +33,13 @@ public sealed class RateLimiterIntegrationTest
 /// <summary>
 /// Factory que sobrepõe PermitLimit=2 para que o teste possa
 /// forçar um HTTP 429 com apenas 3 requisições consecutivas.
+///
+/// IMPORTANTE: usa UseSetting em vez de ConfigureAppConfiguration.
+/// No .NET 10 minimal API, AddCatalogRateLimiter lê a configuração via
+/// builder.Configuration durante o registro de serviços. ConfigureAppConfiguration
+/// pode ser executado depois desse ponto, tornando o override tardio.
+/// UseSetting injeta os valores no WebHostBuilder antes de Build() / Services,
+/// garantindo que o rate limiter leia PermitLimit=2 ao ser configurado.
 /// </summary>
 internal sealed class RateLimitTestFactory : WebApplicationFactory<Program>
 {
@@ -41,19 +47,15 @@ internal sealed class RateLimitTestFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment("IntegrationTest");
 
-        builder.ConfigureAppConfiguration((_, config) =>
-        {
-            config.AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["RateLimit:FixedWindow:PermitLimit"]   = "2",
-                ["RateLimit:FixedWindow:WindowSeconds"] = "60",
-                ["RateLimit:FixedWindow:QueueLimit"]    = "0",
-                // Infra mínima necessária para o teste não falhar na inicialização
-                ["Features:UsarRedis"]     = "false",
-                ["Features:UsarKafka"]     = "false",
-                ["Features:UsarRabbitMQ"]  = "false",
-                ["Features:UsarMockDados"] = "false",
-            });
-        });
+        // UseSetting define os valores ANTES do registro dos serviços
+        builder.UseSetting("RateLimit:FixedWindow:PermitLimit",   "2");
+        builder.UseSetting("RateLimit:FixedWindow:WindowSeconds", "60");
+        builder.UseSetting("RateLimit:FixedWindow:QueueLimit",    "0");
+
+        // Infra mínima necessária para a inicialização não falhar
+        builder.UseSetting("Features:UsarRedis",     "false");
+        builder.UseSetting("Features:UsarKafka",     "false");
+        builder.UseSetting("Features:UsarRabbitMQ",  "false");
+        builder.UseSetting("Features:UsarMockDados", "false");
     }
 }
