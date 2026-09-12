@@ -12,10 +12,10 @@ const peakVus = parseInt(__ENV.VUS_OVERRIDE || "100");
 
 export const options = {
   stages: [
-    { duration: "1m", target: Math.round(peakVus * 0.25) },
-    { duration: "2m", target: Math.round(peakVus * 0.50) },
-    { duration: "2m", target: peakVus },
-    { duration: "1m", target: 0 },
+    { duration: "30s", target: Math.round(peakVus * 0.25) },
+    { duration: "1m",  target: Math.round(peakVus * 0.50) },
+    { duration: "1m",  target: peakVus },
+    { duration: "30s", target: 0 },
   ],
   thresholds: {
     http_req_duration: ["p(95)<800"],

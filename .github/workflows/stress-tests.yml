@@ -41,17 +41,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Cache K6
+        id: cache-k6
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/k6
+          key: k6-v0.53.0-linux-amd64
+
       - name: Instalar K6
+        if: steps.cache-k6.outputs.cache-hit != 'true'
         run: |
-          sudo gpg -k
-          sudo gpg --no-default-keyring \
-            --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
-            --keyserver hkp://keyserver.ubuntu.com:80 \
-            --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
-          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
-            | sudo tee /etc/apt/sources.list.d/k6.list
-          sudo apt-get update -qq
-          sudo apt-get install -y k6
+          wget -q https://github.com/grafana/k6/releases/download/v0.53.0/k6-v0.53.0-linux-amd64.tar.gz \
+            -O /tmp/k6.tar.gz
+          tar -xzf /tmp/k6.tar.gz -C /tmp
+          sudo mv /tmp/k6-v0.53.0-linux-amd64/k6 /usr/local/bin/k6
+          k6 version
 
       - name: Criar diretório de resultados
         run: mkdir -p k6/results
@@ -62,6 +66,7 @@ jobs:
         env:
           TARGET_URL:        ${{ github.event.inputs.target_url }}
           VUS_OVERRIDE:      ${{ github.event.inputs.vus }}
+          PEAK_VUS:          ${{ github.event.inputs.vus }}
           DURATION_OVERRIDE: ${{ github.event.inputs.duration }}
         run: |
           k6 run \
@@ -90,7 +95,6 @@ jobs:
               print('Template não encontrado; abortando geração do dashboard.')
               sys.exit(0)
 
-          # ── KPIs e thresholds ────────────────────────────────────────────────────
           kpis = {}
           thresholds = []
 
@@ -108,11 +112,8 @@ jobs:
                   kpis['total_requests'] = int(reqs.get('count', 0))
                   errs = s.get('metrics', {}).get('http_req_failed', {}).get('values', {})
                   kpis['error_rate']     = round(errs.get('rate', 0), 4)
-
-                  # Thresholds
                   for metric_name, metric_data in s.get('metrics', {}).items():
                       for cond, passed in metric_data.get('thresholds', {}).items():
-                          # Compute actual value for display
                           actual = None
                           mv = metric_data.get('values', {})
                           m = re.match(r'p\((\d+)\)', cond.split('<')[0].split('>')[0].strip())
@@ -122,68 +123,45 @@ jobs:
                               actual = round(mv.get('rate', 0), 4)
                           elif 'avg' in cond:
                               actual = round(mv.get('avg', 0), 2)
-                          # K6 v0.49+ retorna {"ok": bool} em vez de bool direto
                           ok = passed if isinstance(passed, bool) else passed.get('ok', False)
-                          thresholds.append({
-                              'metric': metric_name,
-                              'condition': cond,
-                              'actual': actual,
-                              'passed': ok
-                          })
+                          thresholds.append({'metric': metric_name,'condition': cond,'actual': actual,'passed': ok})
               except Exception as e:
                   print(f'Aviso: falha ao processar summary.json: {e}')
 
-          # ── Série temporal (raw.json NDJSON) ─────────────────────────────────────
-          ts_rt  = defaultdict(list)   # bucket_second -> list of http_req_duration values
-          ts_vus = {}                  # bucket_second -> vus value
-          ts_rps = defaultdict(int)    # bucket_second -> req count
+          ts_rt  = defaultdict(list)
+          ts_vus = {}
+          ts_rps = defaultdict(int)
 
           if raw_path.exists():
               try:
                   with raw_path.open() as f:
                       for line in f:
                           line = line.strip()
-                          if not line:
-                              continue
-                          try:
-                              obj = json.loads(line)
-                          except json.JSONDecodeError:
-                              continue
-                          if obj.get('type') != 'Point':
-                              continue
+                          if not line: continue
+                          try: obj = json.loads(line)
+                          except json.JSONDecodeError: continue
+                          if obj.get('type') != 'Point': continue
                           data   = obj.get('data', {})
                           metric = obj.get('metric', '')
                           t_str  = data.get('time', '')
                           val    = data.get('value')
-                          if not t_str or val is None:
-                              continue
-                          # Parse ISO timestamp to second bucket (relative seconds from start)
-                          # We'll collect absolute timestamps and normalize later
+                          if not t_str or val is None: continue
                           try:
                               from datetime import datetime, timezone
                               dt = datetime.fromisoformat(t_str.replace('Z', '+00:00'))
                               ts_key = int(dt.timestamp())
-                          except Exception:
-                              continue
-
-                          if metric == 'http_req_duration':
-                              ts_rt[ts_key].append(val)
-                          elif metric == 'vus':
-                              ts_vus[ts_key] = val
-                          elif metric == 'http_reqs':
-                              ts_rps[ts_key] += 1
+                          except Exception: continue
+                          if metric == 'http_req_duration': ts_rt[ts_key].append(val)
+                          elif metric == 'vus': ts_vus[ts_key] = val
+                          elif metric == 'http_reqs': ts_rps[ts_key] += 1
               except Exception as e:
                   print(f'Aviso: falha ao processar raw.json: {e}')
 
-          # Build unified label set (sorted, relative seconds)
           all_keys = sorted(set(list(ts_rt.keys()) + list(ts_vus.keys()) + list(ts_rps.keys())))
-
-          # Downsample to max 300 points
           MAX_POINTS = 300
           if len(all_keys) > MAX_POINTS:
               step = len(all_keys) // MAX_POINTS
               all_keys = all_keys[::step]
-
           if all_keys:
               t0 = all_keys[0]
               labels = [str(k - t0) + 's' for k in all_keys]
@@ -195,26 +173,12 @@ jobs:
               labels = []
               p95_series = avg_series = vus_series = rps_series = []
 
-          # ── Montar objeto de dados ────────────────────────────────────────────────
           dashboard_data = {
-              'meta': {
-                  'test_type':  TEST_TYPE,
-                  'target_url': TARGET_URL,
-                  'run_number': RUN_NUMBER,
-                  'run_date':   RUN_DATE,
-              },
+              'meta': {'test_type': TEST_TYPE,'target_url': TARGET_URL,'run_number': RUN_NUMBER,'run_date': RUN_DATE},
               'kpis': kpis,
               'thresholds': thresholds,
-              'timeseries': {
-                  'labels': labels,
-                  'p95': p95_series,
-                  'avg': avg_series,
-                  'vus': vus_series,
-                  'rps': rps_series,
-              }
+              'timeseries': {'labels': labels,'p95': p95_series,'avg': avg_series,'vus': vus_series,'rps': rps_series}
           }
-
-          # ── Injetar no template ───────────────────────────────────────────────────
           template = template_path.read_text(encoding='utf-8')
           data_json = json.dumps(dashboard_data, ensure_ascii=False)
           result = template.replace('__DASHBOARD_DATA__', data_json)
@@ -237,8 +201,20 @@ jobs:
           summary_path = Path('k6/results/summary.json')
           test_type    = os.environ.get('TEST_TYPE', '?')
           target_url   = os.environ.get('TARGET_URL', '?')
+          run_number   = os.environ.get('RUN_NUMBER', '?')
+          vus_input    = os.environ.get('VUS_INPUT', '').strip()
+          dur_input    = os.environ.get('DURATION_INPUT', '').strip()
 
-          summary_md = f'## ⚡ K6 — `{test_type}` em `{target_url}`\n\n'
+          default_vus = {'smoke': '3', 'load': '100', 'stress': '400', 'spike': '200', 'soak': '50'}
+          vus_display = vus_input if vus_input else f'{default_vus.get(test_type, "?")} (padrão)'
+          dur_display = dur_input if dur_input else 'padrão do script'
+
+          summary_md  = f'## 📊 Resultado {test_type.upper()} Test — Run #{run_number}\n\n'
+          summary_md += '| Parâmetro | Valor |\n|-----------|-------|\n'
+          summary_md += f'| Tipo | `{test_type}` |\n'
+          summary_md += f'| URL alvo | `{target_url}` |\n'
+          summary_md += f'| VUs pico | `{vus_display}` |\n'
+          summary_md += f'| Duração | `{dur_display}` |\n\n'
 
           if summary_path.exists():
               try:
@@ -246,35 +222,22 @@ jobs:
                   dur  = s.get('metrics', {}).get('http_req_duration', {}).get('values', {})
                   reqs = s.get('metrics', {}).get('http_reqs',         {}).get('values', {})
                   errs = s.get('metrics', {}).get('http_req_failed',   {}).get('values', {})
-
-                  p50  = dur.get('med',   0)
-                  p95  = dur.get('p(95)', 0)
-                  p99  = dur.get('p(99)', 0)
-                  avg  = dur.get('avg',   0)
-                  rps  = reqs.get('rate',  0)
-                  tot  = int(reqs.get('count', 0))
-                  err  = errs.get('rate', 0) * 100
-
-                  summary_md += (
-                      '| Métrica | Valor |\n'
-                      '|---------|-------|\n'
+                  p50 = dur.get('med', 0); p95 = dur.get('p(95)', 0); p99 = dur.get('p(99)', 0); avg = dur.get('avg', 0)
+                  rps = reqs.get('rate', 0); tot = int(reqs.get('count', 0)); err = errs.get('rate', 0) * 100
+                  summary_md += ('### Métricas\n\n| Métrica | Valor |\n|---------|-------|\n'
                       f'| p50     | {p50:.1f} ms |\n'
                       f'| p95     | {p95:.1f} ms |\n'
                       f'| p99     | {p99:.1f} ms |\n'
                       f'| avg     | {avg:.1f} ms |\n'
                       f'| Req/s   | {rps:.2f} |\n'
                       f'| Total   | {tot:,} |\n'
-                      f'| Erro %  | {err:.2f}% |\n\n'
-                  )
-
+                      f'| Erro %  | {err:.2f}% |\n\n')
                   thresholds_rows = []
                   for mn, md in s.get('metrics', {}).items():
                       for cond, passed in md.get('thresholds', {}).items():
-                          # K6 v0.49+ retorna {"ok": bool} em vez de bool direto
                           ok = passed if isinstance(passed, bool) else passed.get('ok', False)
                           icon = '✅' if ok else '❌'
                           thresholds_rows.append(f'| {mn} | `{cond}` | {icon} |')
-
                   if thresholds_rows:
                       summary_md += '### Thresholds\n\n| Métrica | Condição | Status |\n|---------|---------|--------|\n'
                       summary_md += '\n'.join(thresholds_rows) + '\n'
@@ -283,23 +246,22 @@ jobs:
           else:
               summary_md += '> ⚠️ `summary.json` não encontrado — K6 pode ter falhado antes de gerar resultados.\n'
 
-          artifact_name = f'k6-{test_type}-run{os.environ.get("RUN_NUMBER", "?")}'
-          summary_md += (
-              '\n---\n'
-              '### 📊 Como ver o dashboard completo\n\n'
-              '1. Role até o final desta página → seção **Artifacts**\n'
+          artifact_name = f'k6-{test_type}-run{run_number}'
+          summary_md += (f'\n---\n### 📊 Como ver o dashboard completo\n\n'
+              f'1. Role até o final desta página — seção **Artifacts**\n'
               f'2. Clique em **`{artifact_name}`** para baixar o zip\n'
-              '3. Extraia e abra **`dashboard.html`** no browser\n\n'
-              '> Os gráficos mostram latência p95/avg, VUs e Req/s ao longo do tempo.\n'
-          )
+              f'3. Extraia e abra **`dashboard.html`** no browser\n\n'
+              f'> Os gráficos mostram latência p95/avg, VUs e Req/s ao longo do tempo.\n')
 
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
               f.write(summary_md)
           PYEOF
         env:
-          TEST_TYPE:   ${{ github.event.inputs.test_type }}
-          TARGET_URL:  ${{ github.event.inputs.target_url }}
-          RUN_NUMBER:  ${{ github.run_number }}
+          TEST_TYPE:      ${{ github.event.inputs.test_type }}
+          TARGET_URL:     ${{ github.event.inputs.target_url }}
+          RUN_NUMBER:     ${{ github.run_number }}
+          VUS_INPUT:      ${{ github.event.inputs.vus }}
+          DURATION_INPUT: ${{ github.event.inputs.duration }}
 
       - name: Upload artefatos K6
         if: always()
