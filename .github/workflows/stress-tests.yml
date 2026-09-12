@@ -542,7 +542,8 @@ jobs:
                   out += f'| {t} | - | - | - | - | - | - | SKIP |\n'
 
           artifact_name = f'k6-dashboards-run-{RUN_NUMBER}'
-          out += f'\n---\n### Dashboard\n\nBaixe o artefato **`{artifact_name}`** na secao Artifacts e abra `smoke/dashboard.html` etc. no browser.\n'
+          pages_url = 'https://josehelioaraujo.github.io/comprai/'
+          out += f'\n---\n### Dashboard\n\nU0001f310 **[Abrir Dashboard no GitHub Pages]({pages_url})** \u2014 sem precisar baixar nada\n\n> Artefato **`{artifact_name}`** também disponível na seção Artifacts (retenção: 30 dias).\n'
 
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
               f.write(out)
@@ -601,3 +602,13 @@ jobs:
       - name: Deploy para GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Resumo do Deploy
+        if: success()
+        run: |
+          PAGE_URL="${{ steps.deployment.outputs.page_url }}"
+          echo "## U0001f680 Dashboard Publicado" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "U0001f310 **[Abrir Dashboard \u2014 Run #${{ github.run_number }}](${PAGE_URL})**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> URL: \`${PAGE_URL}\`" >> $GITHUB_STEP_SUMMARY

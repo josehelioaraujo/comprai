@@ -1,3 +1,11 @@
+## [3.2.1] - 2026-09-12
+
+### Added
+- **Dashboard k6 no GitHub Pages**
+  - Link `https://josehelioaraujo.github.io/comprai/` exibido automaticamente no Job Summary de "Resultado Final" e em "Publicar Dashboard no GitHub Pages"
+  - Step "Resumo do Deploy" no job `publicar-pages` imprime URL direta após cada deploy
+  - Elimina necessidade de baixar artefato ZIP para visualizar resultados
+
 ## [3.2.0] - 2026-09-12
 
 ### Added

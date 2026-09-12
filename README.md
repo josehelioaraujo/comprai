@@ -1,5 +1,6 @@
 # Comprai — Plataforma de Comércio Agêntico baseada em UCP
 
+[![GitHub Pages](https://img.shields.io/badge/Dashboard-GitHub%20Pages-brightgreen)](https://josehelioaraujo.github.io/comprai/)
 [![CI/CD](https://github.com/josehelioaraujo/comprai/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/josehelioaraujo/comprai/actions/workflows/ci-cd.yml)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=josehelioaraujo_comprai&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=josehelioaraujo_comprai)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=josehelioaraujo_comprai&metric=coverage)](https://sonarcloud.io/summary/new_code?id=josehelioaraujo_comprai)
@@ -730,6 +731,8 @@ Workflow em `.github/workflows/ci-cd.yml` com 4 jobs sequenciais:
 
 Testes automatizados com **[k6](https://k6.io/)** disparados via GitHub Actions (`.github/workflows/stress-tests.yml`).
 Cada tipo de teste roda como um **job independente**, visivel no diagrama do workflow em tempo real.
+
+> 🌐 **[Dashboard de Resultados — GitHub Pages](https://josehelioaraujo.github.io/comprai/)** — publicado automaticamente após cada run
 
 ### Pipeline de Execucao
 
