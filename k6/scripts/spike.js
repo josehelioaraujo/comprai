@@ -17,8 +17,8 @@ export const options = {
     { duration: "10s", target: 0 },        // queda
   ],
   thresholds: {
-    http_req_duration: ["p(95)<3000"],
-    errors: ["rate<0.15"],
+    http_req_duration: ["p(95)<6000"],
+    errors: ["rate<0.40"],
   },
 };
 

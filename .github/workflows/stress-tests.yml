@@ -298,6 +298,9 @@ jobs:
               summary_path = Path(f'k6/results/{t}/summary.json')
               raw_path     = Path(f'k6/results/{t}/raw.json')
               output_path  = Path(f'k6/results/{t}/dashboard.html')
+              if not summary_path.exists() and not raw_path.exists():
+                  print(f'[{t}] sem dados (job skipped/falhou), ignorando.')
+                  continue
               kpis = {}
               thresholds = []
               if summary_path.exists():
