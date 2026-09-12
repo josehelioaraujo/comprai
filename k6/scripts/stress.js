@@ -26,25 +26,29 @@ export const options = {
 };
 
 export function handleSummary(data) {
+  const dir = __ENV.RESULTS_DIR || "k6/results";
   return {
-    "k6/results/summary.json": JSON.stringify(data, null, 2),
+    [dir + "/summary.json"]: JSON.stringify(data, null, 2),
     stdout: textSummary(data, { indent: "  ", enableColors: false }),
   };
 }
 
 export default function () {
+  // Health check
   let res = http.get(`${TARGET_URL}/health/live`);
   check(res, { "health OK": (r) => r.status === 200 });
   errorRate.add(res.status !== 200 && res.status !== 429);
   rateLimited.add(res.status === 429);
   responseTime.add(res.timings.duration);
 
+  // Busca de produtos
   res = http.get(`${TARGET_URL}/api/search?q=notebook&page=1&pageSize=5`);
   check(res, { "search 2xx": (r) => r.status >= 200 && r.status < 300 });
   errorRate.add(res.status !== 200 && res.status !== 429);
   rateLimited.add(res.status === 429);
   responseTime.add(res.timings.duration);
 
+  // Cart — cria sessão por VU
   res = http.get(`${TARGET_URL}/api/cart/stress-user-${__VU}`);
   check(res, { "cart 2xx/404/429": (r) => r.status === 200 || r.status === 404 || r.status === 429 });
   errorRate.add(res.status !== 200 && res.status !== 404 && res.status !== 429);
