@@ -1,4 +1,5 @@
-name: Resultados Stress Test
+name: Stress Test - k6
+run-name: Resultado Stress Test — ${{ github.event.inputs.test_type }}
 
 on:
   workflow_dispatch:
@@ -16,15 +17,15 @@ on:
           - all
         default: smoke
       target_url:
-        description: 'URL alvo (default: VPS de produção)'
+        description: 'URL alvo (default: VPS de produÃ§Ã£o)'
         required: false
         default: 'http://2.25.122.11:5020'
       vus:
-        description: 'Número de VUs (override — deixe vazio para usar o padrão do script)'
+        description: 'NÃºmero de VUs (override â deixe vazio para usar o padrÃ£o do script)'
         required: false
         default: ''
       duration:
-        description: 'Duração (ex: 5m, 30m — override — deixe vazio para usar o padrão do script)'
+        description: 'DuraÃ§Ã£o (ex: 5m, 30m â override â deixe vazio para usar o padrÃ£o do script)'
         required: false
         default: ''
 
@@ -34,7 +35,7 @@ concurrency:
 
 jobs:
   k6-test:
-    name: Resultados Stress Test — ${{ github.event.inputs.test_type }}
+    name: Resultados Stress Test â ${{ github.event.inputs.test_type }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
 
@@ -58,10 +59,10 @@ jobs:
           sudo mv /tmp/k6-v0.53.0-linux-amd64/k6 /usr/local/bin/k6
           k6 version
 
-      - name: Criar diretórios de resultados
+      - name: Criar diretÃ³rios de resultados
         run: mkdir -p k6/results/smoke k6/results/load k6/results/stress k6/results/spike k6/results/soak
 
-      - name: "🔵 Smoke — ramp 3 VUs / 40s"
+      - name: "ðµ Smoke â ramp 3 VUs / 40s"
         id: smoke_run
         if: github.event.inputs.test_type == 'smoke' || github.event.inputs.test_type == 'all'
         continue-on-error: true
@@ -73,7 +74,7 @@ jobs:
         run: |
           k6 run --out json=k6/results/smoke/raw.json k6/scripts/smoke.js
 
-      - name: "🟢 Load — ramp 100 VUs / ~3min"
+      - name: "ð¢ Load â ramp 100 VUs / ~3min"
         id: load_run
         if: github.event.inputs.test_type == 'load' || github.event.inputs.test_type == 'all'
         continue-on-error: true
@@ -85,7 +86,7 @@ jobs:
         run: |
           k6 run --out json=k6/results/load/raw.json k6/scripts/load.js
 
-      - name: "🟡 Stress — ramp 400 VUs / ~8.5min"
+      - name: "ð¡ Stress â ramp 400 VUs / ~8.5min"
         id: stress_run
         if: github.event.inputs.test_type == 'stress' || github.event.inputs.test_type == 'all'
         continue-on-error: true
@@ -98,7 +99,7 @@ jobs:
         run: |
           k6 run --out json=k6/results/stress/raw.json k6/scripts/stress.js
 
-      - name: "🔴 Spike — 200 VUs / ~80s"
+      - name: "ð´ Spike â 200 VUs / ~80s"
         id: spike_run
         if: github.event.inputs.test_type == 'spike' || github.event.inputs.test_type == 'all'
         continue-on-error: true
@@ -110,7 +111,7 @@ jobs:
         run: |
           k6 run --out json=k6/results/spike/raw.json k6/scripts/spike.js
 
-      - name: "🟣 Soak — 50 VUs / ~4min"
+      - name: "ð£ Soak â 50 VUs / ~4min"
         id: soak_run
         if: github.event.inputs.test_type == 'soak' || github.event.inputs.test_type == 'all'
         continue-on-error: true
@@ -137,7 +138,7 @@ jobs:
 
           template_path = Path('k6/dashboard/index.html')
           if not template_path.exists():
-              print('Template não encontrado; abortando geração do dashboard.')
+              print('Template nÃ£o encontrado; abortando geraÃ§Ã£o do dashboard.')
               sys.exit(0)
 
           types_to_run = ['smoke', 'load', 'stress', 'spike', 'soak'] if TEST_TYPE == 'all' else [TEST_TYPE]
@@ -239,24 +240,24 @@ jobs:
           RUN_NUMBER = os.environ.get('RUN_NUMBER', '?')
           VUS_INPUT  = os.environ.get('VUS_INPUT', '').strip()
           DUR_INPUT  = os.environ.get('DURATION_INPUT', '').strip()
-          default_vus = {'smoke': '3', 'load': '100', 'stress': '400', 'spike': '200', 'soak': '50', 'all': 'padrão'}
-          vus_display = VUS_INPUT if VUS_INPUT else f'{default_vus.get(TEST_TYPE, "?")} (padrão)'
-          dur_display = DUR_INPUT if DUR_INPUT else 'padrão do script'
-          TYPE_LABELS = {'smoke':'🔵 Smoke','load':'🟢 Load','stress':'🟡 Stress','spike':'🔴 Spike','soak':'🟣 Soak','all':'🔵🟢🟡🔴🟣 All'}
+          default_vus = {'smoke': '3', 'load': '100', 'stress': '400', 'spike': '200', 'soak': '50', 'all': 'padrÃ£o'}
+          vus_display = VUS_INPUT if VUS_INPUT else f'{default_vus.get(TEST_TYPE, "?")} (padrÃ£o)'
+          dur_display = DUR_INPUT if DUR_INPUT else 'padrÃ£o do script'
+          TYPE_LABELS = {'smoke':'ðµ Smoke','load':'ð¢ Load','stress':'ð¡ Stress','spike':'ð´ Spike','soak':'ð£ Soak','all':'ðµð¢ð¡ð´ð£ All'}
           type_label = TYPE_LABELS.get(TEST_TYPE, TEST_TYPE.upper())
-          out = f'## 📊 Resultado Stress Test — {type_label} — Run #{RUN_NUMBER}\n\n'
-          out += '| Parâmetro | Valor |\n|-----------|-------|\n'
+          out = f'## ð Resultado Stress Test â {type_label} â Run #{RUN_NUMBER}\n\n'
+          out += '| ParÃ¢metro | Valor |\n|-----------|-------|\n'
           out += f'| Tipo | `{TEST_TYPE}` |\n'
           out += f'| URL alvo | `{TARGET_URL}` |\n'
           out += f'| VUs pico | `{vus_display}` |\n'
-          out += f'| Duração | `{dur_display}` |\n\n'
+          out += f'| DuraÃ§Ã£o | `{dur_display}` |\n\n'
           types_to_report = ['smoke', 'load', 'stress', 'spike', 'soak'] if TEST_TYPE == 'all' else [TEST_TYPE]
           if TEST_TYPE == 'all':
               out += '### Resultados por Tipo\n\n'
               out += '| Tipo | p50 (ms) | p95 (ms) | p99 (ms) | Req/s | Total | Erro % | Status |\n|------|----------|----------|----------|-------|-------|--------|--------|\n'
               for t in types_to_report:
                   sp = Path(f'k6/results/{t}/summary.json')
-                  emoji = {'smoke':'🔵','load':'🟢','stress':'🟡','spike':'🔴','soak':'🟣'}.get(t,'')
+                  emoji = {'smoke':'ðµ','load':'ð¢','stress':'ð¡','spike':'ð´','soak':'ð£'}.get(t,'')
                   if sp.exists():
                       try:
                           s=json.loads(sp.read_text())
@@ -264,10 +265,10 @@ jobs:
                           reqs=s.get('metrics',{}).get('http_reqs',{}).get('values',{})
                           errs=s.get('metrics',{}).get('http_req_failed',{}).get('values',{})
                           all_ok=all((v if isinstance(v,bool) else v.get('ok',False)) for md in s.get('metrics',{}).values() for v in md.get('thresholds',{}).values())
-                          status='✅' if all_ok else '❌'
+                          status='â' if all_ok else 'â'
                           out+=f"| {emoji} {t} | {dur.get('med',0):.1f} | {dur.get('p(95)',0):.1f} | {dur.get('p(99)',0):.1f} | {reqs.get('rate',0):.2f} | {int(reqs.get('count',0)):,} | {errs.get('rate',0)*100:.2f}% | {status} |\n"
-                      except: out+=f"| {emoji} {t} | — | — | — | — | — | — | ⚠️ |\n"
-                  else: out+=f"| {emoji} {t} | — | — | — | — | — | — | ⏭️ |\n"
+                      except: out+=f"| {emoji} {t} | â | â | â | â | â | â | â ï¸ |\n"
+                  else: out+=f"| {emoji} {t} | â | â | â | â | â | â | â­ï¸ |\n"
               out+='\n'
           else:
               sp=Path(f'k6/results/{TEST_TYPE}/summary.json')
@@ -277,18 +278,18 @@ jobs:
                       dur=s.get('metrics',{}).get('http_req_duration',{}).get('values',{})
                       reqs=s.get('metrics',{}).get('http_reqs',{}).get('values',{})
                       errs=s.get('metrics',{}).get('http_req_failed',{}).get('values',{})
-                      out+=('### Métricas\n\n| Métrica | Valor |\n|---------|-------|\n'
+                      out+=('### MÃ©tricas\n\n| MÃ©trica | Valor |\n|---------|-------|\n'
                           f'| p50 | {dur.get("med",0):.1f} ms |\n| p95 | {dur.get("p(95)",0):.1f} ms |\n| p99 | {dur.get("p(99)",0):.1f} ms |\n| avg | {dur.get("avg",0):.1f} ms |\n| Req/s | {reqs.get("rate",0):.2f} |\n| Total | {int(reqs.get("count",0)):,} |\n| Erro % | {errs.get("rate",0)*100:.2f}% |\n\n')
                       rows=[]
                       for mn,md in s.get('metrics',{}).items():
                           for cond,passed in md.get('thresholds',{}).items():
                               ok=passed if isinstance(passed,bool) else passed.get('ok',False)
-                              rows.append(f'| {mn} | `{cond}` | {"✅" if ok else "❌"} |')
-                      if rows: out+='### Thresholds\n\n| Métrica | Condição | Status |\n|---------|---------|--------|\n'+'\n'.join(rows)+'\n'
-                  except Exception as e: out+=f'> ⚠️ Falha: {e}\n'
-              else: out+='> ⚠️ `summary.json` não encontrado.\n'
-          artifact_name=f'k6-{TEST_TYPE}-run{RUN_NUMBER_'
-          out+=('\n---\n### 📊 Como ver o dashboard completo\n\n1. Role até o final — seção **Artifacts**\n2. Clique em **`'+artifact_name+'`** para baixar o zip\n3. Extraia e abra **`dashboard.html`** no browser\n\n> Os gráficos mostram latência p95/avg, VUs e Req/s ao longo do tempo.\n')
+                              rows.append(f'| {mn} | `{cond}` | {"â" if ok else "â"} |')
+                      if rows: out+='### Thresholds\n\n| MÃ©trica | CondiÃ§Ã£o | Status |\n|---------|---------|--------|\n'+'\n'.join(rows)+'\n'
+                  except Exception as e: out+=f'> â ï¸ Falha: {e}\n'
+              else: out+='> â ï¸ `summary.json` nÃ£o encontrado.\n'
+          artifact_name=f'k6-{TEST_TYPE}-run-{RUN_NUMBER}'
+          out+=('\n---\n### ð Como ver o dashboard completo\n\n1. Role atÃ© o final â seÃ§Ã£o **Artifacts**\n2. Clique em **`'+artifact_name+'`** para baixar o zip\n3. Extraia e abra **`dashboard.html`** no browser\n\n> Os grÃ¡ficos mostram latÃªncia p95/avg, VUs e Req/s ao longo do tempo.\n')
           with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f: f.write(out)
           PYEOF
         env:
@@ -302,7 +303,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: k6-${{ github.event.inputs.test_type }}-run${{ github.run_number }}
+          name: k6-${{ github.event.inputs.test_type }}-run-${{ github.run_number }}
           path: k6/results/
           retention-days: 30
 
@@ -316,5 +317,5 @@ jobs:
             steps.soak_run.outcome   == 'failure'
           )
         run: |
-          echo "::error::K6 falhou — algum threshold foi violado ou o teste terminou com erro."
+          echo "::error::K6 falhou â algum threshold foi violado ou o teste terminou com erro."
           exit 1
