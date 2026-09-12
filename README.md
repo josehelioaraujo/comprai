@@ -723,6 +723,72 @@ Workflow em `.github/workflows/ci-cd.yml` com 4 jobs sequenciais:
 
 ---
 
+## 🔥 Stress Tests / Testes de Carga
+
+<details>
+<summary>Ver detalhes dos testes de carga</summary>
+
+Testes automatizados com **[k6](https://k6.io/)** disparados via GitHub Actions (`.github/workflows/stress-tests.yml`).
+Cada tipo de teste roda como um **job independente**, visivel no diagrama do workflow em tempo real.
+
+### Pipeline de Execucao
+
+```mermaid
+flowchart LR
+    A["Smoke\n3 VUs / 40s\nSanidade basica"]
+    B["Load\n100 VUs / ~3min\nCarga normal"]
+    C["Stress\n400 VUs / ~8.5min\nLimite da API"]
+    D["Spike\n200 VUs / ~80s\nPico repentino"]
+    E["Soak\n50 VUs / ~4min\nDegradacao continua"]
+    F["Resultado Final\nJob Summary + Dashboard"]
+
+    A --> B --> C --> D --> E --> F
+```
+
+### Cenarios
+
+| Teste | VUs pico | Stages | p(95) max | Erro max | Objetivo |
+|-------|----------|--------|-----------|----------|----------|
+| **Smoke** | 3 | ramp 10s + hold 20s + down 10s | 1.500ms | 5% | Sanidade basica - API esta viva e respondendo |
+| **Load** | 100 | ramp gradual 25%/50%/100% em ~3min | 800ms | 5% | Comportamento sob carga normal de producao |
+| **Stress** | 400 | ramp em 4 etapas ao longo de ~8.5min | 2.000ms | 10% | Encontrar o ponto de ruptura da API |
+| **Spike** | 200 | spike abrupto 10s + hold 1min + queda 10s | 3.000ms | 15% | Resiliencia a picos repentinos de trafego |
+| **Soak** | 50 | ramp 30s + hold 3min + down 30s | 1.000ms | 5% | Detectar memory leaks e degradacao continua |
+
+### Rotas Testadas
+
+| Metodo | Rota | Descricao |
+|--------|------|-----------|
+| `GET` | `/health/live` | Health check da API |
+| `GET` | `/api/search?q=notebook&page=1&pageSize=5` | Busca de produtos (Search - fluxo UCP) |
+| `GET` | `/api/cart/{tipo}-user-{VU}` | Leitura de sessao de carrinho por usuario virtual |
+
+> **Cobertura em evolucao** - os scripts atuais cobrem o inicio do fluxo UCP (Search + Cart GET).
+> As proximas versoes irao cobrir o fluxo completo: `POST /api/cart` -> `POST /api/checkout` -> `POST /api/payment/{orderId}` -> `GET /api/order/{orderId}`.
+
+### Como Executar
+
+1. Acesse **Actions -> Stress Test - k6 -> Run workflow**
+2. Escolha o tipo de teste: `smoke` | `load` | `stress` | `spike` | `soak` | `all`
+3. Opcionalmente informe a URL alvo, VUs e duracao customizados
+
+```
+Inputs disponiveis:
+  test_type   -> smoke | load | stress | spike | soak | all (padrao: smoke)
+  target_url  -> URL da API (padrao: http://2.25.122.11:5020)
+  vus         -> Override de VUs (vazio = padrao do script)
+  duration    -> Override de duracao (vazio = padrao do script)
+```
+
+### Como Ver os Resultados
+
+- **Job Summary** - tabela com p50/p95/p99/RPS/erros de cada tipo de teste, gerada automaticamente apos cada run
+- **Artefatos** - baixe `k6-dashboards-run-{N}` na aba Artifacts e abra `smoke/dashboard.html` no browser
+- Cada sub-pasta contem: `raw.json` (timeseries), `summary.json` (KPIs/thresholds) e `dashboard.html` (graficos interativos com Chart.js)
+- Resultado do Run #11 (all): Smoke 47s | Load 3m 8s | Stress 8m 54s | Spike 1m 31s | Soak 4m 12s | Total 20m 3s
+
+</details>
+
 ## 🗺️ Roadmap
 
 <details>

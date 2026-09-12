@@ -1,3 +1,17 @@
+## [3.2.0] - 2026-09-12
+
+### Added
+- **Stress Tests / Testes de Carga com k6**
+  - Workflow `.github/workflows/stress-tests.yml` refatorado para arquitetura **multi-job**
+  - 6 jobs independentes exibidos como boxes no diagrama superior do GitHub Actions: Smoke, Load, Stress, Spike, Soak e Resultado Final
+  - Sequencia com `needs` inteligente: executa em cadeia no modo `all` e de forma isolada em modo unico
+  - Scripts k6 em `k6/scripts/`: smoke.js (3 VUs/40s), load.js (100 VUs/~3min), stress.js (400 VUs/~8.5min), spike.js (200 VUs/~80s), soak.js (50 VUs/~4min)
+  - Metricas coletadas: p50, p95, p99, RPS, total de requests, error rate, rate_limited (429)
+  - Job Summary com tabela de resultados publicada automaticamente apos cada run
+  - Dashboard HTML interativo gerado em Python a partir de `raw.json` + `summary.json` com graficos Chart.js (latencia p95/avg, VUs, RPS ao longo do tempo)
+  - Artefatos por tipo de teste: `k6-{tipo}-run-{N}` com retencao de 30 dias; artefato consolidado `k6-dashboards-run-{N}`
+  - Run #11 (all): 100% verde em 20m 3s - Smoke 47s | Load 3m 8s | Stress 8m 54s | Spike 1m 31s | Soak 4m 12s
+
 ## [3.1.0] - 2026-09-10
 
 ### Added
