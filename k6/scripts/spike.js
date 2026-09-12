@@ -20,6 +20,7 @@ export const options = {
     http_req_duration: ["p(95)<6000"],
     errors: ["rate<0.40"],
   },
+  summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)'],
 };
 
 export function handleSummary(data) {
