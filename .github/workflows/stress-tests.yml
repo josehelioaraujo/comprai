@@ -52,6 +52,7 @@ jobs:
         run: |
           mkdir -p k6/results
           k6 run --out json=k6/results/raw.json k6/scripts/smoke.js
+          gzip -9 k6/results/raw.json
         env:
           TARGET_URL:   ${{ inputs.target_url }}
           VUS_OVERRIDE: ${{ inputs.vus }}
@@ -90,6 +91,7 @@ jobs:
         run: |
           mkdir -p k6/results
           k6 run --out json=k6/results/raw.json k6/scripts/load.js
+          gzip -9 k6/results/raw.json
         env:
           TARGET_URL:   ${{ inputs.target_url }}
           VUS_OVERRIDE: ${{ inputs.vus }}
@@ -128,6 +130,7 @@ jobs:
         run: |
           mkdir -p k6/results
           k6 run --out json=k6/results/raw.json k6/scripts/stress.js
+          gzip -9 k6/results/raw.json
         env:
           TARGET_URL:   ${{ inputs.target_url }}
           VUS_OVERRIDE: ${{ inputs.vus }}
@@ -167,6 +170,7 @@ jobs:
         run: |
           mkdir -p k6/results
           k6 run --out json=k6/results/raw.json k6/scripts/spike.js
+          gzip -9 k6/results/raw.json
         env:
           TARGET_URL:   ${{ inputs.target_url }}
           VUS_OVERRIDE: ${{ inputs.vus }}
@@ -205,6 +209,7 @@ jobs:
         run: |
           mkdir -p k6/results
           k6 run --out json=k6/results/raw.json k6/scripts/soak.js
+          gzip -9 k6/results/raw.json
         env:
           TARGET_URL:   ${{ inputs.target_url }}
           VUS_OVERRIDE: ${{ inputs.vus }}
@@ -260,6 +265,14 @@ jobs:
         with:
           name: k6-soak-run-${{ github.run_number }}
           path: k6/results/soak/
+      - name: Descompactar raw data
+        if: always()
+        run: |
+          for f in k6/results/*/raw.json.gz; do
+            [ -f "$f" ] && gunzip "$f" || true
+          done
+
+
 
       - name: Gerar dashboard HTML
         if: always()
