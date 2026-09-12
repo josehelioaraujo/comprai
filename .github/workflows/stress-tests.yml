@@ -453,5 +453,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: k6-dashboards-run-${{ github.run_number }}
-          path: k6/results/
+          path: |
+            k6/results/*/dashboard.html
+            k6/results/*/summary.json
           retention-days: 30
