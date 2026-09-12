@@ -8,24 +8,18 @@ on:
         description: 'Tipo de teste'
         required: true
         type: choice
-        options:
-          - smoke
-          - load
-          - stress
-          - spike
-          - soak
-          - all
+        options: [smoke, load, stress, spike, soak, all]
         default: smoke
       target_url:
-        description: 'URL alvo (default: VPS de produção)'
+        description: 'URL alvo (default: VPS producao)'
         required: false
         default: 'http://2.25.122.11:5020'
       vus:
-        description: 'Número de VUs (override — deixe vazio para usar o padrão do script)'
+        description: 'VUs override (vazio = padrao do script)'
         required: false
         default: ''
       duration:
-        description: 'Duração (ex: 5m, 30m — override — deixe vazio para usar o padrão do script)'
+        description: 'Duracao override (vazio = padrao do script)'
         required: false
         default: ''
 
@@ -34,94 +28,238 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  k6-test:
-    name: Resultados Stress Test — ${{ github.event.inputs.test_type }}
+
+  # -- 1. SMOKE -----------------------------------------------------------------
+  smoke:
+    name: "Smoke - 3 VUs / 40s"
     runs-on: ubuntu-latest
-    timeout-minutes: 120
-
+    timeout-minutes: 10
+    if: inputs.test_type == 'smoke' || inputs.test_type == 'all'
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Cache K6
-        id: cache-k6
+      - uses: actions/checkout@v4
+      - id: cache-k6
         uses: actions/cache@v4
         with:
           path: /usr/local/bin/k6
           key: k6-v0.53.0-linux-amd64
-
-      - name: Instalar K6
+      - name: Install K6
         if: steps.cache-k6.outputs.cache-hit != 'true'
         run: |
-          wget -q https://github.com/grafana/k6/releases/download/v0.53.0/k6-v0.53.0-linux-amd64.tar.gz \
-            -O /tmp/k6.tar.gz
+          wget -q https://github.com/grafana/k6/releases/download/v0.53.0/k6-v0.53.0-linux-amd64.tar.gz -O /tmp/k6.tar.gz
           tar -xzf /tmp/k6.tar.gz -C /tmp
           sudo mv /tmp/k6-v0.53.0-linux-amd64/k6 /usr/local/bin/k6
-          k6 version
-
-      - name: Criar diretórios de resultados
-        run: mkdir -p k6/results/smoke k6/results/load k6/results/stress k6/results/spike k6/results/soak
-
-      - name: "🔵 Smoke — ramp 3 VUs / 40s"
-        id: smoke_run
-        if: github.event.inputs.test_type == 'smoke' || github.event.inputs.test_type == 'all'
-        continue-on-error: true
-        env:
-          TARGET_URL:        ${{ github.event.inputs.target_url }}
-          VUS_OVERRIDE:      ${{ github.event.inputs.vus }}
-          DURATION_OVERRIDE: ${{ github.event.inputs.duration }}
-          RESULTS_DIR:       k6/results/smoke
+      - name: Run Smoke
         run: |
-          k6 run --out json=k6/results/smoke/raw.json k6/scripts/smoke.js
-
-      - name: "🟢 Load — ramp 100 VUs / ~3min"
-        id: load_run
-        if: github.event.inputs.test_type == 'load' || github.event.inputs.test_type == 'all'
-        continue-on-error: true
+          mkdir -p k6/results
+          k6 run --out json=k6/results/raw.json k6/scripts/smoke.js
         env:
-          TARGET_URL:        ${{ github.event.inputs.target_url }}
-          VUS_OVERRIDE:      ${{ github.event.inputs.vus }}
-          DURATION_OVERRIDE: ${{ github.event.inputs.duration }}
-          RESULTS_DIR:       k6/results/load
-        run: |
-          k6 run --out json=k6/results/load/raw.json k6/scripts/load.js
+          TARGET_URL:   ${{ inputs.target_url }}
+          VUS_OVERRIDE: ${{ inputs.vus }}
+          RESULTS_DIR:  k6/results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k6-smoke-run-${{ github.run_number }}
+          path: k6/results/
+          retention-days: 30
 
-      - name: "🟡 Stress — ramp 400 VUs / ~8.5min"
-        id: stress_run
-        if: github.event.inputs.test_type == 'stress' || github.event.inputs.test_type == 'all'
-        continue-on-error: true
-        env:
-          TARGET_URL:        ${{ github.event.inputs.target_url }}
-          VUS_OVERRIDE:      ${{ github.event.inputs.vus }}
-          PEAK_VUS:          ${{ github.event.inputs.vus }}
-          DURATION_OVERRIDE: ${{ github.event.inputs.duration }}
-          RESULTS_DIR:       k6/results/stress
+  # -- 2. LOAD ------------------------------------------------------------------
+  load:
+    name: "Load - 100 VUs / ~3min"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [smoke]
+    if: |
+      always() && !cancelled() &&
+      (inputs.test_type == 'load' || inputs.test_type == 'all') &&
+      (needs.smoke.result == 'success' || inputs.test_type != 'all')
+    steps:
+      - uses: actions/checkout@v4
+      - id: cache-k6
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/k6
+          key: k6-v0.53.0-linux-amd64
+      - name: Install K6
+        if: steps.cache-k6.outputs.cache-hit != 'true'
         run: |
-          k6 run --out json=k6/results/stress/raw.json k6/scripts/stress.js
+          wget -q https://github.com/grafana/k6/releases/download/v0.53.0/k6-v0.53.0-linux-amd64.tar.gz -O /tmp/k6.tar.gz
+          tar -xzf /tmp/k6.tar.gz -C /tmp
+          sudo mv /tmp/k6-v0.53.0-linux-amd64/k6 /usr/local/bin/k6
+      - name: Run Load
+        run: |
+          mkdir -p k6/results
+          k6 run --out json=k6/results/raw.json k6/scripts/load.js
+        env:
+          TARGET_URL:   ${{ inputs.target_url }}
+          VUS_OVERRIDE: ${{ inputs.vus }}
+          RESULTS_DIR:  k6/results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k6-load-run-${{ github.run_number }}
+          path: k6/results/
+          retention-days: 30
 
-      - name: "🔴 Spike — 200 VUs / ~80s"
-        id: spike_run
-        if: github.event.inputs.test_type == 'spike' || github.event.inputs.test_type == 'all'
-        continue-on-error: true
-        env:
-          TARGET_URL:        ${{ github.event.inputs.target_url }}
-          VUS_OVERRIDE:      ${{ github.event.inputs.vus }}
-          DURATION_OVERRIDE: ${{ github.event.inputs.duration }}
-          RESULTS_DIR:       k6/results/spike
+  # -- 3. STRESS ----------------------------------------------------------------
+  stress:
+    name: "Stress - 400 VUs / ~8.5min"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [load]
+    if: |
+      always() && !cancelled() &&
+      (inputs.test_type == 'stress' || inputs.test_type == 'all') &&
+      (needs.load.result == 'success' || inputs.test_type != 'all')
+    steps:
+      - uses: actions/checkout@v4
+      - id: cache-k6
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/k6
+          key: k6-v0.53.0-linux-amd64
+      - name: Install K6
+        if: steps.cache-k6.outputs.cache-hit != 'true'
         run: |
-          k6 run --out json=k6/results/spike/raw.json k6/scripts/spike.js
+          wget -q https://github.com/grafana/k6/releases/download/v0.53.0/k6-v0.53.0-linux-amd64.tar.gz -O /tmp/k6.tar.gz
+          tar -xzf /tmp/k6.tar.gz -C /tmp
+          sudo mv /tmp/k6-v0.53.0-linux-amd64/k6 /usr/local/bin/k6
+      - name: Run Stress
+        run: |
+          mkdir -p k6/results
+          k6 run --out json=k6/results/raw.json k6/scripts/stress.js
+        env:
+          TARGET_URL:   ${{ inputs.target_url }}
+          VUS_OVERRIDE: ${{ inputs.vus }}
+          PEAK_VUS:     ${{ inputs.vus }}
+          RESULTS_DIR:  k6/results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k6-stress-run-${{ github.run_number }}
+          path: k6/results/
+          retention-days: 30
 
-      - name: "🟣 Soak — 50 VUs / ~4min"
-        id: soak_run
-        if: github.event.inputs.test_type == 'soak' || github.event.inputs.test_type == 'all'
-        continue-on-error: true
-        env:
-          TARGET_URL:        ${{ github.event.inputs.target_url }}
-          VUS_OVERRIDE:      ${{ github.event.inputs.vus }}
-          DURATION_OVERRIDE: ${{ github.event.inputs.duration }}
-          RESULTS_DIR:       k6/results/soak
+  # -- 4. SPIKE -----------------------------------------------------------------
+  spike:
+    name: "Spike - 200 VUs / ~80s"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [stress]
+    if: |
+      always() && !cancelled() &&
+      (inputs.test_type == 'spike' || inputs.test_type == 'all') &&
+      (needs.stress.result == 'success' || inputs.test_type != 'all')
+    steps:
+      - uses: actions/checkout@v4
+      - id: cache-k6
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/k6
+          key: k6-v0.53.0-linux-amd64
+      - name: Install K6
+        if: steps.cache-k6.outputs.cache-hit != 'true'
         run: |
-          k6 run --out json=k6/results/soak/raw.json k6/scripts/soak.js
+          wget -q https://github.com/grafana/k6/releases/download/v0.53.0/k6-v0.53.0-linux-amd64.tar.gz -O /tmp/k6.tar.gz
+          tar -xzf /tmp/k6.tar.gz -C /tmp
+          sudo mv /tmp/k6-v0.53.0-linux-amd64/k6 /usr/local/bin/k6
+      - name: Run Spike
+        run: |
+          mkdir -p k6/results
+          k6 run --out json=k6/results/raw.json k6/scripts/spike.js
+        env:
+          TARGET_URL:   ${{ inputs.target_url }}
+          VUS_OVERRIDE: ${{ inputs.vus }}
+          RESULTS_DIR:  k6/results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k6-spike-run-${{ github.run_number }}
+          path: k6/results/
+          retention-days: 30
+
+  # -- 5. SOAK ------------------------------------------------------------------
+  soak:
+    name: "Soak - 50 VUs / ~4min"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [spike]
+    if: |
+      always() && !cancelled() &&
+      (inputs.test_type == 'soak' || inputs.test_type == 'all') &&
+      (needs.spike.result == 'success' || inputs.test_type != 'all')
+    steps:
+      - uses: actions/checkout@v4
+      - id: cache-k6
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/k6
+          key: k6-v0.53.0-linux-amd64
+      - name: Install K6
+        if: steps.cache-k6.outputs.cache-hit != 'true'
+        run: |
+          wget -q https://github.com/grafana/k6/releases/download/v0.53.0/k6-v0.53.0-linux-amd64.tar.gz -O /tmp/k6.tar.gz
+          tar -xzf /tmp/k6.tar.gz -C /tmp
+          sudo mv /tmp/k6-v0.53.0-linux-amd64/k6 /usr/local/bin/k6
+      - name: Run Soak
+        run: |
+          mkdir -p k6/results
+          k6 run --out json=k6/results/raw.json k6/scripts/soak.js
+        env:
+          TARGET_URL:   ${{ inputs.target_url }}
+          VUS_OVERRIDE: ${{ inputs.vus }}
+          RESULTS_DIR:  k6/results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k6-soak-run-${{ github.run_number }}
+          path: k6/results/
+          retention-days: 30
+
+  # -- 6. RESULTADO FINAL -------------------------------------------------------
+  summary:
+    name: "Resultado Final"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [smoke, load, stress, spike, soak]
+    if: always() && !cancelled()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Smoke
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: k6-smoke-run-${{ github.run_number }}
+          path: k6/results/smoke/
+
+      - name: Download Load
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: k6-load-run-${{ github.run_number }}
+          path: k6/results/load/
+
+      - name: Download Stress
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: k6-stress-run-${{ github.run_number }}
+          path: k6/results/stress/
+
+      - name: Download Spike
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: k6-spike-run-${{ github.run_number }}
+          path: k6/results/spike/
+
+      - name: Download Soak
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: k6-soak-run-${{ github.run_number }}
+          path: k6/results/soak/
 
       - name: Gerar dashboard HTML
         if: always()
@@ -134,11 +272,11 @@ jobs:
           TEST_TYPE  = os.environ.get('TEST_TYPE', '')
           TARGET_URL = os.environ.get('TARGET_URL', '')
           RUN_NUMBER = os.environ.get('RUN_NUMBER', '')
-          RUN_DATE  = os.environ.get('RUN_DATE', '')
+          RUN_DATE   = os.environ.get('RUN_DATE', '')
 
           template_path = Path('k6/dashboard/index.html')
           if not template_path.exists():
-              print('Template não encontrado; abortando geração do dashboard.')
+              print('Template nao encontrado; abortando geracao do dashboard.')
               sys.exit(0)
 
           types_to_run = ['smoke', 'load', 'stress', 'spike', 'soak'] if TEST_TYPE == 'all' else [TEST_TYPE]
@@ -154,15 +292,15 @@ jobs:
                       s = json.loads(summary_path.read_text())
                       dur  = s.get('metrics', {}).get('http_req_duration', {})
                       vals = dur.get('values', {})
-                      kpis['p50']            = round(vals.get('med',   0), 2)
-                      kpis['p95']            = round(vals.get('p(95)', 0), 2)
-                      kpis['p99']            = round(vals.get('p(99)', 0), 2)
-                      kpis['avg']            = round(vals.get('avg',   0), 2)
+                      kpis['p50'] = round(vals.get('med', 0), 2)
+                      kpis['p95'] = round(vals.get('p(95)', 0), 2)
+                      kpis['p99'] = round(vals.get('p(99)', 0), 2)
+                      kpis['avg'] = round(vals.get('avg', 0), 2)
                       reqs = s.get('metrics', {}).get('http_reqs', {}).get('values', {})
-                      kpis['rps']            = round(reqs.get('rate', 0), 2)
+                      kpis['rps'] = round(reqs.get('rate', 0), 2)
                       kpis['total_requests'] = int(reqs.get('count', 0))
                       errs = s.get('metrics', {}).get('http_req_failed', {}).get('values', {})
-                      kpis['error_rate']     = round(errs.get('rate', 0), 4)
+                      kpis['error_rate'] = round(errs.get('rate', 0), 4)
                       for metric_name, metric_data in s.get('metrics', {}).items():
                           for cond, passed in metric_data.get('thresholds', {}).items():
                               actual = None
@@ -178,6 +316,7 @@ jobs:
                               thresholds.append({'metric': metric_name, 'condition': cond, 'actual': actual, 'passed': ok})
                   except Exception as e:
                       print(f'Aviso [{t}]: falha ao processar summary.json: {e}')
+
               ts_rt  = defaultdict(list)
               ts_vus = {}
               ts_rps = defaultdict(int)
@@ -186,46 +325,65 @@ jobs:
                       with raw_path.open() as f:
                           for line in f:
                               line = line.strip()
-                              if not line: continue
-                              try: obj = json.loads(line)
-                              except json.JSONDecodeError: continue
-                              if obj.get('type') != 'Point': continue
+                              if not line:
+                                  continue
+                              try:
+                                  obj = json.loads(line)
+                              except json.JSONDecodeError:
+                                  continue
+                              if obj.get('type') != 'Point':
+                                  continue
                               data   = obj.get('data', {})
                               metric = obj.get('metric', '')
                               t_str  = data.get('time', '')
                               val    = data.get('value')
-                              if not t_str or val is None: continue
+                              if not t_str or val is None:
+                                  continue
                               try:
-                                  from datetime import datetime, timezone
+                                  from datetime import datetime
                                   dt = datetime.fromisoformat(t_str.replace('Z', '+00:00'))
                                   ts_key = int(dt.timestamp())
-                              except Exception: continue
-                              if metric == 'http_req_duration': ts_rt[ts_key].append(val)
-                              elif metric == 'vus': ts_vus[ts_key] = val
-                              elif metric == 'http_reqs': ts_rps[ts_key] += 1
+                              except Exception:
+                                  continue
+                              if metric == 'http_req_duration':
+                                  ts_rt[ts_key].append(val)
+                              elif metric == 'vus':
+                                  ts_vus[ts_key] = val
+                              elif metric == 'http_reqs':
+                                  ts_rps[ts_key] += 1
                   except Exception as e:
                       print(f'Aviso [{t}]: falha ao processar raw.json: {e}')
+
               all_keys = sorted(set(list(ts_rt.keys()) + list(ts_vus.keys()) + list(ts_rps.keys())))
-              if len(all_keys) > 300:
-                  step = len(all_keys) // 300; all_keys = all_keys[::step]
+              MAX_POINTS = 300
+              if len(all_keys) > MAX_POINTS:
+                  step = len(all_keys) // MAX_POINTS
+                  all_keys = all_keys[::step]
               if all_keys:
                   t0 = all_keys[0]
                   labels     = [str(k - t0) + 's' for k in all_keys]
                   p95_series = [round(sorted(ts_rt.get(k,[0]))[int(len(ts_rt.get(k,[0]))*0.95)] if ts_rt.get(k) else 0,2) for k in all_keys]
                   avg_series = [round(sum(ts_rt.get(k,[0]))/max(len(ts_rt.get(k,[0])),1),2) for k in all_keys]
-                  vus_series = [ts_vus.get(k,0) for k in all_keys]
-                  rps_series = [ts_rps.get(k,0) for k in all_keys]
+                  vus_series = [ts_vus.get(k, 0) for k in all_keys]
+                  rps_series = [ts_rps.get(k, 0) for k in all_keys]
               else:
-                  labels = []; p95_series = avg_series = vus_series = rps_series = []
-              dashboard_data = {'meta': {'test_type': t, 'target_url': TARGET_URL, 'run_number': RUN_NUMBER, 'run_date': RUN_DATE},'kpis': kpis,'thresholds': thresholds,'timeseries': {'labels': labels,'p95': p95_series,'avg': avg_series,'vus': vus_series,'rps': rps_series}}
+                  labels = []
+                  p95_series = avg_series = vus_series = rps_series = []
+
+              dashboard_data = {
+                  'meta': {'test_type': t, 'target_url': TARGET_URL, 'run_number': RUN_NUMBER, 'run_date': RUN_DATE},
+                  'kpis': kpis,
+                  'thresholds': thresholds,
+                  'timeseries': {'labels': labels, 'p95': p95_series, 'avg': avg_series, 'vus': vus_series, 'rps': rps_series},
+              }
               template = template_path.read_text(encoding='utf-8')
               result   = template.replace('__DASHBOARD_DATA__', json.dumps(dashboard_data, ensure_ascii=False))
               output_path.write_text(result, encoding='utf-8')
               print(f'Dashboard [{t}] gerado em {output_path}')
           PYEOF
         env:
-          TEST_TYPE:  ${{ github.event.inputs.test_type }}
-          TARGET_URL: ${{ github.event.inputs.target_url }}
+          TEST_TYPE:  ${{ inputs.test_type }}
+          TARGET_URL: ${{ inputs.target_url }}
           RUN_NUMBER: ${{ github.run_number }}
           RUN_DATE:   ${{ github.event.repository.updated_at || 'N/A' }}
 
@@ -235,87 +393,65 @@ jobs:
           python3 - <<'PYEOF'
           import json, os
           from pathlib import Path
+
           TEST_TYPE  = os.environ.get('TEST_TYPE', '?')
           TARGET_URL = os.environ.get('TARGET_URL', '?')
           RUN_NUMBER = os.environ.get('RUN_NUMBER', '?')
           VUS_INPUT  = os.environ.get('VUS_INPUT', '').strip()
           DUR_INPUT  = os.environ.get('DURATION_INPUT', '').strip()
-          default_vus = {'smoke': '3', 'load': '100', 'stress': '400', 'spike': '200', 'soak': '50', 'all': 'padrão'}
-          vus_display = VUS_INPUT if VUS_INPUT else f'{default_vus.get(TEST_TYPE, "?")} (padrão)'
-          dur_display = DUR_INPUT if DUR_INPUT else 'padrão do script'
-          TYPE_LABELS = {'smoke':'🔵 Smoke','load':'🟢 Load','stress':'🟡 Stress','spike':'🔴 Spike','soak':'🟣 Soak','all':'🔵🟢🟡🔴🟣 All'}
-          type_label = TYPE_LABELS.get(TEST_TYPE, TEST_TYPE.upper())
-          out = f'## 📊 Resultado Stress Test — {type_label} — Run #{RUN_NUMBER}\n\n'
-          out += '| Parâmetro | Valor |\n|-----------|-------|\n'
+
+          default_vus = {'smoke':'3','load':'100','stress':'400','spike':'200','soak':'50','all':'padrao'}
+          vus_display = VUS_INPUT if VUS_INPUT else default_vus.get(TEST_TYPE, '?') + ' (padrao)'
+          dur_display = DUR_INPUT if DUR_INPUT else 'padrao do script'
+
+          out = f'## Resultado Stress Test - {TEST_TYPE.upper()} - Run #{RUN_NUMBER}\n\n'
+          out += '| Parametro | Valor |\n|-----------|-------|\n'
           out += f'| Tipo | `{TEST_TYPE}` |\n'
           out += f'| URL alvo | `{TARGET_URL}` |\n'
           out += f'| VUs pico | `{vus_display}` |\n'
-          out += f'| Duração | `{dur_display}` |\n\n'
-          types_to_report = ['smoke', 'load', 'stress', 'spike', 'soak'] if TEST_TYPE == 'all' else [TEST_TYPE]
-          if TEST_TYPE == 'all':
-              out += '### Resultados por Tipo\n\n'
-              out += '| Tipo | p50 (ms) | p95 (ms) | p99 (ms) | Req/s | Total | Erro % | Status |\n|------|----------|----------|----------|-------|-------|--------|--------|\n'
-              for t in types_to_report:
-                  sp = Path(f'k6/results/{t}/summary.json')
-                  emoji = {'smoke':'🔵','load':'🟢','stress':'🟡','spike':'🔴','soak':'🟣'}.get(t,'')
-                  if sp.exists():
-                      try:
-                          s=json.loads(sp.read_text())
-                          dur=s.get('metrics',{}).get('http_req_duration',{}).get('values',{})
-                          reqs=s.get('metrics',{}).get('http_reqs',{}).get('values',{})
-                          errs=s.get('metrics',{}).get('http_req_failed',{}).get('values',{})
-                          all_ok=all((v if isinstance(v,bool) else v.get('ok',False)) for md in s.get('metrics',{}).values() for v in md.get('thresholds',{}).values())
-                          status='✅' if all_ok else '❌'
-                          out+=f"| {emoji} {t} | {dur.get('med',0):.1f} | {dur.get('p(95)',0):.1f} | {dur.get('p(99)',0):.1f} | {reqs.get('rate',0):.2f} | {int(reqs.get('count',0)):,} | {errs.get('rate',0)*100:.2f}% | {status} |\n"
-                      except: out+=f"| {emoji} {t} | — | — | — | — | — | — | ⚠️ |\n"
-                  else: out+=f"| {emoji} {t} | — | — | — | — | — | — | ⏭️ |\n"
-              out+='\n'
-          else:
-              sp=Path(f'k6/results/{TEST_TYPE}/summary.json')
+          out += f'| Duracao | `{dur_display}` |\n\n'
+
+          types_to_report = ['smoke','load','stress','spike','soak'] if TEST_TYPE == 'all' else [TEST_TYPE]
+
+          out += '### Resultados\n\n'
+          out += '| Tipo | p50 ms | p95 ms | p99 ms | Req/s | Total | Erro % | Status |\n'
+          out += '|------|--------|--------|--------|-------|-------|--------|--------|\n'
+          for t in types_to_report:
+              sp = Path(f'k6/results/{t}/summary.json')
               if sp.exists():
                   try:
-                      s=json.loads(sp.read_text())
-                      dur=s.get('metrics',{}).get('http_req_duration',{}).get('values',{})
-                      reqs=s.get('metrics',{}).get('http_reqs',{}).get('values',{})
-                      errs=s.get('metrics',{}).get('http_req_failed',{}).get('values',{})
-                      out+=('### Métricas\n\n| Métrica | Valor |\n|---------|-------|\n'
-                          f'| p50 | {dur.get("med",0):.1f} ms |\n| p95 | {dur.get("p(95)",0):.1f} ms |\n| p99 | {dur.get("p(99)",0):.1f} ms |\n| avg | {dur.get("avg",0):.1f} ms |\n| Req/s | {reqs.get("rate",0):.2f} |\n| Total | {int(reqs.get("count",0)):,} |\n| Erro % | {errs.get("rate",0)*100:.2f}% |\n\n')
-                      rows=[]
-                      for mn,md in s.get('metrics',{}).items():
-                          for cond,passed in md.get('thresholds',{}).items():
-                              ok=passed if isinstance(passed,bool) else passed.get('ok',False)
-                              rows.append(f'| {mn} | `{cond}` | {"✅" if ok else "❌"} |')
-                      if rows: out+='### Thresholds\n\n| Métrica | Condição | Status |\n|---------|---------|--------|\n'+'\n'.join(rows)+'\n'
-                  except Exception as e: out+=f'> ⚠️ Falha: {e}\n'
-              else: out+='> ⚠️ `summary.json` não encontrado.\n'
-          artifact_name=f'k6-{TEST_TYPE}-run-{RUN_NUMBER}'
-          out+=('\n---\n### 📊 Como ver o dashboard completo\n\n1. Role até o final — seção **Artifacts**\n2. Clique em **`'+artifact_name+'`** para baixar o zip\n3. Extraia e abra **`dashboard.html`** no browser\n\n> Os gráficos mostram latência p95/avg, VUs e Req/s ao longo do tempo.\n')
-          with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f: f.write(out)
+                      s    = json.loads(sp.read_text())
+                      dur  = s.get('metrics',{}).get('http_req_duration',{}).get('values',{})
+                      reqs = s.get('metrics',{}).get('http_reqs',{}).get('values',{})
+                      errs = s.get('metrics',{}).get('http_req_failed',{}).get('values',{})
+                      all_ok = all(
+                          (v if isinstance(v, bool) else v.get('ok', False))
+                          for md in s.get('metrics',{}).values()
+                          for v in md.get('thresholds',{}).values()
+                      )
+                      out += f'| {t} | {dur.get("med",0):.1f} | {dur.get("p(95)",0):.1f} | {dur.get("p(99)",0):.1f} | {reqs.get("rate",0):.2f} | {int(reqs.get("count",0)):,} | {errs.get("rate",0)*100:.2f}% | {"OK" if all_ok else "FAIL"} |\n'
+                  except Exception as e:
+                      out += f'| {t} | - | - | - | - | - | - | ERR |\n'
+              else:
+                  out += f'| {t} | - | - | - | - | - | - | SKIP |\n'
+
+          artifact_name = f'k6-dashboards-run-{RUN_NUMBER}'
+          out += f'\n---\n### Dashboard\n\nBaixe o artefato **`{artifact_name}`** na secao Artifacts e abra `smoke/dashboard.html` etc. no browser.\n'
+
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
+              f.write(out)
           PYEOF
         env:
-          TEST_TYPE:      ${{ github.event.inputs.test_type }}
-          TARGET_URL:     ${{ github.event.inputs.target_url }}
+          TEST_TYPE:      ${{ inputs.test_type }}
+          TARGET_URL:     ${{ inputs.target_url }}
           RUN_NUMBER:     ${{ github.run_number }}
-          VUS_INPUT:      ${{ github.event.inputs.vus }}
-          DURATION_INPUT: ${{ github.event.inputs.duration }}
+          VUS_INPUT:      ${{ inputs.vus }}
+          DURATION_INPUT: ${{ inputs.duration }}
 
-      - name: Upload artefatos K6
+      - name: Upload dashboards
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: k6-${{ github.event.inputs.test_type }}-run-${{ github.run_number }}
+          name: k6-dashboards-run-${{ github.run_number }}
           path: k6/results/
           retention-days: 30
-
-      - name: Falhar se K6 reprovou
-        if: |
-          always() && (
-            steps.smoke_run.outcome  == 'failure' ||
-            steps.load_run.outcome   == 'failure' ||
-            steps.stress_run.outcome == 'failure' ||
-            steps.spike_run.outcome  == 'failure' ||
-            steps.soak_run.outcome   == 'failure'
-          )
-        run: |
-          echo "::error::K6 falhou — algum threshold foi violado ou o teste terminou com erro."
-          exit 1
