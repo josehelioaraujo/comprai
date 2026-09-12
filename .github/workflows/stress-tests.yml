@@ -1,4 +1,4 @@
-name: Stress Test - K6
+name: Stress Test - k6
 run-name: Resultado Stress Test - ${{ inputs.test_type }}
 
 on:
@@ -567,7 +567,7 @@ jobs:
   # -- 6. PUBLICAR GITHUB PAGES -------------------------------------------------
   publicar-pages:
     name: "Publicar Dashboard no GitHub Pages"
-    needs: [resultado-final]
+    needs: [summary]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
     permissions:
