@@ -1,4 +1,4 @@
-name: Stress Test - k6
+name: Stress Test - K6
 run-name: Resultado Stress Test - ${{ inputs.test_type }}
 
 on:
