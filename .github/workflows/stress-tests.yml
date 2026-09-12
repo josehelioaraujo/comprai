@@ -48,6 +48,21 @@ jobs:
           wget -q https://github.com/grafana/k6/releases/download/v0.53.0/k6-v0.53.0-linux-amd64.tar.gz -O /tmp/k6.tar.gz
           tar -xzf /tmp/k6.tar.gz -C /tmp
           sudo mv /tmp/k6-v0.53.0-linux-amd64/k6 /usr/local/bin/k6
+      - name: Verificar API disponível
+        run: |
+          for i in 1 2 3; do
+            echo "Tentativa $i/3: verificando http://${{ inputs.target_url }}/health/live ..."
+            if curl -sf --max-time 15 "http://${{ inputs.target_url }}/health/live" > /dev/null 2>&1; then
+              echo "✅ API disponível"
+              exit 0
+            fi
+            if [ "$i" -lt 3 ]; then
+              echo "⚠️ API indisponível. Aguardando 30s antes de tentar novamente..."
+              sleep 30
+            fi
+          done
+          echo "❌ API não respondeu após 3 tentativas"
+          exit 1
       - name: Run Smoke
         run: |
           mkdir -p k6/results
@@ -87,6 +102,21 @@ jobs:
           wget -q https://github.com/grafana/k6/releases/download/v0.53.0/k6-v0.53.0-linux-amd64.tar.gz -O /tmp/k6.tar.gz
           tar -xzf /tmp/k6.tar.gz -C /tmp
           sudo mv /tmp/k6-v0.53.0-linux-amd64/k6 /usr/local/bin/k6
+      - name: Verificar API disponível
+        run: |
+          for i in 1 2 3; do
+            echo "Tentativa $i/3: verificando http://${{ inputs.target_url }}/health/live ..."
+            if curl -sf --max-time 15 "http://${{ inputs.target_url }}/health/live" > /dev/null 2>&1; then
+              echo "✅ API disponível"
+              exit 0
+            fi
+            if [ "$i" -lt 3 ]; then
+              echo "⚠️ API indisponível. Aguardando 30s antes de tentar novamente..."
+              sleep 30
+            fi
+          done
+          echo "❌ API não respondeu após 3 tentativas"
+          exit 1
       - name: Run Load
         run: |
           mkdir -p k6/results
@@ -126,6 +156,21 @@ jobs:
           wget -q https://github.com/grafana/k6/releases/download/v0.53.0/k6-v0.53.0-linux-amd64.tar.gz -O /tmp/k6.tar.gz
           tar -xzf /tmp/k6.tar.gz -C /tmp
           sudo mv /tmp/k6-v0.53.0-linux-amd64/k6 /usr/local/bin/k6
+      - name: Verificar API disponível
+        run: |
+          for i in 1 2 3; do
+            echo "Tentativa $i/3: verificando http://${{ inputs.target_url }}/health/live ..."
+            if curl -sf --max-time 15 "http://${{ inputs.target_url }}/health/live" > /dev/null 2>&1; then
+              echo "✅ API disponível"
+              exit 0
+            fi
+            if [ "$i" -lt 3 ]; then
+              echo "⚠️ API indisponível. Aguardando 30s antes de tentar novamente..."
+              sleep 30
+            fi
+          done
+          echo "❌ API não respondeu após 3 tentativas"
+          exit 1
       - name: Run Stress
         run: |
           mkdir -p k6/results
@@ -166,6 +211,21 @@ jobs:
           wget -q https://github.com/grafana/k6/releases/download/v0.53.0/k6-v0.53.0-linux-amd64.tar.gz -O /tmp/k6.tar.gz
           tar -xzf /tmp/k6.tar.gz -C /tmp
           sudo mv /tmp/k6-v0.53.0-linux-amd64/k6 /usr/local/bin/k6
+      - name: Verificar API disponível
+        run: |
+          for i in 1 2 3; do
+            echo "Tentativa $i/3: verificando http://${{ inputs.target_url }}/health/live ..."
+            if curl -sf --max-time 15 "http://${{ inputs.target_url }}/health/live" > /dev/null 2>&1; then
+              echo "✅ API disponível"
+              exit 0
+            fi
+            if [ "$i" -lt 3 ]; then
+              echo "⚠️ API indisponível. Aguardando 30s antes de tentar novamente..."
+              sleep 30
+            fi
+          done
+          echo "❌ API não respondeu após 3 tentativas"
+          exit 1
       - name: Run Spike
         run: |
           mkdir -p k6/results
@@ -205,6 +265,21 @@ jobs:
           wget -q https://github.com/grafana/k6/releases/download/v0.53.0/k6-v0.53.0-linux-amd64.tar.gz -O /tmp/k6.tar.gz
           tar -xzf /tmp/k6.tar.gz -C /tmp
           sudo mv /tmp/k6-v0.53.0-linux-amd64/k6 /usr/local/bin/k6
+      - name: Verificar API disponível
+        run: |
+          for i in 1 2 3; do
+            echo "Tentativa $i/3: verificando http://${{ inputs.target_url }}/health/live ..."
+            if curl -sf --max-time 15 "http://${{ inputs.target_url }}/health/live" > /dev/null 2>&1; then
+              echo "✅ API disponível"
+              exit 0
+            fi
+            if [ "$i" -lt 3 ]; then
+              echo "⚠️ API indisponível. Aguardando 30s antes de tentar novamente..."
+              sleep 30
+            fi
+          done
+          echo "❌ API não respondeu após 3 tentativas"
+          exit 1
       - name: Run Soak
         run: |
           mkdir -p k6/results
