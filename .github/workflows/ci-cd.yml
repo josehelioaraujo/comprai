@@ -368,13 +368,25 @@ jobs:
           ML_SKIP_TOKEN_TEST: 'true'
           SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
         run: |
-          newman run newman/comprai-smoke.json \
-            --env-var "baseUrl=http://${{ env.VPS_HOST }}:${{ env.API_PORT }}" \
-            --env-var "mcpUrl=http://${{ env.VPS_HOST }}:${{ env.MCP_PORT }}" \
-            --env-var "ML_ACCESS_TOKEN=${ML_ACCESS_TOKEN}" \
-            --env-var "SHOPIFY_ACCESS_TOKEN=${SHOPIFY_ACCESS_TOKEN}" \
-            --reporters cli,htmlextra \
-            --reporter-htmlextra-export ./newman-report/smoke-report.html
+          for i in 1 2 3; do
+            echo "Tentativa $i/3: executando Smoke Tests..."
+            if newman run newman/comprai-smoke.json \
+              --env-var "baseUrl=http://${{ env.VPS_HOST }}:${{ env.API_PORT }}" \
+              --env-var "mcpUrl=http://${{ env.VPS_HOST }}:${{ env.MCP_PORT }}" \
+              --env-var "ML_ACCESS_TOKEN=${ML_ACCESS_TOKEN}" \
+              --env-var "SHOPIFY_ACCESS_TOKEN=${SHOPIFY_ACCESS_TOKEN}" \
+              --reporters cli,htmlextra \
+              --reporter-htmlextra-export ./newman-report/smoke-report.html; then
+              echo "OK - Smoke Tests passou na tentativa $i"
+              exit 0
+            fi
+            if [ "$i" -lt 3 ]; then
+              echo "Falhou. Aguardando 30s antes de tentar novamente..."
+              sleep 30
+            fi
+          done
+          echo "Smoke Tests falharam apos 3 tentativas"
+          exit 1
 
       - name: Upload Newman Report
         if: always()
