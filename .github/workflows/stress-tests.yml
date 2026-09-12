@@ -48,7 +48,7 @@ jobs:
           wget -q https://github.com/grafana/k6/releases/download/v0.53.0/k6-v0.53.0-linux-amd64.tar.gz -O /tmp/k6.tar.gz
           tar -xzf /tmp/k6.tar.gz -C /tmp
           sudo mv /tmp/k6-v0.53.0-linux-amd64/k6 /usr/local/bin/k6
-      - name: Verificar API disponível
+      - name: Verificar API disponÃ­vel
         run: |
           BASE_URL="${{ inputs.target_url }}"
           case "$BASE_URL" in http*) ;; *) BASE_URL="http://$BASE_URL" ;; esac
@@ -56,15 +56,15 @@ jobs:
           for i in 1 2 3; do
             echo "Tentativa $i/3: verificando $HEALTH ..."
             if curl -sf --max-time 15 "$HEALTH" > /dev/null 2>&1; then
-              echo "✅ API disponível"
+              echo "â API disponÃ­vel"
               exit 0
             fi
             if [ "$i" -lt 3 ]; then
-              echo "⚠️ API indisponível. Aguardando 30s antes de tentar novamente..."
+              echo "â ï¸ API indisponÃ­vel. Aguardando 30s antes de tentar novamente..."
               sleep 30
             fi
           done
-          echo "❌ API não respondeu após 3 tentativas"
+          echo "â API nÃ£o respondeu apÃ³s 3 tentativas"
           exit 1
       - name: Run Smoke
         run: |
@@ -105,7 +105,7 @@ jobs:
           wget -q https://github.com/grafana/k6/releases/download/v0.53.0/k6-v0.53.0-linux-amd64.tar.gz -O /tmp/k6.tar.gz
           tar -xzf /tmp/k6.tar.gz -C /tmp
           sudo mv /tmp/k6-v0.53.0-linux-amd64/k6 /usr/local/bin/k6
-      - name: Verificar API disponível
+      - name: Verificar API disponÃ­vel
         run: |
           BASE_URL="${{ inputs.target_url }}"
           case "$BASE_URL" in http*) ;; *) BASE_URL="http://$BASE_URL" ;; esac
@@ -113,15 +113,15 @@ jobs:
           for i in 1 2 3; do
             echo "Tentativa $i/3: verificando $HEALTH ..."
             if curl -sf --max-time 15 "$HEALTH" > /dev/null 2>&1; then
-              echo "✅ API disponível"
+              echo "â API disponÃ­vel"
               exit 0
             fi
             if [ "$i" -lt 3 ]; then
-              echo "⚠️ API indisponível. Aguardando 30s antes de tentar novamente..."
+              echo "â ï¸ API indisponÃ­vel. Aguardando 30s antes de tentar novamente..."
               sleep 30
             fi
           done
-          echo "❌ API não respondeu após 3 tentativas"
+          echo "â API nÃ£o respondeu apÃ³s 3 tentativas"
           exit 1
       - name: Run Load
         run: |
@@ -162,7 +162,7 @@ jobs:
           wget -q https://github.com/grafana/k6/releases/download/v0.53.0/k6-v0.53.0-linux-amd64.tar.gz -O /tmp/k6.tar.gz
           tar -xzf /tmp/k6.tar.gz -C /tmp
           sudo mv /tmp/k6-v0.53.0-linux-amd64/k6 /usr/local/bin/k6
-      - name: Verificar API disponível
+      - name: Verificar API disponÃ­vel
         run: |
           BASE_URL="${{ inputs.target_url }}"
           case "$BASE_URL" in http*) ;; *) BASE_URL="http://$BASE_URL" ;; esac
@@ -170,15 +170,15 @@ jobs:
           for i in 1 2 3; do
             echo "Tentativa $i/3: verificando $HEALTH ..."
             if curl -sf --max-time 15 "$HEALTH" > /dev/null 2>&1; then
-              echo "✅ API disponível"
+              echo "â API disponÃ­vel"
               exit 0
             fi
             if [ "$i" -lt 3 ]; then
-              echo "⚠️ API indisponível. Aguardando 30s antes de tentar novamente..."
+              echo "â ï¸ API indisponÃ­vel. Aguardando 30s antes de tentar novamente..."
               sleep 30
             fi
           done
-          echo "❌ API não respondeu após 3 tentativas"
+          echo "â API nÃ£o respondeu apÃ³s 3 tentativas"
           exit 1
       - name: Run Stress
         run: |
@@ -220,7 +220,7 @@ jobs:
           wget -q https://github.com/grafana/k6/releases/download/v0.53.0/k6-v0.53.0-linux-amd64.tar.gz -O /tmp/k6.tar.gz
           tar -xzf /tmp/k6.tar.gz -C /tmp
           sudo mv /tmp/k6-v0.53.0-linux-amd64/k6 /usr/local/bin/k6
-      - name: Verificar API disponível
+      - name: Verificar API disponÃ­vel
         run: |
           BASE_URL="${{ inputs.target_url }}"
           case "$BASE_URL" in http*) ;; *) BASE_URL="http://$BASE_URL" ;; esac
@@ -228,15 +228,15 @@ jobs:
           for i in 1 2 3; do
             echo "Tentativa $i/3: verificando $HEALTH ..."
             if curl -sf --max-time 15 "$HEALTH" > /dev/null 2>&1; then
-              echo "✅ API disponível"
+              echo "â API disponÃ­vel"
               exit 0
             fi
             if [ "$i" -lt 3 ]; then
-              echo "⚠️ API indisponível. Aguardando 30s antes de tentar novamente..."
+              echo "â ï¸ API indisponÃ­vel. Aguardando 30s antes de tentar novamente..."
               sleep 30
             fi
           done
-          echo "❌ API não respondeu após 3 tentativas"
+          echo "â API nÃ£o respondeu apÃ³s 3 tentativas"
           exit 1
       - name: Run Spike
         run: |
@@ -277,7 +277,7 @@ jobs:
           wget -q https://github.com/grafana/k6/releases/download/v0.53.0/k6-v0.53.0-linux-amd64.tar.gz -O /tmp/k6.tar.gz
           tar -xzf /tmp/k6.tar.gz -C /tmp
           sudo mv /tmp/k6-v0.53.0-linux-amd64/k6 /usr/local/bin/k6
-      - name: Verificar API disponível
+      - name: Verificar API disponÃ­vel
         run: |
           BASE_URL="${{ inputs.target_url }}"
           case "$BASE_URL" in http*) ;; *) BASE_URL="http://$BASE_URL" ;; esac
@@ -285,15 +285,15 @@ jobs:
           for i in 1 2 3; do
             echo "Tentativa $i/3: verificando $HEALTH ..."
             if curl -sf --max-time 15 "$HEALTH" > /dev/null 2>&1; then
-              echo "✅ API disponível"
+              echo "â API disponÃ­vel"
               exit 0
             fi
             if [ "$i" -lt 3 ]; then
-              echo "⚠️ API indisponível. Aguardando 30s antes de tentar novamente..."
+              echo "â ï¸ API indisponÃ­vel. Aguardando 30s antes de tentar novamente..."
               sleep 30
             fi
           done
-          echo "❌ API não respondeu após 3 tentativas"
+          echo "â API nÃ£o respondeu apÃ³s 3 tentativas"
           exit 1
       - name: Run Soak
         run: |
@@ -563,3 +563,41 @@ jobs:
             k6/results/*/dashboard.html
             k6/results/*/summary.json
           retention-days: 30
+
+  # -- 6. PUBLICAR GITHUB PAGES -------------------------------------------------
+  publicar-pages:
+    name: "Publicar Dashboard no GitHub Pages"
+    needs: [resultado-final]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+      contents: read
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Baixar dashboards
+        uses: actions/download-artifact@v4
+        with:
+          name: k6-dashboards-run-${{ github.run_number }}
+          path: ./dashboards
+
+      - name: Gerar index.html
+        run: python3 .github/scripts/gen-k6-dashboard.py
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
+          TEST_TYPE:  ${{ inputs.test_type }}
+          TARGET_URL: ${{ inputs.target_url }}
+
+      - name: Upload para GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+
+      - name: Deploy para GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
