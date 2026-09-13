@@ -30,6 +30,7 @@ Comprai é um ecossistema modular open-source que implementa o **Universal Comme
 - [📊 Portais de Observabilidade](#-portais-de-observabilidade)
 - [🛡️ Resiliência e Rate Limiting](#️-resiliência-e-rate-limiting)
 - [🔁 CI/CD Pipeline](#-cicd-pipeline)
+- [🔥 Stress Tests / Testes de Carga](#-stress-tests--testes-de-carga)
 - [🗺️ Roadmap](#%EF%B8%8F-roadmap)
 - [📄 Licença](#-licença)
 
