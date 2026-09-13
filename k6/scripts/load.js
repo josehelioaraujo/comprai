@@ -6,9 +6,8 @@ import { textSummary } from "https://jslib.k6.io/k6-summary/0.0.2/index.js";
 const errorRate   = new Rate("errors");
 const rateLimited = new Rate("rate_limited");
 const responseTime = new Trend("response_time", true);
-
-const TARGET_URL = __ENV.TARGET_URL || "http://2.25.122.11:5020";
-const peakVus    = parseInt(__ENV.VUS_OVERRIDE || "100");
+const TARGET_URL  = __ENV.TARGET_URL || "http://2.25.122.11:5020";
+const peakVus     = parseInt(__ENV.VUS_OVERRIDE || "100");
 
 export const options = {
   stages: [
@@ -32,20 +31,22 @@ export function handleSummary(data) {
   };
 }
 
-function addChecks(res, tag) {
-  const ok   = res.status >= 200 && res.status < 300;
+function track(res, tag) {
+  const ok    = res.status >= 200 && res.status < 300;
   const is429 = res.status === 429;
-  check(res, { [`${tag} 2xx`]: (r) => ok || is429 });
+  check(res, { [`${tag} 2xx`]: () => ok || is429 });
   errorRate.add(!ok && !is429);
   rateLimited.add(is429);
   responseTime.add(res.timings.duration);
 }
 
-export default function () {
-  const sessionId = `load-vu${__VU}-iter${__ITER}`;
-  const headers   = { "Content-Type": "application/json" };
+const QUERIES = ["notebook", "smartphone", "tv", "geladeira", "teclado"];
 
-  // 1. Health
+export default function () {
+  const sid     = `load-vu${__VU}-i${__ITER}`;
+  const headers = { "Content-Type": "application/json" };
+  const q       = QUERIES[__ITER % QUERIES.length];
+
   let res = http.get(`${TARGET_URL}/health/live`);
   check(res, { "health OK": (r) => r.status === 200 });
   errorRate.add(res.status !== 200 && res.status !== 429);
@@ -53,73 +54,48 @@ export default function () {
   responseTime.add(res.timings.duration);
   sleep(0.3);
 
-  // 2. Search
-  const queries = ["notebook", "smartphone", "tv", "geladeira", "teclado"];
-  const q = queries[__ITER % queries.length];
   res = http.get(`${TARGET_URL}/api/search?q=${q}&page=1&pageSize=5`);
-  addChecks(res, "search");
-  let productId = "mock-product-1";
-  let productName = "Produto Load";
-  let productPrice = 999.90;
+  track(res, "search");
+  let productId = `mock-${sid}`; let productTitle = "Produto Load"; let productPrice = 999.90; let productCat = "geral";
   if (res.status === 200) {
     try {
-      const body = JSON.parse(res.body);
-      const items = body.items || body.products || body.data || body;
+      const items = JSON.parse(res.body).items || JSON.parse(res.body).products || JSON.parse(res.body);
       if (Array.isArray(items) && items.length > 0) {
-        productId    = items[0].id    || productId;
-        productName  = items[0].name  || items[0].title || productName;
-        productPrice = items[0].price || productPrice;
+        const p = items[0];
+        productId = p.id || productId; productTitle = p.title || p.name || productTitle;
+        productPrice = p.price || productPrice; productCat = p.category || productCat;
       }
     } catch (_) {}
   }
   sleep(0.3);
 
-  // 3. Add to Cart
-  res = http.post(
-    `${TARGET_URL}/api/cart/${sessionId}/items`,
-    JSON.stringify({ productId, name: productName, price: productPrice, quantity: 1 }),
-    { headers }
-  );
-  addChecks(res, "cart-add");
+  res = http.post(`${TARGET_URL}/api/cart/${sid}/items`,
+    JSON.stringify({ product: { id: productId, title: productTitle, price: productPrice, category: productCat, source: "k6-load", imageUrl: null, url: null }, quantity: 1 }),
+    { headers });
+  track(res, "cart-add");
   sleep(0.3);
 
-  // 4. Get Cart
-  res = http.get(`${TARGET_URL}/api/cart/${sessionId}`);
-  addChecks(res, "cart-get");
+  res = http.get(`${TARGET_URL}/api/cart/${sid}`);
+  track(res, "cart-get");
   sleep(0.3);
 
-  // 5. Checkout
-  res = http.post(
-    `${TARGET_URL}/api/checkout/${sessionId}`,
-    JSON.stringify({
-      customerName:  `Load User VU${__VU}`,
-      customerEmail: `load-vu${__VU}@test.com`,
-      address:       "Rua Load, 100",
-    }),
-    { headers }
-  );
-  addChecks(res, "checkout");
+  res = http.post(`${TARGET_URL}/api/checkout/${sid}`,
+    JSON.stringify({ name: `Load User VU${__VU}`, email: `load-vu${__VU}@k6.test`, phone: "11988887777", address: "Av. Load, 100, São Paulo, SP" }),
+    { headers });
+  track(res, "checkout");
   let orderId = null;
-  if (res.status === 200 || res.status === 201) {
-    try { orderId = JSON.parse(res.body).orderId || JSON.parse(res.body).id; } catch (_) {}
-  }
+  if (res.status === 200) { try { orderId = JSON.parse(res.body).orderId || null; } catch (_) {} }
   sleep(0.3);
 
-  // 6. Payment
   if (orderId) {
-    res = http.post(
-      `${TARGET_URL}/api/payment/${orderId}`,
-      JSON.stringify({ method: "mock", amount: productPrice }),
-      { headers }
-    );
-    addChecks(res, "payment");
+    res = http.post(`${TARGET_URL}/api/payment/${orderId}`,
+      JSON.stringify({ amount: productPrice, currency: "BRL", method: { provider: "mock", cardToken: null, pixKey: null } }),
+      { headers });
+    track(res, "payment");
     sleep(0.3);
-
-    // 7. Order status
     res = http.get(`${TARGET_URL}/api/orders/${orderId}`);
-    addChecks(res, "order");
+    track(res, "order");
     sleep(0.3);
   }
-
   sleep(0.5);
 }
