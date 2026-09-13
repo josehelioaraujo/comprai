@@ -491,23 +491,18 @@ app.MapGet("/api/k6/runs/{runId}", (string runId) =>
 // Servir dashboard K6 em /k6
 app.MapGet("/k6", async (HttpContext ctx, CancellationToken ct) =>
 {
-    var paths = new[]
+    // /app/wwwroot/k6/index.html — copiado pelo Dockerfile
+    var path = Path.Combine(AppContext.BaseDirectory, "wwwroot", "k6", "index.html");
+    if (!File.Exists(path))
+        path = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "k6", "index.html");
+    if (File.Exists(path))
     {
-        Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "k6", "index.html"),
-        Path.Combine(AppContext.BaseDirectory, "wwwroot", "k6", "index.html"),
-        "/home/projetos/comprai/k6/dashboard/index.html",
-    };
-    foreach (var path in paths)
-    {
-        if (File.Exists(path))
-        {
-            ctx.Response.ContentType = "text/html; charset=utf-8";
-            await ctx.Response.SendFileAsync(path, ct);
-            return;
-        }
+        ctx.Response.ContentType = "text/html; charset=utf-8";
+        await ctx.Response.SendFileAsync(path, ct);
+        return;
     }
     ctx.Response.StatusCode = 404;
-    await ctx.Response.WriteAsync("Dashboard não encontrado", ct);
+    await ctx.Response.WriteAsync("Dashboard K6 não encontrado em wwwroot/k6/index.html", ct);
 })
 .WithTags("K6").WithName("K6Dashboard");
 

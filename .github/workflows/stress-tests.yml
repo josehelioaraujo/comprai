@@ -552,8 +552,8 @@ jobs:
                   out += f'| {t} | - | - | - | - | - | - | SKIP |\n'
 
           artifact_name = f'k6-dashboards-run-{RUN_NUMBER}'
-          pages_url = 'https://josehelioaraujo.github.io/comprai/'
-          out += f'\n---\n### Dashboard\n\nU0001f310 **[Abrir Dashboard no GitHub Pages]({pages_url})** \u2014 sem precisar baixar nada\n\n> Artefato **`{artifact_name}`** também disponível na seção Artifacts (retenção: 30 dias).\n'
+          pages_url = 'https://comprai.2.25.122.11.nip.io/k6'
+          out += f'\n---\n### Dashboard\n\nU0001f310 **[Abrir Dashboard na VPS]({pages_url})** \u2014 sem precisar baixar nada\n\n> Artefato **`{artifact_name}`** também disponível na seção Artifacts (retenção: 30 dias).\n'
 
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
               f.write(out)

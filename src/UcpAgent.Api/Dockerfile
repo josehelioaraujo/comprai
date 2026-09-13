@@ -32,4 +32,6 @@ RUN dotnet publish "UcpAgent.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+# Dashboard K6 servido como arquivo estático
+COPY k6/dashboard/index.html /app/wwwroot/k6/index.html
 ENTRYPOINT ["dotnet", "UcpAgent.Api.dll"]
