@@ -168,23 +168,23 @@ jobs:
           sudo mv /tmp/k6-v0.53.0-linux-amd64/k6 /usr/local/bin/k6
       - name: Verificar API disponível
         run: |
-          echo "⏳ Cooldown 60s para a VPS se recuperar do Load..."
-          sleep 60
+          echo "⏳ Cooldown 90s para a VPS se recuperar do Load..."
+          sleep 90
           BASE_URL="${{ inputs.target_url }}"
           case "$BASE_URL" in http*) ;; *) BASE_URL="http://$BASE_URL" ;; esac
           HEALTH="$BASE_URL/health/live"
-          for i in 1 2 3; do
-            echo "Tentativa $i/3: verificando $HEALTH ..."
-            if curl -sf --max-time 15 "$HEALTH" > /dev/null 2>&1; then
+          for i in 1 2 3 4 5; do
+            echo "Tentativa $i/5: verificando $HEALTH ..."
+            if curl -sf --max-time 20 "$HEALTH" > /dev/null 2>&1; then
               echo "✅ API disponível"
               exit 0
             fi
-            if [ "$i" -lt 3 ]; then
-              echo "⚠️ API indisponível. Aguardando 30s antes de tentar novamente..."
-              sleep 30
+            if [ "$i" -lt 5 ]; then
+              echo "⚠️ API indisponível. Aguardando 20s antes de tentar novamente..."
+              sleep 20
             fi
           done
-          echo "❌ API não respondeu após 3 tentativas"
+          echo "❌ API não respondeu após 5 tentativas"
           exit 1
       - name: Run Stress
         run: |
