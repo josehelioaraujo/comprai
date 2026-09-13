@@ -204,6 +204,8 @@ var app = builder.Build();
 
 app.UseCors("AllowAll");
 app.UseRateLimiter();
+app.UseDefaultFiles();
+app.UseStaticFiles();
 app.MapOpenApi();
 app.MapScalarApiReference();
 
@@ -447,6 +449,67 @@ app.MapPost("/api/k6/analyze", async (K6AnalyzeRequest req, IHttpClientFactory f
 })
 .WithTags("K6")
 .WithName("AnalyzeK6Run");
+
+
+// ── K6 Runs — armazena e serve resultados dos stress tests ────────────────────
+var k6Runs = new System.Collections.Concurrent.ConcurrentDictionary<string, object>();
+
+app.MapPost("/api/k6/runs", async (HttpContext ctx, CancellationToken ct) =>
+{
+    try
+    {
+        using var reader = new System.IO.StreamReader(ctx.Request.Body);
+        var body = await reader.ReadToEndAsync(ct);
+        using var doc = System.Text.Json.JsonDocument.Parse(body);
+        var runId = doc.RootElement.TryGetProperty("run", out var r) ? r.GetString() ?? "0" : "0";
+        k6Runs[runId] = System.Text.Json.JsonSerializer.Deserialize<object>(body)!;
+        k6Runs["latest"] = k6Runs[runId];
+        return Results.Ok(new { saved = true, runId });
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(ex.Message, statusCode: 400);
+    }
+})
+.WithTags("K6").WithName("SaveK6Run");
+
+app.MapGet("/api/k6/runs", () =>
+{
+    var runs = k6Runs.Keys.Where(k => k != "latest").OrderByDescending(k => k).Take(20);
+    return Results.Ok(new { runs });
+})
+.WithTags("K6").WithName("ListK6Runs");
+
+app.MapGet("/api/k6/runs/{runId}", (string runId) =>
+{
+    if (k6Runs.TryGetValue(runId, out var run))
+        return Results.Ok(run);
+    return Results.NotFound(new { error = $"Run {runId} não encontrado" });
+})
+.WithTags("K6").WithName("GetK6Run");
+
+// Servir dashboard K6 em /k6
+app.MapGet("/k6", async (HttpContext ctx, CancellationToken ct) =>
+{
+    var paths = new[]
+    {
+        Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "k6", "index.html"),
+        Path.Combine(AppContext.BaseDirectory, "wwwroot", "k6", "index.html"),
+        "/home/projetos/comprai/k6/dashboard/index.html",
+    };
+    foreach (var path in paths)
+    {
+        if (File.Exists(path))
+        {
+            ctx.Response.ContentType = "text/html; charset=utf-8";
+            await ctx.Response.SendFileAsync(path, ct);
+            return;
+        }
+    }
+    ctx.Response.StatusCode = 404;
+    await ctx.Response.WriteAsync("Dashboard não encontrado", ct);
+})
+.WithTags("K6").WithName("K6Dashboard");
 
 app.Run();
 

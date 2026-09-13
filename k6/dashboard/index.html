@@ -276,9 +276,28 @@
 </head>
 <body>
 <script>
-// __DASHBOARD_DATA__ will be replaced by the CI step with real JSON
-// Fallback for local preview:
-var DASHBOARD_DATA = __DASHBOARD_DATA__;
+// Dados carregados dinamicamente da API
+var DASHBOARD_DATA = null;
+window.__DASHBOARD_DATA__ = null;
+
+async function loadRunData() {
+  try {
+    // Tenta carregar o run mais recente da API
+    const base = window.location.origin.includes('github.io')
+      ? 'https://comprai.2.25.122.11.nip.io'
+      : window.location.origin;
+    const r = await fetch(base + '/api/k6/runs/latest');
+    if (r.ok) {
+      DASHBOARD_DATA = await r.json();
+      window.__DASHBOARD_DATA__ = DASHBOARD_DATA;
+      console.log('✓ Dados do run carregados:', DASHBOARD_DATA.run);
+      return true;
+    }
+  } catch(e) {
+    console.warn('Sem dados de run disponíveis:', e.message);
+  }
+  return false;
+}
 </script>
 
 <header>
@@ -411,9 +430,9 @@ var DASHBOARD_DATA = __DASHBOARD_DATA__;
 </main>
 
 <script>
-(function() {
-  var d = DASHBOARD_DATA;
-  if (!d) return;
+function initDashboard() {
+  var d = window.__DASHBOARD_DATA__;
+  if (!d) { console.warn('Sem dados de run'); return; }
 
   // Header
   document.getElementById('hdr-type').textContent = (d.meta && d.meta.test_type) || '—';
@@ -503,7 +522,7 @@ var DASHBOARD_DATA = __DASHBOARD_DATA__;
       return '<tr><td>' + t.metric + '</td><td><code>' + t.condition + '</code></td><td>' + (t.actual != null ? t.actual : '—') + '</td><td>' + badge + '</td></tr>';
     }).join('');
   }
-})();
+}
 </script>
 
   <!-- ── K6 AI Chat Script ──────────────────────────────────────────────── -->
@@ -722,7 +741,10 @@ var DASHBOARD_DATA = __DASHBOARD_DATA__;
     alert('PAT salvo na sessão. Você pode agora adicionar perguntas.');
   }
 
-  initChat();
+  loadRunData().then(hasData => {
+    if (hasData) initDashboard();
+    initChat();
+  });
   </script>
 
 </body>

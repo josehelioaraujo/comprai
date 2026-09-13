@@ -577,17 +577,10 @@ jobs:
 
   # -- 6. PUBLICAR GITHUB PAGES -------------------------------------------------
   publicar-pages:
-    name: "Publicar Dashboard no GitHub Pages"
+    name: "Publicar Dashboard na VPS"
     needs: [summary]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-      contents: read
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -597,28 +590,19 @@ jobs:
           name: k6-dashboards-run-${{ github.run_number }}
           path: ./dashboards
 
-      - name: Gerar index.html
+      - name: Enviar dados para API da VPS
         run: python3 .github/scripts/gen-k6-dashboard.py
         env:
           RUN_NUMBER: ${{ github.run_number }}
           TEST_TYPE:  ${{ inputs.test_type }}
           TARGET_URL: ${{ inputs.target_url }}
+          VUS_OVERRIDE: ${{ inputs.vus }}
+          API_BASE:   "http://2.25.122.11:5020"
 
-      - name: Upload para GitHub Pages
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: ./dist
-
-      - name: Deploy para GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-      - name: Resumo do Deploy
-        if: success()
+      - name: Resumo do Dashboard
         run: |
-          PAGE_URL="${{ steps.deployment.outputs.page_url }}"
-          echo "## U0001f680 Dashboard Publicado" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 Dashboard K6 — Run #${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "U0001f310 **[Abrir Dashboard \u2014 Run #${{ github.run_number }}](${PAGE_URL})**" >> $GITHUB_STEP_SUMMARY
+          echo "🌐 **[Abrir Dashboard na VPS](https://comprai.2.25.122.11.nip.io/k6)**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "> URL: \`${PAGE_URL}\`" >> $GITHUB_STEP_SUMMARY
+          echo "> Dados enviados para a API — dashboard disponível em tempo real na VPS" >> $GITHUB_STEP_SUMMARY
