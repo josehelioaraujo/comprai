@@ -113,9 +113,10 @@ if template_path.exists():
     html = html.replace('<title>K6 Dashboard</title>',
                         f'<title>K6 Dashboard - Run #{run}</title>')
 
-    # Injetar __DASHBOARD_DATA__ antes de </script> da seção de chat
-    inject_data = f'\n  window.__DASHBOARD_DATA__ = {dashboard_data};\n  '
-    html = html.replace('  initChat();', inject_data + 'initChat();', 1)
+    # Substituir placeholder __DASHBOARD_DATA__ no template (linha 281)
+    html = html.replace('__DASHBOARD_DATA__', dashboard_data, 1)
+
+
 
     # Injetar tabela de métricas e tabs via placeholder ou após </head>
     metrics_block = f"""

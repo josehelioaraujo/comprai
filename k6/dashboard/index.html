@@ -508,9 +508,14 @@ var DASHBOARD_DATA = __DASHBOARD_DATA__;
 
   <!-- ── K6 AI Chat Script ──────────────────────────────────────────────── -->
   <script>
-  const API_BASE   = window.location.origin.includes('github.io')
-    ? 'https://comprai.2.25.122.11.nip.io'
-    : window.location.origin;
+  // Modo: github.io → VPS via HTTPS | VPS/localhost → mesma origem
+  const API_BASE = (() => {
+    const origin = window.location.origin;
+    if (origin.includes('github.io')) return 'https://comprai.2.25.122.11.nip.io';
+    if (origin.includes('2.25.122.11') || origin.includes('nip.io')) return origin;
+    return origin; // localhost ou qualquer outro
+  })();
+  const IS_GITHUB_PAGES = window.location.origin.includes('github.io');
   const CONFIG_URL = 'https://raw.githubusercontent.com/josehelioaraujo/comprai/main/k6/config/chat-config.json';
   const REPO       = 'josehelioaraujo/comprai';
   const BRANCH     = 'main';
