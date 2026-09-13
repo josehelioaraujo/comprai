@@ -359,6 +359,78 @@ app.MapGet("/price-watcher-test", async (CancellationToken ct) =>
 .WithTags("PriceWatcher")
 .ExcludeFromDescription();
 
+// ── K6 Analyze ────────────────────────────────────────────────────────────────
+app.MapGet("/api/k6/models", async (IHttpClientFactory factory, CancellationToken ct) =>
+{
+    try
+    {
+        var ollamaUrl = app.Configuration["Ollama:BaseUrl"] ?? "http://localhost:11434";
+        var client = factory.CreateClient();
+        var resp = await client.GetAsync($"{ollamaUrl}/api/tags", ct);
+        if (!resp.IsSuccessStatusCode)
+            return Results.Problem("Ollama não respondeu", statusCode: 502);
+        var json = await resp.Content.ReadAsStringAsync(ct);
+        return Results.Content(json, "application/json");
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(ex.Message, statusCode: 503);
+    }
+})
+.WithTags("K6")
+.WithName("GetOllamaModels");
+
+app.MapPost("/api/k6/analyze", async (K6AnalyzeRequest req, IHttpClientFactory factory, CancellationToken ct) =>
+{
+    try
+    {
+        var ollamaUrl = app.Configuration["Ollama:BaseUrl"] ?? "http://localhost:11434";
+        var client = factory.CreateClient();
+
+        var systemPrompt = """
+            Você é um especialista em performance de APIs e testes de carga com k6.
+            Analise os dados do summary.json do k6 e responda de forma clara e objetiva em português brasileiro.
+            Seja direto, use números concretos dos dados fornecidos e dê recomendações práticas quando relevante.
+            Formate a resposta com seções curtas usando markdown simples.
+            """;
+
+        var userPrompt = $"""
+            Dados do run de teste k6:
+            ```json
+            {req.Summary}
+            ```
+
+            Pergunta: {req.Question}
+            """;
+
+        var ollamaBody = new
+        {
+            model = req.Model ?? "gemma3:latest",
+            prompt = $"Sistema: {systemPrompt}\n\nUsuário: {userPrompt}",
+            stream = false
+        };
+
+        var payload = System.Text.Json.JsonSerializer.Serialize(ollamaBody);
+        var content = new StringContent(payload, System.Text.Encoding.UTF8, "application/json");
+        var resp = await client.PostAsync($"{ollamaUrl}/api/generate", content, ct);
+
+        if (!resp.IsSuccessStatusCode)
+            return Results.Problem("Ollama retornou erro", statusCode: 502);
+
+        var json = await resp.Content.ReadAsStringAsync(ct);
+        using var doc = System.Text.Json.JsonDocument.Parse(json);
+        var answer = doc.RootElement.GetProperty("response").GetString() ?? "";
+
+        return Results.Ok(new { answer, model = req.Model });
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(ex.Message, statusCode: 503);
+    }
+})
+.WithTags("K6")
+.WithName("AnalyzeK6Run");
+
 app.Run();
 
 // ââ Request DTOs ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
@@ -368,3 +440,4 @@ record PaymentRequestDto(
     string Currency,
     UcpAgent.SharedKernel.Ports.PaymentMethodDto Method);
 
+record K6AnalyzeRequest(string Summary, string Question, string? Model);

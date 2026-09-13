@@ -153,6 +153,125 @@
       .charts-grid { grid-template-columns: 1fr; }
       .chart-card.full-width { grid-column: 1; }
     }
+
+    /* ── K6 AI Chat ───────────────────────────────────────────────────────── */
+    .chat-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .chat-config {
+      display: flex; align-items: flex-end; gap: 12px;
+      padding: 14px 18px; border-bottom: 1px solid var(--border);
+      background: rgba(0,0,0,.2); flex-wrap: wrap;
+    }
+    .config-group { display: flex; flex-direction: column; gap: 4px; }
+    .config-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+    .config-select, .config-input {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+      color: var(--text); font-size: 13px; padding: 6px 10px; min-width: 180px;
+    }
+    .config-input { min-width: 260px; }
+    .config-select:focus, .config-input:focus { outline: none; border-color: var(--accent); }
+    .config-btn {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+      color: var(--text); font-size: 16px; padding: 6px 12px; cursor: pointer;
+      align-self: flex-end;
+    }
+    .config-btn:hover { border-color: var(--accent); }
+
+    /* Category tabs */
+    .cat-tabs {
+      display: flex; gap: 2px; padding: 10px 18px 0;
+      border-bottom: 1px solid var(--border); flex-wrap: wrap;
+    }
+    .cat-tab {
+      padding: 7px 14px; font-size: 12px; font-weight: 500; cursor: pointer;
+      color: var(--muted); border-bottom: 2px solid transparent;
+      margin-bottom: -1px; white-space: nowrap; background: none; border-top: none;
+      border-left: none; border-right: none; transition: color .15s;
+    }
+    .cat-tab:hover { color: var(--text); }
+    .cat-tab.active { color: var(--accent2); border-bottom-color: var(--accent2); }
+    .cat-tab-add {
+      padding: 7px 10px; font-size: 16px; cursor: pointer; color: var(--muted);
+      background: none; border: none; margin-bottom: -1px; line-height: 1;
+    }
+    .cat-tab-add:hover { color: var(--accent2); }
+
+    /* Badges */
+    .badges-area { display: flex; flex-wrap: wrap; gap: 7px; padding: 12px 18px; min-height: 52px; }
+    .badge-q {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 12px; border-radius: 20px; font-size: 12px;
+      border: 1px solid var(--border); cursor: pointer;
+      background: var(--bg); color: var(--text); transition: all .12s;
+    }
+    .badge-q:hover { border-color: var(--accent2); color: var(--accent2); background: rgba(6,182,212,.08); }
+    .badge-add {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 5px 12px; border-radius: 20px; font-size: 12px;
+      border: 1px dashed var(--border); cursor: pointer;
+      background: transparent; color: var(--muted); transition: all .12s;
+    }
+    .badge-add:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Add form inline */
+    .add-form {
+      display: none; align-items: center; gap: 8px;
+      padding: 10px 18px; border-top: 1px solid var(--border);
+      background: rgba(0,0,0,.15);
+    }
+    .add-form.open { display: flex; flex-wrap: wrap; }
+    .add-form input, .add-form select {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+      color: var(--text); font-size: 13px; padding: 6px 10px;
+    }
+    .add-form input { flex: 1; min-width: 220px; }
+    .add-form-btn {
+      background: var(--accent); border: none; border-radius: 6px;
+      color: #fff; font-size: 13px; padding: 6px 14px; cursor: pointer;
+    }
+    .add-form-btn.cancel { background: var(--surface); border: 1px solid var(--border); color: var(--muted); }
+
+    /* Messages */
+    .chat-messages {
+      min-height: 180px; max-height: 380px; overflow-y: auto;
+      padding: 16px 18px; display: flex; flex-direction: column; gap: 14px;
+    }
+    .chat-empty { color: var(--muted); font-size: 13px; margin: auto; text-align: center; padding: 24px 0; }
+    .chat-bubble { display: flex; flex-direction: column; gap: 4px; }
+    .bubble-q { font-size: 13px; color: var(--muted); }
+    .bubble-a {
+      background: rgba(124,58,237,.1); border: 1px solid rgba(124,58,237,.25);
+      border-radius: 8px; padding: 12px 14px; font-size: 13px;
+      line-height: 1.6; color: var(--text); white-space: pre-wrap;
+    }
+    .bubble-a.loading { color: var(--muted); font-style: italic; }
+    .bubble-meta { font-size: 11px; color: var(--muted); }
+
+    /* Input row */
+    .chat-input-row {
+      display: flex; gap: 8px; padding: 12px 18px;
+      border-top: 1px solid var(--border); background: rgba(0,0,0,.15);
+    }
+    .chat-input {
+      flex: 1; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text); font-size: 13px; padding: 8px 12px;
+    }
+    .chat-input:focus { outline: none; border-color: var(--accent); }
+    .chat-send {
+      background: var(--accent); border: none; border-radius: 6px;
+      color: #fff; font-size: 13px; padding: 8px 18px; cursor: pointer; font-weight: 600;
+    }
+    .chat-send:hover { opacity: .88; }
+    .chat-export {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+      color: var(--text); font-size: 12px; padding: 8px 12px; cursor: pointer; white-space: nowrap;
+    }
+    .chat-export:hover { border-color: var(--accent2); color: var(--accent2); }
+
   </style>
 </head>
 <body>
@@ -249,6 +368,46 @@ var DASHBOARD_DATA = __DASHBOARD_DATA__;
       </tbody>
     </table>
   </div>
+
+  <!-- ── K6 AI Chat ─────────────────────────────────────────────────────── -->
+  <div class="section-title" style="margin-top:32px">🤖 Assistente K6 — Ollama</div>
+  <div class="chat-panel">
+
+    <!-- Config bar -->
+    <div class="chat-config">
+      <div class="config-group">
+        <label class="config-label">Modelo</label>
+        <select id="modelSelect" class="config-select">
+          <option value="">Carregando...</option>
+        </select>
+      </div>
+      <div class="config-group" style="flex:1">
+        <label class="config-label">GitHub PAT <span style="color:var(--muted);font-weight:400">(para salvar perguntas)</span></label>
+        <input id="patInput" type="password" class="config-input" placeholder="github_pat_..." autocomplete="off">
+      </div>
+      <button class="config-btn" onclick="saveConfig()" title="Salvar configuração">💾</button>
+    </div>
+
+    <!-- Tabs de categorias -->
+    <div class="cat-tabs" id="catTabs"></div>
+
+    <!-- Badges -->
+    <div class="badges-area" id="badgesArea"></div>
+
+    <!-- Chat messages -->
+    <div class="chat-messages" id="chatMessages">
+      <div class="chat-empty">Selecione uma pergunta acima ou digite abaixo para analisar este run com IA.</div>
+    </div>
+
+    <!-- Input -->
+    <div class="chat-input-row">
+      <input id="chatInput" type="text" class="chat-input" placeholder="Digite sua pergunta sobre este run...">
+      <button class="chat-send" onclick="sendQuestion(document.getElementById('chatInput').value)">Enviar</button>
+      <button class="chat-export" onclick="exportReport('json')" title="Exportar JSON">⬇ JSON</button>
+      <button class="chat-export" onclick="exportReport('pdf')" title="Exportar PDF">⬇ PDF</button>
+    </div>
+  </div>
+
 </main>
 
 <script>
@@ -346,5 +505,220 @@ var DASHBOARD_DATA = __DASHBOARD_DATA__;
   }
 })();
 </script>
+
+  <!-- ── K6 AI Chat Script ──────────────────────────────────────────────── -->
+  <script>
+  const API_BASE   = window.location.origin.includes('github.io')
+    ? 'http://2.25.122.11:5020'
+    : window.location.origin;
+  const CONFIG_URL = 'https://raw.githubusercontent.com/josehelioaraujo/comprai/main/k6/config/chat-config.json';
+  const REPO       = 'josehelioaraujo/comprai';
+  const BRANCH     = 'main';
+
+  let chatConfig   = { categories: [] };
+  let activeCatId  = null;
+  let chatHistory  = [];
+  let currentModel = '';
+
+  async function initChat() {
+    await loadConfig();
+    await loadModels();
+    renderTabs();
+    if (chatConfig.categories.length > 0) switchCat(chatConfig.categories[0].id);
+  }
+
+  async function loadConfig() {
+    try {
+      const r = await fetch(CONFIG_URL + '?t=' + Date.now());
+      if (r.ok) chatConfig = await r.json();
+    } catch(e) { console.warn('Config não carregada:', e); }
+  }
+
+  async function loadModels() {
+    try {
+      const r = await fetch(API_BASE + '/api/k6/models');
+      if (!r.ok) return;
+      const d = await r.json();
+      const models = (d.models || []).map(m => m.name);
+      const sel = document.getElementById('modelSelect');
+      sel.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join('');
+      if (models.length > 0) currentModel = models[0];
+    } catch(e) {
+      document.getElementById('modelSelect').innerHTML = '<option value="gemma3:latest">gemma3:latest</option>';
+      currentModel = 'gemma3:latest';
+    }
+  }
+
+  function renderTabs() {
+    const tabs = document.getElementById('catTabs');
+    tabs.innerHTML = chatConfig.categories.map(c =>
+      `<button class="cat-tab" data-id="${c.id}" onclick="switchCat('${c.id}')">${c.icon} ${c.label}</button>`
+    ).join('') +
+    `<button class="cat-tab-add" onclick="toggleAddForm()" title="Nova categoria ou pergunta">＋</button>`;
+
+    // Add form inline
+    const addForm = document.createElement('div');
+    addForm.className = 'add-form';
+    addForm.id = 'addForm';
+    addForm.innerHTML = `
+      <select id="addCatSel">
+        ${chatConfig.categories.map(c => `<option value="${c.id}">${c.label}</option>`).join('')}
+        <option value="__new__">+ Nova categoria</option>
+      </select>
+      <input id="addCatName" placeholder="Nome da nova categoria" style="display:none;max-width:160px">
+      <input id="addCatIcon" placeholder="Emoji (ex: 🔥)" style="display:none;max-width:80px">
+      <input id="addQuestion" placeholder="Texto da pergunta..." style="flex:1">
+      <button class="add-form-btn" onclick="saveNewQuestion()">Salvar</button>
+      <button class="add-form-btn cancel" onclick="toggleAddForm()">Cancelar</button>
+    `;
+    tabs.parentNode.insertBefore(addForm, tabs.nextSibling);
+
+    document.getElementById('addCatSel').addEventListener('change', function() {
+      const isNew = this.value === '__new__';
+      document.getElementById('addCatName').style.display = isNew ? '' : 'none';
+      document.getElementById('addCatIcon').style.display = isNew ? '' : 'none';
+    });
+  }
+
+  function switchCat(id) {
+    activeCatId = id;
+    document.querySelectorAll('.cat-tab').forEach(t => t.classList.toggle('active', t.dataset.id === id));
+    const cat = chatConfig.categories.find(c => c.id === id);
+    const area = document.getElementById('badgesArea');
+    if (!cat) { area.innerHTML = ''; return; }
+    area.innerHTML = cat.questions.map(q =>
+      `<button class="badge-q" onclick="sendQuestion(this.textContent)">❓ ${q}</button>`
+    ).join('') +
+    `<button class="badge-add" onclick="toggleAddForm()">＋ Adicionar pergunta</button>`;
+  }
+
+  function toggleAddForm() {
+    const f = document.getElementById('addForm');
+    f.classList.toggle('open');
+  }
+
+  async function saveNewQuestion() {
+    const pat      = document.getElementById('patInput').value.trim();
+    const catSel   = document.getElementById('addCatSel').value;
+    const question = document.getElementById('addQuestion').value.trim();
+    if (!pat)      { alert('Informe o GitHub PAT para salvar.'); return; }
+    if (!question) { alert('Digite o texto da pergunta.'); return; }
+
+    if (catSel === '__new__') {
+      const label = document.getElementById('addCatName').value.trim();
+      const icon  = document.getElementById('addCatIcon').value.trim() || '❓';
+      if (!label) { alert('Informe o nome da nova categoria.'); return; }
+      const newId = label.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      chatConfig.categories.push({ id: newId, label, icon, questions: [question] });
+    } else {
+      const cat = chatConfig.categories.find(c => c.id === catSel);
+      if (cat) cat.questions.push(question);
+    }
+
+    await persistConfig(pat);
+    renderTabs();
+    switchCat(activeCatId || chatConfig.categories[0]?.id);
+    toggleAddForm();
+    document.getElementById('addQuestion').value = '';
+  }
+
+  async function persistConfig(pat) {
+    try {
+      const content = btoa(unescape(encodeURIComponent(JSON.stringify(chatConfig, null, 2))));
+      // Buscar SHA atual do arquivo
+      const metaR = await fetch(`https://api.github.com/repos/${REPO}/contents/k6/config/chat-config.json`, {
+        headers: { 'Authorization': 'Bearer ' + pat, 'Accept': 'application/vnd.github+json' }
+      });
+      const meta = await metaR.json();
+      const sha = meta.sha;
+      // Atualizar
+      const putR = await fetch(`https://api.github.com/repos/${REPO}/contents/k6/config/chat-config.json`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': 'Bearer ' + pat,
+          'Accept': 'application/vnd.github+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          message: 'chore(k6): atualizar chat-config.json via dashboard',
+          content,
+          sha,
+          branch: BRANCH
+        })
+      });
+      if (!putR.ok) { const e = await putR.json(); alert('Erro ao salvar: ' + (e.message || putR.status)); }
+    } catch(e) { alert('Erro ao salvar no GitHub: ' + e.message); }
+  }
+
+  async function sendQuestion(q) {
+    q = (q || document.getElementById('chatInput').value).trim();
+    if (!q) return;
+    document.getElementById('chatInput').value = '';
+    currentModel = document.getElementById('modelSelect').value || currentModel;
+
+    const msgs = document.getElementById('chatMessages');
+    msgs.querySelector('.chat-empty')?.remove();
+
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble';
+    bubble.innerHTML = `
+      <div class="bubble-q">❓ ${q}</div>
+      <div class="bubble-a loading">Consultando ${currentModel}...</div>
+    `;
+    msgs.appendChild(bubble);
+    msgs.scrollTop = msgs.scrollHeight;
+
+    try {
+      const summary = JSON.stringify(window.__DASHBOARD_DATA__ || {});
+      const r = await fetch(API_BASE + '/api/k6/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ summary, question: q, model: currentModel })
+      });
+      const d = await r.json();
+      const answer = d.answer || 'Sem resposta.';
+      bubble.querySelector('.bubble-a').classList.remove('loading');
+      bubble.querySelector('.bubble-a').textContent = answer;
+      bubble.innerHTML += `<div class="bubble-meta">Modelo: ${d.model || currentModel} · ${new Date().toLocaleTimeString('pt-BR')}</div>`;
+      chatHistory.push({ question: q, answer, model: d.model || currentModel, ts: new Date().toISOString() });
+    } catch(e) {
+      bubble.querySelector('.bubble-a').classList.remove('loading');
+      bubble.querySelector('.bubble-a').textContent = 'Erro ao conectar com a API: ' + e.message;
+    }
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('chatInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter') sendQuestion();
+    });
+    document.getElementById('modelSelect').addEventListener('change', e => {
+      currentModel = e.target.value;
+    });
+  });
+
+  function exportReport(fmt) {
+    const data = {
+      run: document.title,
+      metrics: window.__DASHBOARD_DATA__ || {},
+      chat: chatHistory,
+      exportedAt: new Date().toISOString()
+    };
+    if (fmt === 'json') {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = `k6-report-${Date.now()}.json`; a.click();
+    } else {
+      window.print();
+    }
+  }
+
+  function saveConfig() {
+    alert('PAT salvo na sessão. Você pode agora adicionar perguntas.');
+  }
+
+  initChat();
+  </script>
+
 </body>
 </html>

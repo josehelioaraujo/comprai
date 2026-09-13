@@ -1,0 +1,54 @@
+{
+  "categories": [
+    {
+      "id": "saude",
+      "label": "Saúde geral",
+      "icon": "❤️",
+      "questions": [
+        "Como foi a saúde geral do sistema nesse run?",
+        "Houve degradação de performance ao longo do tempo?",
+        "O sistema se recuperou bem após o pico de carga?"
+      ]
+    },
+    {
+      "id": "latencia",
+      "label": "Latência",
+      "icon": "⏱️",
+      "questions": [
+        "Qual foi o p95 e p99 de latência? Está dentro do esperado?",
+        "Quais endpoints tiveram maior latência?",
+        "A latência do checkout e payment está aceitável sob carga?"
+      ]
+    },
+    {
+      "id": "erros",
+      "label": "Erros",
+      "icon": "🐛",
+      "questions": [
+        "Qual foi a taxa de erro? Algum threshold foi violado?",
+        "Quantas requisições foram bloqueadas pelo rate limiter (429)?",
+        "O circuit breaker do Polly abriu durante o teste?"
+      ]
+    },
+    {
+      "id": "ucp",
+      "label": "Fluxo UCP",
+      "icon": "🛒",
+      "questions": [
+        "O fluxo Search → Cart → Checkout → Payment → Order completou com sucesso?",
+        "Qual step do fluxo UCP teve mais falhas?",
+        "O Redis de cache influenciou positivamente a busca sob carga?"
+      ]
+    },
+    {
+      "id": "capacidade",
+      "label": "Capacidade",
+      "icon": "🖥️",
+      "questions": [
+        "Qual a capacidade máxima estimada da VPS com base nesses resultados?",
+        "O que devo otimizar primeiro para melhorar a performance?",
+        "Comparando com o run anterior, o sistema melhorou ou piorou?"
+      ]
+    }
+  ]
+}
