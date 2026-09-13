@@ -249,7 +249,32 @@
       line-height: 1.6; color: var(--text); white-space: pre-wrap;
     }
     .bubble-a.loading { color: var(--muted); font-style: italic; }
-    .bubble-meta { font-size: 11px; color: var(--muted); }
+    .bubble-meta { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+    .bubble-actions { display: flex; gap: 4px; margin-left: auto; }
+    .bubble-btn {
+      background: none; border: 1px solid transparent; border-radius: 4px;
+      color: var(--muted); font-size: 11px; padding: 2px 6px; cursor: pointer;
+      transition: all .12s;
+    }
+    .bubble-btn:hover { border-color: var(--border); color: var(--text); background: var(--surface); }
+    .bubble-btn.danger:hover { border-color: #ef4444; color: #ef4444; }
+    .bubble-a.collapsed { max-height: 60px; overflow: hidden; position: relative; }
+    .bubble-a.collapsed::after {
+      content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+      height: 30px; background: linear-gradient(transparent, rgba(124,58,237,.08));
+    }
+    .chat-history-bar {
+      display: flex; align-items: center; gap: 8px; padding: 8px 18px;
+      border-bottom: 1px solid var(--border); background: rgba(0,0,0,.1);
+      font-size: 12px; color: var(--muted);
+    }
+    .chat-history-bar span { flex: 1; }
+    .hist-btn {
+      background: none; border: 1px solid var(--border); border-radius: 4px;
+      color: var(--muted); font-size: 11px; padding: 3px 8px; cursor: pointer;
+    }
+    .hist-btn:hover { color: var(--text); border-color: var(--border-strong); }
+    .hist-btn.danger:hover { color: #ef4444; border-color: #ef4444; }
 
     /* Input row */
     .chat-input-row {
@@ -414,6 +439,11 @@ async function loadRunData() {
     <div class="badges-area" id="badgesArea"></div>
 
     <!-- Chat messages -->
+    <div class="chat-history-bar">
+      <span id="histCount">0 mensagens</span>
+      <button class="hist-btn" onclick="copyHistory()" title="Copiar histórico">📋 Copiar</button>
+      <button class="hist-btn danger" onclick="clearHistory()" title="Limpar histórico">🗑 Limpar</button>
+    </div>
     <div class="chat-messages" id="chatMessages">
       <div class="chat-empty">Selecione uma pergunta acima ou digite abaixo para analisar este run com IA.</div>
     </div>
@@ -701,10 +731,22 @@ function initDashboard() {
       });
       const d = await r.json();
       const answer = d.answer || 'Sem resposta.';
+      const model  = d.model || currentModel;
+      const ts     = new Date().toLocaleTimeString('pt-BR');
+      const idx    = chatHistory.length;
       bubble.querySelector('.bubble-a').classList.remove('loading');
       bubble.querySelector('.bubble-a').textContent = answer;
-      bubble.innerHTML += `<div class="bubble-meta">Modelo: ${d.model || currentModel} · ${new Date().toLocaleTimeString('pt-BR')}</div>`;
-      chatHistory.push({ question: q, answer, model: d.model || currentModel, ts: new Date().toISOString() });
+      bubble.innerHTML += `
+        <div class="bubble-meta">
+          <span>Modelo: ${model} · ${ts}</span>
+          <div class="bubble-actions">
+            <button class="bubble-btn" onclick="toggleCollapse(this)" title="Retrair/Expandir">⤢</button>
+            <button class="bubble-btn" onclick="copyBubble(this)" title="Copiar resposta">📋</button>
+            <button class="bubble-btn danger" onclick="deleteBubble(this, ${idx})" title="Excluir">✕</button>
+          </div>
+        </div>`;
+      chatHistory.push({ question: q, answer, model, ts: new Date().toISOString() });
+      updateHistCount();
     } catch(e) {
       bubble.querySelector('.bubble-a').classList.remove('loading');
       bubble.querySelector('.bubble-a').textContent = 'Erro ao conectar com a API: ' + e.message;
@@ -720,6 +762,54 @@ function initDashboard() {
       currentModel = e.target.value;
     });
   });
+
+  function toggleCollapse(btn) {
+    const bubble = btn.closest('.chat-bubble');
+    const body   = bubble.querySelector('.bubble-a');
+    const collapsed = body.classList.toggle('collapsed');
+    btn.title = collapsed ? 'Expandir' : 'Retrair';
+    btn.textContent = collapsed ? '⤡' : '⤢';
+  }
+
+  function copyBubble(btn) {
+    const body = btn.closest('.chat-bubble').querySelector('.bubble-a');
+    navigator.clipboard.writeText(body.textContent).then(() => {
+      btn.textContent = '✓';
+      setTimeout(() => btn.textContent = '📋', 1500);
+    });
+  }
+
+  function deleteBubble(btn, idx) {
+    btn.closest('.chat-bubble').remove();
+    if (idx >= 0 && idx < chatHistory.length) chatHistory.splice(idx, 1);
+    updateHistCount();
+  }
+
+  function updateHistCount() {
+    const el = document.getElementById('histCount');
+    if (el) el.textContent = chatHistory.length + ' mensagem' + (chatHistory.length !== 1 ? 's' : '');
+  }
+
+  function clearHistory() {
+    if (!chatHistory.length) return;
+    if (!confirm('Limpar todo o histórico de mensagens?')) return;
+    document.getElementById('chatMessages').innerHTML =
+      '<div class="chat-empty">Selecione uma pergunta acima ou digite abaixo para analisar este run com IA.</div>';
+    chatHistory.length = 0;
+    updateHistCount();
+  }
+
+  function copyHistory() {
+    if (!chatHistory.length) { alert('Sem histórico para copiar.'); return; }
+    const text = chatHistory.map((h, i) =>
+      `## Pergunta ${i+1} [${h.ts}]\n**Q:** ${h.question}\n**A (${h.model}):** ${h.answer}`
+    ).join('\n\n---\n\n');
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = event.target;
+      btn.textContent = '✓ Copiado';
+      setTimeout(() => btn.textContent = '📋 Copiar', 1500);
+    });
+  }
 
   function exportReport(fmt) {
     const data = {
