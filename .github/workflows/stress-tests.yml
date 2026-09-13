@@ -50,6 +50,8 @@ jobs:
           sudo mv /tmp/k6-v0.53.0-linux-amd64/k6 /usr/local/bin/k6
       - name: Verificar API disponível
         run: |
+          echo "⏳ Aguardando 15s antes do primeiro teste..."
+          sleep 15
           BASE_URL="${{ inputs.target_url }}"
           case "$BASE_URL" in http*) ;; *) BASE_URL="http://$BASE_URL" ;; esac
           HEALTH="$BASE_URL/health/live"
@@ -107,6 +109,8 @@ jobs:
           sudo mv /tmp/k6-v0.53.0-linux-amd64/k6 /usr/local/bin/k6
       - name: Verificar API disponível
         run: |
+          echo "⏳ Cooldown 30s após Smoke..."
+          sleep 30
           BASE_URL="${{ inputs.target_url }}"
           case "$BASE_URL" in http*) ;; *) BASE_URL="http://$BASE_URL" ;; esac
           HEALTH="$BASE_URL/health/live"
@@ -164,6 +168,8 @@ jobs:
           sudo mv /tmp/k6-v0.53.0-linux-amd64/k6 /usr/local/bin/k6
       - name: Verificar API disponível
         run: |
+          echo "⏳ Cooldown 60s para a VPS se recuperar do Load..."
+          sleep 60
           BASE_URL="${{ inputs.target_url }}"
           case "$BASE_URL" in http*) ;; *) BASE_URL="http://$BASE_URL" ;; esac
           HEALTH="$BASE_URL/health/live"
@@ -206,7 +212,7 @@ jobs:
     if: |
       always() && !cancelled() &&
       (inputs.test_type == 'spike' || inputs.test_type == 'all') &&
-      (needs.stress.result == 'success' || inputs.test_type != 'all')
+      (needs.stress.result == 'success' || needs.stress.result == 'failure' || inputs.test_type != 'all')
     steps:
       - uses: actions/checkout@v4
       - id: cache-k6
@@ -222,6 +228,8 @@ jobs:
           sudo mv /tmp/k6-v0.53.0-linux-amd64/k6 /usr/local/bin/k6
       - name: Verificar API disponível
         run: |
+          echo "⏳ Cooldown 45s para a VPS se recuperar do Stress..."
+          sleep 45
           BASE_URL="${{ inputs.target_url }}"
           case "$BASE_URL" in http*) ;; *) BASE_URL="http://$BASE_URL" ;; esac
           HEALTH="$BASE_URL/health/live"
@@ -263,7 +271,7 @@ jobs:
     if: |
       always() && !cancelled() &&
       (inputs.test_type == 'soak' || inputs.test_type == 'all') &&
-      (needs.spike.result == 'success' || inputs.test_type != 'all')
+      (needs.spike.result == 'success' || needs.spike.result == 'failure' || inputs.test_type != 'all')
     steps:
       - uses: actions/checkout@v4
       - id: cache-k6
@@ -279,6 +287,8 @@ jobs:
           sudo mv /tmp/k6-v0.53.0-linux-amd64/k6 /usr/local/bin/k6
       - name: Verificar API disponível
         run: |
+          echo "⏳ Cooldown 30s para a VPS se recuperar do Spike..."
+          sleep 30
           BASE_URL="${{ inputs.target_url }}"
           case "$BASE_URL" in http*) ;; *) BASE_URL="http://$BASE_URL" ;; esac
           HEALTH="$BASE_URL/health/live"
