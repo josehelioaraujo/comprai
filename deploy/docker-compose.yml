@@ -21,6 +21,9 @@ services:
       # Em dev local: OTEL_ENDPOINT=http://comprai-jaeger:4319  (Jaeger)
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_ENDPOINT:-http://comprai-otel-collector:4317}
       OTEL_SERVICE_NAME: "comprai-api"
+      Ollama__BaseUrl: "http://host-gateway:11434"
+    extra_hosts:
+      - "host-gateway:host-gateway"
     depends_on:
       comprai-redis:
         condition: service_healthy
