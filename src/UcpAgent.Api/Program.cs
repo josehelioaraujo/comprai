@@ -370,7 +370,24 @@ app.MapGet("/api/k6/models", async (IHttpClientFactory factory, CancellationToke
         if (!resp.IsSuccessStatusCode)
             return Results.Problem("Ollama não respondeu", statusCode: 502);
         var json = await resp.Content.ReadAsStringAsync(ct);
-        return Results.Content(json, "application/json");
+        // Filtrar modelos de embedding (não geram texto)
+        using var doc = System.Text.Json.JsonDocument.Parse(json);
+        var filtered = doc.RootElement.GetProperty("models")
+            .EnumerateArray()
+            .Where(m =>
+            {
+                var name = m.GetProperty("name").GetString() ?? "";
+                var family = m.TryGetProperty("details", out var det) &&
+                             det.TryGetProperty("family", out var fam)
+                             ? fam.GetString() ?? "" : "";
+                // Excluir modelos de embedding
+                return !name.Contains("embed") && !name.Contains("nomic") &&
+                       !family.Contains("bert") && !family.Contains("nomic");
+            })
+            .Select(m => m)
+            .ToList();
+        var result = System.Text.Json.JsonSerializer.Serialize(new { models = filtered });
+        return Results.Content(result, "application/json");
     }
     catch (Exception ex)
     {
