@@ -258,6 +258,17 @@
     }
     .bubble-btn:hover { border-color: var(--border); color: var(--text); background: var(--surface); }
     .bubble-btn.danger:hover { border-color: #ef4444; color: #ef4444; }
+    .chat-bubble { border: 1px solid rgba(124,58,237,.2); border-radius: 8px; overflow: hidden; }
+    .bubble-header {
+      display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+      background: rgba(124,58,237,.08); cursor: pointer; user-select: none;
+    }
+    .bubble-header:hover { background: rgba(124,58,237,.14); }
+    .bubble-q-short { font-size: 12px; color: var(--text); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bubble-toggle { font-size: 11px; color: var(--muted); transition: transform .2s; }
+    .bubble-toggle.open { transform: rotate(180deg); }
+    .bubble-body { display: block; padding: 12px 14px 4px; }
+    .bubble-body.collapsed { display: none; }
     .bubble-a.collapsed { max-height: 60px; overflow: hidden; position: relative; }
     .bubble-a.collapsed::after {
       content: ''; position: absolute; bottom: 0; left: 0; right: 0;
@@ -715,9 +726,16 @@ function initDashboard() {
 
     const bubble = document.createElement('div');
     bubble.className = 'chat-bubble';
+    const shortQ = q.length > 60 ? q.slice(0, 57) + '...' : q;
     bubble.innerHTML = `
-      <div class="bubble-q">❓ ${q}</div>
-      <div class="bubble-a loading">Consultando ${currentModel}...</div>
+      <div class="bubble-header" onclick="toggleBubble(this)">
+        <span style="font-size:13px">❓</span>
+        <span class="bubble-q-short">${shortQ}</span>
+        <span class="bubble-toggle open">▼</span>
+      </div>
+      <div class="bubble-body">
+        <div class="bubble-a loading" style="padding:0">Consultando ${currentModel}...</div>
+      </div>
     `;
     msgs.appendChild(bubble);
     msgs.scrollTop = msgs.scrollHeight;
@@ -734,13 +752,14 @@ function initDashboard() {
       const model  = d.model || currentModel;
       const ts     = new Date().toLocaleTimeString('pt-BR');
       const idx    = chatHistory.length;
-      bubble.querySelector('.bubble-a').classList.remove('loading');
-      bubble.querySelector('.bubble-a').textContent = answer;
-      bubble.innerHTML += `
-        <div class="bubble-meta">
+      const answerEl = bubble.querySelector('.bubble-a');
+      answerEl.classList.remove('loading');
+      answerEl.style.whiteSpace = 'pre-wrap';
+      answerEl.textContent = answer;
+      bubble.querySelector('.bubble-body').innerHTML += `
+        <div class="bubble-meta" style="margin-top:8px">
           <span>Modelo: ${model} · ${ts}</span>
           <div class="bubble-actions">
-            <button class="bubble-btn" onclick="toggleCollapse(this)" title="Retrair/Expandir">⤢</button>
             <button class="bubble-btn" onclick="copyBubble(this)" title="Copiar resposta">📋</button>
             <button class="bubble-btn danger" onclick="deleteBubble(this, ${idx})" title="Excluir">✕</button>
           </div>
@@ -749,7 +768,7 @@ function initDashboard() {
       updateHistCount();
     } catch(e) {
       bubble.querySelector('.bubble-a').classList.remove('loading');
-      bubble.querySelector('.bubble-a').textContent = 'Erro ao conectar com a API: ' + e.message;
+      bubble.querySelector('.bubble-a').textContent = '❌ Erro: ' + e.message;
     }
     msgs.scrollTop = msgs.scrollHeight;
   }
@@ -763,12 +782,12 @@ function initDashboard() {
     });
   });
 
-  function toggleCollapse(btn) {
-    const bubble = btn.closest('.chat-bubble');
-    const body   = bubble.querySelector('.bubble-a');
-    const collapsed = body.classList.toggle('collapsed');
-    btn.title = collapsed ? 'Expandir' : 'Retrair';
-    btn.textContent = collapsed ? '⤡' : '⤢';
+  function toggleBubble(header) {
+    const body   = header.nextElementSibling;
+    const toggle = header.querySelector('.bubble-toggle');
+    const isOpen = !body.classList.contains('collapsed');
+    body.classList.toggle('collapsed', isOpen);
+    toggle.classList.toggle('open', !isOpen);
   }
 
   function copyBubble(btn) {
