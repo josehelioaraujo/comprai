@@ -339,6 +339,39 @@ jobs:
             mkdir -p wwwroot
             cp docs/price-watcher-test.html wwwroot/
 
+
+            # ── Garantir Ollama como serviço systemd ──────────────────────────
+            if ! systemctl is-enabled ollama > /dev/null 2>&1; then
+              echo "Configurando Ollama como serviço systemd..."
+              cat > /etc/systemd/system/ollama.service << 'SVCEOF'
+[Unit]
+Description=Ollama Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/ollama serve
+Restart=always
+RestartSec=3
+Environment=OLLAMA_HOST=0.0.0.0:11434
+
+[Install]
+WantedBy=multi-user.target
+SVCEOF
+              systemctl daemon-reload
+              systemctl enable ollama
+              echo "Ollama registrado como serviço"
+            fi
+
+            # Garantir que está rodando
+            if ! systemctl is-active ollama > /dev/null 2>&1; then
+              echo "Iniciando Ollama..."
+              systemctl start ollama
+              sleep 3
+            fi
+            echo "Ollama status: $(systemctl is-active ollama)"
+
             docker compose -f deploy/docker-compose.yml --env-file .env down --remove-orphans --volumes || true
             docker rm -f comprai-api comprai-redis comprai-mcp comprai-dd-agent || true
             docker compose -f deploy/docker-compose.yml --env-file .env build --no-cache
