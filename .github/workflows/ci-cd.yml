@@ -343,22 +343,7 @@ jobs:
             # ── Garantir Ollama como serviço systemd ──────────────────────────
             if ! systemctl is-enabled ollama > /dev/null 2>&1; then
               echo "Configurando Ollama como serviço systemd..."
-              cat > /etc/systemd/system/ollama.service << 'SVCEOF'
-[Unit]
-Description=Ollama Service
-After=network.target
-
-[Service]
-Type=simple
-User=root
-ExecStart=/usr/local/bin/ollama serve
-Restart=always
-RestartSec=3
-Environment=OLLAMA_HOST=0.0.0.0:11434
-
-[Install]
-WantedBy=multi-user.target
-SVCEOF
+              printf '[Unit]\nDescription=Ollama Service\nAfter=network.target\n\n[Service]\nType=simple\nUser=root\nExecStart=/usr/local/bin/ollama serve\nRestart=always\nRestartSec=3\nEnvironment=OLLAMA_HOST=0.0.0.0:11434\n\n[Install]\nWantedBy=multi-user.target\n' > /etc/systemd/system/ollama.service
               systemctl daemon-reload
               systemctl enable ollama
               echo "Ollama registrado como serviço"
