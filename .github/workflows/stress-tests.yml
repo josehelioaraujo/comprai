@@ -54,7 +54,7 @@ jobs:
           sleep 15
           BASE_URL="${{ inputs.target_url }}"
           case "$BASE_URL" in http*) ;; *) BASE_URL="http://$BASE_URL" ;; esac
-          HEALTH="$BASE_URL/health/live"
+          HEALTH="$BASE_URL/health/ready"
           for i in 1 2 3; do
             echo "Tentativa $i/3: verificando $HEALTH ..."
             if curl -sf --max-time 15 "$HEALTH" > /dev/null 2>&1; then
@@ -113,7 +113,7 @@ jobs:
           sleep 30
           BASE_URL="${{ inputs.target_url }}"
           case "$BASE_URL" in http*) ;; *) BASE_URL="http://$BASE_URL" ;; esac
-          HEALTH="$BASE_URL/health/live"
+          HEALTH="$BASE_URL/health/ready"
           for i in 1 2 3; do
             echo "Tentativa $i/3: verificando $HEALTH ..."
             if curl -sf --max-time 15 "$HEALTH" > /dev/null 2>&1; then
@@ -172,7 +172,7 @@ jobs:
           sleep 90
           BASE_URL="${{ inputs.target_url }}"
           case "$BASE_URL" in http*) ;; *) BASE_URL="http://$BASE_URL" ;; esac
-          HEALTH="$BASE_URL/health/live"
+          HEALTH="$BASE_URL/health/ready"
           for i in 1 2 3 4 5; do
             echo "Tentativa $i/5: verificando $HEALTH ..."
             if curl -sf --max-time 20 "$HEALTH" > /dev/null 2>&1; then
@@ -232,7 +232,7 @@ jobs:
           sleep 45
           BASE_URL="${{ inputs.target_url }}"
           case "$BASE_URL" in http*) ;; *) BASE_URL="http://$BASE_URL" ;; esac
-          HEALTH="$BASE_URL/health/live"
+          HEALTH="$BASE_URL/health/ready"
           for i in 1 2 3; do
             echo "Tentativa $i/3: verificando $HEALTH ..."
             if curl -sf --max-time 15 "$HEALTH" > /dev/null 2>&1; then
@@ -291,7 +291,7 @@ jobs:
           sleep 30
           BASE_URL="${{ inputs.target_url }}"
           case "$BASE_URL" in http*) ;; *) BASE_URL="http://$BASE_URL" ;; esac
-          HEALTH="$BASE_URL/health/live"
+          HEALTH="$BASE_URL/health/ready"
           for i in 1 2 3; do
             echo "Tentativa $i/3: verificando $HEALTH ..."
             if curl -sf --max-time 15 "$HEALTH" > /dev/null 2>&1; then
@@ -553,7 +553,7 @@ jobs:
 
           artifact_name = f'k6-dashboards-run-{RUN_NUMBER}'
           pages_url = 'https://comprai.2.25.122.11.nip.io/k6'
-          out += f'\n---\n### Dashboard\n\nU0001f310 **[Abrir Dashboard na VPS]({pages_url})** \u2014 sem precisar baixar nada\n\n> Artefato **`{artifact_name}`** também disponível na seção Artifacts (retenção: 30 dias).\n'
+          out += f'\n---\n### Dashboard\n\nU0001f310 **[Abrir Dashboard na VPS]({pages_url})** — sem precisar baixar nada\n\n> Artefato **`{artifact_name}`** também disponível na seção Artifacts (retenção: 30 dias).\n'
 
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
               f.write(out)
