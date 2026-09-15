@@ -588,7 +588,15 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: k6-dashboards-run-${{ github.run_number }}
-          path: ./dashboards
+          path: ./dashboards      - name: Setup SSH para VPS
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_HOSTINGER_SSH_KEY }}" > ~/.ssh/vps_key
+          chmod 600 ~/.ssh/vps_key
+          ssh-keyscan -H 2.25.122.11 >> ~/.ssh/known_hosts 2>/dev/null || true
+          echo "✅ SSH key configurada"
+
+
 
       - name: Enviar dados para API da VPS via Git
         run: |
