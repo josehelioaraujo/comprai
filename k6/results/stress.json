@@ -1,0 +1,20 @@
+{
+  "meta": {
+    "test_type": "stress",
+    "target_url": "http://2.25.122.11:5020",
+    "vus": "400",
+    "duration": "~8.5min"
+  },
+  "scenarios": [
+    {
+      "sc": "stress",
+      "p50": 156.7,
+      "p95": 456.2,
+      "p99": 892.1,
+      "rps": 15.6,
+      "total": 7800,
+      "err": 0.02,
+      "ok": true
+    }
+  ]
+}

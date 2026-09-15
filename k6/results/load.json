@@ -1,0 +1,20 @@
+{
+  "meta": {
+    "test_type": "load",
+    "target_url": "http://2.25.122.11:5020",
+    "vus": "100",
+    "duration": "~3min"
+  },
+  "scenarios": [
+    {
+      "sc": "load",
+      "p50": 45.2,
+      "p95": 102.3,
+      "p99": 298.5,
+      "rps": 12.3,
+      "total": 2100,
+      "err": 0,
+      "ok": true
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "meta": {
+    "test_type": "smoke",
+    "target_url": "http://2.25.122.11:5020",
+    "vus": "3",
+    "duration": "40s"
+  },
+  "scenarios": [
+    {
+      "sc": "smoke",
+      "p50": 36.8,
+      "p95": 89.7,
+      "p99": 227.6,
+      "rps": 5.45,
+      "total": 231,
+      "err": 0,
+      "ok": true
+    }
+  ]
+}

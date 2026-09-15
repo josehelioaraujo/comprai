@@ -1,0 +1,20 @@
+{
+  "meta": {
+    "test_type": "spike",
+    "target_url": "http://2.25.122.11:5020",
+    "vus": "200",
+    "duration": "~80s"
+  },
+  "scenarios": [
+    {
+      "sc": "spike",
+      "p50": 123.4,
+      "p95": 367.8,
+      "p99": 712.3,
+      "rps": 8.9,
+      "total": 712,
+      "err": 0.01,
+      "ok": true
+    }
+  ]
+}

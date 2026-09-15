@@ -1,0 +1,20 @@
+{
+  "meta": {
+    "test_type": "soak",
+    "target_url": "http://2.25.122.11:5020",
+    "vus": "50",
+    "duration": "~4min"
+  },
+  "scenarios": [
+    {
+      "sc": "soak",
+      "p50": 52.3,
+      "p95": 145.6,
+      "p99": 345.2,
+      "rps": 3.2,
+      "total": 768,
+      "err": 0,
+      "ok": true
+    }
+  ]
+}
