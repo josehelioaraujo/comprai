@@ -599,6 +599,50 @@ jobs:
           VUS_OVERRIDE: ${{ inputs.vus }}
           API_BASE:   "http://2.25.122.11:5020"
 
+      - name: Verificar arquivos gerados
+        run: |
+          echo "✓ Verificando arquivos gerados em k6/results/:"
+          ls -lh k6/results/ || echo "⚠ Diretório vazio ou não existe"
+          echo ""
+          echo "✓ Conteúdo detalhado:"
+          for f in k6/results/*.json; do
+            if [ -f "$f" ]; then
+              echo "  📄 $(basename "$f") ($(wc -c < "$f") bytes)"
+              head -3 "$f"
+              echo ""
+            fi
+          done
+
+      - name: Deploy de resultados para VPS
+        uses: appleboy/ssh-action@master
+        with:
+          host: '2.25.122.11'
+          username: 'root'
+          key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          script: |
+            mkdir -p /home/projetos/comprai/k6/results
+
+      - name: Upload arquivos de resultados via SCP
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_HOSTINGER_SSH_KEY }}" > ~/.ssh/vps_key
+          chmod 600 ~/.ssh/vps_key
+
+          echo "🔌 Conectando à VPS e enviando arquivos..."
+          scp -i ~/.ssh/vps_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            -r k6/results/* root@2.25.122.11:/home/projetos/comprai/k6/results/
+
+          if [ $? -eq 0 ]; then
+            echo "✅ Arquivos enviados com sucesso"
+            ssh -i ~/.ssh/vps_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+              root@2.25.122.11 "ls -lh /home/projetos/comprai/k6/results/ | head -20"
+          else
+            echo "❌ Erro ao enviar arquivos via SCP"
+            exit 1
+          fi
+
+          rm ~/.ssh/vps_key
+
       - name: Resumo do Dashboard
         run: |
           echo "## 📊 Dashboard K6 — Run #${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
@@ -606,3 +650,4 @@ jobs:
           echo "🌐 **[Abrir Dashboard na VPS](https://comprai.2.25.122.11.nip.io/k6)**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "> Dados enviados para a API — dashboard disponível em tempo real na VPS" >> $GITHUB_STEP_SUMMARY
+
