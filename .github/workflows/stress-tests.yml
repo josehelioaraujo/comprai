@@ -5,25 +5,55 @@ on:
     - cron: '0 6 * * *'
   workflow_dispatch:
     inputs:
-      test_type:
-        description: 'Tipo de teste a executar'
-        required: true
-        default: 'all'
-        type: choice
-        options:
-          - all
-          - smoke
-          - load
-          - stress
-          - spike
-          - soak
+      smoke:
+        description: 'Executar Smoke Test'
+        required: false
+        default: 'true'
+        type: boolean
+      load:
+        description: 'Executar Load Test'
+        required: false
+        default: 'true'
+        type: boolean
+      stress:
+        description: 'Executar Stress Test'
+        required: false
+        default: 'true'
+        type: boolean
+      spike:
+        description: 'Executar Spike Test'
+        required: false
+        default: 'true'
+        type: boolean
+      soak:
+        description: 'Executar Soak Test'
+        required: false
+        default: 'true'
+        type: boolean
 
 jobs:
+  determine-tests:
+    runs-on: ubuntu-latest
+    outputs:
+      tests: ${{ steps.set-tests.outputs.tests }}
+    steps:
+      - id: set-tests
+        run: |
+          tests=()
+          [[ "${{ github.event.inputs.smoke }}" == "true" ]] || [[ "${{ github.event_name }}" == "schedule" ]] && tests+=(smoke)
+          [[ "${{ github.event.inputs.load }}" == "true" ]] || [[ "${{ github.event_name }}" == "schedule" ]] && tests+=(load)
+          [[ "${{ github.event.inputs.stress }}" == "true" ]] || [[ "${{ github.event_name }}" == "schedule" ]] && tests+=(stress)
+          [[ "${{ github.event.inputs.spike }}" == "true" ]] || [[ "${{ github.event_name }}" == "schedule" ]] && tests+=(spike)
+          [[ "${{ github.event.inputs.soak }}" == "true" ]] || [[ "${{ github.event_name }}" == "schedule" ]] && tests+=(soak)
+          echo "tests=[\"smoke\",\"load\",\"stress\",\"spike\",\"soak\"]" >> $GITHUB_OUTPUT
+
   stress-tests:
+    needs: determine-tests
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        test: ${{ fromJson(github.event.inputs.test_type == 'all' || github.event_name == 'schedule' ? '["smoke", "load", "stress", "spike", "soak"]' : format('["{0}"]', github.event.inputs.test_type)) }}
+        test: [smoke, load, stress, spike, soak]
+      max-parallel: 5
     steps:
       - uses: actions/checkout@v4
 
@@ -87,7 +117,6 @@ jobs:
             mkdir -p "$REPO_DIR"
             cd "$REPO_DIR"
             
-            # Se repositório existe, fazer pull
             if [ -d ".git" ]; then
               echo "📍 Atualizando repositório existente..."
               git pull origin main --depth=1 || git fetch origin main && git reset --hard origin/main
