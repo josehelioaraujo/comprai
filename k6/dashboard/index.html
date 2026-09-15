@@ -5,562 +5,85 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>K6 Stress Test Dashboard — Comprai</title>
   <style>
-    :root {
-      --bg: #0f1117;
-      --surface: #1a1d27;
-      --border: #2a2d3e;
-      --accent: #7c3aed;
-      --accent2: #06b6d4;
-      --accent3: #10b981;
-      --accent4: #f59e0b;
-      --red: #ef4444;
-      --text: #e2e8f0;
-      --muted: #94a3b8;
-      --pass: #10b981;
-      --fail: #ef4444;
-    }
+    :root { --bg: #0f1117; --surface: #1a1d27; --border: #2a2d3e; --accent: #7c3aed; --accent2: #06b6d4; --text: #e2e8f0; --muted: #94a3b8; --pass: #10b981; --fail: #ef4444; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      min-height: 100vh;
-    }
-    header {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 20px 32px;
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 16px;
-    }
-    .header-logo {
-      font-size: 22px;
-      font-weight: 700;
-      color: var(--accent);
-      letter-spacing: -0.5px;
-    }
-    .header-meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 24px;
-      margin-left: auto;
-    }
-    .meta-item {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-    }
-    .meta-label {
-      font-size: 11px;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .meta-value {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--text);
-    }
-    main {
-      padding: 28px 32px;
-      max-width: 1400px;
-      margin: 0 auto;
-    }
-
-    /* ── Scenario Tabs ──────────────────────────────────────────────── */
-    .scenario-tabs {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 28px;
-      flex-wrap: wrap;
-      border-bottom: 2px solid var(--border);
-      padding-bottom: 0;
-    }
-    .scenario-tab {
-      padding: 12px 16px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      background: none;
-      border: none;
-      color: var(--muted);
-      border-bottom: 3px solid transparent;
-      margin-bottom: -2px;
-      transition: all 0.15s;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      position: relative;
-    }
-    .scenario-tab:hover {
-      color: var(--text);
-      background: rgba(255, 255, 255, 0.04);
-    }
-    .scenario-tab.active {
-      color: var(--accent2);
-      border-bottom-color: var(--accent2);
-    }
-    .scenario-tab .status {
-      font-size: 11px;
-      margin-left: 6px;
-      display: inline-block;
-      min-width: 14px;
-      text-align: center;
-    }
-
-    /* ── Section ─────────────────────────────────────────────────────── */
-    .section-title {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      margin-bottom: 14px;
-      margin-top: 28px;
-    }
-
-    /* ── KPI Cards ─────────────────────────────────────────────────────── */
-    .kpi-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 12px;
-      margin-bottom: 8px;
-    }
-    .kpi-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 16px 18px;
-      position: relative;
-      overflow: hidden;
-    }
-    .kpi-card::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 3px;
-      background: var(--accent-color, var(--accent));
-      border-radius: 10px 10px 0 0;
-    }
-    .kpi-label {
-      font-size: 11px;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 8px;
-    }
-    .kpi-value {
-      font-size: 26px;
-      font-weight: 700;
-      color: var(--text);
-      line-height: 1;
-    }
-    .kpi-unit {
-      font-size: 12px;
-      color: var(--muted);
-      font-weight: 400;
-      margin-left: 2px;
-    }
-
-    /* ── Thresholds Table ──────────────────────────────────────────── */
-    .threshold-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      overflow: hidden;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-    th {
-      background: rgba(255, 255, 255, 0.04);
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      padding: 12px 16px;
-      text-align: left;
-    }
-    td {
-      padding: 12px 16px;
-      font-size: 13px;
-      border-top: 1px solid var(--border);
-    }
-    code {
-      background: rgba(0, 0, 0, 0.3);
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-family: 'Courier New', monospace;
-      font-size: 12px;
-    }
-
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 10px;
-      border-radius: 9999px;
-      font-size: 12px;
-      font-weight: 600;
-    }
-    .badge-pass {
-      background: rgba(16, 185, 129, 0.15);
-      color: var(--pass);
-    }
-    .badge-fail {
-      background: rgba(239, 68, 68, 0.15);
-      color: var(--fail);
-    }
-    .badge::before {
-      content: '●';
-      font-size: 8px;
-    }
-
-    /* ── Scenario Summary Card ─────────────────────────────────────── */
-    .scenario-summary {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 20px;
-      margin-bottom: 20px;
-      display: flex;
-      align-items: center;
-      gap: 20px;
-      flex-wrap: wrap;
-    }
-    .scenario-summary-status {
-      font-size: 48px;
-      min-width: 60px;
-      text-align: center;
-    }
-    .scenario-summary-status.ok { color: var(--pass); }
-    .scenario-summary-status.fail { color: var(--fail); }
-
-    .scenario-summary-info {
-      flex: 1;
-      min-width: 200px;
-    }
-    .scenario-summary-title {
-      font-size: 18px;
-      font-weight: 700;
-      color: var(--text);
-      margin-bottom: 4px;
-    }
-    .scenario-summary-meta {
-      font-size: 13px;
-      color: var(--muted);
-      line-height: 1.6;
-    }
-
-    /* ── Responsive ─────────────────────────────────────────────────── */
-    @media (max-width: 800px) {
-      header { padding: 16px; }
-      main { padding: 16px; }
-      .scenario-tabs { gap: 4px; }
-      .scenario-tab { padding: 10px 12px; font-size: 11px; }
-      .kpi-grid { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); }
-      .scenario-summary { flex-direction: column; text-align: center; }
-      .scenario-summary-info { min-width: auto; }
-    }
-
-    .no-data {
-      text-align: center;
-      padding: 48px 20px;
-      color: var(--muted);
-      font-size: 14px;
-    }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+    header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 20px 32px; display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+    .header-logo { font-size: 22px; font-weight: 700; color: var(--accent); }
+    .header-controls { margin-left: auto; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    select { background: var(--surface); color: var(--text); border: 1px solid var(--border); padding: 8px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+    main { padding: 28px 32px; max-width: 1400px; margin: 0 auto; }
+    .scenario-tabs { display: flex; gap: 8px; margin-bottom: 28px; flex-wrap: wrap; border-bottom: 2px solid var(--border); }
+    .scenario-tab { padding: 12px 16px; background: none; border: none; color: var(--muted); border-bottom: 3px solid transparent; cursor: pointer; text-transform: uppercase; }
+    .scenario-tab.active { color: var(--accent2); border-bottom-color: var(--accent2); }
+    .section-title { font-size: 13px; color: var(--muted); text-transform: uppercase; margin-bottom: 14px; margin-top: 28px; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: rgba(255, 255, 255, 0.04); padding: 12px 16px; text-align: left; }
+    td { padding: 12px 16px; border-top: 1px solid var(--border); }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+    .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+    .badge-pass { background: rgba(16, 185, 129, 0.15); color: var(--pass); padding: 4px 10px; border-radius: 20px; }
+    .badge-fail { background: rgba(239, 68, 68, 0.15); color: var(--fail); padding: 4px 10px; border-radius: 20px; }
   </style>
 </head>
 <body>
-
 <header>
   <div class="header-logo">⚡ Comprai — K6 Dashboard</div>
-  <div class="header-meta">
-    <div class="meta-item">
-      <span class="meta-label">Test Type</span>
-      <span class="meta-value" id="hdr-type">—</span>
-    </div>
-    <div class="meta-item">
-      <span class="meta-label">Target URL</span>
-      <span class="meta-value" id="hdr-url">—</span>
-    </div>
-    <div class="meta-item">
-      <span class="meta-label">Run Date</span>
-      <span class="meta-value" id="hdr-date">—</span>
-    </div>
-    <div class="meta-item">
-      <span class="meta-label">Run #</span>
-      <span class="meta-value" id="hdr-run">—</span>
-    </div>
+  <div class="header-controls">
+    <label>Resultado:</label>
+    <select id="resultSelect" onchange="changeResult()"><option>Carregando...</option></select>
+    <div><span>Test Type: <span id="hdr-type">—</span></span></div>
   </div>
 </header>
-
 <main>
-  <!-- Test Configuration -->
   <div class="section-title">Configuração do Teste</div>
-  <div class="threshold-card">
-    <table>
-      <thead>
-        <tr>
-          <th>Tipo</th>
-          <th>URL Alvo</th>
-          <th>VUs Pico</th>
-          <th>Duração</th>
-          <th>Status Geral</th>
-        </tr>
-      </thead>
-      <tbody id="configTableBody">
-        <tr><td colspan="5" class="no-data" style="padding: 20px; border: none;">Carregando...</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <!-- Results Summary -->
-  <div class="section-title" style="margin-top: 28px">Resumo de Resultados</div>
-  <div class="threshold-card">
-    <table>
-      <thead>
-        <tr>
-          <th>Tipo</th>
-          <th>p50 (ms)</th>
-          <th>p95 (ms)</th>
-          <th>p99 (ms)</th>
-          <th>Req/s</th>
-          <th>Total</th>
-          <th>Erro %</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody id="resultsTableBody">
-        <tr><td colspan="8" class="no-data" style="padding: 20px; border: none;">Carregando...</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <!-- Scenario Tabs & Details -->
-  <div class="section-title" style="margin-top: 28px">Detalhes por Cenário</div>
+  <table><thead><tr><th>Tipo</th><th>URL Alvo</th><th>VUs</th><th>Duração</th><th>Status</th></tr></thead>
+  <tbody id="configTableBody"><tr><td colspan="5">Carregando...</td></tr></tbody></table>
+  <div class="section-title">Resumo de Resultados</div>
+  <table><thead><tr><th>Tipo</th><th>p50</th><th>p95</th><th>p99</th><th>Req/s</th><th>Total</th><th>Erro %</th><th>Status</th></tr></thead>
+  <tbody id="resultsTableBody"><tr><td colspan="8">Carregando...</td></tr></tbody></table>
+  <div class="section-title">Detalhes por Cenário</div>
   <div class="scenario-tabs" id="scenarioTabs"></div>
-
   <div id="scenarioContent"></div>
-
-  <div id="noData" class="no-data">
-    Carregando dados...
-  </div>
 </main>
-
 <script>
-const API_BASE = (() => {
-  const origin = window.location.origin;
-  if (origin.includes('github.io')) return 'https://comprai.2.25.122.11.nip.io';
-  return origin;
-})();
-
+const API_BASE = 'https://comprai.2.25.122.11.nip.io';
 let dashboardData = null;
-let activeScenario = null;
-
-async function loadRunData() {
+async function loadIndex() {
   try {
-    const r = await fetch(API_BASE + '/api/k6/runs/latest');
+    const r = await fetch(API_BASE + '/k6/results/index.json');
+    if (r.ok) {
+      const data = await r.json();
+      const files = data.files || [];
+      const select = document.getElementById('resultSelect');
+      select.innerHTML = files.map((f, i) => `<option value="${f}" ${i === 0 ? 'selected' : ''}>${f}</option>`).join('');
+      if (files.length > 0) await loadResult(files[0]);
+    }
+  } catch(e) { console.error(e); }
+}
+async function changeResult() {
+  const file = document.getElementById('resultSelect').value;
+  await loadResult(file);
+}
+async function loadResult(filename) {
+  try {
+    const r = await fetch(API_BASE + `/k6/results/${filename}`);
     if (r.ok) {
       dashboardData = await r.json();
-      console.log('✓ Dashboard data loaded:', dashboardData);
       initDashboard();
-      return;
     }
-  } catch(e) {
-    console.warn('Error loading data:', e.message);
-  }
-  document.getElementById('noData').textContent = 'Sem dados disponíveis. Dispare um stress test para popular o dashboard.';
+  } catch(e) { console.error(e); }
 }
-
 function initDashboard() {
   if (!dashboardData) return;
-
-  // Header
-  document.getElementById('hdr-type').textContent = dashboardData.meta?.test_type || '—';
-  document.getElementById('hdr-url').textContent = dashboardData.meta?.target_url || '—';
-  document.getElementById('hdr-date').textContent = dashboardData.meta?.run_date || '—';
-  document.getElementById('hdr-run').textContent = dashboardData.meta?.run_number || '—';
-
-  // Scenario tabs
-  const scenarios = dashboardData.scenarios || [];
-  if (scenarios.length === 0) {
-    document.getElementById('noData').textContent = 'Nenhum cenário encontrado nos dados.';
-    return;
-  }
-
-  document.getElementById('noData').style.display = 'none';
-
-  // Config Table
   const meta = dashboardData.meta || {};
-  const allPass = scenarios.every(s => s.ok);
-  const statusBadge = allPass
-    ? '<span class="badge badge-pass">TODOS OK</span>'
-    : '<span class="badge badge-fail">ALGUM FALHOU</span>';
-
-  document.getElementById('configTableBody').innerHTML = `
-    <tr>
-      <td>${meta.test_type || '—'}</td>
-      <td><code>${meta.target_url || '—'}</code></td>
-      <td>${meta.vus || '—'}</td>
-      <td>${meta.run_date || '—'}</td>
-      <td>${statusBadge}</td>
-    </tr>
-  `;
-
-  // Results Summary Table
-  document.getElementById('resultsTableBody').innerHTML = scenarios.map(sc => {
-    const statusBadge = sc.ok
-      ? '<span class="badge badge-pass">OK</span>'
-      : '<span class="badge badge-fail">FALHOU</span>';
-    const icon = { smoke: '🔥', load: '📈', stress: '💥', spike: '⚡', soak: '💧' }[sc.sc] || '📊';
-    return `
-      <tr>
-        <td>${icon} ${sc.sc.toUpperCase()}</td>
-        <td>${fmt(sc.p50)}</td>
-        <td>${fmt(sc.p95)}</td>
-        <td>${fmt(sc.p99)}</td>
-        <td>${fmt(sc.rps, 1)}</td>
-        <td>${sc.total.toLocaleString('pt-BR')}</td>
-        <td>${(sc.err * 100).toFixed(2)}</td>
-        <td>${statusBadge}</td>
-      </tr>
-    `;
-  }).join('');
-
-  // Scenario tabs
-  const tabsContainer = document.getElementById('scenarioTabs');
-  tabsContainer.innerHTML = scenarios.map((sc, idx) => {
-    const icon = { smoke: '🔥', load: '📈', stress: '💥', spike: '⚡', soak: '💧' }[sc.sc] || '📊';
-    const status = sc.ok ? '✅' : '❌';
-    return `
-      <button class="scenario-tab ${idx === 0 ? 'active' : ''}" onclick="switchScenario('${sc.sc}')">
-        ${icon} ${sc.sc.toUpperCase()}
-        <span class="status">${status}</span>
-      </button>
-    `;
-  }).join('');
-
-  // Switch to first scenario
-  activeScenario = scenarios[0].sc;
-  renderScenario();
+  const scenarios = dashboardData.scenarios || [];
+  document.getElementById('hdr-type').textContent = meta.test_type || '—';
+  document.getElementById('configTableBody').innerHTML = `<tr><td>${meta.test_type}</td><td>${meta.target_url}</td><td>${meta.vus}</td><td>${meta.duration}</td><td><span class="badge-pass">OK</span></td></tr>`;
+  document.getElementById('resultsTableBody').innerHTML = scenarios.map(sc => `<tr><td>${sc.sc}</td><td>${sc.p50}</td><td>${sc.p95}</td><td>${sc.p99}</td><td>${sc.rps}</td><td>${sc.total}</td><td>${(sc.err*100).toFixed(2)}</td><td><span class="${sc.ok ? 'badge-pass' : 'badge-fail'}">${sc.ok ? 'OK' : 'FAIL'}</span></td></tr>`).join('');
+  document.getElementById('scenarioTabs').innerHTML = scenarios.map((sc, i) => `<button class="scenario-tab ${i === 0 ? 'active' : ''}">${sc.sc.toUpperCase()}</button>`).join('');
 }
-
-function switchScenario(scId) {
-  activeScenario = scId;
-  document.querySelectorAll('.scenario-tab').forEach(t => {
-    const isActive = t.textContent.toUpperCase().includes(scId.toUpperCase());
-    t.classList.toggle('active', isActive);
-  });
-  renderScenario();
-}
-
-function renderScenario() {
-  if (!dashboardData) return;
-
-  const scenario = dashboardData.scenarios.find(s => s.sc === activeScenario);
-  if (!scenario) return;
-
-  const iconMap = { smoke: '🔥', load: '📈', stress: '💥', spike: '⚡', soak: '💧' };
-  const icon = iconMap[scenario.sc] || '📊';
-  const statusIcon = scenario.ok ? '✅ PASSOU' : '❌ FALHOU';
-  const statusClass = scenario.ok ? 'ok' : 'fail';
-
-  const content = document.getElementById('scenarioContent');
-
-  // Summary
-  const summaryHtml = `
-    <div class="scenario-summary">
-      <div class="scenario-summary-status ${statusClass}">${icon}</div>
-      <div class="scenario-summary-info">
-        <div class="scenario-summary-title">${scenario.sc.toUpperCase()} — ${statusIcon}</div>
-        <div class="scenario-summary-meta">
-          Total: ${scenario.total.toLocaleString('pt-BR')} req
-          • Erros: ${(scenario.err * 100).toFixed(2)}%
-          • Checks: ${scenario.checks_pass.toLocaleString('pt-BR')} ✓ / ${scenario.checks_fail} ✗
-        </div>
-      </div>
-    </div>
-  `;
-
-  // KPI Grid
-  const kpiGrid = `
-    <div class="section-title">Métricas</div>
-    <div class="kpi-grid">
-      <div class="kpi-card" style="--accent-color:#7c3aed">
-        <div class="kpi-label">p50</div>
-        <div class="kpi-value">${fmt(scenario.p50)}<span class="kpi-unit">ms</span></div>
-      </div>
-      <div class="kpi-card" style="--accent-color:#06b6d4">
-        <div class="kpi-label">p95</div>
-        <div class="kpi-value">${fmt(scenario.p95)}<span class="kpi-unit">ms</span></div>
-      </div>
-      <div class="kpi-card" style="--accent-color:#8b5cf6">
-        <div class="kpi-label">p99</div>
-        <div class="kpi-value">${fmt(scenario.p99)}<span class="kpi-unit">ms</span></div>
-      </div>
-      <div class="kpi-card" style="--accent-color:#10b981">
-        <div class="kpi-label">Média</div>
-        <div class="kpi-value">${fmt(scenario.avg)}<span class="kpi-unit">ms</span></div>
-      </div>
-      <div class="kpi-card" style="--accent-color:#f59e0b">
-        <div class="kpi-label">Req/s</div>
-        <div class="kpi-value">${fmt(scenario.rps, 1)}</div>
-      </div>
-      <div class="kpi-card" style="--accent-color:#ef4444">
-        <div class="kpi-label">Taxa Erro</div>
-        <div class="kpi-value">${(scenario.err * 100).toFixed(2)}<span class="kpi-unit">%</span></div>
-      </div>
-    </div>
-  `;
-
-  // Thresholds
-  const thresholds = scenario.thresholds || [];
-  const thresholdHtml = `
-    <div class="section-title">Thresholds</div>
-    <div class="threshold-card">
-      <table>
-        <thead>
-          <tr>
-            <th>Métrica</th>
-            <th>Condição</th>
-            <th>Valor Atual</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${thresholds.map(t => {
-            const badge = t.passed
-              ? '<span class="badge badge-pass">OK</span>'
-              : '<span class="badge badge-fail">FALHOU</span>';
-            return `
-              <tr>
-                <td>${t.metric}</td>
-                <td><code>${t.condition}</code></td>
-                <td>${fmt(t.actual, 2)}</td>
-                <td>${badge}</td>
-              </tr>
-            `;
-          }).join('')}
-        </tbody>
-      </table>
-    </div>
-  `;
-
-  content.innerHTML = summaryHtml + kpiGrid + thresholdHtml;
-}
-
-function fmt(v, dec) {
-  if (v == null) return '—';
-  return parseFloat(v).toFixed(dec || 0);
-}
-
-// Init on load
-window.addEventListener('DOMContentLoaded', loadRunData);
+window.addEventListener('DOMContentLoaded', loadIndex);
 </script>
-
 </body>
 </html>
