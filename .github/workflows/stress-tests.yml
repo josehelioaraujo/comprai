@@ -4,13 +4,26 @@ on:
   schedule:
     - cron: '0 6 * * *'
   workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Tipo de teste a executar'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - smoke
+          - load
+          - stress
+          - spike
+          - soak
 
 jobs:
   stress-tests:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        test: [smoke, load, stress, spike, soak]
+        test: ${{ fromJson(github.event.inputs.test_type == 'all' || github.event_name == 'schedule' ? '["smoke", "load", "stress", "spike", "soak"]' : format('["{0}"]', github.event.inputs.test_type)) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -28,7 +41,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install k6
 
-      - name: Run stress test
+      - name: Run ${{ matrix.test }} test
         run: |
           cd k6
           k6 run scripts/${{ matrix.test }}.js --out json=results/${{ matrix.test }}.json
