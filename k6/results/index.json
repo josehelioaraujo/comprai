@@ -1,0 +1,22 @@
+{
+  "run": 44,
+  "test_type": "smoke",
+  "target_url": "http://2.25.122.11:5020",
+  "vus": "3",
+  "timestamp": "2026-09-15T23:16:24.812Z",
+  "scenarios": [
+    {
+      "name": "smoke",
+      "p50": 36.8,
+      "p95": 89.7,
+      "p99": 227.6,
+      "avg": 50.3,
+      "rps": 5.45,
+      "total_requests": 231,
+      "error_rate": 0,
+      "checks_passed": 231,
+      "checks_failed": 0,
+      "status": "ok"
+    }
+  ]
+}
