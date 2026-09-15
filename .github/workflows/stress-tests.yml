@@ -1,142 +1,632 @@
-name: K6 Stress Tests
+﻿name: Stress Test - k6
+run-name: Resultado Stress Test - ${{ inputs.test_type }}
 
 on:
-  schedule:
-    - cron: '0 6 * * *'
   workflow_dispatch:
     inputs:
-      smoke:
-        description: 'Executar Smoke Test'
+      test_type:
+        description: 'Tipo de teste'
+        required: true
+        type: choice
+        options: [smoke, load, stress, spike, soak, all]
+        default: smoke
+      target_url:
+        description: 'URL alvo (default: VPS producao)'
         required: false
-        default: 'true'
-        type: boolean
-      load:
-        description: 'Executar Load Test'
+        default: 'http://2.25.122.11:5020'
+      vus:
+        description: 'VUs override (vazio = padrao do script)'
         required: false
-        default: 'true'
-        type: boolean
-      stress:
-        description: 'Executar Stress Test'
+        default: ''
+      duration:
+        description: 'Duracao override (vazio = padrao do script)'
         required: false
-        default: 'true'
-        type: boolean
-      spike:
-        description: 'Executar Spike Test'
-        required: false
-        default: 'true'
-        type: boolean
-      soak:
-        description: 'Executar Soak Test'
-        required: false
-        default: 'true'
-        type: boolean
+        default: ''
+
+concurrency:
+  group: stress-tests
+  cancel-in-progress: false
 
 jobs:
-  determine-tests:
-    runs-on: ubuntu-latest
-    outputs:
-      tests: ${{ steps.set-tests.outputs.tests }}
-    steps:
-      - id: set-tests
-        run: |
-          tests=()
-          [[ "${{ github.event.inputs.smoke }}" == "true" ]] || [[ "${{ github.event_name }}" == "schedule" ]] && tests+=(smoke)
-          [[ "${{ github.event.inputs.load }}" == "true" ]] || [[ "${{ github.event_name }}" == "schedule" ]] && tests+=(load)
-          [[ "${{ github.event.inputs.stress }}" == "true" ]] || [[ "${{ github.event_name }}" == "schedule" ]] && tests+=(stress)
-          [[ "${{ github.event.inputs.spike }}" == "true" ]] || [[ "${{ github.event_name }}" == "schedule" ]] && tests+=(spike)
-          [[ "${{ github.event.inputs.soak }}" == "true" ]] || [[ "${{ github.event_name }}" == "schedule" ]] && tests+=(soak)
-          echo "tests=[\"smoke\",\"load\",\"stress\",\"spike\",\"soak\"]" >> $GITHUB_OUTPUT
 
-  stress-tests:
-    needs: determine-tests
+  # -- 1. SMOKE -----------------------------------------------------------------
+  smoke:
+    name: "Smoke - 3 VUs / 40s"
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        test: [smoke, load, stress, spike, soak]
-      max-parallel: 5
+    timeout-minutes: 10
+    if: inputs.test_type == 'smoke' || inputs.test_type == 'all'
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - id: cache-k6
+        uses: actions/cache@v4
         with:
-          node-version: '18'
-
-      - name: Install k6
+          path: /usr/local/bin/k6
+          key: k6-v0.53.0-linux-amd64
+      - name: Install K6
+        if: steps.cache-k6.outputs.cache-hit != 'true'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y apt-transport-https
-          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
-          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6-stable-debian.list
-          sudo apt-get update
-          sudo apt-get install k6
-
-      - name: Run ${{ matrix.test }} test
+          wget -q https://github.com/grafana/k6/releases/download/v0.53.0/k6-v0.53.0-linux-amd64.tar.gz -O /tmp/k6.tar.gz
+          tar -xzf /tmp/k6.tar.gz -C /tmp
+          sudo mv /tmp/k6-v0.53.0-linux-amd64/k6 /usr/local/bin/k6
+      - name: Verificar API dispon├¡vel
         run: |
-          cd k6
-          k6 run scripts/${{ matrix.test }}.js --out json=results/${{ matrix.test }}.json
-
-      - name: Upload results as artifacts
+          echo "ÔÅ│ Aguardando 15s antes do primeiro teste..."
+          sleep 15
+          BASE_URL="${{ inputs.target_url }}"
+          case "$BASE_URL" in http*) ;; *) BASE_URL="http://$BASE_URL" ;; esac
+          HEALTH="$BASE_URL/health/live"
+          for i in 1 2 3; do
+            echo "Tentativa $i/3: verificando $HEALTH ..."
+            if curl -sf --max-time 15 "$HEALTH" > /dev/null 2>&1; then
+              echo "Ô£à API dispon├¡vel"
+              exit 0
+            fi
+            if [ "$i" -lt 3 ]; then
+              echo "ÔÜá´©Å API indispon├¡vel. Aguardando 30s antes de tentar novamente..."
+              sleep 30
+            fi
+          done
+          echo "ÔØî API n├úo respondeu ap├│s 3 tentativas"
+          exit 1
+      - name: Run Smoke
+        run: |
+          mkdir -p k6/results
+          k6 run --out json=k6/results/raw.json k6/scripts/smoke.js
+          gzip -9 k6/results/raw.json
+        env:
+          TARGET_URL:   ${{ inputs.target_url }}
+          VUS_OVERRIDE: ${{ inputs.vus }}
+          RESULTS_DIR:  k6/results
+      - uses: actions/upload-artifact@v4
         if: always()
-        uses: actions/upload-artifact@v3
         with:
-          name: k6-results-${{ matrix.test }}
-          path: k6/results/${{ matrix.test }}.json
+          name: k6-smoke-run-${{ github.run_number }}
+          path: k6/results/
+          retention-days: 30
 
-  publicar-pages:
-    needs: stress-tests
+  # -- 2. LOAD ------------------------------------------------------------------
+  load:
+    name: "Load - 100 VUs / ~3min"
     runs-on: ubuntu-latest
-    if: always()
+    timeout-minutes: 20
+    needs: [smoke]
+    if: |
+      always() && !cancelled() &&
+      (inputs.test_type == 'load' || inputs.test_type == 'all') &&
+      (needs.smoke.result == 'success' || inputs.test_type != 'all')
     steps:
       - uses: actions/checkout@v4
+      - id: cache-k6
+        uses: actions/cache@v4
         with:
-          fetch-depth: 0
-
-      - name: Download all results
-        uses: actions/download-artifact@v3
-        with:
-          path: k6/results/
-
-      - name: Setup SSH para VPS
+          path: /usr/local/bin/k6
+          key: k6-v0.53.0-linux-amd64
+      - name: Install K6
+        if: steps.cache-k6.outputs.cache-hit != 'true'
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.VPS_HOSTINGER_SSH_KEY }}" > ~/.ssh/vps_key
-          chmod 600 ~/.ssh/vps_key
-          ssh-keyscan -H 2.25.122.11 >> ~/.ssh/known_hosts 2>/dev/null || true
+          wget -q https://github.com/grafana/k6/releases/download/v0.53.0/k6-v0.53.0-linux-amd64.tar.gz -O /tmp/k6.tar.gz
+          tar -xzf /tmp/k6.tar.gz -C /tmp
+          sudo mv /tmp/k6-v0.53.0-linux-amd64/k6 /usr/local/bin/k6
+      - name: Verificar API dispon├¡vel
+        run: |
+          echo "ÔÅ│ Cooldown 30s ap├│s Smoke..."
+          sleep 30
+          BASE_URL="${{ inputs.target_url }}"
+          case "$BASE_URL" in http*) ;; *) BASE_URL="http://$BASE_URL" ;; esac
+          HEALTH="$BASE_URL/health/live"
+          for i in 1 2 3; do
+            echo "Tentativa $i/3: verificando $HEALTH ..."
+            if curl -sf --max-time 15 "$HEALTH" > /dev/null 2>&1; then
+              echo "Ô£à API dispon├¡vel"
+              exit 0
+            fi
+            if [ "$i" -lt 3 ]; then
+              echo "ÔÜá´©Å API indispon├¡vel. Aguardando 30s antes de tentar novamente..."
+              sleep 30
+            fi
+          done
+          echo "ÔØî API n├úo respondeu ap├│s 3 tentativas"
+          exit 1
+      - name: Run Load
+        run: |
+          mkdir -p k6/results
+          k6 run --out json=k6/results/raw.json k6/scripts/load.js
+          gzip -9 k6/results/raw.json
+        env:
+          TARGET_URL:   ${{ inputs.target_url }}
+          VUS_OVERRIDE: ${{ inputs.vus }}
+          RESULTS_DIR:  k6/results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k6-load-run-${{ github.run_number }}
+          path: k6/results/
+          retention-days: 30
 
-      - name: Deploy de resultados para VPS via Git
+  # -- 3. STRESS ----------------------------------------------------------------
+  stress:
+    name: "Stress - 400 VUs / ~8.5min"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [load]
+    if: |
+      always() && !cancelled() &&
+      (inputs.test_type == 'stress' || inputs.test_type == 'all') &&
+      (needs.load.result == 'success' || inputs.test_type != 'all')
+    steps:
+      - uses: actions/checkout@v4
+      - id: cache-k6
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/k6
+          key: k6-v0.53.0-linux-amd64
+      - name: Install K6
+        if: steps.cache-k6.outputs.cache-hit != 'true'
+        run: |
+          wget -q https://github.com/grafana/k6/releases/download/v0.53.0/k6-v0.53.0-linux-amd64.tar.gz -O /tmp/k6.tar.gz
+          tar -xzf /tmp/k6.tar.gz -C /tmp
+          sudo mv /tmp/k6-v0.53.0-linux-amd64/k6 /usr/local/bin/k6
+      - name: Verificar API dispon├¡vel
+        run: |
+          echo "ÔÅ│ Cooldown 90s para a VPS se recuperar do Load..."
+          sleep 90
+          BASE_URL="${{ inputs.target_url }}"
+          case "$BASE_URL" in http*) ;; *) BASE_URL="http://$BASE_URL" ;; esac
+          HEALTH="$BASE_URL/health/live"
+          for i in 1 2 3 4 5; do
+            echo "Tentativa $i/5: verificando $HEALTH ..."
+            if curl -sf --max-time 20 "$HEALTH" > /dev/null 2>&1; then
+              echo "Ô£à API dispon├¡vel"
+              exit 0
+            fi
+            if [ "$i" -lt 5 ]; then
+              echo "ÔÜá´©Å API indispon├¡vel. Aguardando 20s antes de tentar novamente..."
+              sleep 20
+            fi
+          done
+          echo "ÔØî API n├úo respondeu ap├│s 5 tentativas"
+          exit 1
+      - name: Run Stress
+        run: |
+          mkdir -p k6/results
+          k6 run --out json=k6/results/raw.json k6/scripts/stress.js
+          gzip -9 k6/results/raw.json
+        env:
+          TARGET_URL:   ${{ inputs.target_url }}
+          VUS_OVERRIDE: ${{ inputs.vus }}
+          PEAK_VUS:     ${{ inputs.vus }}
+          RESULTS_DIR:  k6/results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k6-stress-run-${{ github.run_number }}
+          path: k6/results/
+          retention-days: 30
+
+  # -- 4. SPIKE -----------------------------------------------------------------
+  spike:
+    name: "Spike - 200 VUs / ~80s"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [stress]
+    if: |
+      always() && !cancelled() &&
+      (inputs.test_type == 'spike' || inputs.test_type == 'all') &&
+      (needs.stress.result == 'success' || needs.stress.result == 'failure' || inputs.test_type != 'all')
+    steps:
+      - uses: actions/checkout@v4
+      - id: cache-k6
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/k6
+          key: k6-v0.53.0-linux-amd64
+      - name: Install K6
+        if: steps.cache-k6.outputs.cache-hit != 'true'
+        run: |
+          wget -q https://github.com/grafana/k6/releases/download/v0.53.0/k6-v0.53.0-linux-amd64.tar.gz -O /tmp/k6.tar.gz
+          tar -xzf /tmp/k6.tar.gz -C /tmp
+          sudo mv /tmp/k6-v0.53.0-linux-amd64/k6 /usr/local/bin/k6
+      - name: Verificar API dispon├¡vel
+        run: |
+          echo "ÔÅ│ Cooldown 45s para a VPS se recuperar do Stress..."
+          sleep 45
+          BASE_URL="${{ inputs.target_url }}"
+          case "$BASE_URL" in http*) ;; *) BASE_URL="http://$BASE_URL" ;; esac
+          HEALTH="$BASE_URL/health/live"
+          for i in 1 2 3; do
+            echo "Tentativa $i/3: verificando $HEALTH ..."
+            if curl -sf --max-time 15 "$HEALTH" > /dev/null 2>&1; then
+              echo "Ô£à API dispon├¡vel"
+              exit 0
+            fi
+            if [ "$i" -lt 3 ]; then
+              echo "ÔÜá´©Å API indispon├¡vel. Aguardando 30s antes de tentar novamente..."
+              sleep 30
+            fi
+          done
+          echo "ÔØî API n├úo respondeu ap├│s 3 tentativas"
+          exit 1
+      - name: Run Spike
+        run: |
+          mkdir -p k6/results
+          k6 run --out json=k6/results/raw.json k6/scripts/spike.js
+          gzip -9 k6/results/raw.json
+        env:
+          TARGET_URL:   ${{ inputs.target_url }}
+          VUS_OVERRIDE: ${{ inputs.vus }}
+          RESULTS_DIR:  k6/results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k6-spike-run-${{ github.run_number }}
+          path: k6/results/
+          retention-days: 30
+
+  # -- 5. SOAK ------------------------------------------------------------------
+  soak:
+    name: "Soak - 50 VUs / ~4min"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [spike]
+    if: |
+      always() && !cancelled() &&
+      (inputs.test_type == 'soak' || inputs.test_type == 'all') &&
+      (needs.spike.result == 'success' || needs.spike.result == 'failure' || inputs.test_type != 'all')
+    steps:
+      - uses: actions/checkout@v4
+      - id: cache-k6
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/k6
+          key: k6-v0.53.0-linux-amd64
+      - name: Install K6
+        if: steps.cache-k6.outputs.cache-hit != 'true'
+        run: |
+          wget -q https://github.com/grafana/k6/releases/download/v0.53.0/k6-v0.53.0-linux-amd64.tar.gz -O /tmp/k6.tar.gz
+          tar -xzf /tmp/k6.tar.gz -C /tmp
+          sudo mv /tmp/k6-v0.53.0-linux-amd64/k6 /usr/local/bin/k6
+      - name: Verificar API dispon├¡vel
+        run: |
+          echo "ÔÅ│ Cooldown 30s para a VPS se recuperar do Spike..."
+          sleep 30
+          BASE_URL="${{ inputs.target_url }}"
+          case "$BASE_URL" in http*) ;; *) BASE_URL="http://$BASE_URL" ;; esac
+          HEALTH="$BASE_URL/health/live"
+          for i in 1 2 3; do
+            echo "Tentativa $i/3: verificando $HEALTH ..."
+            if curl -sf --max-time 15 "$HEALTH" > /dev/null 2>&1; then
+              echo "Ô£à API dispon├¡vel"
+              exit 0
+            fi
+            if [ "$i" -lt 3 ]; then
+              echo "ÔÜá´©Å API indispon├¡vel. Aguardando 30s antes de tentar novamente..."
+              sleep 30
+            fi
+          done
+          echo "ÔØî API n├úo respondeu ap├│s 3 tentativas"
+          exit 1
+      - name: Run Soak
+        run: |
+          mkdir -p k6/results
+          k6 run --out json=k6/results/raw.json k6/scripts/soak.js
+          gzip -9 k6/results/raw.json
+        env:
+          TARGET_URL:   ${{ inputs.target_url }}
+          VUS_OVERRIDE: ${{ inputs.vus }}
+          RESULTS_DIR:  k6/results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k6-soak-run-${{ github.run_number }}
+          path: k6/results/
+          retention-days: 30
+
+  # -- 6. RESULTADO FINAL -------------------------------------------------------
+  summary:
+    name: "Resultado Final"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [smoke, load, stress, spike, soak]
+    if: always() && !cancelled()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Smoke
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: k6-smoke-run-${{ github.run_number }}
+          path: k6/results/smoke/
+
+      - name: Download Load
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: k6-load-run-${{ github.run_number }}
+          path: k6/results/load/
+
+      - name: Download Stress
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: k6-stress-run-${{ github.run_number }}
+          path: k6/results/stress/
+
+      - name: Download Spike
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: k6-spike-run-${{ github.run_number }}
+          path: k6/results/spike/
+
+      - name: Download Soak
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: k6-soak-run-${{ github.run_number }}
+          path: k6/results/soak/
+      - name: Descompactar raw data
+        if: always()
+        run: |
+          for f in k6/results/*/raw.json.gz; do
+            [ -f "$f" ] && gunzip "$f" || true
+          done
+
+
+
+      - name: Gerar dashboard HTML
+        if: always()
+        run: |
+          python3 - <<'PYEOF'
+          import json, re, os, sys
+          from pathlib import Path
+          from collections import defaultdict
+
+          TEST_TYPE  = os.environ.get('TEST_TYPE', '')
+          TARGET_URL = os.environ.get('TARGET_URL', '')
+          RUN_NUMBER = os.environ.get('RUN_NUMBER', '')
+          RUN_DATE   = os.environ.get('RUN_DATE', '')
+
+          template_path = Path('k6/dashboard/index.html')
+          if not template_path.exists():
+              print('Template nao encontrado; abortando geracao do dashboard.')
+              sys.exit(0)
+
+          types_to_run = ['smoke', 'load', 'stress', 'spike', 'soak'] if TEST_TYPE == 'all' else [TEST_TYPE]
+
+          for t in types_to_run:
+              summary_path = Path(f'k6/results/{t}/summary.json')
+              raw_path     = Path(f'k6/results/{t}/raw.json')
+              output_path  = Path(f'k6/results/{t}/dashboard.html')
+              if not summary_path.exists() and not raw_path.exists():
+                  print(f'[{t}] sem dados (job skipped/falhou), ignorando.')
+                  continue
+              kpis = {}
+              thresholds = []
+              if summary_path.exists():
+                  try:
+                      s = json.loads(summary_path.read_text())
+                      dur  = s.get('metrics', {}).get('http_req_duration', {})
+                      vals = dur.get('values', {})
+                      kpis['p50'] = round(vals.get('med', 0), 2)
+                      kpis['p95'] = round(vals.get('p(95)', 0), 2)
+                      kpis['p99'] = round(vals.get('p(99)', 0), 2)
+                      kpis['avg'] = round(vals.get('avg', 0), 2)
+                      reqs = s.get('metrics', {}).get('http_reqs', {}).get('values', {})
+                      kpis['rps'] = round(reqs.get('rate', 0), 2)
+                      kpis['total_requests'] = int(reqs.get('count', 0))
+                      errs = s.get('metrics', {}).get('http_req_failed', {}).get('values', {})
+                      kpis['error_rate'] = round(errs.get('rate', 0), 4)
+                      for metric_name, metric_data in s.get('metrics', {}).items():
+                          for cond, passed in metric_data.get('thresholds', {}).items():
+                              actual = None
+                              mv = metric_data.get('values', {})
+                              m = re.match(r'p\((\d+)\)', cond.split('<')[0].split('>')[0].strip())
+                              if m:
+                                  actual = round(mv.get(f'p({m.group(1)})', 0), 2)
+                              elif 'rate' in cond:
+                                  actual = round(mv.get('rate', 0), 4)
+                              elif 'avg' in cond:
+                                  actual = round(mv.get('avg', 0), 2)
+                              ok = passed if isinstance(passed, bool) else passed.get('ok', False)
+                              thresholds.append({'metric': metric_name, 'condition': cond, 'actual': actual, 'passed': ok})
+                  except Exception as e:
+                      print(f'Aviso [{t}]: falha ao processar summary.json: {e}')
+
+              ts_rt  = defaultdict(list)
+              ts_vus = {}
+              ts_rps = defaultdict(int)
+              if raw_path.exists():
+                  try:
+                      with raw_path.open() as f:
+                          for line in f:
+                              line = line.strip()
+                              if not line:
+                                  continue
+                              try:
+                                  obj = json.loads(line)
+                              except json.JSONDecodeError:
+                                  continue
+                              if obj.get('type') != 'Point':
+                                  continue
+                              data   = obj.get('data', {})
+                              metric = obj.get('metric', '')
+                              t_str  = data.get('time', '')
+                              val    = data.get('value')
+                              if not t_str or val is None:
+                                  continue
+                              try:
+                                  from datetime import datetime
+                                  dt = datetime.fromisoformat(t_str.replace('Z', '+00:00'))
+                                  ts_key = int(dt.timestamp())
+                              except Exception:
+                                  continue
+                              if metric == 'http_req_duration':
+                                  ts_rt[ts_key].append(val)
+                              elif metric == 'vus':
+                                  ts_vus[ts_key] = val
+                              elif metric == 'http_reqs':
+                                  ts_rps[ts_key] += 1
+                  except Exception as e:
+                      print(f'Aviso [{t}]: falha ao processar raw.json: {e}')
+
+              all_keys = sorted(set(list(ts_rt.keys()) + list(ts_vus.keys()) + list(ts_rps.keys())))
+              MAX_POINTS = 300
+              if len(all_keys) > MAX_POINTS:
+                  step = len(all_keys) // MAX_POINTS
+                  all_keys = all_keys[::step]
+              if all_keys:
+                  t0 = all_keys[0]
+                  labels     = [str(k - t0) + 's' for k in all_keys]
+                  p95_series = [round(sorted(ts_rt.get(k,[0]))[int(len(ts_rt.get(k,[0]))*0.95)] if ts_rt.get(k) else 0,2) for k in all_keys]
+                  avg_series = [round(sum(ts_rt.get(k,[0]))/max(len(ts_rt.get(k,[0])),1),2) for k in all_keys]
+                  vus_series = [ts_vus.get(k, 0) for k in all_keys]
+                  rps_series = [ts_rps.get(k, 0) for k in all_keys]
+              else:
+                  labels = []
+                  p95_series = avg_series = vus_series = rps_series = []
+
+              dashboard_data = {
+                  'meta': {'test_type': t, 'target_url': TARGET_URL, 'run_number': RUN_NUMBER, 'run_date': RUN_DATE},
+                  'kpis': kpis,
+                  'thresholds': thresholds,
+                  'timeseries': {'labels': labels, 'p95': p95_series, 'avg': avg_series, 'vus': vus_series, 'rps': rps_series},
+              }
+              template = template_path.read_text(encoding='utf-8')
+              result   = template.replace('__DASHBOARD_DATA__', json.dumps(dashboard_data, ensure_ascii=False))
+              output_path.write_text(result, encoding='utf-8')
+              print(f'Dashboard [{t}] gerado em {output_path}')
+          PYEOF
+        env:
+          TEST_TYPE:  ${{ inputs.test_type }}
+          TARGET_URL: ${{ inputs.target_url }}
+          RUN_NUMBER: ${{ github.run_number }}
+          RUN_DATE:   ${{ github.event.repository.updated_at || 'N/A' }}
+
+      - name: Publicar resumo no Job Summary
+        if: always()
+        run: |
+          python3 - <<'PYEOF'
+          import json, os
+          from pathlib import Path
+
+          TEST_TYPE  = os.environ.get('TEST_TYPE', '?')
+          TARGET_URL = os.environ.get('TARGET_URL', '?')
+          RUN_NUMBER = os.environ.get('RUN_NUMBER', '?')
+          VUS_INPUT  = os.environ.get('VUS_INPUT', '').strip()
+          DUR_INPUT  = os.environ.get('DURATION_INPUT', '').strip()
+
+          default_vus = {'smoke':'3','load':'100','stress':'400','spike':'200','soak':'50','all':'padrao'}
+          vus_display = VUS_INPUT if VUS_INPUT else default_vus.get(TEST_TYPE, '?') + ' (padrao)'
+          dur_display = DUR_INPUT if DUR_INPUT else 'padrao do script'
+
+          out = f'## Resultado Stress Test - {TEST_TYPE.upper()} - Run #{RUN_NUMBER}\n\n'
+          out += '| Parametro | Valor |\n|-----------|-------|\n'
+          out += f'| Tipo | `{TEST_TYPE}` |\n'
+          out += f'| URL alvo | `{TARGET_URL}` |\n'
+          out += f'| VUs pico | `{vus_display}` |\n'
+          out += f'| Duracao | `{dur_display}` |\n\n'
+
+          types_to_report = ['smoke','load','stress','spike','soak'] if TEST_TYPE == 'all' else [TEST_TYPE]
+
+          out += '### Resultados\n\n'
+          out += '| Tipo | p50 ms | p95 ms | p99 ms | Req/s | Total | Erro % | Status |\n'
+          out += '|------|--------|--------|--------|-------|-------|--------|--------|\n'
+          for t in types_to_report:
+              sp = Path(f'k6/results/{t}/summary.json')
+              if sp.exists():
+                  try:
+                      s    = json.loads(sp.read_text())
+                      dur  = s.get('metrics',{}).get('http_req_duration',{}).get('values',{})
+                      reqs = s.get('metrics',{}).get('http_reqs',{}).get('values',{})
+                      errs = s.get('metrics',{}).get('http_req_failed',{}).get('values',{})
+                      all_ok = all(
+                          (v if isinstance(v, bool) else v.get('ok', False))
+                          for md in s.get('metrics',{}).values()
+                          for v in md.get('thresholds',{}).values()
+                      )
+                      out += f'| {t} | {dur.get("med",0):.1f} | {dur.get("p(95)",0):.1f} | {dur.get("p(99)",0):.1f} | {reqs.get("rate",0):.2f} | {int(reqs.get("count",0)):,} | {errs.get("rate",0)*100:.2f}% | {"OK" if all_ok else "FAIL"} |\n'
+                  except Exception as e:
+                      out += f'| {t} | - | - | - | - | - | - | ERR |\n'
+              else:
+                  out += f'| {t} | - | - | - | - | - | - | SKIP |\n'
+
+          artifact_name = f'k6-dashboards-run-{RUN_NUMBER}'
+          pages_url = 'https://comprai.2.25.122.11.nip.io/k6'
+          out += f'\n---\n### Dashboard\n\nU0001f310 **[Abrir Dashboard na VPS]({pages_url})** \u2014 sem precisar baixar nada\n\n> Artefato **`{artifact_name}`** tamb├®m dispon├¡vel na se├º├úo Artifacts (reten├º├úo: 30 dias).\n'
+
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
+              f.write(out)
+          PYEOF
+        env:
+          TEST_TYPE:      ${{ inputs.test_type }}
+          TARGET_URL:     ${{ inputs.target_url }}
+          RUN_NUMBER:     ${{ github.run_number }}
+          VUS_INPUT:      ${{ inputs.vus }}
+          DURATION_INPUT: ${{ inputs.duration }}
+
+      - name: Upload dashboards
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-dashboards-run-${{ github.run_number }}
+          path: |
+            k6/results/*/dashboard.html
+            k6/results/*/summary.json
+          retention-days: 30
+
+  # -- 6. PUBLICAR GITHUB PAGES -------------------------------------------------
+  publicar-pages:
+    name: "Publicar Dashboard na VPS"
+    needs: [summary]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Baixar dashboards
+        uses: actions/download-artifact@v4
+        with:
+          name: k6-dashboards-run-${{ github.run_number }}
+          path: ./dashboards
+
+      - name: Enviar dados para API da VPS via Git
         run: |
           echo "🚀 Fazendo deploy dos resultados via git clone/pull na VPS..."
-          
+
           ssh -i ~/.ssh/vps_key -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@2.25.122.11 << 'EOF'
             set -e
-            
+
             REPO_DIR="/home/projetos/comprai"
-            
+
             echo "📍 Acessando repositório..."
             mkdir -p "$REPO_DIR"
             cd "$REPO_DIR"
-            
+
+            # Se repositório existe, fazer pull
             if [ -d ".git" ]; then
               echo "📍 Atualizando repositório existente..."
+              rm -f k6/results/index.json 2>/dev/null || true
               git pull origin main --depth=1 || git fetch origin main && git reset --hard origin/main
             else
               echo "📍 Clonando repositório..."
               git clone https://${{ secrets.GH_PAT }}@github.com/josehelioaraujo/comprai.git . --depth=1
             fi
-            
+
             echo "✅ Repositório atualizado!"
             echo "📄 Arquivos em k6/results/:"
             ls -lh k6/results/ 2>/dev/null | head -10 || echo "Nenhum arquivo"
-            
+
             if [ -f "k6/results/index.json" ]; then
               echo "📋 Conteúdo do index.json:"
               cat k6/results/index.json
             fi
           EOF
-          
-      - name: Resumo do Deploy
-        if: always()
+
+      - name: Resumo do Dashboard
         run: |
-          echo "✨ Deploy concluído!"
-          echo "📊 Dashboard: https://comprai.2.25.122.11.nip.io/k6/dashboard/"
+          echo "## ­ƒôè Dashboard K6 ÔÇö Run #${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "­ƒîÉ **[Abrir Dashboard na VPS](https://comprai.2.25.122.11.nip.io/k6)**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> Dados enviados para a API ÔÇö dashboard dispon├¡vel em tempo real na VPS" >> $GITHUB_STEP_SUMMARY
