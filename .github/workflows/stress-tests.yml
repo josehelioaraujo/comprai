@@ -596,42 +596,37 @@ jobs:
           echo "${{ secrets.VPS_HOSTINGER_SSH_KEY }}" > ~/.ssh/vps_key
           chmod 600 ~/.ssh/vps_key
           ssh-keyscan -H 2.25.122.11 >> ~/.ssh/known_hosts 2>/dev/null || true
-          echo "✅ SSH key configurada"
-
-
 
       - name: Enviar dados para API da VPS via Git
         run: |
-          echo "🚀 Fazendo deploy dos resultados via git clone/pull na VPS..."
+          echo "Fazendo deploy dos resultados via git clone/pull na VPS..."
 
-          ssh -i ~/.ssh/vps_key -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@2.25.122.11 << 'EOF'
+          ssh -i ~/.ssh/vps_key -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@2.25.122.11 << 'EOFGIT'
             set -e
 
             REPO_DIR="/home/projetos/comprai"
 
-            echo "📍 Acessando repositório..."
+            echo "Acessando repositorio..."
             mkdir -p "$REPO_DIR"
             cd "$REPO_DIR"
 
-            # Se repositório existe, fazer pull
             if [ -d ".git" ]; then
-              echo "📍 Atualizando repositório existente..."
+              echo "Atualizando repositorio existente..."
               rm -f k6/results/index.json 2>/dev/null || true
               git pull origin main --depth=1 || git fetch origin main && git reset --hard origin/main
             else
-              echo "📍 Clonando repositório..."
+              echo "Clonando repositorio..."
               git clone https://${{ secrets.GH_PAT }}@github.com/josehelioaraujo/comprai.git . --depth=1
             fi
 
-            echo "✅ Repositório atualizado!"
-            echo "📄 Arquivos em k6/results/:"
+            echo "Repositorio atualizado!"
             ls -lh k6/results/ 2>/dev/null | head -10 || echo "Nenhum arquivo"
 
             if [ -f "k6/results/index.json" ]; then
-              echo "📋 Conteúdo do index.json:"
+              echo "Conteudo do index.json:"
               cat k6/results/index.json
             fi
-          EOF
+          EOFGIT
 
       - name: Resumo do Dashboard
         run: |
