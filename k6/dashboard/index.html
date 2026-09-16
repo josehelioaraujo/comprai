@@ -102,24 +102,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
   <div id="dashContent" style="display:none">
 
-    <!-- Seção 1: Configuração -->
-    <div class="section-block">
-      <div class="section-header" onclick="toggleSection(this)">
-        <span class="section-title-text">&#9881; Configuração dos Testes</span>
-        <span class="section-count" id="cfg-count"></span>
-        <span class="section-chevron">&#9660;</span>
-      </div>
-      <div class="section-content">
-        <div class="section-inner">
-          <table>
-            <thead><tr><th>Tipo</th><th>URL Alvo</th><th>VUs</th><th>Duração</th><th>Status</th></tr></thead>
-            <tbody id="configTableBody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- Seção 2: Resumo -->
+    <!-- Seção 1: Resumo (expandido por padrão) -->
     <div class="section-block">
       <div class="section-header" onclick="toggleSection(this)">
         <span class="section-title-text">&#128202; Resumo de Resultados</span>
@@ -136,14 +119,31 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
     </div>
 
-    <!-- Seção 3: Gráficos -->
+    <!-- Seção 2: Configuração (colapsada por padrão) -->
     <div class="section-block">
-      <div class="section-header" onclick="toggleSection(this)">
+      <div class="section-header collapsed" onclick="toggleSection(this)">
+        <span class="section-title-text">&#9881; Configuração dos Testes</span>
+        <span class="section-count" id="cfg-count"></span>
+        <span class="section-chevron">&#9660;</span>
+      </div>
+      <div class="section-content collapsed">
+        <div class="section-inner">
+          <table>
+            <thead><tr><th>Tipo</th><th>URL Alvo</th><th>VUs</th><th>Duração</th><th>Status</th></tr></thead>
+            <tbody id="configTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Seção 3: Gráficos (colapsada por padrão) -->
+    <div class="section-block">
+      <div class="section-header collapsed" onclick="toggleSection(this)">
         <span class="section-title-text">&#128200; Gráficos de Performance</span>
         <span class="section-count" id="charts-count"></span>
         <span class="section-chevron">&#9660;</span>
       </div>
-      <div class="section-content">
+      <div class="section-content collapsed">
         <div class="section-inner">
           <div class="charts-grid">
             <div class="chart-card">
@@ -167,26 +167,26 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
     </div>
 
-    <!-- Seção 4: Rotas -->
-    <div class="section-block">
-      <div class="section-header" onclick="toggleSection(this)">
+    <!-- Seção 4: Rotas (oculta quando sem dados, colapsada quando tem) -->
+    <div class="section-block" id="routesBlock" style="display:none">
+      <div class="section-header collapsed" onclick="toggleSection(this)">
         <span class="section-title-text">&#127760; Rotas Chamadas</span>
         <span class="section-count" id="routes-count"></span>
         <span class="section-chevron">&#9660;</span>
       </div>
-      <div class="section-content">
+      <div class="section-content collapsed">
         <div class="section-inner" id="routesContent"></div>
       </div>
     </div>
 
-    <!-- Seção 5: Detalhes por Tipo -->
-    <div class="section-block">
-      <div class="section-header" onclick="toggleSection(this)">
+    <!-- Seção 5: Detalhes por Tipo (oculta quando sem dados, colapsada quando tem) -->
+    <div class="section-block" id="detailsBlock" style="display:none">
+      <div class="section-header collapsed" onclick="toggleSection(this)">
         <span class="section-title-text">&#128269; Detalhes por Tipo de Teste</span>
         <span class="section-count" id="detail-count"></span>
         <span class="section-chevron">&#9660;</span>
       </div>
-      <div class="section-content">
+      <div class="section-content collapsed">
         <div class="section-inner">
           <div class="scenario-tabs" id="scenarioTabs"></div>
           <div id="scenarioPanel"></div>
@@ -216,7 +216,14 @@ const TYPE_COLORS = {
 function toggleSection(header) {
   header.classList.toggle('collapsed');
   var content = header.nextElementSibling;
+  var wasCollapsed = content.classList.contains('collapsed');
   content.classList.toggle('collapsed');
+  // Re-resize charts when the charts section is expanded
+  if (wasCollapsed && content.querySelector('#chartLatency')) {
+    setTimeout(function() {
+      Object.values(charts).forEach(function(c) { if (c) c.resize(); });
+    }, 350);
+  }
 }
 
 // ── Type badge ──────────────────────────────────────────────
@@ -451,14 +458,10 @@ function renderRoutes() {
   });
 
   if (!hasAny) {
-    document.getElementById('routes-count').textContent = 'sem dados';
-    container.innerHTML = '<div class="empty-state">' +
-      '&#128270; Nenhum dado de rotas disponível nos resultados atuais.<br>' +
-      '<span style="font-size:12px">Para habilitar, adicione ao script Python de sumário:<br>' +
-      '<code>routes: [{method, path, p50, p95, count, err}]</code>' +
-      '</span></div>';
+    document.getElementById('routesBlock').style.display = 'none';
     return;
   }
+  document.getElementById('routesBlock').style.display = '';
 
   var totalRoutes = 0;
   var html = '';
@@ -490,6 +493,8 @@ function renderRoutes() {
 
 // ── Seção 5: Detalhes (Tabs + KPI) ──────────────────────────
 function renderTabs() {
+  if (!allData.length) { document.getElementById('detailsBlock').style.display = 'none'; return; }
+  document.getElementById('detailsBlock').style.display = '';
   document.getElementById('detail-count').textContent = allData.length + ' tipos';
   document.getElementById('scenarioTabs').innerHTML = allData.map(function(d, i) {
     var t = (d.meta && d.meta.test_type ? d.meta.test_type : d._file.replace('.json', '')).toUpperCASE();
