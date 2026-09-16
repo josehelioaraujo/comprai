@@ -709,8 +709,7 @@ jobs:
               [ -f "$cfg" ] || continue
               if grep -q "k6\|/var/www/html\|nip.io" "$cfg" 2>/dev/null; then
                 if ! grep -q "k6-dispatch" "$cfg"; then
-                  sed -i "s|^}$|    include /etc/nginx/snippets/k6-dispatch.conf;
-}|" "$cfg"
+                  sed -i "s|^}$|    include /etc/nginx/snippets/k6-dispatch.conf;\n}|" "$cfg"
                   echo "Include adicionado em $cfg"
                 else
                   echo "Include ja presente em $cfg"
