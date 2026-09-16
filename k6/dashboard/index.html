@@ -351,7 +351,7 @@ async function loadGhConfig() {
     var r = await fetch(API_BASE + '/k6/results/gh-config.json?t=' + Date.now());
     if (!r.ok) return;
     var cfg = await r.json();
-    if (cfg && cfg.token && cfg.repo) {
+    if (cfg && cfg.repo) {
       ghCfg = cfg;
       document.getElementById('runControls').style.display = 'flex';
     }
@@ -366,15 +366,10 @@ async function triggerTest() {
   btn.disabled = true;
   btn.textContent = '⏳ Disparando...';
   try {
-    var resp = await fetch(
-      'https://api.github.com/repos/' + ghCfg.repo + '/actions/workflows/' + ghCfg.workflow_file + '/dispatches',
-      {
+    var dispatchUrl = ghCfg.dispatch_url || '/k6/dispatch';
+    var resp = await fetch(dispatchUrl, {
         method: 'POST',
-        headers: {
-          'Authorization': 'token ' + ghCfg.token,
-          'Accept': 'application/vnd.github.v3+json',
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ref: ghCfg.ref || 'main', inputs: { test_type: testType } })
       }
     );
@@ -418,7 +413,7 @@ async function startPolling() {
     // Find the latest run for this workflow
     var resp = await fetch(
       'https://api.github.com/repos/' + ghCfg.repo + '/actions/workflows/' + ghCfg.workflow_file + '/runs?per_page=3',
-      { headers: { 'Authorization': 'token ' + ghCfg.token, 'Accept': 'application/vnd.github.v3+json' } }
+      { headers: { 'Accept': 'application/vnd.github.v3+json' } }
     );
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     var data = await resp.json();
@@ -442,7 +437,7 @@ async function pollRun(run) {
     // Refresh run status
     var runResp = await fetch(
       'https://api.github.com/repos/' + ghCfg.repo + '/actions/runs/' + run.id,
-      { headers: { 'Authorization': 'token ' + ghCfg.token, 'Accept': 'application/vnd.github.v3+json' } }
+      { headers: { 'Accept': 'application/vnd.github.v3+json' } }
     );
     if (!runResp.ok) throw new Error('HTTP ' + runResp.status);
     var runData = await runResp.json();
@@ -450,7 +445,7 @@ async function pollRun(run) {
     // Get jobs
     var jobsResp = await fetch(
       'https://api.github.com/repos/' + ghCfg.repo + '/actions/runs/' + run.id + '/jobs',
-      { headers: { 'Authorization': 'token ' + ghCfg.token, 'Accept': 'application/vnd.github.v3+json' } }
+      { headers: { 'Accept': 'application/vnd.github.v3+json' } }
     );
     var jobsData = jobsResp.ok ? await jobsResp.json() : { jobs: [] };
 
