@@ -245,7 +245,7 @@ async function loadAll() {
     var idxResp = await fetch(API_BASE + '/k6/results/index.json');
     if (!idxResp.ok) throw new Error('index.json não encontrado');
     var idx = await idxResp.json();
-    var files = idx.files || [];
+    var files = idx.files || (idx.tests ? idx.tests.map(function(t){ return t.file; }) : []);
 
     if (files.length === 0) {
       document.getElementById('loadingMsg').textContent = 'Nenhum resultado encontrado em /k6/results/.';
