@@ -633,13 +633,13 @@ jobs:
             chown -R www-data:www-data /var/www/html/k6 2>/dev/null || true
             chmod -R 755 /var/www/html/k6 2>/dev/null || true
             chmod -R 644 /var/www/html/k6/*.html 2>/dev/null || true
-            echo "Dashboard disponivel em: https://comprai.2.25.122.11.nip.io/k6/"
+            echo "Dashboard disponivel em: https://comprai.2.25.122.11.nip.io/k6/dashboard/"
           EOFGIT
 
       - name: Resumo do Dashboard
         run: |
           echo "## ­ƒôè Dashboard K6 ÔÇö Run #${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "­ƒîÉ **[Abrir Dashboard na VPS](https://comprai.2.25.122.11.nip.io/k6)**" >> $GITHUB_STEP_SUMMARY
+          echo "­ƒîÉ **[Abrir Dashboard na VPS](https://comprai.2.25.122.11.nip.io/k6/dashboard/)**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "> Dados enviados para a API ÔÇö dashboard dispon├¡vel em tempo real na VPS" >> $GITHUB_STEP_SUMMARY

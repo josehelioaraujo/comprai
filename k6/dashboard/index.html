@@ -1,89 +1,105 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>K6 Stress Test Dashboard — Comprai</title>
-  <style>
-    :root { --bg: #0f1117; --surface: #1a1d27; --border: #2a2d3e; --accent: #7c3aed; --accent2: #06b6d4; --text: #e2e8f0; --muted: #94a3b8; --pass: #10b981; --fail: #ef4444; }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
-    header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 20px 32px; display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
-    .header-logo { font-size: 22px; font-weight: 700; color: var(--accent); }
-    .header-controls { margin-left: auto; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-    select { background: var(--surface); color: var(--text); border: 1px solid var(--border); padding: 8px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; }
-    main { padding: 28px 32px; max-width: 1400px; margin: 0 auto; }
-    .scenario-tabs { display: flex; gap: 8px; margin-bottom: 28px; flex-wrap: wrap; border-bottom: 2px solid var(--border); }
-    .scenario-tab { padding: 12px 16px; background: none; border: none; color: var(--muted); border-bottom: 3px solid transparent; cursor: pointer; text-transform: uppercase; }
-    .scenario-tab.active { color: var(--accent2); border-bottom-color: var(--accent2); }
-    .section-title { font-size: 13px; color: var(--muted); text-transform: uppercase; margin-bottom: 14px; margin-top: 28px; }
-    table { width: 100%; border-collapse: collapse; }
-    th { background: rgba(255, 255, 255, 0.04); padding: 12px 16px; text-align: left; }
-    td { padding: 12px 16px; border-top: 1px solid var(--border); }
-    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
-    .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
-    .badge-pass { background: rgba(16, 185, 129, 0.15); color: var(--pass); padding: 4px 10px; border-radius: 20px; }
-    .badge-fail { background: rgba(239, 68, 68, 0.15); color: var(--fail); padding: 4px 10px; border-radius: 20px; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>K6 Stress Test Dashboard — Comprai</title>
+<style>
+:root { --bg: #0f1117; --surface: #1a1d27; --border: #2a2d3e; --accent: #7c3aed; --accent2: #06b6d4; --text: #e2e8f0; --muted: #94a3b8; --pass: #10b981; --fail: #ef4444; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 20px 32px; display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+.header-logo { font-size: 22px; font-weight: 700; color: var(--accent); }
+.header-meta { margin-left: auto; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+main { padding: 28px 32px; max-width: 1400px; margin: 0 auto; }
+.section-title { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 14px; margin-top: 32px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { background: rgba(255,255,255,.04); padding: 10px 16px; text-align: left; font-size: 12px; color: var(--muted); text-transform: uppercase; }
+td { padding: 11px 16px; border-top: 1px solid var(--border); }
+tr:hover td { background: rgba(255,255,255,.02); }
+.badge-pass { background: rgba(16,185,129,.15); color: var(--pass); padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.badge-fail { background: rgba(239,68,68,.15); color: var(--fail); padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.type-badge { display: inline-block; padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+.type-smoke  { background: rgba(6,182,212,.15); color: #06b6d4; }
+.type-load   { background: rgba(124,58,237,.15); color: #a78bfa; }
+.type-stress { background: rgba(245,158,11,.15); color: #fbbf24; }
+.type-spike  { background: rgba(239,68,68,.15);  color: #f87171; }
+.type-soak   { background: rgba(16,185,129,.15); color: #34d399; }
+.scenario-tabs { display: flex; gap: 6px; margin-bottom: 24px; flex-wrap: wrap; border-bottom: 2px solid var(--border); }
+.scenario-tab { padding: 10px 18px; background: none; border: none; border-bottom: 3px solid transparent; color: var(--muted); cursor: pointer; font-size: 13px; font-weight: 600; text-transform: uppercase; transition: color .15s; margin-bottom: -2px; }
+.scenario-tab:hover { color: var(--text); }
+.scenario-tab.active { color: var(--accent2); border-bottom-color: var(--accent2); }
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 12px; margin-top: 16px; }
+.kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+.kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
+.kpi-value { font-size: 22px; font-weight: 700; }
+.kpi-unit  { font-size: 12px; color: var(--muted); margin-left: 2px; }
+.loading { padding: 48px; text-align: center; color: var(--muted); font-size: 15px; }
+#scenarioPanel { margin-top: 16px; }
+</style>
 </head>
 <body>
 <header>
-  <div class="header-logo">⚡ Comprai — K6 Dashboard</div>
-  <div class="header-controls">
-    <label>Resultado:</label>
-    <select id="resultSelect" onchange="changeResult()"><option>Carregando...</option></select>
-    <div><span>Test Type: <span id="hdr-type">—</span></span></div>
+  <div class="header-logo">&#9889; Comprai &mdash; K6 Dashboard</div>
+  <div class="header-meta">
+    <span id="hdr-count">&mdash;</span>
+    <span id="hdr-updated">&mdash;</span>
   </div>
 </header>
 <main>
-  <div class="section-title">Configuração do Teste</div>
-  <table><thead><tr><th>Tipo</th><th>URL Alvo</th><th>VUs</th><th>Duração</th><th>Status</th></tr></thead>
-  <tbody id="configTableBody"><tr><td colspan="5">Carregando...</td></tr></tbody></table>
-  <div class="section-title">Resumo de Resultados</div>
-  <table><thead><tr><th>Tipo</th><th>p50</th><th>p95</th><th>p99</th><th>Req/s</th><th>Total</th><th>Erro %</th><th>Status</th></tr></thead>
-  <tbody id="resultsTableBody"><tr><td colspan="8">Carregando...</td></tr></tbody></table>
-  <div class="section-title">Detalhes por Cenário</div>
-  <div class="scenario-tabs" id="scenarioTabs"></div>
-  <div id="scenarioContent"></div>
+  <div id="loadingMsg" class="loading">&#9203; Carregando resultados dos testes...</div>
+  <div id="dashContent" style="display:none">
+    <div class="section-title">Configuracao dos Testes</div>
+    <table>
+      <thead><tr><th>Tipo</th><th>URL Alvo</th><th>VUs</th><th>Duracao</th><th>Status</th></tr></thead>
+      <tbody id="configTableBody"></tbody>
+    </table>
+    <div class="section-title">Resumo de Resultados</div>
+    <table>
+      <thead><tr><th>Tipo</th><th>Cenario</th><th>p50 (ms)</th><th>p95 (ms)</th><th>p99 (ms)</th><th>Req/s</th><th>Total Req</th><th>Erro %</th><th>Status</th></tr></thead>
+      <tbody id="resultsTableBody"></tbody>
+    </table>
+    <div class="section-title">Detalhes por Tipo de Teste</div>
+    <div class="scenario-tabs" id="scenarioTabs"></div>
+    <div id="scenarioPanel"></div>
+  </div>
 </main>
 <script>
 const API_BASE = 'https://comprai.2.25.122.11.nip.io';
-let dashboardData = null;
-async function loadIndex() {
-  try {
-    const r = await fetch(API_BASE + '/k6/results/index.json');
-    if (r.ok) {
-      const data = await r.json();
-      const files = data.files || [];
-      const select = document.getElementById('resultSelect');
-      select.innerHTML = files.map((f, i) => `<option value="${f}" ${i === 0 ? 'selected' : ''}>${f}</option>`).join('');
-      if (files.length > 0) await loadResult(files[0]);
-    }
-  } catch(e) { console.error(e); }
+let allData = [], activeTab = 0;
+const TYPE_ORDER = ['smoke','load','stress','spike','soak'];
+function typeBadge(t){const c='type-'+(t||'smoke').toLowerCase();return '<span class="type-badge '+c+'">'+(t||'').toUpperCase()+'</span>';}
+function fmt(v,d){d=d||1;if(v==null)return'&mdash;';const n=parseFloat(v);return isNaN(n)?v:n.toFixed(d);}
+async function loadAll(){
+  try{
+    const r=await fetch(API_BASE+'/k6/results/index.json');
+    if(!r.ok)throw new Error('index.json nao encontrado');
+    const data=await r.json();
+    const files=data.files||[];
+    if(!files.length){document.getElementById('loadingMsg').textContent='Nenhum resultado encontrado.';return;}
+    const settled=await Promise.allSettled(files.map(function(f){return fetch(API_BASE+'/k6/results/'+f).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});}));
+    allData=settled.map(function(r,i){return r.status==='fulfilled'&&r.value?Object.assign({},r.value,{_file:files[i]}):null;}).filter(Boolean);
+    allData.sort(function(a,b){var ai=TYPE_ORDER.indexOf((a.meta&&a.meta.test_type||'').toLowerCase()),bi=TYPE_ORDER.indexOf((b.meta&&b.meta.test_type||'').toLowerCase());return(ai<0?99:ai)-(bi<0?99:bi);});
+    render();
+  }catch(e){document.getElementById('loadingMsg').textContent='Erro: '+e.message;}
 }
-async function changeResult() {
-  const file = document.getElementById('resultSelect').value;
-  await loadResult(file);
+function render(){
+  document.getElementById('loadingMsg').style.display='none';
+  document.getElementById('dashContent').style.display='';
+  document.getElementById('hdr-count').textContent=allData.length+' teste'+(allData.length!==1?'s':'')+' carregado'+(allData.length!==1?'s':'');
+  document.getElementById('hdr-updated').textContent='Atualizado: '+new Date().toLocaleString('pt-BR');
+  document.getElementById('configTableBody').innerHTML=allData.map(function(d){var m=d.meta||{},ok=(d.scenarios||[]).every(function(s){return s.ok;});return'<tr><td>'+typeBadge(m.test_type)+'</td><td><code>'+( m.target_url||'&mdash;')+'</code></td><td>'+(m.vus||'&mdash;')+'</td><td>'+(m.duration||'&mdash;')+'</td><td><span class="'+(ok?'badge-pass':'badge-fail')+'">'+(ok?'OK':'FAIL')+'</span></td></tr>';}).join('');
+  document.getElementById('resultsTableBody').innerHTML=allData.flatMap(function(d){var m=d.meta||{};return(d.scenarios||[]).map(function(sc){return'<tr><td>'+typeBadge(m.test_type)+'</td><td>'+(sc.sc||'&mdash;')+'</td><td>'+fmt(sc.p50)+'</td><td>'+fmt(sc.p95)+'</td><td>'+fmt(sc.p99)+'</td><td>'+fmt(sc.rps)+'</td><td>'+(sc.total||'&mdash;')+'</td><td>'+((sc.err||0)*100).toFixed(2)+'%</td><td><span class="'+(sc.ok?'badge-pass':'badge-fail')+'">'+(sc.ok?'OK':'FAIL')+'</span></td></tr>';});}).join('');
+  document.getElementById('scenarioTabs').innerHTML=allData.map(function(d,i){return'<button class="scenario-tab '+(i===activeTab?'active':'')+'" onclick="selectTab('+i+')">'+(d.meta&&d.meta.test_type||d._file.replace('.json','')).toUpperCase()+'</button>';}).join('');
+  renderPanel(activeTab);
 }
-async function loadResult(filename) {
-  try {
-    const r = await fetch(API_BASE + `/k6/results/${filename}`);
-    if (r.ok) {
-      dashboardData = await r.json();
-      initDashboard();
-    }
-  } catch(e) { console.error(e); }
+function selectTab(i){activeTab=i;document.querySelectorAll('.scenario-tab').forEach(function(b,j){b.classList.toggle('active',j===i);});renderPanel(i);}
+function renderPanel(i){
+  var d=allData[i];if(!d){document.getElementById('scenarioPanel').innerHTML='';return;}
+  var m=d.meta||{};
+  document.getElementById('scenarioPanel').innerHTML=(d.scenarios||[]).map(function(sc){return'<div style="margin-bottom:28px"><div style="font-size:14px;font-weight:600;margin-bottom:8px">'+typeBadge(m.test_type)+' Cenario: <span style="color:var(--accent2)">'+sc.sc+'</span> <span class="'+(sc.ok?'badge-pass':'badge-fail')+'">'+(sc.ok?'OK':'FAIL')+'</span></div><div class="kpi-grid"><div class="kpi-card"><div class="kpi-label">p50</div><div class="kpi-value">'+fmt(sc.p50)+'<span class="kpi-unit">ms</span></div></div><div class="kpi-card"><div class="kpi-label">p95</div><div class="kpi-value">'+fmt(sc.p95)+'<span class="kpi-unit">ms</span></div></div><div class="kpi-card"><div class="kpi-label">p99</div><div class="kpi-value">'+fmt(sc.p99)+'<span class="kpi-unit">ms</span></div></div><div class="kpi-card"><div class="kpi-label">Req/s</div><div class="kpi-value">'+fmt(sc.rps)+'</div></div><div class="kpi-card"><div class="kpi-label">Total</div><div class="kpi-value">'+(sc.total||'&mdash;')+'</div></div><div class="kpi-card"><div class="kpi-label">Erro</div><div class="kpi-value" style="color:'+((sc.err||0)>0?'var(--fail)':'var(--pass)')+'">'+((sc.err||0)*100).toFixed(2)+'<span class="kpi-unit">%</span></div></div></div></div>';}).join('');
 }
-function initDashboard() {
-  if (!dashboardData) return;
-  const meta = dashboardData.meta || {};
-  const scenarios = dashboardData.scenarios || [];
-  document.getElementById('hdr-type').textContent = meta.test_type || '—';
-  document.getElementById('configTableBody').innerHTML = `<tr><td>${meta.test_type}</td><td>${meta.target_url}</td><td>${meta.vus}</td><td>${meta.duration}</td><td><span class="badge-pass">OK</span></td></tr>`;
-  document.getElementById('resultsTableBody').innerHTML = scenarios.map(sc => `<tr><td>${sc.sc}</td><td>${sc.p50}</td><td>${sc.p95}</td><td>${sc.p99}</td><td>${sc.rps}</td><td>${sc.total}</td><td>${(sc.err*100).toFixed(2)}</td><td><span class="${sc.ok ? 'badge-pass' : 'badge-fail'}">${sc.ok ? 'OK' : 'FAIL'}</span></td></tr>`).join('');
-  document.getElementById('scenarioTabs').innerHTML = scenarios.map((sc, i) => `<button class="scenario-tab ${i === 0 ? 'active' : ''}">${sc.sc.toUpperCase()}</button>`).join('');
-}
-window.addEventListener('DOMContentLoaded', loadIndex);
+window.addEventListener('DOMContentLoaded',loadAll);
 </script>
 </body>
 </html>
