@@ -169,7 +169,7 @@ jobs:
       - name: Verificar API dispon├¡vel
         run: |
           echo "ÔÅ│ Cooldown 90s para a VPS se recuperar do Load..."
-          sleep 90
+          sleep 150
           BASE_URL="${{ inputs.target_url }}"
           case "$BASE_URL" in http*) ;; *) BASE_URL="http://$BASE_URL" ;; esac
           HEALTH="$BASE_URL/health/live"
