@@ -584,62 +584,93 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Baixar dashboards
+      - name: Download Smoke
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
-          name: k6-dashboards-run-${{ github.run_number }}
-          path: ./dashboards
+          name: k6-smoke-run-${{ github.run_number }}
+          path: ./dl/smoke
 
-      - name: Setup SSH para VPS
+      - name: Download Load
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: k6-load-run-${{ github.run_number }}
+          path: ./dl/load
+
+      - name: Download Stress
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: k6-stress-run-${{ github.run_number }}
+          path: ./dl/stress
+
+      - name: Download Spike
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: k6-spike-run-${{ github.run_number }}
+          path: ./dl/spike
+
+      - name: Download Soak
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: k6-soak-run-${{ github.run_number }}
+          path: ./dl/soak
+
+      - name: Coletar JSONs e gerar index.json
+        run: |
+          mkdir -p k6/results
+          for TYPE in smoke load stress spike soak; do
+            SRC="./dl/${TYPE}/${TYPE}.json"
+            if [ -f "$SRC" ]; then
+              cp "$SRC" "k6/results/${TYPE}.json"
+              echo "OK: ${TYPE}.json"
+            else
+              echo "SKIP: ${TYPE}.json"
+            fi
+          done
+          python3 - <<'PYEOF'
+          import json, os
+          from pathlib import Path
+          types = ['smoke', 'load', 'stress', 'spike', 'soak']
+          tests = [{'type': t, 'file': f'{t}.json'} for t in types if Path(f'k6/results/{t}.json').exists()]
+          Path('k6/results/index.json').write_text(json.dumps({'run': os.environ.get('RUN_NUMBER',''), 'tests': tests}, indent=2))
+          print('index.json:', tests)
+          PYEOF
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
+
+      - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.VPS_HOSTINGER_SSH_KEY }}" > ~/.ssh/vps_key
           chmod 600 ~/.ssh/vps_key
           ssh-keyscan -H 2.25.122.11 >> ~/.ssh/known_hosts 2>/dev/null || true
 
-      - name: Enviar dados para API da VPS via Git
+      - name: Enviar JSONs para VPS via SCP
         run: |
-          echo "Fazendo deploy dos resultados via git clone/pull na VPS..."
-
-          ssh -i ~/.ssh/vps_key -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@2.25.122.11 << 'EOFGIT'
+          ssh -i ~/.ssh/vps_key -o StrictHostKeyChecking=no root@2.25.122.11 "mkdir -p /var/www/html/k6/results"
+          scp -i ~/.ssh/vps_key -o StrictHostKeyChecking=no k6/results/*.json root@2.25.122.11:/var/www/html/k6/results/
+          # Atualiza dashboard HTML via git pull
+          ssh -i ~/.ssh/vps_key -o StrictHostKeyChecking=no root@2.25.122.11 << 'EOFGIT'
             set -e
-
             REPO_DIR="/home/projetos/comprai"
-
-            echo "Acessando repositorio..."
             mkdir -p "$REPO_DIR"
             cd "$REPO_DIR"
-
             if [ -d ".git" ]; then
-              echo "Atualizando repositorio existente..."
-              rm -f k6/results/index.json 2>/dev/null || true
-              git pull origin main --depth=1 || git fetch origin main && git reset --hard origin/main
+              git pull origin main --depth=1 || (git fetch origin main && git reset --hard origin/main)
             else
-              echo "Clonando repositorio..."
               git clone https://${{ secrets.GH_PAT }}@github.com/josehelioaraujo/comprai.git . --depth=1
             fi
-
-            echo "Repositorio atualizado!"
-            ls -lh k6/results/ 2>/dev/null | head -10 || echo "Nenhum arquivo"
-
-            if [ -f "k6/results/index.json" ]; then
-              echo "Conteudo do index.json:"
-              cat k6/results/index.json
-            fi
-            
-            echo "Configurando permissoes para nginx..."
-            mkdir -p /var/www/html/k6
-            cp -r k6/results/* /var/www/html/k6/ 2>/dev/null || true
-            chown -R www-data:www-data /var/www/html/k6 2>/dev/null || true
-            chmod -R 755 /var/www/html/k6 2>/dev/null || true
-            chmod -R 644 /var/www/html/k6/*.html 2>/dev/null || true
-            echo "Dashboard disponivel em: https://comprai.2.25.122.11.nip.io/k6/dashboard/"
+            cp -rf k6/dashboard/* /var/www/html/k6/ 2>/dev/null || true
+            chown -R www-data:www-data /var/www/html/k6 2>/dev/null || chmod -R 755 /var/www/html/k6 || true
+            echo "Deploy concluido!"
           EOFGIT
 
-      - name: Resumo do Dashboard
+      - name: Resumo
         run: |
-          echo "## ­ƒôè Dashboard K6 ÔÇö Run #${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "## Dashboard K6 - Run #${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "­ƒîÉ **[Abrir Dashboard na VPS](https://comprai.2.25.122.11.nip.io/k6/dashboard/)**" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "> Dados enviados para a API ÔÇö dashboard dispon├¡vel em tempo real na VPS" >> $GITHUB_STEP_SUMMARY
+          echo "[Abrir Dashboard](https://comprai.2.25.122.11.nip.io/k6/dashboard/)" >> $GITHUB_STEP_SUMMARY
