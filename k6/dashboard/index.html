@@ -4,102 +4,546 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>K6 Stress Test Dashboard — Comprai</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
-:root { --bg: #0f1117; --surface: #1a1d27; --border: #2a2d3e; --accent: #7c3aed; --accent2: #06b6d4; --text: #e2e8f0; --muted: #94a3b8; --pass: #10b981; --fail: #ef4444; }
+:root {
+  --bg: #0f1117; --surface: #1a1d27; --surface2: #20243a;
+  --border: #2a2d3e; --accent: #7c3aed; --accent2: #06b6d4;
+  --text: #e2e8f0; --muted: #94a3b8;
+  --pass: #10b981; --fail: #ef4444;
+}
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+/* ── Header ── */
 header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 20px 32px; display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
 .header-logo { font-size: 22px; font-weight: 700; color: var(--accent); }
 .header-meta { margin-left: auto; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+
 main { padding: 28px 32px; max-width: 1400px; margin: 0 auto; }
-.section-title { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 14px; margin-top: 32px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+
+/* ── Collapsible Sections ── */
+.section-block { margin-top: 28px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.section-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 20px;
+  background: var(--surface); cursor: pointer;
+  user-select: none;
+  transition: background .15s;
+}
+.section-header:hover { background: var(--surface2); }
+.section-title-text { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; flex: 1; }
+.section-count { font-size: 11px; color: var(--accent2); background: rgba(6,182,212,.12); padding: 2px 8px; border-radius: 10px; }
+.section-chevron { color: var(--muted); font-size: 14px; transition: transform .25s; }
+.section-header.collapsed .section-chevron { transform: rotate(-90deg); }
+.section-content { overflow: hidden; transition: max-height .3s cubic-bezier(.4,0,.2,1); max-height: 4000px; }
+.section-content.collapsed { max-height: 0; }
+.section-inner { padding: 0 0 8px; }
+
+/* ── Tables ── */
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
-th { background: rgba(255,255,255,.04); padding: 10px 16px; text-align: left; font-size: 12px; color: var(--muted); text-transform: uppercase; }
+th { background: rgba(255,255,255,.04); padding: 10px 16px; text-align: left; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 td { padding: 11px 16px; border-top: 1px solid var(--border); }
 tr:hover td { background: rgba(255,255,255,.02); }
+
+/* ── Badges ── */
 .badge-pass { background: rgba(16,185,129,.15); color: var(--pass); padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
 .badge-fail { background: rgba(239,68,68,.15); color: var(--fail); padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-.type-badge { display: inline-block; padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
-.type-smoke  { background: rgba(6,182,212,.15); color: #06b6d4; }
-.type-load   { background: rgba(124,58,237,.15); color: #a78bfa; }
-.type-stress { background: rgba(245,158,11,.15); color: #fbbf24; }
-.type-spike  { background: rgba(239,68,68,.15);  color: #f87171; }
-.type-soak   { background: rgba(16,185,129,.15); color: #34d399; }
-.scenario-tabs { display: flex; gap: 6px; margin-bottom: 24px; flex-wrap: wrap; border-bottom: 2px solid var(--border); }
-.scenario-tab { padding: 10px 18px; background: none; border: none; border-bottom: 3px solid transparent; color: var(--muted); cursor: pointer; font-size: 13px; font-weight: 600; text-transform: uppercase; transition: color .15s; margin-bottom: -2px; }
+.type-badge { display: inline-block; padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+.type-smoke  { background: rgba(6,182,212,.15);  color: #06b6d4; }
+.type-load   { background: rgba(124,58,237,.15);  color: #a78bfa; }
+.type-stress { background: rgba(245,158,11,.15);  color: #fbbf24; }
+.type-spike  { background: rgba(239,68,68,.15);   color: #f87171; }
+.type-soak   { background: rgba(16,185,129,.15);  color: #34d399; }
+
+/* ── Scenario Tabs ── */
+.scenario-tabs { display: flex; gap: 6px; flex-wrap: wrap; border-bottom: 2px solid var(--border); padding: 12px 16px 0; background: rgba(255,255,255,.01); }
+.scenario-tab { padding: 10px 18px; background: none; border: none; border-bottom: 3px solid transparent; color: var(--muted); cursor: pointer; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; transition: color .15s; margin-bottom: -2px; }
 .scenario-tab:hover { color: var(--text); }
 .scenario-tab.active { color: var(--accent2); border-bottom-color: var(--accent2); }
-.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 12px; margin-top: 16px; }
-.kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
-.kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
-.kpi-value { font-size: 22px; font-weight: 700; }
+
+/* ── KPI Cards ── */
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px,1fr)); gap: 12px; padding: 16px; }
+.kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+.kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+.kpi-value { font-size: 22px; font-weight: 700; color: var(--text); }
 .kpi-unit  { font-size: 12px; color: var(--muted); margin-left: 2px; }
+
+/* ── Charts ── */
+.charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; padding: 16px; }
+.chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+.chart-title { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 14px; font-weight: 600; }
+.chart-wrap { position: relative; height: 220px; }
+
+/* ── Routes ── */
+.route-method { display: inline-block; padding: 2px 7px; border-radius: 6px; font-size: 11px; font-weight: 700; font-family: monospace; }
+.method-GET    { background: rgba(16,185,129,.15); color: #34d399; }
+.method-POST   { background: rgba(124,58,237,.15); color: #a78bfa; }
+.method-PUT    { background: rgba(245,158,11,.15); color: #fbbf24; }
+.method-PATCH  { background: rgba(6,182,212,.15);  color: #06b6d4; }
+.method-DELETE { background: rgba(239,68,68,.15);  color: #f87171; }
+.empty-state { padding: 36px; text-align: center; color: var(--muted); font-size: 14px; line-height: 1.7; }
+.empty-state code { display: inline-block; margin-top: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: 12px; color: var(--accent2); }
+
 .loading { padding: 48px; text-align: center; color: var(--muted); font-size: 15px; }
-#scenarioPanel { margin-top: 16px; }
+#scenarioPanel { min-height: 80px; }
 </style>
 </head>
 <body>
 <header>
-  <div class="header-logo">&#9889; Comprai &mdash; K6 Dashboard</div>
+  <div class="header-logo">&#9889; Comprai — K6 Dashboard</div>
   <div class="header-meta">
-    <span id="hdr-count">&mdash;</span>
-    <span id="hdr-updated">&mdash;</span>
+    <span id="hdr-count">—</span>
+    <span id="hdr-updated">—</span>
   </div>
 </header>
 <main>
   <div id="loadingMsg" class="loading">&#9203; Carregando resultados dos testes...</div>
+
   <div id="dashContent" style="display:none">
-    <div class="section-title">Configuracao dos Testes</div>
-    <table>
-      <thead><tr><th>Tipo</th><th>URL Alvo</th><th>VUs</th><th>Duracao</th><th>Status</th></tr></thead>
-      <tbody id="configTableBody"></tbody>
-    </table>
-    <div class="section-title">Resumo de Resultados</div>
-    <table>
-      <thead><tr><th>Tipo</th><th>Cenario</th><th>p50 (ms)</th><th>p95 (ms)</th><th>p99 (ms)</th><th>Req/s</th><th>Total Req</th><th>Erro %</th><th>Status</th></tr></thead>
-      <tbody id="resultsTableBody"></tbody>
-    </table>
-    <div class="section-title">Detalhes por Tipo de Teste</div>
-    <div class="scenario-tabs" id="scenarioTabs"></div>
-    <div id="scenarioPanel"></div>
-  </div>
+
+    <!-- Seção 1: Configuração -->
+    <div class="section-block">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title-text">&#9881; Configuração dos Testes</span>
+        <span class="section-count" id="cfg-count"></span>
+        <span class="section-chevron">&#9660;</span>
+      </div>
+      <div class="section-content">
+        <div class="section-inner">
+          <table>
+            <thead><tr><th>Tipo</th><th>URL Alvo</th><th>VUs</th><th>Duração</th><th>Status</th></tr></thead>
+            <tbody id="configTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Seção 2: Resumo -->
+    <div class="section-block">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title-text">&#128202; Resumo de Resultados</span>
+        <span class="section-count" id="res-count"></span>
+        <span class="section-chevron">&#9660;</span>
+      </div>
+      <div class="section-content">
+        <div class="section-inner">
+          <table>
+            <thead><tr><th>Tipo</th><th>Cenário</th><th>p50 (ms)</th><th>p95 (ms)</th><th>p99 (ms)</th><th>Req/s</th><th>Total</th><th>Erro %</th><th>Status</th></tr></thead>
+            <tbody id="resultsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Seção 3: Gráficos -->
+    <div class="section-block">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title-text">&#128200; Gráficos de Performance</span>
+        <span class="section-count" id="charts-count"></span>
+        <span class="section-chevron">&#9660;</span>
+      </div>
+      <div class="section-content">
+        <div class="section-inner">
+          <div class="charts-grid">
+            <div class="chart-card">
+              <div class="chart-title">Latência por Tipo de Teste (ms)</div>
+              <div class="chart-wrap"><canvas id="chartLatency"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">Throughput por Tipo (req/s)</div>
+              <div class="chart-wrap"><canvas id="chartRps"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">Taxa de Erro por Tipo (%)</div>
+              <div class="chart-wrap"><canvas id="chartErrors"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">Total de Requisições por Tipo</div>
+              <div class="chart-wrap"><canvas id="chartTotal"></canvas></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Seção 4: Rotas -->
+    <div class="section-block">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title-text">&#127760; Rotas Chamadas</span>
+        <span class="section-count" id="routes-count"></span>
+        <span class="section-chevron">&#9660;</span>
+      </div>
+      <div class="section-content">
+        <div class="section-inner" id="routesContent"></div>
+      </div>
+    </div>
+
+    <!-- Seção 5: Detalhes por Tipo -->
+    <div class="section-block">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title-text">&#128269; Detalhes por Tipo de Teste</span>
+        <span class="section-count" id="detail-count"></span>
+        <span class="section-chevron">&#9660;</span>
+      </div>
+      <div class="section-content">
+        <div class="section-inner">
+          <div class="scenario-tabs" id="scenarioTabs"></div>
+          <div id="scenarioPanel"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /dashContent -->
 </main>
+
 <script>
 const API_BASE = 'https://comprai.2.25.122.11.nip.io';
-let allData = [], activeTab = 0;
+let allData = [];
+let activeTab = 0;
+let charts = {};
+
 const TYPE_ORDER = ['smoke','load','stress','spike','soak'];
-function typeBadge(t){const c='type-'+(t||'smoke').toLowerCase();return '<span class="type-badge '+c+'">'+(t||'').toUpperCase()+'</span>';}
-function fmt(v,d){d=d||1;if(v==null)return'&mdash;';const n=parseFloat(v);return isNaN(n)?v:n.toFixed(d);}
-async function loadAll(){
-  try{
-    const r=await fetch(API_BASE+'/k6/results/index.json');
-    if(!r.ok)throw new Error('index.json nao encontrado');
-    const data=await r.json();
-    const files=data.files||[];
-    if(!files.length){document.getElementById('loadingMsg').textContent='Nenhum resultado encontrado.';return;}
-    const settled=await Promise.allSettled(files.map(function(f){return fetch(API_BASE+'/k6/results/'+f).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});}));
-    allData=settled.map(function(r,i){return r.status==='fulfilled'&&r.value?Object.assign({},r.value,{_file:files[i]}):null;}).filter(Boolean);
-    allData.sort(function(a,b){var ai=TYPE_ORDER.indexOf((a.meta&&a.meta.test_type||'').toLowerCase()),bi=TYPE_ORDER.indexOf((b.meta&&b.meta.test_type||'').toLowerCase());return(ai<0?99:ai)-(bi<0?99:bi);});
-    render();
-  }catch(e){document.getElementById('loadingMsg').textContent='Erro: '+e.message;}
+const TYPE_COLORS = {
+  smoke:  { border: '#06b6d4', bg: 'rgba(6,182,212,.25)' },
+  load:   { border: '#a78bfa', bg: 'rgba(124,58,237,.25)' },
+  stress: { border: '#fbbf24', bg: 'rgba(245,158,11,.25)' },
+  spike:  { border: '#f87171', bg: 'rgba(239,68,68,.25)' },
+  soak:   { border: '#34d399', bg: 'rgba(16,185,129,.25)' }
+};
+
+// ── Toggle collapsible sections ─────────────────────────────
+function toggleSection(header) {
+  header.classList.toggle('collapsed');
+  var content = header.nextElementSibling;
+  content.classList.toggle('collapsed');
 }
-function render(){
-  document.getElementById('loadingMsg').style.display='none';
-  document.getElementById('dashContent').style.display='';
-  document.getElementById('hdr-count').textContent=allData.length+' teste'+(allData.length!==1?'s':'')+' carregado'+(allData.length!==1?'s':'');
-  document.getElementById('hdr-updated').textContent='Atualizado: '+new Date().toLocaleString('pt-BR');
-  document.getElementById('configTableBody').innerHTML=allData.map(function(d){var m=d.meta||{},ok=(d.scenarios||[]).every(function(s){return s.ok;});return'<tr><td>'+typeBadge(m.test_type)+'</td><td><code>'+( m.target_url||'&mdash;')+'</code></td><td>'+(m.vus||'&mdash;')+'</td><td>'+(m.duration||'&mdash;')+'</td><td><span class="'+(ok?'badge-pass':'badge-fail')+'">'+(ok?'OK':'FAIL')+'</span></td></tr>';}).join('');
-  document.getElementById('resultsTableBody').innerHTML=allData.flatMap(function(d){var m=d.meta||{};return(d.scenarios||[]).map(function(sc){return'<tr><td>'+typeBadge(m.test_type)+'</td><td>'+(sc.sc||'&mdash;')+'</td><td>'+fmt(sc.p50)+'</td><td>'+fmt(sc.p95)+'</td><td>'+fmt(sc.p99)+'</td><td>'+fmt(sc.rps)+'</td><td>'+(sc.total||'&mdash;')+'</td><td>'+((sc.err||0)*100).toFixed(2)+'%</td><td><span class="'+(sc.ok?'badge-pass':'badge-fail')+'">'+(sc.ok?'OK':'FAIL')+'</span></td></tr>';});}).join('');
-  document.getElementById('scenarioTabs').innerHTML=allData.map(function(d,i){return'<button class="scenario-tab '+(i===activeTab?'active':'')+'" onclick="selectTab('+i+')">'+(d.meta&&d.meta.test_type||d._file.replace('.json','')).toUpperCase()+'</button>';}).join('');
+
+// ── Type badge ──────────────────────────────────────────────
+function typeBadge(t) {
+  var cls = 'type-' + (t || 'smoke').toLowerCase();
+  return '<span class="type-badge ' + cls + '">' + (t || '').toUpperCase() + '</span>';
+}
+
+function fmt(v, dec) {
+  if (dec === undefined) dec = 1;
+  if (v == null) return '—';
+  var n = parseFloat(v);
+  return isNaN(n) ? v : n.toFixed(dec);
+}
+
+// ── Fetch all results ───────────────────────────────────────
+async function loadAll() {
+  try {
+    var idxResp = await fetch(API_BASE + '/k6/results/index.json');
+    if (!idxResp.ok) throw new Error('index.json não encontrado');
+    var idx = await idxResp.json();
+    var files = idx.files || [];
+
+    if (files.length === 0) {
+      document.getElementById('loadingMsg').textContent = 'Nenhum resultado encontrado em /k6/results/.';
+      return;
+    }
+
+    var settled = await Promise.allSettled(
+      files.map(function(f) {
+        return fetch(API_BASE + '/k6/results/' + f)
+          .then(function(r) { return r.ok ? r.json() : null; })
+          .catch(function() { return null; });
+      })
+    );
+
+    allData = settled
+      .map(function(r, i) {
+        return (r.status === 'fulfilled' && r.value) ? Object.assign({}, r.value, { _file: files[i] }) : null;
+      })
+      .filter(Boolean);
+
+    allData.sort(function(a, b) {
+      var ai = TYPE_ORDER.indexOf((a.meta && a.meta.test_type ? a.meta.test_type : '').toLowerCase());
+      var bi = TYPE_ORDER.indexOf((b.meta && b.meta.test_type ? b.meta.test_type : '').toLowerCase());
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+    });
+
+    render();
+  } catch(e) {
+    document.getElementById('loadingMsg').textContent = '❌ Erro ao carregar resultados: ' + e.message;
+  }
+}
+
+// ── Main render ─────────────────────────────────────────────
+function render() {
+  document.getElementById('loadingMsg').style.display = 'none';
+  document.getElementById('dashContent').style.display = '';
+
+  var total = allData.length;
+  document.getElementById('hdr-count').textContent = total + ' teste' + (total !== 1 ? 's' : '') + ' carregado' + (total !== 1 ? 's' : '');
+  document.getElementById('hdr-updated').textContent = 'Atualizado: ' + new Date().toLocaleString('pt-BR');
+
+  renderConfig();
+  renderResults();
+  renderCharts();
+  renderRoutes();
+  renderTabs();
+}
+
+// ── Seção 1: Configuração ───────────────────────────────────
+function renderConfig() {
+  document.getElementById('cfg-count').textContent = allData.length + ' testes';
+  document.getElementById('configTableBody').innerHTML = allData.map(function(d) {
+    var m = d.meta || {};
+    var allOk = (d.scenarios || []).every(function(s) { return s.ok; });
+    return '<tr>' +
+      '<td>' + typeBadge(m.test_type) + '</td>' +
+      '<td><code style="font-size:12px">' + (m.target_url || '—') + '</code></td>' +
+      '<td>' + (m.vus || '—') + '</td>' +
+      '<td>' + (m.duration || '—') + '</td>' +
+      '<td><span class="' + (allOk ? 'badge-pass' : 'badge-fail') + '">' + (allOk ? 'OK' : 'FAIL') + '</span></td>' +
+    '</tr>';
+  }).join('');
+}
+
+// ── Seção 2: Resumo ─────────────────────────────────────────
+function renderResults() {
+  var rows = [];
+  allData.forEach(function(d) {
+    var m = d.meta || {};
+    (d.scenarios || []).forEach(function(sc) {
+      rows.push('<tr>' +
+        '<td>' + typeBadge(m.test_type) + '</td>' +
+        '<td>' + (sc.sc || '—') + '</td>' +
+        '<td>' + fmt(sc.p50) + '</td>' +
+        '<td>' + fmt(sc.p95) + '</td>' +
+        '<td>' + fmt(sc.p99) + '</td>' +
+        '<td>' + fmt(sc.rps) + '</td>' +
+        '<td>' + (sc.total || '—') + '</td>' +
+        '<td>' + ((sc.err || 0) * 100).toFixed(2) + '%</td>' +
+        '<td><span class="' + (sc.ok ? 'badge-pass' : 'badge-fail') + '">' + (sc.ok ? 'OK' : 'FAIL') + '</span></td>' +
+      '</tr>');
+    });
+  });
+  document.getElementById('res-count').textContent = rows.length + ' cenários';
+  document.getElementById('resultsTableBody').innerHTML = rows.join('');
+}
+
+// ── Seção 3: Gráficos ───────────────────────────────────────
+function renderCharts() {
+  document.getElementById('charts-count').textContent = '4 gráficos';
+
+  // Aggregate: for each test pick first scenario (or avg)
+  var labels = [];
+  var p50 = [], p95 = [], p99 = [], rps = [], errPct = [], totalReq = [];
+  var borderColors = [], bgColors = [];
+
+  allData.forEach(function(d) {
+    var m = d.meta || {};
+    var tt = (m.test_type || d._file.replace('.json', '')).toLowerCase();
+    labels.push(tt.toUpperCase());
+
+    var scs = d.scenarios || [];
+    // compute averages across scenarios
+    var avgP50 = avg(scs, 'p50'), avgP95 = avg(scs, 'p95'), avgP99 = avg(scs, 'p99');
+    var avgRps = avg(scs, 'rps');
+    var avgErr = avg(scs, 'err');
+    var sumTotal = scs.reduce(function(a, s) { return a + (s.total || 0); }, 0);
+
+    p50.push(avgP50); p95.push(avgP95); p99.push(avgP99);
+    rps.push(avgRps); errPct.push(avgErr * 100); totalReq.push(sumTotal);
+
+    var c = TYPE_COLORS[tt] || { border: '#94a3b8', bg: 'rgba(148,163,184,.25)' };
+    borderColors.push(c.border);
+    bgColors.push(c.bg);
+  });
+
+  var chartDefaults = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,.05)' } },
+      y: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,.05)' } }
+    }
+  };
+
+  // Chart 1: Latency (grouped bars p50/p95/p99)
+  if (charts.latency) { charts.latency.destroy(); }
+  charts.latency = new Chart(document.getElementById('chartLatency'), {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        { label: 'p50', data: p50, backgroundColor: 'rgba(6,182,212,.55)', borderColor: '#06b6d4', borderWidth: 1, borderRadius: 4 },
+        { label: 'p95', data: p95, backgroundColor: 'rgba(124,58,237,.55)', borderColor: '#a78bfa', borderWidth: 1, borderRadius: 4 },
+        { label: 'p99', data: p99, backgroundColor: 'rgba(239,68,68,.55)', borderColor: '#f87171', borderWidth: 1, borderRadius: 4 }
+      ]
+    },
+    options: Object.assign({}, chartDefaults, {
+      plugins: {
+        legend: { display: true, labels: { color: '#94a3b8', font: { size: 11 }, boxWidth: 12 } }
+      },
+      scales: {
+        x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,.05)' } },
+        y: { ticks: { color: '#94a3b8', font: { size: 11 }, callback: function(v) { return v + ' ms'; } }, grid: { color: 'rgba(255,255,255,.05)' } }
+      }
+    })
+  });
+
+  // Chart 2: Throughput
+  if (charts.rps) { charts.rps.destroy(); }
+  charts.rps = new Chart(document.getElementById('chartRps'), {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{ label: 'req/s', data: rps, backgroundColor: bgColors, borderColor: borderColors, borderWidth: 2, borderRadius: 4 }]
+    },
+    options: Object.assign({}, chartDefaults, {
+      scales: {
+        x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,.05)' } },
+        y: { ticks: { color: '#94a3b8', font: { size: 11 }, callback: function(v) { return v + ' r/s'; } }, grid: { color: 'rgba(255,255,255,.05)' } }
+      }
+    })
+  });
+
+  // Chart 3: Error rate
+  if (charts.errors) { charts.errors.destroy(); }
+  charts.errors = new Chart(document.getElementById('chartErrors'), {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{ label: 'Erro %', data: errPct, backgroundColor: errPct.map(function(v) { return v > 0 ? 'rgba(239,68,68,.55)' : 'rgba(16,185,129,.45)'; }), borderColor: errPct.map(function(v) { return v > 0 ? '#ef4444' : '#10b981'; }), borderWidth: 2, borderRadius: 4 }]
+    },
+    options: Object.assign({}, chartDefaults, {
+      scales: {
+        x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,.05)' } },
+        y: { ticks: { color: '#94a3b8', font: { size: 11 }, callback: function(v) { return v.toFixed(1) + '%'; } }, grid: { color: 'rgba(255,255,255,.05)' } }
+      }
+    })
+  });
+
+  // Chart 4: Total requests
+  if (charts.total) { charts.total.destroy(); }
+  charts.total = new Chart(document.getElementById('chartTotal'), {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{ label: 'Total', data: totalReq, backgroundColor: bgColors, borderColor: borderColors, borderWidth: 2, borderRadius: 4 }]
+    },
+    options: chartDefaults
+  });
+}
+
+function avg(arr, key) {
+  if (!arr || arr.length === 0) return 0;
+  var sum = arr.reduce(function(a, s) { return a + (parseFloat(s[key]) || 0); }, 0);
+  return sum / arr.length;
+}
+
+// ── Seção 4: Rotas ──────────────────────────────────────────
+function renderRoutes() {
+  var container = document.getElementById('routesContent');
+  var routesByType = [];
+  var hasAny = false;
+
+  allData.forEach(function(d) {
+    if (d.routes && d.routes.length > 0) {
+      hasAny = true;
+      routesByType.push({ data: d, routes: d.routes });
+    }
+  });
+
+  if (!hasAny) {
+    document.getElementById('routes-count').textContent = 'sem dados';
+    container.innerHTML = '<div class="empty-state">' +
+      '&#128270; Nenhum dado de rotas disponível nos resultados atuais.<br>' +
+      '<span style="font-size:12px">Para habilitar, adicione ao script Python de sumário:<br>' +
+      '<code>routes: [{method, path, p50, p95, count, err}]</code>' +
+      '</span></div>';
+    return;
+  }
+
+  var totalRoutes = 0;
+  var html = '';
+  routesByType.forEach(function(item) {
+    var m = item.data.meta || {};
+    totalRoutes += item.routes.length;
+    html += '<div style="padding: 12px 16px 0;">' +
+      '<div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600;">' + typeBadge(m.test_type) + ' &nbsp; ' + (m.target_url || '') + '</div>' +
+      '<table><thead><tr><th>Método</th><th>Rota</th><th>p50 (ms)</th><th>p95 (ms)</th><th>Total</th><th>Erro %</th></tr></thead><tbody>';
+    item.routes.forEach(function(r) {
+      var errPct = ((r.err || 0) * 100).toFixed(2);
+      var errColor = parseFloat(errPct) > 0 ? 'var(--fail)' : 'var(--pass)';
+      var methodCls = 'method-' + (r.method || 'GET').toUpperCase();
+      html += '<tr>' +
+        '<td><span class="route-method ' + methodCls + '">' + (r.method || 'GET') + '</span></td>' +
+        '<td><code style="font-size:12px;color:var(--accent2)">' + (r.path || '—') + '</code></td>' +
+        '<td>' + fmt(r.p50) + '</td>' +
+        '<td>' + fmt(r.p95) + '</td>' +
+        '<td>' + (r.count || r.total || '—') + '</td>' +
+        '<td style="color:' + errColor + '">' + errPct + '%</td>' +
+      '</tr>';
+    });
+    html += '</tbody></table></div>';
+  });
+
+  document.getElementById('routes-count').textContent = totalRoutes + ' rotas';
+  container.innerHTML = html;
+}
+
+// ── Seção 5: Detalhes (Tabs + KPI) ──────────────────────────
+function renderTabs() {
+  document.getElementById('detail-count').textContent = allData.length + ' tipos';
+  document.getElementById('scenarioTabs').innerHTML = allData.map(function(d, i) {
+    var t = (d.meta && d.meta.test_type ? d.meta.test_type : d._file.replace('.json', '')).toUpperCASE();
+    return '<button class="scenario-tab ' + (i === activeTab ? 'active' : '') + '" onclick="selectTab(' + i + ')">' + t + '</button>';
+  }).join('');
   renderPanel(activeTab);
 }
-function selectTab(i){activeTab=i;document.querySelectorAll('.scenario-tab').forEach(function(b,j){b.classList.toggle('active',j===i);});renderPanel(i);}
-function renderPanel(i){
-  var d=allData[i];if(!d){document.getElementById('scenarioPanel').innerHTML='';return;}
-  var m=d.meta||{};
-  document.getElementById('scenarioPanel').innerHTML=(d.scenarios||[]).map(function(sc){return'<div style="margin-bottom:28px"><div style="font-size:14px;font-weight:600;margin-bottom:8px">'+typeBadge(m.test_type)+' Cenario: <span style="color:var(--accent2)">'+sc.sc+'</span> <span class="'+(sc.ok?'badge-pass':'badge-fail')+'">'+(sc.ok?'OK':'FAIL')+'</span></div><div class="kpi-grid"><div class="kpi-card"><div class="kpi-label">p50</div><div class="kpi-value">'+fmt(sc.p50)+'<span class="kpi-unit">ms</span></div></div><div class="kpi-card"><div class="kpi-label">p95</div><div class="kpi-value">'+fmt(sc.p95)+'<span class="kpi-unit">ms</span></div></div><div class="kpi-card"><div class="kpi-label">p99</div><div class="kpi-value">'+fmt(sc.p99)+'<span class="kpi-unit">ms</span></div></div><div class="kpi-card"><div class="kpi-label">Req/s</div><div class="kpi-value">'+fmt(sc.rps)+'</div></div><div class="kpi-card"><div class="kpi-label">Total</div><div class="kpi-value">'+(sc.total||'&mdash;')+'</div></div><div class="kpi-card"><div class="kpi-label">Erro</div><div class="kpi-value" style="color:'+((sc.err||0)>0?'var(--fail)':'var(--pass)')+'">'+((sc.err||0)*100).toFixed(2)+'<span class="kpi-unit">%</span></div></div></div></div>';}).join('');
+
+function selectTab(i) {
+  activeTab = i;
+  document.querySelectorAll('.scenario-tab').forEach(function(b, j) {
+    b.classList.toggle('active', j === i);
+  });
+  renderPanel(i);
 }
-window.addEventListener('DOMContentLoaded',loadAll);
+
+function renderPanel(i) {
+  var d = allData[i];
+  if (!d) {
+    document.getElementById('scenarioPanel').innerHTML = '<div class="empty-state">Sem dados.</div>';
+    return;
+  }
+  var m = d.meta || {};
+  var scenarios = d.scenarios || [];
+
+  document.getElementById('scenarioPanel').innerHTML = scenarios.map(function(sc) {
+    var errColor = (sc.err || 0) > 0 ? 'var(--fail)' : 'var(--pass)';
+    return '<div style="margin: 0 16px 24px;">' +
+      '<div style="font-size:14px;font-weight:600;color:var(--text);margin:16px 0 8px;">' +
+        typeBadge(m.test_type) + ' &nbsp; Cenário: <span style="color:var(--accent2)">' + sc.sc + '</span>' +
+        ' &nbsp; <span class="' + (sc.ok ? 'badge-pass' : 'badge-fail') + '">' + (sc.ok ? 'OK' : 'FAIL') + '</span>' +
+      '</div>' +
+      '<div class="kpi-grid" style="padding:0">' +
+        kpiCard('Latência p50', fmt(sc.p50), 'ms') +
+        kpiCard('Latência p95', fmt(sc.p95), 'ms') +
+        kpiCard('Latência p99', fmt(sc.p99), 'ms') +
+        kpiCard('Throughput',   fmt(sc.rps),  'req/s') +
+        kpiCard('Total Req',    sc.total || '—', '') +
+        '<div class="kpi-card"><div class="kpi-label">Taxa de Erro</div>' +
+          '<div class="kpi-value" style="color:' + errColor + '">' + ((sc.err || 0) * 100).toFixed(2) + '<span class="kpi-unit">%</span></div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function kpiCard(label, value, unit) {
+  return '<div class="kpi-card">' +
+    '<div class="kpi-label">' + label + '</div>' +
+    '<div class="kpi-value">' + value + (unit ? '<span class="kpi-unit">' + unit + '</span>' : '') + '</div>' +
+  '</div>';
+}
+
+window.addEventListener('DOMContentLoaded', loadAll);
 </script>
 </body>
 </html>
