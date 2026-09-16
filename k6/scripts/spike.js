@@ -15,7 +15,16 @@ export const options = {
     { duration: "1m",  target: peakVus },
     { duration: "10s", target: 0 },
   ],
-  thresholds: { http_req_duration: ["p(95)<6000"], errors: ["rate<0.40"] },
+  thresholds: {
+    http_req_duration: ["p(95)<6000"], errors: ["rate<0.40"],
+    "http_req_duration{name:GET /health/live}":     [],
+    "http_req_duration{name:GET /api/search}":      [],
+    "http_req_duration{name:POST /api/cart/items}": [],
+    "http_req_duration{name:GET /api/cart}":        [],
+    "http_req_duration{name:POST /api/checkout}":   [],
+    "http_req_duration{name:POST /api/payment}":    [],
+    "http_req_duration{name:GET /api/orders}":      [],
+  },
   summaryTrendStats: ["avg", "min", "med", "max", "p(90)", "p(95)", "p(99)"],
 };
 
