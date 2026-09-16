@@ -10,8 +10,15 @@ const TARGET_URL  = __ENV.TARGET_URL || "http://2.25.122.11:5020";
 const peakVus     = parseInt(__ENV.VUS_OVERRIDE || "400");
 
 export const options = {
-  stages: [{"duration":"1m","target":"Math.round(peakVus * 0.25)"},{"duration":"2m","target":"Math.round(peakVus * 0.50)"},{"duration":"2m","target":"Math.round(peakVus * 0.75)"},{"duration":"2m","target":"peakVus"},{"duration":"1m","target":"Math.round(peakVus * 0.50)"},{"duration":"30s","target":0}],
-  thresholds: {"http_req_duration":["p(95)<3000"],"errors":["rate<0.15"]},
+  stages: [
+    { duration: "1m",  target: Math.round(peakVus * 0.25) },
+    { duration: "2m",  target: Math.round(peakVus * 0.50) },
+    { duration: "2m",  target: Math.round(peakVus * 0.75) },
+    { duration: "2m",  target: peakVus },
+    { duration: "1m",  target: Math.round(peakVus * 0.50) },
+    { duration: "30s", target: 0 },
+  ],
+  thresholds: { http_req_duration: ["p(95)<3000"], errors: ["rate<0.15"] },
   summaryTrendStats: ["avg", "min", "med", "max", "p(90)", "p(95)", "p(99)"],
 };
 
@@ -20,7 +27,7 @@ export function handleSummary(data) {
   const structured = buildStructured(data, "stress", "400", "~8.5min", 0.15);
   return {
     [dir + "/summary.json"]: JSON.stringify(data, null, 2),
-    [dir + "/stress.json"]:   JSON.stringify(structured, null, 2),
+    [dir + "/stress.json"]:  JSON.stringify(structured, null, 2),
     stdout: textSummary(data, { indent: "  ", enableColors: false }),
   };
 }
@@ -66,16 +73,16 @@ function track(res, tag) {
 }
 
 export default function () {
-  const sid = `stress-vu${__VU}-i${__ITER}`, headers = { "Content-Type": "application/json" };
-  const TARGET_URL2 = TARGET_URL;
+  const headers = { "Content-Type": "application/json" };
+  const sid = `stress-vu${__VU}-i${__ITER}`;
 
-  let res = http.get(`${TARGET_URL2}/health/live`, { tags: { name: "GET /health/live" } });
+  let res = http.get(`${TARGET_URL}/health/live`, { tags: { name: "GET /health/live" } });
   check(res, { "health OK": (r) => r.status === 200 });
   errorRate.add(res.status !== 200 && res.status !== 429);
   rateLimited.add(res.status === 429); responseTime.add(res.timings.duration);
   sleep(0.3);
 
-  res = http.get(`${TARGET_URL2}/api/search?q=notebook&page=1&pageSize=3`, { tags: { name: "GET /api/search" } });
+  res = http.get(`${TARGET_URL}/api/search?q=notebook&page=1&pageSize=3`, { tags: { name: "GET /api/search" } });
   track(res, "search");
   let productId = `mock-${sid}`, productTitle = "Notebook stress", productPrice = 2999.90, productCat = "eletronicos";
   if (res.status === 200) { try { const b = JSON.parse(res.body); const items = b.items || b.products || b.data || b;
@@ -84,15 +91,15 @@ export default function () {
   } catch (_) {} }
   sleep(0.3);
 
-  res = http.post(`${TARGET_URL2}/api/cart/${sid}/items`,
+  res = http.post(`${TARGET_URL}/api/cart/${sid}/items`,
     JSON.stringify({ product: { id: productId, title: productTitle, price: productPrice, category: productCat, source: "k6-stress", imageUrl: null, url: null }, quantity: 1 }),
     { headers, tags: { name: "POST /api/cart/items" } });
   track(res, "cart-add"); sleep(0.3);
 
-  res = http.get(`${TARGET_URL2}/api/cart/${sid}`, { tags: { name: "GET /api/cart" } });
+  res = http.get(`${TARGET_URL}/api/cart/${sid}`, { tags: { name: "GET /api/cart" } });
   track(res, "cart-get"); sleep(0.3);
 
-  res = http.post(`${TARGET_URL2}/api/checkout/${sid}`,
+  res = http.post(`${TARGET_URL}/api/checkout/${sid}`,
     JSON.stringify({ name: `stress User VU${__VU}`, email: `stress-vu${__VU}@k6.test`, phone: "11999999999", address: "Rua stress, 1, Sao Paulo, SP" }),
     { headers, tags: { name: "POST /api/checkout" } });
   track(res, "checkout");
@@ -101,12 +108,12 @@ export default function () {
   sleep(0.3);
 
   if (orderId) {
-    res = http.post(`${TARGET_URL2}/api/payment/${orderId}`,
+    res = http.post(`${TARGET_URL}/api/payment/${orderId}`,
       JSON.stringify({ amount: productPrice, currency: "BRL", method: { provider: "mock", cardToken: null, pixKey: null } }),
       { headers, tags: { name: "POST /api/payment" } });
     track(res, "payment"); sleep(0.3);
 
-    res = http.get(`${TARGET_URL2}/api/orders/${orderId}`, { tags: { name: "GET /api/orders" } });
+    res = http.get(`${TARGET_URL}/api/orders/${orderId}`, { tags: { name: "GET /api/orders" } });
     track(res, "order"); sleep(0.3);
   }
   sleep(0.5);
