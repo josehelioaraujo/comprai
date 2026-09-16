@@ -320,7 +320,7 @@ jobs:
             cd ${{ env.VPS_PATH }}
             git checkout -- .
             git remote set-url origin https://x-access-token:${GH_PAT}@github.com/josehelioaraujo/comprai.git
-            git pull origin main
+            git fetch origin && git reset --hard origin/main
 
             USAR_BANCO="${{ github.event.inputs.usar_banco || 'false' }}"
             sed -i "s/UsarRedis=.*/UsarRedis=${USAR_BANCO}/" .env

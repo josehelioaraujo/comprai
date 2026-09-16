@@ -15,7 +15,16 @@ export const options = {
     { duration: "1m",  target: peakVus },
     { duration: "10s", target: 0 },
   ],
-  thresholds: { http_req_duration: ["p(95)<6000"], errors: ["rate<0.40"] },
+  thresholds: {
+    http_req_duration: ["p(95)<6000"], errors: ["rate<0.40"],
+    "http_req_duration{name:GET /health/live}":     [],
+    "http_req_duration{name:GET /api/search}":      [],
+    "http_req_duration{name:POST /api/cart/items}": [],
+    "http_req_duration{name:GET /api/cart}":        [],
+    "http_req_duration{name:POST /api/checkout}":   [],
+    "http_req_duration{name:POST /api/payment}":    [],
+    "http_req_duration{name:GET /api/orders}":      [],
+  },
   summaryTrendStats: ["avg", "min", "med", "max", "p(90)", "p(95)", "p(99)"],
 };
 
@@ -46,9 +55,10 @@ function buildStructured(data, testType, defaultVus, defaultDuration, errThr) {
   const dur = v("http_req_duration"), reqs = v("http_reqs"), fail = v("http_req_failed");
   const errRate = r(fail["rate"] || 0, 4);
   const routes = ROUTE_DEFS.map(function(rd) {
-    var dv = v("http_req_duration{name:" + rd.tag + "}");
+    var metricKey = "http_req_duration{name:" + rd.tag + "}";
+    var dv = v(metricKey);
     var fv = v("http_req_failed{name:" + rd.tag + "}");
-    if (!(dv["count"] > 0)) return null;
+    if (!m[metricKey]) return null;
     return { method: rd.method, path: rd.path,
       p50: r(dv["med"] || 0), p95: r(dv["p(95)"] || 0),
       count: dv["count"] || 0, err: r(fv["rate"] || 0, 4) };

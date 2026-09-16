@@ -543,7 +543,7 @@ jobs:
                       all_ok = all(
                           (v if isinstance(v, bool) else v.get('ok', False))
                           for md in s.get('metrics',{}).values()
-                          for v in md.get('thresholds',{}).values()
+                          for f in md.get('thresholds',{}).values()
                       )
                       out += f'| {t} | {dur.get("med",0):.1f} | {dur.get("p(95)",0):.1f} | {dur.get("p(99)",0):.1f} | {reqs.get("rate",0):.2f} | {int(reqs.get("count",0)):,} | {errs.get("rate",0)*100:.2f}% | {"OK" if all_ok else "FAIL"} |\n'
                   except Exception as e:
@@ -668,6 +668,60 @@ jobs:
             chown -R www-data:www-data /var/www/html/k6 2>/dev/null || chmod -R 755 /var/www/html/k6 || true
             echo "Deploy concluido!"
           EOFGIT
+
+      - name: Publicar gh-config.json na VPS (sem token)
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          # gh-config sem token — token fica server-side no proxy nginx
+          cat > /tmp/gh-config.json << 'EOFCFG'
+          {"repo":"${{ github.repository }}","workflow_file":"stress-tests.yml","ref":"main","dispatch_url":"/k6/dispatch"}
+          EOFCFG
+          scp -i ~/.ssh/vps_key -o StrictHostKeyChecking=no /tmp/gh-config.json root@2.25.122.11:/var/www/html/k6/results/gh-config.json
+
+          # Escrever proxy nginx com token via shell (sem Python inline)
+          cat > /tmp/k6-dispatch.conf << EOFCONF
+          location = /k6/dispatch {
+              limit_except POST { return 405; }
+              proxy_pass https://api.github.com/repos/josehelioaraujo/comprai/actions/workflows/stress-tests.yml/dispatches;
+              proxy_http_version 1.1;
+              proxy_set_header Host api.github.com;
+              proxy_set_header Authorization "token ${GH_PAT}";
+              proxy_set_header Accept "application/vnd.github.v3+json";
+              proxy_set_header Content-Type "application/json";
+              proxy_ssl_server_name on;
+              proxy_ssl_name api.github.com;
+              proxy_pass_request_body on;
+              proxy_pass_request_headers off;
+          }
+          EOFCONF
+          scp -i ~/.ssh/vps_key -o StrictHostKeyChecking=no /tmp/k6-dispatch.conf root@2.25.122.11:/tmp/k6-dispatch.conf
+
+          # Instalar no nginx e recarregar
+          ssh -i ~/.ssh/vps_key -o StrictHostKeyChecking=no root@2.25.122.11 << 'EOFNGINX'
+            set -e
+            mkdir -p /etc/nginx/snippets
+            mv /tmp/k6-dispatch.conf /etc/nginx/snippets/k6-dispatch.conf
+            chmod 600 /etc/nginx/snippets/k6-dispatch.conf
+
+            # Adicionar include no server block se ainda nao estiver
+            for cfg in /etc/nginx/sites-enabled/* /etc/nginx/conf.d/*.conf; do
+              [ -f "$cfg" ] || continue
+              if grep -q "k6\|/var/www/html\|nip.io" "$cfg" 2>/dev/null; then
+                if ! grep -q "k6-dispatch" "$cfg"; then
+                  sed -i "s|^}$|    include /etc/nginx/snippets/k6-dispatch.conf;
+}|" "$cfg"
+                  echo "Include adicionado em $cfg"
+                else
+                  echo "Include ja presente em $cfg"
+                fi
+                break
+              fi
+            done
+
+            nginx -t && nginx -s reload
+            echo "Nginx reloaded"
+          EOFNGINX
 
       - name: Resumo
         run: |

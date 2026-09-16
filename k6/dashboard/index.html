@@ -16,9 +16,52 @@
 body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
 
 /* ── Header ── */
-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 20px 32px; display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 32px; display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
 .header-logo { font-size: 22px; font-weight: 700; color: var(--accent); }
-.header-meta { margin-left: auto; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.header-meta { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.run-controls { margin-left: auto; display: none; align-items: center; gap: 10px; }
+.run-controls select {
+  background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+  padding: 7px 12px; border-radius: 7px; font-size: 13px; cursor: pointer; outline: none;
+}
+.run-controls select:focus { border-color: var(--accent); }
+.btn-run {
+  background: var(--accent); color: #fff; border: none; border-radius: 7px;
+  padding: 7px 18px; font-size: 13px; font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; gap: 7px; transition: opacity .15s;
+  white-space: nowrap;
+}
+.btn-run:hover { opacity: .85; }
+.btn-run:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ── Run Status Panel ── */
+#runPanel {
+  background: var(--surface); border-bottom: 2px solid var(--accent);
+  padding: 0; max-height: 0; overflow: hidden;
+  transition: max-height .4s cubic-bezier(.4,0,.2,1), padding .4s;
+}
+#runPanel.open { max-height: 600px; padding: 16px 32px; }
+.run-panel-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.run-panel-title { font-size: 14px; font-weight: 700; color: var(--text); }
+.run-panel-close { margin-left: auto; background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer; line-height: 1; }
+.run-panel-close:hover { color: var(--text); }
+.jobs-grid { display: flex; flex-wrap: wrap; gap: 12px; }
+.job-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; min-width: 200px; flex: 1; max-width: 320px; }
+.job-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+.job-status-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.dot-pending   { background: var(--muted); }
+.dot-running   { background: #fbbf24; animation: pulse 1s infinite; }
+.dot-success   { background: var(--pass); }
+.dot-failure   { background: var(--fail); }
+.dot-skipped   { background: var(--muted); opacity: .5; }
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.4; } }
+.step-list { display: flex; flex-direction: column; gap: 5px; }
+.step-row { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); }
+.step-icon { font-size: 13px; flex-shrink: 0; width: 16px; text-align: center; }
+.run-info { font-size: 12px; color: var(--muted); margin-top: 10px; }
+.run-info a { color: var(--accent2); text-decoration: none; }
+.run-info a:hover { text-decoration: underline; }
+#runStatusMsg { font-size: 13px; color: var(--muted); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
 
 main { padding: 28px 32px; max-width: 1400px; margin: 0 auto; }
 
@@ -28,8 +71,7 @@ main { padding: 28px 32px; max-width: 1400px; margin: 0 auto; }
   display: flex; align-items: center; gap: 10px;
   padding: 14px 20px;
   background: var(--surface); cursor: pointer;
-  user-select: none;
-  transition: background .15s;
+  user-select: none; transition: background .15s;
 }
 .section-header:hover { background: var(--surface2); }
 .section-title-text { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; flex: 1; }
@@ -39,6 +81,20 @@ main { padding: 28px 32px; max-width: 1400px; margin: 0 auto; }
 .section-content { overflow: hidden; transition: max-height .3s cubic-bezier(.4,0,.2,1); max-height: 4000px; }
 .section-content.collapsed { max-height: 0; }
 .section-inner { padding: 0 0 8px; }
+
+/* ── Route Groups (accordion within routes section) ── */
+.route-group { border-top: 1px solid var(--border); }
+.route-group:first-child { border-top: none; }
+.route-group-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; cursor: pointer; user-select: none;
+  background: rgba(255,255,255,.015); transition: background .15s;
+}
+.route-group-header:hover { background: rgba(255,255,255,.035); }
+.route-group-chevron { color: var(--muted); font-size: 12px; transition: transform .2s; }
+.route-group-header.collapsed .route-group-chevron { transform: rotate(-90deg); }
+.route-group-content { overflow: hidden; max-height: 1200px; transition: max-height .25s ease; }
+.route-group-content.collapsed { max-height: 0; }
 
 /* ── Tables ── */
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -74,6 +130,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
 .chart-title { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 14px; font-weight: 600; }
 .chart-wrap { position: relative; height: 220px; }
+.chart-wrap-tall { position: relative; height: 280px; }
 
 /* ── Routes ── */
 .route-method { display: inline-block; padding: 2px 7px; border-radius: 6px; font-size: 11px; font-weight: 700; font-family: monospace; }
@@ -83,26 +140,64 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .method-PATCH  { background: rgba(6,182,212,.15);  color: #06b6d4; }
 .method-DELETE { background: rgba(239,68,68,.15);  color: #f87171; }
 .empty-state { padding: 36px; text-align: center; color: var(--muted); font-size: 14px; line-height: 1.7; }
-.empty-state code { display: inline-block; margin-top: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: 12px; color: var(--accent2); }
 
 .loading { padding: 48px; text-align: center; color: var(--muted); font-size: 15px; }
 #scenarioPanel { min-height: 80px; }
 </style>
 </head>
 <body>
+
 <header>
   <div class="header-logo">&#9889; Comprai — K6 Dashboard</div>
   <div class="header-meta">
     <span id="hdr-count">—</span>
     <span id="hdr-updated">—</span>
   </div>
+  <!-- Run controls: shown only when gh-config.json loaded -->
+  <div class="run-controls" id="runControls">
+    <select id="testTypeSelect">
+      <option value="smoke">Smoke</option>
+      <option value="load">Load</option>
+      <option value="stress">Stress</option>
+      <option value="spike">Spike</option>
+      <option value="soak">Soak</option>
+      <option value="all">Todos</option>
+    </select>
+    <button class="btn-run" id="btnRun" onclick="triggerTest()">&#9654; Executar</button>
+  </div>
 </header>
+
+<!-- Pipeline status panel -->
+<div id="runPanel">
+  <div class="run-panel-header">
+    <div class="run-panel-title">&#128295; Pipeline em Execução</div>
+    <button class="run-panel-close" onclick="closeRunPanel()">&#10005;</button>
+  </div>
+  <div id="runStatusMsg"></div>
+  <div class="jobs-grid" id="jobsGrid"></div>
+  <div class="run-info" id="runInfo"></div>
+</div>
+
 <main>
   <div id="loadingMsg" class="loading">&#9203; Carregando resultados dos testes...</div>
 
   <div id="dashContent" style="display:none">
 
-    <!-- Seção 1: Resumo (expandido por padrão) -->
+    <!-- Seção 6: Detalhes por Tipo -->
+    <div class="section-block" id="detailsBlock">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title-text">&#128269; Detalhes por Tipo de Teste</span>
+        <span class="section-count" id="detail-count"></span>
+        <span class="section-chevron">&#9660;</span>
+      </div>
+      <div class="section-content">
+        <div class="section-inner">
+          <div class="scenario-tabs" id="scenarioTabs"></div>
+          <div id="scenarioPanel"></div>
+        </div>
+      </div>
+    </div>
+    <!-- Seção 1: Resumo -->
     <div class="section-block">
       <div class="section-header" onclick="toggleSection(this)">
         <span class="section-title-text">&#128202; Resumo de Resultados</span>
@@ -119,7 +214,26 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
     </div>
 
-    <!-- Seção 2: Configuração (colapsada por padrão) -->
+    <!-- Seção 2: Timeline de Latência (novo) -->
+    <div class="section-block" id="timelineBlock" style="display:none">
+      <div class="section-header collapsed" onclick="toggleSection(this, 'timeline')">
+        <span class="section-title-text">&#128200; Timeline de Latência</span>
+        <span class="section-count" id="timeline-count"></span>
+        <span class="section-chevron">&#9660;</span>
+      </div>
+      <div class="section-content collapsed">
+        <div class="section-inner">
+          <div style="padding: 16px;">
+            <div class="chart-card">
+              <div class="chart-title">Evolução de Latência por Tipo de Teste (ms) — p50 / p95 / p99</div>
+              <div class="chart-wrap-tall"><canvas id="chartTimeline"></canvas></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Seção 3: Configuração -->
     <div class="section-block">
       <div class="section-header collapsed" onclick="toggleSection(this)">
         <span class="section-title-text">&#9881; Configuração dos Testes</span>
@@ -136,20 +250,16 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
     </div>
 
-    <!-- Seção 3: Gráficos (colapsada por padrão) -->
+    <!-- Seção 4: Gráficos de Performance -->
     <div class="section-block">
-      <div class="section-header collapsed" onclick="toggleSection(this)">
-        <span class="section-title-text">&#128200; Gráficos de Performance</span>
+      <div class="section-header collapsed" onclick="toggleSection(this, 'charts')">
+        <span class="section-title-text">&#128201; Gráficos de Performance</span>
         <span class="section-count" id="charts-count"></span>
         <span class="section-chevron">&#9660;</span>
       </div>
       <div class="section-content collapsed">
         <div class="section-inner">
           <div class="charts-grid">
-            <div class="chart-card">
-              <div class="chart-title">Latência por Tipo de Teste (ms)</div>
-              <div class="chart-wrap"><canvas id="chartLatency"></canvas></div>
-            </div>
             <div class="chart-card">
               <div class="chart-title">Throughput por Tipo (req/s)</div>
               <div class="chart-wrap"><canvas id="chartRps"></canvas></div>
@@ -167,7 +277,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
     </div>
 
-    <!-- Seção 4: Rotas (oculta quando sem dados, colapsada quando tem) -->
+    <!-- Seção 5: Rotas Chamadas (accordion por tipo) -->
     <div class="section-block" id="routesBlock" style="display:none">
       <div class="section-header collapsed" onclick="toggleSection(this)">
         <span class="section-title-text">&#127760; Rotas Chamadas</span>
@@ -179,20 +289,6 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
     </div>
 
-    <!-- Seção 5: Detalhes por Tipo (oculta quando sem dados, colapsada quando tem) -->
-    <div class="section-block" id="detailsBlock" style="display:none">
-      <div class="section-header collapsed" onclick="toggleSection(this)">
-        <span class="section-title-text">&#128269; Detalhes por Tipo de Teste</span>
-        <span class="section-count" id="detail-count"></span>
-        <span class="section-chevron">&#9660;</span>
-      </div>
-      <div class="section-content collapsed">
-        <div class="section-inner">
-          <div class="scenario-tabs" id="scenarioTabs"></div>
-          <div id="scenarioPanel"></div>
-        </div>
-      </div>
-    </div>
 
   </div><!-- /dashContent -->
 </main>
@@ -202,6 +298,10 @@ const API_BASE = 'https://comprai.2.25.122.11.nip.io';
 let allData = [];
 let activeTab = 0;
 let charts = {};
+let ghCfg = null;
+let pollTimer = null;
+let currentRunId = null;
+let runReloadPending = false;
 
 const TYPE_ORDER = ['smoke','load','stress','spike','soak'];
 const TYPE_COLORS = {
@@ -212,18 +312,24 @@ const TYPE_COLORS = {
   soak:   { border: '#34d399', bg: 'rgba(16,185,129,.25)' }
 };
 
-// ── Toggle collapsible sections ─────────────────────────────
-function toggleSection(header) {
+// ── Toggle collapsible sections ──────────────────────────────
+function toggleSection(header, chartKey) {
   header.classList.toggle('collapsed');
   var content = header.nextElementSibling;
   var wasCollapsed = content.classList.contains('collapsed');
   content.classList.toggle('collapsed');
-  // Re-resize charts when the charts section is expanded
-  if (wasCollapsed && content.querySelector('#chartLatency')) {
+  if (wasCollapsed) {
     setTimeout(function() {
       Object.values(charts).forEach(function(c) { if (c) c.resize(); });
     }, 350);
   }
+}
+
+// ── Toggle route group accordion ────────────────────────────
+function toggleRouteGroup(header) {
+  header.classList.toggle('collapsed');
+  var content = header.nextElementSibling;
+  content.classList.toggle('collapsed');
 }
 
 // ── Type badge ──────────────────────────────────────────────
@@ -239,13 +345,197 @@ function fmt(v, dec) {
   return isNaN(n) ? v : n.toFixed(dec);
 }
 
-// ── Fetch all results ───────────────────────────────────────
-async function loadAll() {
+// ── Load gh-config.json for run controls ────────────────────
+async function loadGhConfig() {
   try {
-    var idxResp = await fetch(API_BASE + '/k6/results/index.json');
+    var r = await fetch(API_BASE + '/k6/results/gh-config.json?t=' + Date.now());
+    if (!r.ok) return;
+    var cfg = await r.json();
+    if (cfg && cfg.repo) {
+      ghCfg = cfg;
+      document.getElementById('runControls').style.display = 'flex';
+    }
+  } catch(e) { /* silently ignore — run controls stay hidden */ }
+}
+
+// ── Trigger GitHub Actions workflow ─────────────────────────
+async function triggerTest() {
+  if (!ghCfg) return;
+  var testType = document.getElementById('testTypeSelect').value;
+  var btn = document.getElementById('btnRun');
+  btn.disabled = true;
+  btn.textContent = '⏳ Disparando...';
+  try {
+    var dispatchUrl = ghCfg.dispatch_url || '/k6/dispatch';
+    var resp = await fetch(dispatchUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ref: ghCfg.ref || 'main', inputs: { test_type: testType } })
+      }
+    );
+    if (resp.ok || resp.status === 204) {
+      btn.textContent = '✓ Disparado!';
+      openRunPanel('Aguardando pipeline iniciar...', testType);
+      setTimeout(startPolling, 5000);
+    } else {
+      var body = await resp.text();
+      btn.textContent = '✗ Erro ' + resp.status;
+      openRunPanel('Erro ao disparar: ' + resp.status + ' — ' + body.substring(0, 120), testType);
+    }
+  } catch(e) {
+    btn.textContent = '✗ Falha';
+    openRunPanel('Falha de rede: ' + e.message, testType);
+  }
+  setTimeout(function() {
+    btn.disabled = false;
+    btn.innerHTML = '&#9654; Executar';
+  }, 5000);
+}
+
+// ── Run status panel ────────────────────────────────────────
+function openRunPanel(msg, testType) {
+  document.getElementById('runPanel').classList.add('open');
+  document.getElementById('runStatusMsg').innerHTML =
+    '<span style="animation: pulse 1s infinite; display:inline-block; width:9px; height:9px; border-radius:50%; background:#fbbf24; margin-right:4px;"></span>' +
+    (msg || 'Verificando pipeline...');
+  document.getElementById('jobsGrid').innerHTML = '';
+  document.getElementById('runInfo').innerHTML = '';
+}
+
+function closeRunPanel() {
+  document.getElementById('runPanel').classList.remove('open');
+  if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+}
+
+async function startPolling() {
+  if (!ghCfg) return;
+  try {
+    // Find the latest run for this workflow
+    var resp = await fetch(
+      'https://api.github.com/repos/' + ghCfg.repo + '/actions/workflows/' + ghCfg.workflow_file + '/runs?per_page=3',
+      { headers: { 'Accept': 'application/vnd.github.v3+json' } }
+    );
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    var data = await resp.json();
+    var runs = (data.workflow_runs || []);
+    if (!runs.length) {
+      document.getElementById('runStatusMsg').textContent = 'Nenhuma execução encontrada ainda...';
+      pollTimer = setTimeout(startPolling, 6000);
+      return;
+    }
+    currentRunId = runs[0].id;
+    pollRun(runs[0]);
+  } catch(e) {
+    document.getElementById('runStatusMsg').textContent = 'Erro ao consultar runs: ' + e.message;
+    pollTimer = setTimeout(startPolling, 8000);
+  }
+}
+
+async function pollRun(run) {
+  if (!ghCfg) return;
+  try {
+    // Refresh run status
+    var runResp = await fetch(
+      'https://api.github.com/repos/' + ghCfg.repo + '/actions/runs/' + run.id,
+      { headers: { 'Accept': 'application/vnd.github.v3+json' } }
+    );
+    if (!runResp.ok) throw new Error('HTTP ' + runResp.status);
+    var runData = await runResp.json();
+
+    // Get jobs
+    var jobsResp = await fetch(
+      'https://api.github.com/repos/' + ghCfg.repo + '/actions/runs/' + run.id + '/jobs',
+      { headers: { 'Accept': 'application/vnd.github.v3+json' } }
+    );
+    var jobsData = jobsResp.ok ? await jobsResp.json() : { jobs: [] };
+
+    renderRunStatus(runData, jobsData.jobs || []);
+
+    if (runData.status !== 'completed') {
+      pollTimer = setTimeout(function() { pollRun(runData); }, 6000);
+    } else {
+      // Pipeline done — reload results after a delay
+      var icon = runData.conclusion === 'success' ? '✅' : '❌';
+      document.getElementById('runStatusMsg').innerHTML = icon + ' Pipeline concluído: <strong>' + (runData.conclusion || '') + '</strong>';
+      if (!runReloadPending) {
+        runReloadPending = true;
+        setTimeout(function() { runReloadPending = false; loadAll(true); }, 8000);
+      }
+    }
+  } catch(e) {
+    document.getElementById('runStatusMsg').textContent = 'Erro ao atualizar status: ' + e.message;
+    pollTimer = setTimeout(function() { pollRun(run); }, 8000);
+  }
+}
+
+function runStatusIcon(s, conclusion) {
+  if (s === 'completed') {
+    if (conclusion === 'success') return '✅';
+    if (conclusion === 'failure') return '❌';
+    if (conclusion === 'skipped') return '⏭';
+    if (conclusion === 'cancelled') return '🚫';
+    return '⚪';
+  }
+  if (s === 'in_progress') return '⟳';
+  return '○';
+}
+
+function jobDotClass(s, conclusion) {
+  if (s === 'in_progress') return 'dot-running';
+  if (s === 'completed') {
+    if (conclusion === 'success') return 'dot-success';
+    if (conclusion === 'skipped') return 'dot-skipped';
+    return 'dot-failure';
+  }
+  return 'dot-pending';
+}
+
+function renderRunStatus(run, jobs) {
+  var statusLabel = run.status === 'completed'
+    ? (run.conclusion === 'success' ? '✅ Concluído' : '❌ ' + run.conclusion)
+    : '⟳ ' + (run.status || 'em andamento');
+
+  document.getElementById('runStatusMsg').innerHTML =
+    statusLabel + ' &nbsp;|&nbsp; Run <strong>#' + run.run_number + '</strong>';
+
+  document.getElementById('runInfo').innerHTML =
+    '<a href="' + run.html_url + '" target="_blank">Ver no GitHub ↗</a>' +
+    (run.created_at ? ' &nbsp;·&nbsp; Iniciado: ' + new Date(run.created_at).toLocaleString('pt-BR') : '');
+
+  if (!jobs.length) {
+    document.getElementById('jobsGrid').innerHTML =
+      '<div style="color:var(--muted);font-size:13px;">Aguardando jobs inicializarem...</div>';
+    return;
+  }
+
+  document.getElementById('jobsGrid').innerHTML = jobs.map(function(job) {
+    var dotCls = jobDotClass(job.status, job.conclusion);
+    var steps = (job.steps || []).map(function(step) {
+      var icon = runStatusIcon(step.status, step.conclusion);
+      var color = step.status === 'completed' && step.conclusion !== 'success' ? 'var(--fail)'
+                : step.status === 'in_progress' ? '#fbbf24' : 'inherit';
+      return '<div class="step-row"><span class="step-icon">' + icon + '</span>' +
+        '<span style="color:' + color + '">' + step.name + '</span></div>';
+    }).join('');
+
+    return '<div class="job-card">' +
+      '<div class="job-title" onclick="toggleJobSteps(this)" style="cursor:pointer;user-select:none"><span class="job-status-dot ' + dotCls + '"></span>' + job.name + '<span class="job-chevron" style="margin-left:auto;font-size:11px;color:var(--muted);transition:transform .2s">&#9660;</span></div>' +
+      '<div class="step-list" style="overflow:hidden;transition:max-height .25s ease;max-height:600px">' + (steps || '<div class="step-row"><span class="step-icon">○</span>Aguardando...</div>') + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+// ── Fetch all results ────────────────────────────────────────
+async function loadAll(silent) {
+  if (!silent) {
+    document.getElementById('loadingMsg').style.display = '';
+    document.getElementById('dashContent').style.display = 'none';
+  }
+  try {
+    var idxResp = await fetch(API_BASE + '/k6/results/index.json?t=' + Date.now());
     if (!idxResp.ok) throw new Error('index.json não encontrado');
     var idx = await idxResp.json();
-    var files = idx.files || [];
+    var files = idx.files || (idx.tests ? idx.tests.map(function(t){ return t.file; }) : []);
 
     if (files.length === 0) {
       document.getElementById('loadingMsg').textContent = 'Nenhum resultado encontrado em /k6/results/.';
@@ -254,7 +544,7 @@ async function loadAll() {
 
     var settled = await Promise.allSettled(
       files.map(function(f) {
-        return fetch(API_BASE + '/k6/results/' + f)
+        return fetch(API_BASE + '/k6/results/' + f + '?t=' + Date.now())
           .then(function(r) { return r.ok ? r.json() : null; })
           .catch(function() { return null; });
       })
@@ -275,10 +565,11 @@ async function loadAll() {
     render();
   } catch(e) {
     document.getElementById('loadingMsg').textContent = '❌ Erro ao carregar resultados: ' + e.message;
+    document.getElementById('loadingMsg').style.display = '';
   }
 }
 
-// ── Main render ─────────────────────────────────────────────
+// ── Main render ──────────────────────────────────────────────
 function render() {
   document.getElementById('loadingMsg').style.display = 'none';
   document.getElementById('dashContent').style.display = '';
@@ -287,30 +578,15 @@ function render() {
   document.getElementById('hdr-count').textContent = total + ' teste' + (total !== 1 ? 's' : '') + ' carregado' + (total !== 1 ? 's' : '');
   document.getElementById('hdr-updated').textContent = 'Atualizado: ' + new Date().toLocaleString('pt-BR');
 
-  renderConfig();
   renderResults();
+  renderConfig();
+  renderTimeline();
   renderCharts();
   renderRoutes();
   renderTabs();
 }
 
-// ── Seção 1: Configuração ───────────────────────────────────
-function renderConfig() {
-  document.getElementById('cfg-count').textContent = allData.length + ' testes';
-  document.getElementById('configTableBody').innerHTML = allData.map(function(d) {
-    var m = d.meta || {};
-    var allOk = (d.scenarios || []).every(function(s) { return s.ok; });
-    return '<tr>' +
-      '<td>' + typeBadge(m.test_type) + '</td>' +
-      '<td><code style="font-size:12px">' + (m.target_url || '—') + '</code></td>' +
-      '<td>' + (m.vus || '—') + '</td>' +
-      '<td>' + (m.duration || '—') + '</td>' +
-      '<td><span class="' + (allOk ? 'badge-pass' : 'badge-fail') + '">' + (allOk ? 'OK' : 'FAIL') + '</span></td>' +
-    '</tr>';
-  }).join('');
-}
-
-// ── Seção 2: Resumo ─────────────────────────────────────────
+// ── Seção 1: Resumo ──────────────────────────────────────────
 function renderResults() {
   var rows = [];
   allData.forEach(function(d) {
@@ -333,108 +609,145 @@ function renderResults() {
   document.getElementById('resultsTableBody').innerHTML = rows.join('');
 }
 
-// ── Seção 3: Gráficos ───────────────────────────────────────
-function renderCharts() {
-  document.getElementById('charts-count').textContent = '4 gráficos';
+// ── Seção 2: Timeline de Latência ────────────────────────────
+function renderTimeline() {
+  if (allData.length < 2) {
+    document.getElementById('timelineBlock').style.display = 'none';
+    return;
+  }
+  document.getElementById('timelineBlock').style.display = '';
+  document.getElementById('timeline-count').textContent = allData.length + ' tipos';
 
-  // Aggregate: for each test pick first scenario (or avg)
   var labels = [];
-  var p50 = [], p95 = [], p99 = [], rps = [], errPct = [], totalReq = [];
+  var p50vals = [], p95vals = [], p99vals = [];
+
+  allData.forEach(function(d) {
+    var m = d.meta || {};
+    var tt = (m.test_type || d._file.replace('.json', '')).toUpperCase();
+    labels.push(tt);
+    var scs = d.scenarios || [];
+    p50vals.push(avg(scs, 'p50'));
+    p95vals.push(avg(scs, 'p95'));
+    p99vals.push(avg(scs, 'p99'));
+  });
+
+  if (charts.timeline) { charts.timeline.destroy(); }
+  charts.timeline = new Chart(document.getElementById('chartTimeline'), {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'p50', data: p50vals,
+          borderColor: '#06b6d4', backgroundColor: 'rgba(6,182,212,.08)',
+          borderWidth: 2, pointRadius: 5, pointHoverRadius: 7,
+          tension: 0.35, fill: false
+        },
+        {
+          label: 'p95', data: p95vals,
+          borderColor: '#a78bfa', backgroundColor: 'rgba(124,58,237,.08)',
+          borderWidth: 2, pointRadius: 5, pointHoverRadius: 7,
+          tension: 0.35, fill: false
+        },
+        {
+          label: 'p99', data: p99vals,
+          borderColor: '#f87171', backgroundColor: 'rgba(239,68,68,.08)',
+          borderWidth: 2, pointRadius: 5, pointHoverRadius: 7,
+          tension: 0.35, fill: false
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: true, labels: { color: '#94a3b8', font: { size: 12 }, boxWidth: 14, padding: 16 } },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) { return ' ' + ctx.dataset.label + ': ' + (ctx.parsed.y != null ? ctx.parsed.y.toFixed(1) + ' ms' : '—'); }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#94a3b8', font: { size: 12 } },
+          grid: { color: 'rgba(255,255,255,.05)' }
+        },
+        y: {
+          ticks: { color: '#94a3b8', font: { size: 12 }, callback: function(v) { return v + ' ms'; } },
+          grid: { color: 'rgba(255,255,255,.05)' }
+        }
+      }
+    }
+  });
+}
+
+// ── Seção 3: Configuração ────────────────────────────────────
+function renderConfig() {
+  document.getElementById('cfg-count').textContent = allData.length + ' testes';
+  document.getElementById('configTableBody').innerHTML = allData.map(function(d) {
+    var m = d.meta || {};
+    var allOk = (d.scenarios || []).every(function(s) { return s.ok; });
+    return '<tr>' +
+      '<td>' + typeBadge(m.test_type) + '</td>' +
+      '<td><code style="font-size:12px">' + (m.target_url || '—') + '</code></td>' +
+      '<td>' + (m.vus || '—') + '</td>' +
+      '<td>' + (m.duration || '—') + '</td>' +
+      '<td><span class="' + (allOk ? 'badge-pass' : 'badge-fail') + '">' + (allOk ? 'OK' : 'FAIL') + '</span></td>' +
+    '</tr>';
+  }).join('');
+}
+
+// ── Seção 4: Gráficos de Performance ─────────────────────────
+function renderCharts() {
+  document.getElementById('charts-count').textContent = '3 gráficos';
+
+  var labels = [];
+  var rps = [], errPct = [], totalReq = [];
   var borderColors = [], bgColors = [];
 
   allData.forEach(function(d) {
     var m = d.meta || {};
     var tt = (m.test_type || d._file.replace('.json', '')).toLowerCase();
     labels.push(tt.toUpperCase());
-
     var scs = d.scenarios || [];
-    // compute averages across scenarios
-    var avgP50 = avg(scs, 'p50'), avgP95 = avg(scs, 'p95'), avgP99 = avg(scs, 'p99');
-    var avgRps = avg(scs, 'rps');
-    var avgErr = avg(scs, 'err');
-    var sumTotal = scs.reduce(function(a, s) { return a + (s.total || 0); }, 0);
-
-    p50.push(avgP50); p95.push(avgP95); p99.push(avgP99);
-    rps.push(avgRps); errPct.push(avgErr * 100); totalReq.push(sumTotal);
-
+    rps.push(avg(scs, 'rps'));
+    errPct.push(avg(scs, 'err') * 100);
+    totalReq.push(scs.reduce(function(a, s) { return a + (s.total || 0); }, 0));
     var c = TYPE_COLORS[tt] || { border: '#94a3b8', bg: 'rgba(148,163,184,.25)' };
     borderColors.push(c.border);
     bgColors.push(c.bg);
   });
 
-  var chartDefaults = {
-    responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
-    scales: {
-      x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,.05)' } },
-      y: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,.05)' } }
-    }
+  var baseScale = {
+    x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,.05)' } },
+    y: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,.05)' } }
   };
 
-  // Chart 1: Latency (grouped bars p50/p95/p99)
-  if (charts.latency) { charts.latency.destroy(); }
-  charts.latency = new Chart(document.getElementById('chartLatency'), {
-    type: 'bar',
-    data: {
-      labels: labels,
-      datasets: [
-        { label: 'p50', data: p50, backgroundColor: 'rgba(6,182,212,.55)', borderColor: '#06b6d4', borderWidth: 1, borderRadius: 4 },
-        { label: 'p95', data: p95, backgroundColor: 'rgba(124,58,237,.55)', borderColor: '#a78bfa', borderWidth: 1, borderRadius: 4 },
-        { label: 'p99', data: p99, backgroundColor: 'rgba(239,68,68,.55)', borderColor: '#f87171', borderWidth: 1, borderRadius: 4 }
-      ]
-    },
-    options: Object.assign({}, chartDefaults, {
-      plugins: {
-        legend: { display: true, labels: { color: '#94a3b8', font: { size: 11 }, boxWidth: 12 } }
-      },
-      scales: {
-        x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,.05)' } },
-        y: { ticks: { color: '#94a3b8', font: { size: 11 }, callback: function(v) { return v + ' ms'; } }, grid: { color: 'rgba(255,255,255,.05)' } }
-      }
-    })
-  });
-
-  // Chart 2: Throughput
   if (charts.rps) { charts.rps.destroy(); }
   charts.rps = new Chart(document.getElementById('chartRps'), {
     type: 'bar',
-    data: {
-      labels: labels,
-      datasets: [{ label: 'req/s', data: rps, backgroundColor: bgColors, borderColor: borderColors, borderWidth: 2, borderRadius: 4 }]
-    },
-    options: Object.assign({}, chartDefaults, {
-      scales: {
-        x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,.05)' } },
-        y: { ticks: { color: '#94a3b8', font: { size: 11 }, callback: function(v) { return v + ' r/s'; } }, grid: { color: 'rgba(255,255,255,.05)' } }
-      }
-    })
+    data: { labels: labels, datasets: [{ label: 'req/s', data: rps, backgroundColor: bgColors, borderColor: borderColors, borderWidth: 2, borderRadius: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+      scales: { x: baseScale.x, y: Object.assign({}, baseScale.y, { ticks: { color: '#94a3b8', font: { size: 11 }, callback: function(v) { return v + ' r/s'; } } }) } }
   });
 
-  // Chart 3: Error rate
   if (charts.errors) { charts.errors.destroy(); }
   charts.errors = new Chart(document.getElementById('chartErrors'), {
     type: 'bar',
-    data: {
-      labels: labels,
-      datasets: [{ label: 'Erro %', data: errPct, backgroundColor: errPct.map(function(v) { return v > 0 ? 'rgba(239,68,68,.55)' : 'rgba(16,185,129,.45)'; }), borderColor: errPct.map(function(v) { return v > 0 ? '#ef4444' : '#10b981'; }), borderWidth: 2, borderRadius: 4 }]
-    },
-    options: Object.assign({}, chartDefaults, {
-      scales: {
-        x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,.05)' } },
-        y: { ticks: { color: '#94a3b8', font: { size: 11 }, callback: function(v) { return v.toFixed(1) + '%'; } }, grid: { color: 'rgba(255,255,255,.05)' } }
-      }
-    })
+    data: { labels: labels, datasets: [{ label: 'Erro %', data: errPct,
+      backgroundColor: errPct.map(function(v) { return v > 0 ? 'rgba(239,68,68,.55)' : 'rgba(16,185,129,.45)'; }),
+      borderColor: errPct.map(function(v) { return v > 0 ? '#ef4444' : '#10b981'; }),
+      borderWidth: 2, borderRadius: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+      scales: { x: baseScale.x, y: Object.assign({}, baseScale.y, { ticks: { color: '#94a3b8', font: { size: 11 }, callback: function(v) { return v.toFixed(1) + '%'; } } }) } }
   });
 
-  // Chart 4: Total requests
   if (charts.total) { charts.total.destroy(); }
   charts.total = new Chart(document.getElementById('chartTotal'), {
     type: 'bar',
-    data: {
-      labels: labels,
-      datasets: [{ label: 'Total', data: totalReq, backgroundColor: bgColors, borderColor: borderColors, borderWidth: 2, borderRadius: 4 }]
-    },
-    options: chartDefaults
+    data: { labels: labels, datasets: [{ label: 'Total', data: totalReq, backgroundColor: bgColors, borderColor: borderColors, borderWidth: 2, borderRadius: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: baseScale }
   });
 }
 
@@ -444,38 +757,25 @@ function avg(arr, key) {
   return sum / arr.length;
 }
 
-// ── Seção 4: Rotas ──────────────────────────────────────────
+// ── Seção 5: Rotas (accordion por tipo) ─────────────────────
 function renderRoutes() {
-  var container = document.getElementById('routesContent');
-  var routesByType = [];
   var hasAny = false;
-
-  allData.forEach(function(d) {
-    if (d.routes && d.routes.length > 0) {
-      hasAny = true;
-      routesByType.push({ data: d, routes: d.routes });
-    }
-  });
-
-  if (!hasAny) {
-    document.getElementById('routesBlock').style.display = 'none';
-    return;
-  }
-  document.getElementById('routesBlock').style.display = '';
-
   var totalRoutes = 0;
   var html = '';
-  routesByType.forEach(function(item) {
-    var m = item.data.meta || {};
-    totalRoutes += item.routes.length;
-    html += '<div style="padding: 12px 16px 0;">' +
-      '<div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600;">' + typeBadge(m.test_type) + ' &nbsp; ' + (m.target_url || '') + '</div>' +
-      '<table><thead><tr><th>Método</th><th>Rota</th><th>p50 (ms)</th><th>p95 (ms)</th><th>Total</th><th>Erro %</th></tr></thead><tbody>';
-    item.routes.forEach(function(r) {
+
+  allData.forEach(function(d, idx) {
+    if (!d.routes || !d.routes.length) return;
+    hasAny = true;
+    var m = d.meta || {};
+    var tt = (m.test_type || d._file.replace('.json', '')).toLowerCase();
+    totalRoutes += d.routes.length;
+
+    var groupId = 'rg-' + idx;
+    var tableRows = d.routes.map(function(r) {
       var errPct = ((r.err || 0) * 100).toFixed(2);
       var errColor = parseFloat(errPct) > 0 ? 'var(--fail)' : 'var(--pass)';
       var methodCls = 'method-' + (r.method || 'GET').toUpperCase();
-      html += '<tr>' +
+      return '<tr>' +
         '<td><span class="route-method ' + methodCls + '">' + (r.method || 'GET') + '</span></td>' +
         '<td><code style="font-size:12px;color:var(--accent2)">' + (r.path || '—') + '</code></td>' +
         '<td>' + fmt(r.p50) + '</td>' +
@@ -483,15 +783,34 @@ function renderRoutes() {
         '<td>' + (r.count || r.total || '—') + '</td>' +
         '<td style="color:' + errColor + '">' + errPct + '%</td>' +
       '</tr>';
-    });
-    html += '</tbody></table></div>';
+    }).join('');
+
+    html += '<div class="route-group">' +
+      '<div class="route-group-header" onclick="toggleRouteGroup(this)">' +
+        typeBadge(m.test_type) +
+        '<span style="font-size:12px;color:var(--muted);margin-left:8px;">' + (m.target_url || '') + '</span>' +
+        '<span style="margin-left:auto;font-size:11px;color:var(--accent2);background:rgba(6,182,212,.12);padding:2px 8px;border-radius:10px;">' + d.routes.length + ' rotas</span>' +
+        '<span class="route-group-chevron" style="margin-left:10px;">&#9660;</span>' +
+      '</div>' +
+      '<div class="route-group-content">' +
+        '<table style="margin-bottom:8px;">' +
+          '<thead><tr><th>Método</th><th>Rota</th><th>p50 (ms)</th><th>p95 (ms)</th><th>Total</th><th>Erro %</th></tr></thead>' +
+          '<tbody>' + tableRows + '</tbody>' +
+        '</table>' +
+      '</div>' +
+    '</div>';
   });
 
+  if (!hasAny) {
+    document.getElementById('routesBlock').style.display = 'none';
+    return;
+  }
+  document.getElementById('routesBlock').style.display = '';
   document.getElementById('routes-count').textContent = totalRoutes + ' rotas';
-  container.innerHTML = html;
+  document.getElementById('routesContent').innerHTML = html;
 }
 
-// ── Seção 5: Detalhes (Tabs + KPI) ──────────────────────────
+// ── Seção 6: Detalhes (Tabs + KPI) ──────────────────────────
 function renderTabs() {
   if (!allData.length) { document.getElementById('detailsBlock').style.display = 'none'; return; }
   document.getElementById('detailsBlock').style.display = '';
@@ -505,22 +824,15 @@ function renderTabs() {
 
 function selectTab(i) {
   activeTab = i;
-  document.querySelectorAll('.scenario-tab').forEach(function(b, j) {
-    b.classList.toggle('active', j === i);
-  });
+  document.querySelectorAll('.scenario-tab').forEach(function(b, j) { b.classList.toggle('active', j === i); });
   renderPanel(i);
 }
 
 function renderPanel(i) {
   var d = allData[i];
-  if (!d) {
-    document.getElementById('scenarioPanel').innerHTML = '<div class="empty-state">Sem dados.</div>';
-    return;
-  }
+  if (!d) { document.getElementById('scenarioPanel').innerHTML = '<div class="empty-state">Sem dados.</div>'; return; }
   var m = d.meta || {};
-  var scenarios = d.scenarios || [];
-
-  document.getElementById('scenarioPanel').innerHTML = scenarios.map(function(sc) {
+  document.getElementById('scenarioPanel').innerHTML = (d.scenarios || []).map(function(sc) {
     var errColor = (sc.err || 0) > 0 ? 'var(--fail)' : 'var(--pass)';
     return '<div style="margin: 0 16px 24px;">' +
       '<div style="font-size:14px;font-weight:600;color:var(--text);margin:16px 0 8px;">' +
@@ -548,7 +860,18 @@ function kpiCard(label, value, unit) {
   '</div>';
 }
 
-window.addEventListener('DOMContentLoaded', loadAll);
+function toggleJobSteps(titleEl) {
+  var stepList = titleEl.nextElementSibling;
+  var chevron = titleEl.querySelector('.job-chevron');
+  var isCollapsed = stepList.style.maxHeight === '0px';
+  stepList.style.maxHeight = isCollapsed ? '600px' : '0px';
+  stepList.style.overflow = 'hidden';
+  if (chevron) chevron.style.transform = isCollapsed ? '' : 'rotate(-90deg)';
+}
+window.addEventListener('DOMContentLoaded', function() {
+  loadGhConfig();
+  loadAll();
+});
 </script>
 </body>
 </html>
