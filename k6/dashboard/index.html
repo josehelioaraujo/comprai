@@ -497,7 +497,7 @@ function renderTabs() {
   document.getElementById('detailsBlock').style.display = '';
   document.getElementById('detail-count').textContent = allData.length + ' tipos';
   document.getElementById('scenarioTabs').innerHTML = allData.map(function(d, i) {
-    var t = (d.meta && d.meta.test_type ? d.meta.test_type : d._file.replace('.json', '')).toUpperCASE();
+    var t = (d.meta && d.meta.test_type ? d.meta.test_type : d._file.replace('.json', '')).toUpperCase();
     return '<button class="scenario-tab ' + (i === activeTab ? 'active' : '') + '" onclick="selectTab(' + i + ')">' + t + '</button>';
   }).join('');
   renderPanel(activeTab);
