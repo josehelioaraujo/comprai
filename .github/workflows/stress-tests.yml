@@ -543,7 +543,7 @@ jobs:
                       all_ok = all(
                           (v if isinstance(v, bool) else v.get('ok', False))
                           for md in s.get('metrics',{}).values()
-                          for v in md.get('thresholds',{}).values()
+                          for f in md.get('thresholds',{}).values()
                       )
                       out += f'| {t} | {dur.get("med",0):.1f} | {dur.get("p(95)",0):.1f} | {dur.get("p(99)",0):.1f} | {reqs.get("rate",0):.2f} | {int(reqs.get("count",0)):,} | {errs.get("rate",0)*100:.2f}% | {"OK" if all_ok else "FAIL"} |\n'
                   except Exception as e:
@@ -668,6 +668,13 @@ jobs:
             chown -R www-data:www-data /var/www/html/k6 2>/dev/null || chmod -R 755 /var/www/html/k6 || true
             echo "Deploy concluido!"
           EOFGIT
+
+      - name: Publicar gh-config.json na VPS
+        run: |
+          cat > /tmp/gh-config.json << 'EOFCFG'
+          {"token":"${{ secrets.GH_PAT }}","repo":"${{ github.repository }}","workflow_file":"stress-tests.yml","ref":"main"}
+          EOFCFG
+          scp -i ~/.ssh/vps_key -o StrictHostKeyChecking=no /tmp/gh-config.json root@2.25.122.11:/var/www/html/k6/results/gh-config.json
 
       - name: Resumo
         run: |
