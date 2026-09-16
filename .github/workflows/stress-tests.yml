@@ -626,6 +626,14 @@ jobs:
               echo "Conteudo do index.json:"
               cat k6/results/index.json
             fi
+            
+            echo "Configurando permissoes para nginx..."
+            mkdir -p /var/www/html/k6
+            cp -r k6/results/* /var/www/html/k6/ 2>/dev/null || true
+            chown -R www-data:www-data /var/www/html/k6 2>/dev/null || true
+            chmod -R 755 /var/www/html/k6 2>/dev/null || true
+            chmod -R 644 /var/www/html/k6/*.html 2>/dev/null || true
+            echo "Dashboard disponivel em: https://comprai.2.25.122.11.nip.io/k6/"
           EOFGIT
 
       - name: Resumo do Dashboard
