@@ -183,6 +183,20 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
   <div id="dashContent" style="display:none">
 
+    <!-- Seção 6: Detalhes por Tipo -->
+    <div class="section-block" id="detailsBlock">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title-text">&#128269; Detalhes por Tipo de Teste</span>
+        <span class="section-count" id="detail-count"></span>
+        <span class="section-chevron">&#9660;</span>
+      </div>
+      <div class="section-content">
+        <div class="section-inner">
+          <div class="scenario-tabs" id="scenarioTabs"></div>
+          <div id="scenarioPanel"></div>
+        </div>
+      </div>
+    </div>
     <!-- Seção 1: Resumo -->
     <div class="section-block">
       <div class="section-header" onclick="toggleSection(this)">
@@ -275,20 +289,6 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
     </div>
 
-    <!-- Seção 6: Detalhes por Tipo -->
-    <div class="section-block" id="detailsBlock" style="display:none">
-      <div class="section-header collapsed" onclick="toggleSection(this)">
-        <span class="section-title-text">&#128269; Detalhes por Tipo de Teste</span>
-        <span class="section-count" id="detail-count"></span>
-        <span class="section-chevron">&#9660;</span>
-      </div>
-      <div class="section-content collapsed">
-        <div class="section-inner">
-          <div class="scenario-tabs" id="scenarioTabs"></div>
-          <div id="scenarioPanel"></div>
-        </div>
-      </div>
-    </div>
 
   </div><!-- /dashContent -->
 </main>
@@ -524,8 +524,8 @@ function renderRunStatus(run, jobs) {
     }).join('');
 
     return '<div class="job-card">' +
-      '<div class="job-title"><span class="job-status-dot ' + dotCls + '"></span>' + job.name + '</div>' +
-      '<div class="step-list">' + (steps || '<div class="step-row"><span class="step-icon">○</span>Aguardando...</div>') + '</div>' +
+      '<div class="job-title" onclick="toggleJobSteps(this)" style="cursor:pointer;user-select:none"><span class="job-status-dot ' + dotCls + '"></span>' + job.name + '<span class="job-chevron" style="margin-left:auto;font-size:11px;color:var(--muted);transition:transform .2s">&#9660;</span></div>' +
+      '<div class="step-list" style="overflow:hidden;transition:max-height .25s ease;max-height:600px">' + (steps || '<div class="step-row"><span class="step-icon">○</span>Aguardando...</div>') + '</div>' +
     '</div>';
   }).join('');
 }
@@ -865,6 +865,14 @@ function kpiCard(label, value, unit) {
   '</div>';
 }
 
+function toggleJobSteps(titleEl) {
+  var stepList = titleEl.nextElementSibling;
+  var chevron = titleEl.querySelector('.job-chevron');
+  var isCollapsed = stepList.style.maxHeight === '0px';
+  stepList.style.maxHeight = isCollapsed ? '600px' : '0px';
+  stepList.style.overflow = 'hidden';
+  if (chevron) chevron.style.transform = isCollapsed ? '' : 'rotate(-90deg)';
+}
 window.addEventListener('DOMContentLoaded', function() {
   loadGhConfig();
   loadAll();
