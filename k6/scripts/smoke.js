@@ -35,9 +35,10 @@ function buildStructured(data) {
   const dur = v("http_req_duration"), reqs = v("http_reqs"), fail = v("http_req_failed");
   const errRate = r(fail["rate"] || 0, 4);
   const routes = ROUTE_DEFS.map(function(rd) {
-    var dv = v("http_req_duration{name:" + rd.tag + "}");
+    var metricKey = "http_req_duration{name:" + rd.tag + "}";
+    var dv = v(metricKey);
     var fv = v("http_req_failed{name:" + rd.tag + "}");
-    if (!(dv["count"] > 0)) return null;
+    if (!m[metricKey]) return null;
     return { method: rd.method, path: rd.path,
       p50: r(dv["med"] || 0), p95: r(dv["p(95)"] || 0),
       count: dv["count"] || 0, err: r(fv["rate"] || 0, 4) };
