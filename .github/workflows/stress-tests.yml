@@ -501,6 +501,7 @@ jobs:
           TEST_TYPE:  ${{ inputs.test_type }}
           TARGET_URL: ${{ inputs.target_url }}
           RUN_NUMBER: ${{ github.run_number }}
+          GIT_SHA: ${{ github.sha }}
           RUN_DATE:   ${{ github.event.repository.updated_at || 'N/A' }}
 
       - name: Publicar resumo no Job Summary
@@ -636,11 +637,15 @@ jobs:
           from pathlib import Path
           types = ['smoke', 'load', 'stress', 'spike', 'soak']
           tests = [{'type': t, 'file': f'{t}.json'} for t in types if Path(f'k6/results/{t}.json').exists()]
-          Path('k6/results/index.json').write_text(json.dumps({'run': os.environ.get('RUN_NUMBER',''), 'tests': tests}, indent=2))
+          import datetime
+          sha = os.environ.get('GIT_SHA','')[:7]
+          ts  = datetime.datetime.utcnow().isoformat() + 'Z'
+          Path('k6/results/index.json').write_text(json.dumps({'run': os.environ.get('RUN_NUMBER',''), 'sha': sha, 'timestamp': ts, 'tests': tests}, indent=2))
           print('index.json:', tests)
           PYEOF
         env:
           RUN_NUMBER: ${{ github.run_number }}
+          GIT_SHA: ${{ github.sha }}
 
       - name: Setup SSH
         run: |
