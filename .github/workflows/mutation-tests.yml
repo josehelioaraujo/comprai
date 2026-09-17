@@ -33,7 +33,7 @@ jobs:
           dotnet-version: "10.0.x"
 
       - name: Restaurar dependencias
-        run: dotnet restore UcpAgent.sln
+        run: dotnet restore comprai.sln
 
       - name: Instalar dotnet-stryker
         run: dotnet tool install -g dotnet-stryker
