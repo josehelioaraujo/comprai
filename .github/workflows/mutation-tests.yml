@@ -50,10 +50,65 @@ jobs:
             --break-at ${{ github.event.inputs.break_threshold || '0' }}
 
       - name: Parsear resultado
-        run: python3 .github/scripts/parse-mutation-report.py
         env:
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
           GITHUB_SHA: ${{ github.sha }}
+        run: |
+          python3 - << 'PYEOF'
+          import json, os, sys
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          REPORT = Path("StrykerOutput/reports/mutation-report.json")
+          OUT    = Path("mutation-output/latest.json")
+
+          if not REPORT.exists():
+              print(f"[ERROR] {REPORT} nao encontrado", file=sys.stderr)
+              sys.exit(1)
+
+          report = json.loads(REPORT.read_text(encoding="utf-8"))
+
+          def status(score):
+              return "green" if score >= 70 else ("yellow" if score >= 50 else "red")
+
+          files_out = []
+          for path, data in report.get("files", {}).items():
+              mutants = data.get("mutants", [])
+              total      = len(mutants)
+              killed     = sum(1 for m in mutants if m.get("status") == "Killed")
+              survived   = sum(1 for m in mutants if m.get("status") == "Survived")
+              timeout    = sum(1 for m in mutants if m.get("status") == "Timeout")
+              no_cov     = sum(1 for m in mutants if m.get("status") == "NoCoverage")
+              score      = round(killed / total * 100, 1) if total else 0.0
+              files_out.append({"file": path, "total": total, "killed": killed,
+                                "survived": survived, "timeout": timeout,
+                                "no_coverage": no_cov, "score": score, "status": status(score)})
+
+          files_out.sort(key=lambda x: x["score"])
+
+          total    = sum(f["total"]       for f in files_out)
+          killed   = sum(f["killed"]      for f in files_out)
+          survived = sum(f["survived"]    for f in files_out)
+          timeout  = sum(f["timeout"]     for f in files_out)
+          no_cov   = sum(f["no_coverage"] for f in files_out)
+          score    = round(killed / total * 100, 1) if total else 0.0
+
+          out = {
+              "run":       os.environ.get("GITHUB_RUN_NUMBER", "0"),
+              "sha":       os.environ.get("GITHUB_SHA", "unknown")[:7],
+              "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "score":     score,
+              "status":    status(score),
+              "thresholds": report.get("system", {}).get("thresholds", {"high": 80, "low": 70}),
+              "summary": {"total": total, "killed": killed, "survived": survived,
+                          "timeout": timeout, "no_coverage": no_cov},
+              "files": files_out
+          }
+
+          OUT.parent.mkdir(parents=True, exist_ok=True)
+          OUT.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
+          print(f"[OK] Score: {score}% | Killed: {killed}/{total} | Survived: {survived}")
+          PYEOF
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -91,29 +146,34 @@ jobs:
             echo "## Mutation Tests -- Relatorio nao gerado" >> $GITHUB_STEP_SUMMARY
             exit 0
           fi
+          python3 - << 'PYEOF'
+          import json, os
+          from pathlib import Path
 
-          SCORE=$(python3 -c "import json; d=json.load(open('$LATEST')); print(d['score'])")
-          TOTAL=$(python3 -c "import json; d=json.load(open('$LATEST')); print(d['summary']['total'])")
-          KILLED=$(python3 -c "import json; d=json.load(open('$LATEST')); print(d['summary']['killed'])")
-          SURVIVED=$(python3 -c "import json; d=json.load(open('$LATEST')); print(d['summary']['survived'])")
-          TIMEOUT=$(python3 -c "import json; d=json.load(open('$LATEST')); print(d['summary']['timeout'])")
-          NO_COV=$(python3 -c "import json; d=json.load(open('$LATEST')); print(d['summary']['no_coverage'])")
-          STATUS=$(python3 -c "import json; d=json.load(open('$LATEST')); print(d['status'])")
+          d      = json.loads(Path("mutation-output/latest.json").read_text())
+          badge  = {"green": "OK", "yellow": "AVISO", "red": "FALHA"}.get(d["status"], "?")
+          run    = os.environ.get("GITHUB_RUN_NUMBER", "?")
+          s      = d["summary"]
 
-          if [ "$STATUS" = "green" ]; then BADGE="OK"; elif [ "$STATUS" = "yellow" ]; then BADGE="AVISO"; else BADGE="FALHA"; fi
+          lines = [
+              f"## Mutation Tests -- Run #{run} -- {badge}",
+              "",
+              "| Metrica | Valor |",
+              "|---------|-------|",
+              f"| **Mutation Score** | **{d['score']}%** |",
+              f"| Mutantes gerados | {s['total']} |",
+              f"| Eliminados (killed) | {s['killed']} |",
+              f"| Sobreviventes | {s['survived']} |",
+              f"| Timeout | {s['timeout']} |",
+              f"| Sem cobertura | {s['no_coverage']} |",
+              "",
+              f"Artifact: mutation-report-run{run} (30 dias)",
+              "Dashboard: https://comprai.2.25.122.11.nip.io/k6",
+          ]
 
-          cat >> $GITHUB_STEP_SUMMARY << SUMMARY
-          ## Mutation Tests -- Run #${{ github.run_number }} -- ${BADGE}
+          summary_file = os.environ.get("GITHUB_STEP_SUMMARY")
+          with open(summary_file, "a", encoding="utf-8") as f:
+              f.write("\n".join(lines) + "\n")
 
-          | Metrica | Valor |
-          |---------|-------|
-          | **Mutation Score** | **${SCORE}%** |
-          | Mutantes gerados | ${TOTAL} |
-          | Eliminados (killed) | ${KILLED} |
-          | Sobreviventes | ${SURVIVED} |
-          | Timeout | ${TIMEOUT} |
-          | Sem cobertura | ${NO_COV} |
-
-          Artifact: mutation-report-run${{ github.run_number }} (30 dias)
-          Dashboard: https://comprai.2.25.122.11.nip.io/k6
-          SUMMARY
+          print(f"[OK] Summary gerado -- Score {d['score']}%")
+          PYEOF
