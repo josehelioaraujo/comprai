@@ -570,6 +570,10 @@ async function loadAll(silent) {
     var idxResp = await fetch(API_BASE + '/k6/results/index.json?t=' + Date.now());
     if (!idxResp.ok) throw new Error('index.json não encontrado');
     var idx = await idxResp.json();
+    var verEl = document.getElementById('hdr-version');
+    if (verEl && (idx.run || idx.sha)) {
+      verEl.textContent = (idx.run ? '#' + idx.run : '') + (idx.sha ? '  ' + idx.sha : '') + (idx.timestamp ? '  ' + new Date(idx.timestamp).toLocaleString('pt-BR') : '');
+    }
     var files = idx.files || (idx.tests ? idx.tests.map(function(t){ return t.file; }) : []);
 
     if (files.length === 0) {
