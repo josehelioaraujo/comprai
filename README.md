@@ -36,7 +36,6 @@ Comprai é um ecossistema modular open-source que implementa o **Universal Comme
 
 ---
 
-
 ### k6 Stress Test Dashboard
 
 Access the live dashboard at `https://comprai.2.25.122.11.nip.io/k6/dashboard/`.
@@ -826,32 +825,6 @@ Inputs disponiveis:
 
 </details>
 
-
-## Roadmap
-
-### Em andamento
-
-- Dashboard: sidebar colapsavel - painel lateral esquerdo com navegacao entre secoes,
-  seguindo padrao de mercado (Grafana, Dynatrace); com modo expandido e colapsado.
-
-### Planejado - Dashboard k6
-
-- Modo dark/light - alternancia de tema com persistencia em localStorage
-- Filtro por rota - pesquisa e filtragem de rotas na tabela de resultados
-- Comparacao entre runs - selecionar duas runs e ver delta de latencia/erros lado a lado
-- Exportar resultados - download de CSV/JSON com os dados da run atual
-- Alertas de threshold - highlight visual em KPIs que ultrapassam os limites configurados
-- Historico de runs - grafico de evolucao de P95 e error rate ao longo das ultimas N runs
-
-### Planejado - Plataforma Comprai
-
-- Plugin Shopee - integracao com a API de catalogo da Shopee Brasil
-- Checkout unificado - sessao de checkout multi-vendor com split de pagamento
-- Webhook de rastreio - notificacoes de status de pedido em tempo real via WebSockets
-- MCP Server v2 - suporte a streaming de resultados de busca (SSE)
-- Dashboard de observabilidade - painel Grafana pre-configurado para as metricas UCP
-
----
 
 ## 📄 Licença
 
