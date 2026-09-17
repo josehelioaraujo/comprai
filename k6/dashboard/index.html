@@ -162,7 +162,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .chart-hint-icon:hover { opacity: 1; }
 .chart-hint { position: absolute; top: calc(100% + 6px); left: 0; background: #0d1117; color: #c9d1d9; border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 11px; line-height: 1.6; width: 280px; pointer-events: none; opacity: 0; transition: opacity .2s; z-index: 200; text-align: left; white-space: normal; text-transform: none; letter-spacing: 0; font-weight: 400; }
 .chart-hint::after { content: ''; position: absolute; bottom: 100%; left: 20px; border: 5px solid transparent; border-bottom-color: var(--border); }
-.chart-hint-icon:hover .chart-hint { opacity: 1; }
+/* chart-hint hover via JS */
 .chart-title { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 14px; font-weight: 600; }
 .chart-wrap { position: relative; height: 220px; }
 .chart-wrap-tall { position: relative; height: 280px; }
@@ -912,6 +912,36 @@ window.addEventListener('DOMContentLoaded', function() {
   loadGhConfig();
   loadAll();
 });
+</script>
+<script>
+(function () {
+  function initChartHints() {
+    document.querySelectorAll('.chart-hint-icon').forEach(function (icon) {
+      var hint = icon.querySelector('.chart-hint');
+      if (!hint) return;
+      var timer = null;
+      hint.style.position = 'fixed';
+      hint.style.zIndex   = '9999';
+      hint.style.pointerEvents = 'auto';
+      function show() {
+        clearTimeout(timer);
+        var r = icon.getBoundingClientRect();
+        hint.style.top    = (r.bottom + 8) + 'px';
+        hint.style.left   = Math.max(4, Math.min(r.left, window.innerWidth - 292)) + 'px';
+        hint.style.bottom = '';
+        hint.style.opacity = '1';
+      }
+      function hide() { hint.style.opacity = '0'; }
+      icon.addEventListener('mouseenter', show);
+      icon.addEventListener('mouseleave', function () { timer = setTimeout(hide, 150); });
+      hint.addEventListener('mouseenter', function () { clearTimeout(timer); });
+      hint.addEventListener('mouseleave', function () { timer = setTimeout(hide, 150); });
+    });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initChartHints);
+  } else { initChartHints(); }
+})();
 </script>
 </body>
 </html>
