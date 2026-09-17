@@ -810,6 +810,31 @@ Inputs disponiveis:
 
 </details>
 
+
+## Roadmap
+
+### Em andamento
+
+- **Dashboard: sidebar colapsavel** â€” painel lateral esquerdo com navegacao entre secoes,
+  seguindo padrao de mercado (Grafana, Dynatrace); com modo expandido e colapsado.
+
+### Planejado â€” Dashboard k6
+
+- **Modo dark/light** â€” alternancia de tema com persistencia em localStorage
+- **Filtro por rota** â€” pesquisa e filtragem de rotas na tabela de resultados
+- **Comparacao entre runs** â€” selecionar duas runs e ver delta de latencia/erros lado a lado
+- **Exportar resultados** â€” download de CSV/JSON com os dados da run atual
+- **Alertas de threshold** â€” highlight visual em KPIs que ultrapassam os limites configurados
+- **Historico de runs** â€” grafico de evolucao de P95 e error rate ao longo das ultimas N runs
+
+### Planejado â€” Plataforma Comprai
+
+- **Plugin Shopee** â€” integracao com a API de catalogo da Shopee Brasil
+- **Checkout unificado** â€” sessao de checkout multi-vendor com split de pagamento
+- **Webhook de rastreio** â€” notificacoes de status de pedido em tempo real via WebSockets
+- **MCP Server v2** â€” suporte a streaming de resultados de busca (SSE)
+- **Dashboard de observabilidade** â€” painel Grafana pre-configurado para as metricas UCP
+
 ---
 
 ## 📄 Licença
