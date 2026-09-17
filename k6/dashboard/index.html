@@ -613,6 +613,10 @@ function showSection(id, navEl) {
   // active state no nav
   document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
   if (navEl) navEl.classList.add('active');
+  // re-renderizar charts se necessario (resize apos display:none -> display:'')
+  setTimeout(function() {
+    Object.values(charts).forEach(function(c) { if (c) c.resize(); });
+  }, 100);
 }
 
 // ── Version modal ────────────────────────────────────────────
