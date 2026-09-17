@@ -1,0 +1,119 @@
+name: Mutation Tests (Stryker.NET)
+
+on:
+  workflow_dispatch:
+    inputs:
+      break_threshold:
+        description: "Score minimo para falhar o workflow (0 = nunca falha)"
+        required: false
+        default: "0"
+  schedule:
+    - cron: "0 4 * * 1"
+
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_NOLOGO: true
+
+jobs:
+  mutation:
+    name: Stryker.NET
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_PAT }}
+          fetch-depth: 0
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restaurar dependencias
+        run: dotnet restore UcpAgent.sln
+
+      - name: Instalar dotnet-stryker
+        run: dotnet tool install -g dotnet-stryker
+
+      - name: Executar Stryker.NET
+        id: stryker
+        continue-on-error: true
+        run: |
+          dotnet stryker \
+            --config-file stryker-config.json \
+            --output StrykerOutput \
+            --reporter json \
+            --reporter progress \
+            --break-at ${{ github.event.inputs.break_threshold || '0' }}
+
+      - name: Parsear resultado
+        run: python3 .github/scripts/parse-mutation-report.py
+        env:
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          GITHUB_SHA: ${{ github.sha }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutation-report-run${{ github.run_number }}
+          path: |
+            StrykerOutput/reports/mutation-report.json
+            mutation-output/latest.json
+          retention-days: 30
+
+      - name: Criar pasta na VPS
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: 2.25.122.11
+          username: root
+          key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          script: mkdir -p /var/www/html/k6/results/mutation
+
+      - name: Copiar latest.json para VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: 2.25.122.11
+          username: root
+          key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          source: "mutation-output/latest.json"
+          target: "/var/www/html/k6/results/mutation/"
+          strip_components: 1
+
+      - name: Job Summary
+        if: always()
+        run: |
+          LATEST="mutation-output/latest.json"
+          if [ ! -f "$LATEST" ]; then
+            echo "## Mutation Tests -- Relatorio nao gerado" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+
+          SCORE=$(python3 -c "import json; d=json.load(open('$LATEST')); print(d['score'])")
+          TOTAL=$(python3 -c "import json; d=json.load(open('$LATEST')); print(d['summary']['total'])")
+          KILLED=$(python3 -c "import json; d=json.load(open('$LATEST')); print(d['summary']['killed'])")
+          SURVIVED=$(python3 -c "import json; d=json.load(open('$LATEST')); print(d['summary']['survived'])")
+          TIMEOUT=$(python3 -c "import json; d=json.load(open('$LATEST')); print(d['summary']['timeout'])")
+          NO_COV=$(python3 -c "import json; d=json.load(open('$LATEST')); print(d['summary']['no_coverage'])")
+          STATUS=$(python3 -c "import json; d=json.load(open('$LATEST')); print(d['status'])")
+
+          if [ "$STATUS" = "green" ]; then BADGE="OK"; elif [ "$STATUS" = "yellow" ]; then BADGE="AVISO"; else BADGE="FALHA"; fi
+
+          cat >> $GITHUB_STEP_SUMMARY << SUMMARY
+          ## Mutation Tests -- Run #${{ github.run_number }} -- ${BADGE}
+
+          | Metrica | Valor |
+          |---------|-------|
+          | **Mutation Score** | **${SCORE}%** |
+          | Mutantes gerados | ${TOTAL} |
+          | Eliminados (killed) | ${KILLED} |
+          | Sobreviventes | ${SURVIVED} |
+          | Timeout | ${TIMEOUT} |
+          | Sem cobertura | ${NO_COV} |
+
+          Artifact: mutation-report-run${{ github.run_number }} (30 dias)
+          Dashboard: https://comprai.2.25.122.11.nip.io/k6
+          SUMMARY
