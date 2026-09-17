@@ -348,7 +348,6 @@ tr:hover td { background: rgba(255,255,255,.02); }
   <div class="sidebar-footer">
     <div class="nav-item sb-theme-item" onclick="toggleTheme()" id="themeBtn" title="Alternar tema claro/escuro">
       <span class="nav-icon" id="themeIcon">&#9790;</span>
-      <span class="nav-text">Tema escuro</span>
     </div>
     <div class="nav-item sb-ver-item" onclick="openVerModal()" id="sbVersionBtn" title="Ver versionamento">
       <span class="nav-icon">&#128204;</span>
@@ -625,10 +624,7 @@ function toggleTheme() {
   var isDark = !document.documentElement.getAttribute('data-theme');
   document.documentElement.setAttribute('data-theme', isDark ? 'light' : '');
   var icon = document.getElementById('themeIcon');
-  var btn  = document.getElementById('themeBtn');
   if (icon) icon.textContent = isDark ? '\u2600' : '\u263D';
-  var lbl = btn ? btn.querySelector('.nav-text') : null;
-  if (lbl) lbl.textContent = isDark ? 'Tema claro' : 'Tema escuro';
 }
 
 // ── Toggle collapsible sections ──────────────────────────────
