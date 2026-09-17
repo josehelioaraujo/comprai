@@ -1,4 +1,24 @@
-﻿## [3.2.1] - 2026-09-12
+﻿## [3.2.2] - 2026-09-17
+
+### Fixed
+- **k6 Dashboard: chart-hint tooltips nos graficos de performance** â€” tooltips via CSS :hover
+  nao apareciam por overflow:hidden + stacking context com canvas. Solucao: JS com
+  getBoundingClientRect() + position:fixed + z-index:9999 com delay de 150ms no hide.
+- **k6 Dashboard: span #hdr-version ausente no HTML** â€” JS populava run/SHA/timestamp
+  referenciando um span inexistente no markup; elemento adicionado antes de #hdr-updated.
+- **k6 Dashboard: SHA e timestamp ausentes no index.json** â€” workflow stress-tests.yml so
+  gravava run/tests; adicionados sha (7 chars), timestamp (ISO UTC) e variavel GIT_SHA no env.
+- **k6 Dashboard: coluna TOTAL usa metrica Counter** â€” http_req_duration e Trend (sem count);
+  corrigido para http_reqs (Counter) incluindo fix para contagem zero.
+
+### Added
+- **k6 Dashboard: versao no header** â€” JS popula #hdr-version com run, sha e timestamp-local
+  lidos de index.json. Exibido como: #78 498dca4 17/09/2026 12:39:39.
+- **k6 Dashboard: drilldown colapsavel + tooltips nos KPI cards** â€” painel Pipeline em Execucao
+  mostra etapas do workflow com logs expansiveis por chevron; KPI cards com tooltip ao hover.
+- **k6 Dashboard: hints nos graficos de performance** â€” icone de informacao nos graficos
+  Throughput, Taxa de Erro e Total de Requisicoes com tooltip descritivo.
+## [3.2.1] - 2026-09-12
 
 ### Added
 - **Dashboard k6 no GitHub Pages**
