@@ -36,21 +36,6 @@ Comprai é um ecossistema modular open-source que implementa o **Universal Comme
 
 ---
 
-### k6 Stress Test Dashboard
-
-Access the live dashboard at `https://comprai.2.25.122.11.nip.io/k6/dashboard/`.
-
-**Running via GitHub Actions:** trigger the `stress-tests` workflow (`workflow_dispatch`) with
-parameters `test_type` (smoke/load/stress/spike/soak), `target_url`, `vus`, and `duration`.
-Use the `smoke` workflow to publish the dashboard without running heavy tests.
-
-**Dashboard features:**
-- Header shows run number, short SHA (7 chars), and UTC timestamp of the last execution
-- KPI cards (Req/s, P95 latency, error rate, total requests) with hover tooltips
-- Per-type tabs (Load / Stress / Spike / Soak / Smoke) with per-route breakdown and TOTAL counts
-- Performance charts (Throughput, Error Rate, Total Requests) with info hint icons
-- Collapsible sections for latency timeline, test configuration, and called routes
-- Pipeline drilldown showing live GitHub Actions step status with expandable logs
 ## 🌐 Universal Commerce Protocol (UCP)
 
 O **Comprai** é construído sobre o **Universal Commerce Protocol (UCP)**, um padrão aberto lançado pelo Google em janeiro de 2026, co-desenvolvido com a Shopify e endossado por mais de 20 empresas globais — incluindo Visa, Mastercard, Stripe, Walmart, Target e Best Buy.
@@ -807,6 +792,23 @@ Inputs disponiveis:
 - Resultado do Run #11 (all): Smoke 47s | Load 3m 8s | Stress 8m 54s | Spike 1m 31s | Soak 4m 12s | Total 20m 3s
 
 </details>
+
+### k6 Stress Test Dashboard
+
+
+Access the live dashboard at `https://comprai.2.25.122.11.nip.io/k6/dashboard/`.
+
+**Running via GitHub Actions:** trigger the `stress-tests` workflow (`workflow_dispatch`) with
+parameters `test_type` (smoke/load/stress/spike/soak), `target_url`, `vus`, and `duration`.
+Use the `smoke` workflow to publish the dashboard without running heavy tests.
+
+**Dashboard features:**
+- Header shows run number, short SHA (7 chars), and UTC timestamp of the last execution
+- KPI cards (Req/s, P95 latency, error rate, total requests) with hover tooltips
+- Per-type tabs (Load / Stress / Spike / Soak / Smoke) with per-route breakdown and TOTAL counts
+- Performance charts (Throughput, Error Rate, Total Requests) with info hint icons
+- Collapsible sections for latency timeline, test configuration, and called routes
+- Pipeline drilldown showing live GitHub Actions step status with expandable logs
 
 ## 🗺️ Roadmap
 
