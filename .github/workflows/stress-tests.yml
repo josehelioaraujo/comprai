@@ -688,6 +688,7 @@ jobs:
               proxy_set_header Authorization "token ${GH_PAT}";
               proxy_set_header Accept "application/vnd.github.v3+json";
               proxy_set_header Content-Type "application/json";
+              proxy_set_header User-Agent "nginx-k6-proxy/1.0";
               proxy_ssl_server_name on;
               proxy_ssl_name api.github.com;
               proxy_pass_request_body on;
