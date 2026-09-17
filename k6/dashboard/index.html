@@ -13,8 +13,12 @@
   --pass: #10b981; --fail: #ef4444;
   --sidebar-w: 220px; --sidebar-collapsed-w: 52px;
 }
+[data-theme="light"] {
+  --bg: #f1f5f9; --surface: #ffffff; --surface2: #f8fafc;
+  --border: #e2e8f0; --text: #0f172a; --muted: #64748b;
+}
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; display: flex; flex-direction: column; }
+body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; display: flex; flex-direction: column; transition: background .2s, color .2s; }
 
 /* ── App shell ── */
 .app-shell { display: flex; flex: 1; min-height: 0; }
@@ -75,12 +79,55 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', syste
 .nav-text { opacity: 1; transition: opacity .15s; }
 .sidebar.collapsed .nav-text { opacity: 0; pointer-events: none; }
 
+/* ── Sidebar footer ── */
 .sidebar-footer {
-  border-top: 1px solid var(--border); padding: 12px 14px;
-  font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden;
+  border-top: 1px solid var(--border); padding: 10px 14px;
+  display: flex; flex-direction: column; gap: 6px;
+  overflow: hidden; white-space: nowrap;
 }
-.sidebar-footer-text { opacity: 1; transition: opacity .15s; }
-.sidebar.collapsed .sidebar-footer-text { opacity: 0; }
+.sidebar-footer-actions {
+  display: flex; align-items: center; gap: 6px;
+}
+.sb-icon-btn {
+  background: none; border: none; color: var(--muted);
+  cursor: pointer; font-size: 14px; padding: 5px;
+  border-radius: 6px; transition: background .15s, color .15s;
+  flex-shrink: 0; line-height: 1;
+}
+.sb-icon-btn:hover { background: var(--surface2); color: var(--text); }
+.sb-version-btn {
+  font-size: 11px; color: var(--muted); background: none; border: none;
+  cursor: pointer; padding: 4px 6px; border-radius: 6px;
+  transition: background .15s, color .15s; text-align: left;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  flex: 1;
+}
+.sb-version-btn:hover { background: var(--surface2); color: var(--text); }
+.sidebar.collapsed .sb-version-btn { display: none; }
+.sidebar.collapsed .sb-icon-btn-theme { margin: 0 auto; }
+
+/* ── Version modal ── */
+.ver-modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.55); z-index: 1000;
+  align-items: flex-end; justify-content: flex-start;
+}
+.ver-modal-overlay.open { display: flex; }
+.ver-modal {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px 20px; margin: 0 0 16px 16px;
+  min-width: 260px; max-width: 320px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.4);
+  animation: slideUp .2s ease;
+}
+@keyframes slideUp { from { transform: translateY(12px); opacity:0; } to { transform: translateY(0); opacity:1; } }
+.ver-modal-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+.ver-modal-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; padding: 0; line-height: 1; }
+.ver-modal-close:hover { color: var(--text); }
+.ver-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+.ver-row:last-child { border-bottom: none; }
+.ver-label { color: var(--muted); }
+.ver-value { color: var(--text); font-family: monospace; font-size: 11px; }
 
 /* ── Main content area ── */
 .main-area { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow-y: auto; }
@@ -92,7 +139,6 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', syste
   height: 56px; flex-shrink: 0; position: sticky; top: 0; z-index: 50;
 }
 .topbar-meta { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
-.topbar-meta span { display: flex; align-items: center; gap: 5px; }
 .topbar-divider { width: 1px; height: 20px; background: var(--border); }
 .topbar-version { font-family: monospace; font-size: 11px; opacity: .6; }
 
@@ -240,45 +286,64 @@ tr:hover td { background: rgba(255,255,255,.02); }
 </head>
 <body>
 
-<!-- ── Sidebar ── -->
+<!-- Version modal -->
+<div class="ver-modal-overlay" id="verModal" onclick="closeVerModal(event)">
+  <div class="ver-modal">
+    <div class="ver-modal-title">
+      <span>&#128204; Versionamento</span>
+      <button class="ver-modal-close" onclick="closeVerModalDirect()">&#10005;</button>
+    </div>
+    <div id="verModalBody">
+      <div class="ver-row"><span class="ver-label">Run</span><span class="ver-value" id="vm-run">—</span></div>
+      <div class="ver-row"><span class="ver-label">SHA</span><span class="ver-value" id="vm-sha">—</span></div>
+      <div class="ver-row"><span class="ver-label">Timestamp</span><span class="ver-value" id="vm-ts">—</span></div>
+      <div class="ver-row"><span class="ver-label">Testes</span><span class="ver-value" id="vm-tests">—</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- App shell -->
 <div class="app-shell">
 <nav class="sidebar" id="sidebar">
   <div class="sidebar-header">
     <span class="sidebar-logo">&#9889;</span>
     <span class="sidebar-logo-text">Comprai K6</span>
-    <button class="sidebar-toggle" onclick="toggleSidebar()" title="Recolher menu">&#8644;</button>
+    <button class="sidebar-toggle" id="sidebarToggleBtn" onclick="toggleSidebar()" title="Recolher menu">&#8644;</button>
   </div>
   <div class="sidebar-nav">
     <div class="nav-label">Dashboard</div>
-    <div class="nav-item active" onclick="scrollToSection('detailsBlock', this)" title="Detalhes por Tipo">
+    <div class="nav-item active" id="nav-detalhes" onclick="showSection('detailsBlock', this)" title="Detalhes por Tipo">
       <span class="nav-icon">&#128269;</span><span class="nav-text">Detalhes</span>
     </div>
-    <div class="nav-item" onclick="scrollToSection('resumoBlock', this)" title="Resumo de Resultados">
+    <div class="nav-item" id="nav-resumo" onclick="showSection('resumoBlock', this)" title="Resumo de Resultados">
       <span class="nav-icon">&#128202;</span><span class="nav-text">Resumo</span>
     </div>
-    <div class="nav-item" onclick="scrollToSection('timelineBlock', this)" title="Timeline de Latencia">
+    <div class="nav-item" id="nav-timeline" onclick="showSection('timelineBlock', this)" title="Timeline de Latencia">
       <span class="nav-icon">&#128200;</span><span class="nav-text">Timeline</span>
     </div>
     <div class="nav-label">Analise</div>
-    <div class="nav-item" onclick="scrollToSection('configBlock', this)" title="Configuracao dos Testes">
+    <div class="nav-item" id="nav-config" onclick="showSection('configBlock', this)" title="Configuracao dos Testes">
       <span class="nav-icon">&#9881;</span><span class="nav-text">Configuracao</span>
     </div>
-    <div class="nav-item" onclick="scrollToSection('chartsBlock', this)" title="Graficos de Performance">
+    <div class="nav-item" id="nav-graficos" onclick="showSection('chartsBlock', this)" title="Graficos de Performance">
       <span class="nav-icon">&#128201;</span><span class="nav-text">Graficos</span>
     </div>
-    <div class="nav-item" onclick="scrollToSection('routesBlock', this)" title="Rotas Chamadas">
+    <div class="nav-item" id="nav-rotas" onclick="showSection('routesBlock', this)" title="Rotas Chamadas">
       <span class="nav-icon">&#127760;</span><span class="nav-text">Rotas</span>
     </div>
   </div>
   <div class="sidebar-footer">
-    <span class="sidebar-footer-text" id="sb-version">K6 Dashboard</span>
+    <div class="sidebar-footer-actions">
+      <button class="sb-version-btn" id="sbVersionBtn" onclick="openVerModal()" title="Ver versionamento">
+        K6 Dashboard
+      </button>
+      <button class="sb-icon-btn sb-icon-btn-theme" onclick="toggleTheme()" id="themeBtn" title="Alternar tema">&#9790;</button>
+    </div>
   </div>
 </nav>
 
-<!-- ── Main area ── -->
+<!-- Main area -->
 <div class="main-area">
-
-  <!-- Topbar -->
   <header class="topbar">
     <div class="topbar-meta">
       <span id="hdr-count">—</span>
@@ -300,7 +365,6 @@ tr:hover td { background: rgba(255,255,255,.02); }
     </div>
   </header>
 
-  <!-- Pipeline status panel -->
   <div id="runPanel">
     <div class="run-panel-header">
       <div class="run-panel-title">&#128295; Pipeline em Execucao</div>
@@ -311,13 +375,11 @@ tr:hover td { background: rgba(255,255,255,.02); }
     <div class="run-info" id="runInfo"></div>
   </div>
 
-  <!-- Page content -->
   <div class="page-content">
     <div id="loadingMsg" class="loading">&#9203; Carregando resultados dos testes...</div>
-
     <div id="dashContent" style="display:none">
 
-      <!-- Secao: Detalhes por Tipo -->
+      <!-- FIXO: Detalhes por Tipo -->
       <div class="section-block" id="detailsBlock">
         <div class="section-header" onclick="toggleSection(this)">
           <span class="section-title-text">&#128269; Detalhes por Tipo de Teste</span>
@@ -332,8 +394,8 @@ tr:hover td { background: rgba(255,255,255,.02); }
         </div>
       </div>
 
-      <!-- Secao: Resumo -->
-      <div class="section-block" id="resumoBlock">
+      <!-- Resumo -->
+      <div class="section-block" id="resumoBlock" style="display:none">
         <div class="section-header" onclick="toggleSection(this)">
           <span class="section-title-text">&#128202; Resumo de Resultados</span>
           <span class="section-count" id="res-count"></span>
@@ -349,14 +411,14 @@ tr:hover td { background: rgba(255,255,255,.02); }
         </div>
       </div>
 
-      <!-- Secao: Timeline de Latencia -->
+      <!-- Timeline -->
       <div class="section-block" id="timelineBlock" style="display:none">
-        <div class="section-header collapsed" onclick="toggleSection(this, 'timeline')">
+        <div class="section-header" onclick="toggleSection(this, 'timeline')">
           <span class="section-title-text">&#128200; Timeline de Latencia</span>
           <span class="section-count" id="timeline-count"></span>
           <span class="section-chevron">&#9660;</span>
         </div>
-        <div class="section-content collapsed">
+        <div class="section-content">
           <div class="section-inner">
             <div style="padding: 16px;">
               <div class="chart-card">
@@ -368,14 +430,14 @@ tr:hover td { background: rgba(255,255,255,.02); }
         </div>
       </div>
 
-      <!-- Secao: Configuracao -->
-      <div class="section-block" id="configBlock">
-        <div class="section-header collapsed" onclick="toggleSection(this)">
+      <!-- Configuracao -->
+      <div class="section-block" id="configBlock" style="display:none">
+        <div class="section-header" onclick="toggleSection(this)">
           <span class="section-title-text">&#9881; Configuracao dos Testes</span>
           <span class="section-count" id="cfg-count"></span>
           <span class="section-chevron">&#9660;</span>
         </div>
-        <div class="section-content collapsed">
+        <div class="section-content">
           <div class="section-inner">
             <table>
               <thead><tr><th>Tipo</th><th>URL Alvo</th><th>VUs</th><th>Duracao</th><th>Status</th></tr></thead>
@@ -385,14 +447,14 @@ tr:hover td { background: rgba(255,255,255,.02); }
         </div>
       </div>
 
-      <!-- Secao: Graficos de Performance -->
-      <div class="section-block" id="chartsBlock">
-        <div class="section-header collapsed" onclick="toggleSection(this, 'charts')">
+      <!-- Graficos -->
+      <div class="section-block" id="chartsBlock" style="display:none">
+        <div class="section-header" onclick="toggleSection(this, 'charts')">
           <span class="section-title-text">&#128201; Graficos de Performance</span>
           <span class="section-count" id="charts-count"></span>
           <span class="section-chevron">&#9660;</span>
         </div>
-        <div class="section-content collapsed">
+        <div class="section-content">
           <div class="section-inner">
             <div class="charts-grid">
               <div class="chart-card">
@@ -412,23 +474,22 @@ tr:hover td { background: rgba(255,255,255,.02); }
         </div>
       </div>
 
-      <!-- Secao: Rotas -->
+      <!-- Rotas -->
       <div class="section-block" id="routesBlock" style="display:none">
-        <div class="section-header collapsed" onclick="toggleSection(this)">
+        <div class="section-header" onclick="toggleSection(this)">
           <span class="section-title-text">&#127760; Rotas Chamadas</span>
           <span class="section-count" id="routes-count"></span>
           <span class="section-chevron">&#9660;</span>
         </div>
-        <div class="section-content collapsed">
+        <div class="section-content">
           <div class="section-inner" id="routesContent"></div>
         </div>
       </div>
 
-    </div><!-- /dashContent -->
-  </div><!-- /page-content -->
-
-</div><!-- /main-area -->
-</div><!-- /app-shell -->
+    </div>
+  </div>
+</div>
+</div>
 
 <script>
 const API_BASE = 'https://comprai.2.25.122.11.nip.io';
@@ -439,6 +500,11 @@ let ghCfg = null;
 let pollTimer = null;
 let currentRunId = null;
 let runReloadPending = false;
+let verInfo = {};
+
+// IDs das secoes navegaveis (exceto detalhes que e fixo)
+const NAV_SECTIONS = ['resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock'];
+let activeSection = null; // null = nenhuma extra visivel
 
 const TYPE_ORDER = ['smoke','load','stress','spike','soak'];
 const TYPE_COLORS = {
@@ -449,32 +515,80 @@ const TYPE_COLORS = {
   soak:   { border: '#34d399', bg: 'rgba(16,185,129,.25)' }
 };
 
-// ── Sidebar toggle ───────────────────────────────────────────
+// ── Sidebar toggle (fix: usa flag explícita) ─────────────────
 function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('collapsed');
+  var sb = document.getElementById('sidebar');
+  var isCollapsed = sb.classList.contains('collapsed');
+  if (isCollapsed) {
+    sb.classList.remove('collapsed');
+  } else {
+    sb.classList.add('collapsed');
+  }
   setTimeout(function() {
     Object.values(charts).forEach(function(c) { if (c) c.resize(); });
   }, 300);
 }
 
-// ── Sidebar nav scroll ───────────────────────────────────────
-function scrollToSection(id, navEl) {
-  var el = document.getElementById(id);
-  if (!el) return;
-  // expand if collapsed
-  var header = el.querySelector('.section-header');
-  var content = el.querySelector('.section-content');
-  if (header && content && content.classList.contains('collapsed')) {
-    header.classList.remove('collapsed');
-    content.classList.remove('collapsed');
-    setTimeout(function() {
-      Object.values(charts).forEach(function(c) { if (c) c.resize(); });
-    }, 350);
+// ── Nav: mostra só a seção clicada (Detalhes sempre fixo) ───
+function showSection(id, navEl) {
+  // se clicou na mesma ativa, fecha ela (toggle)
+  if (activeSection === id) {
+    document.getElementById(id).style.display = 'none';
+    activeSection = null;
+    document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+    document.getElementById('nav-detalhes').classList.add('active');
+    return;
   }
-  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  // active state
+
+  // esconde todas as secoes extras
+  NAV_SECTIONS.forEach(function(sid) {
+    var el = document.getElementById(sid);
+    if (el) el.style.display = 'none';
+  });
+
+  // mostra a clicada (se nao for routesBlock/timelineBlock sem dados)
+  var target = document.getElementById(id);
+  if (target) {
+    target.style.display = '';
+    // garante expandida
+    var hdr = target.querySelector('.section-header');
+    var cnt = target.querySelector('.section-content');
+    if (hdr && cnt) {
+      hdr.classList.remove('collapsed');
+      cnt.classList.remove('collapsed');
+    }
+    activeSection = id;
+    setTimeout(function() {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      Object.values(charts).forEach(function(c) { if (c) c.resize(); });
+    }, 50);
+  }
+
+  // active state no nav
   document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
   if (navEl) navEl.classList.add('active');
+}
+
+// ── Version modal ────────────────────────────────────────────
+function openVerModal() {
+  document.getElementById('vm-run').textContent = verInfo.run ? '#' + verInfo.run : '—';
+  document.getElementById('vm-sha').textContent = verInfo.sha || '—';
+  document.getElementById('vm-ts').textContent  = verInfo.timestamp ? new Date(verInfo.timestamp).toLocaleString('pt-BR') : '—';
+  document.getElementById('vm-tests').textContent = allData.length ? allData.length + ' tipo(s) carregados' : '—';
+  document.getElementById('verModal').classList.add('open');
+}
+function closeVerModal(e) {
+  if (e.target === document.getElementById('verModal')) closeVerModalDirect();
+}
+function closeVerModalDirect() {
+  document.getElementById('verModal').classList.remove('open');
+}
+
+// ── Theme toggle ─────────────────────────────────────────────
+function toggleTheme() {
+  var isDark = !document.documentElement.getAttribute('data-theme');
+  document.documentElement.setAttribute('data-theme', isDark ? 'light' : '');
+  document.getElementById('themeBtn').textContent = isDark ? '\u2600\uFE0F' : '\u263D';
 }
 
 // ── Toggle collapsible sections ──────────────────────────────
@@ -510,7 +624,7 @@ function fmt(v, dec) {
   return isNaN(n) ? v : n.toFixed(dec);
 }
 
-// ── Load gh-config.json for run controls ────────────────────
+// ── Load gh-config.json ──────────────────────────────────────
 async function loadGhConfig() {
   try {
     var r = await fetch(API_BASE + '/k6/results/gh-config.json?t=' + Date.now());
@@ -520,10 +634,10 @@ async function loadGhConfig() {
       ghCfg = cfg;
       document.getElementById('runControls').style.display = 'flex';
     }
-  } catch(e) { /* silently ignore — run controls stay hidden */ }
+  } catch(e) {}
 }
 
-// ── Trigger GitHub Actions workflow ─────────────────────────
+// ── Trigger workflow ─────────────────────────────────────────
 async function triggerTest() {
   if (!ghCfg) return;
   var testType = document.getElementById('testTypeSelect').value;
@@ -533,11 +647,10 @@ async function triggerTest() {
   try {
     var dispatchUrl = ghCfg.dispatch_url || '/k6/dispatch';
     var resp = await fetch(dispatchUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ref: ghCfg.ref || 'main', inputs: { test_type: testType } })
-      }
-    );
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ref: ghCfg.ref || 'main', inputs: { test_type: testType } })
+    });
     if (resp.ok || resp.status === 204) {
       btn.textContent = '✓ Disparado!';
       openRunPanel('Aguardando pipeline iniciar...', testType);
@@ -551,22 +664,17 @@ async function triggerTest() {
     btn.textContent = '✗ Falha';
     openRunPanel('Falha de rede: ' + e.message, testType);
   }
-  setTimeout(function() {
-    btn.disabled = false;
-    btn.innerHTML = '&#9654; Executar';
-  }, 5000);
+  setTimeout(function() { btn.disabled = false; btn.innerHTML = '&#9654; Executar'; }, 5000);
 }
 
-// ── Run status panel ────────────────────────────────────────
-function openRunPanel(msg, testType) {
+// ── Run panel ────────────────────────────────────────────────
+function openRunPanel(msg) {
   document.getElementById('runPanel').classList.add('open');
   document.getElementById('runStatusMsg').innerHTML =
-    '<span style="animation: pulse 1s infinite; display:inline-block; width:9px; height:9px; border-radius:50%; background:#fbbf24; margin-right:4px;"></span>' +
-    (msg || 'Verificando pipeline...');
+    '<span style="animation:pulse 1s infinite;display:inline-block;width:9px;height:9px;border-radius:50%;background:#fbbf24;margin-right:4px;"></span>' + (msg || 'Verificando...');
   document.getElementById('jobsGrid').innerHTML = '';
   document.getElementById('runInfo').innerHTML = '';
 }
-
 function closeRunPanel() {
   document.getElementById('runPanel').classList.remove('open');
   if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
@@ -581,7 +689,7 @@ async function startPolling() {
     );
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     var data = await resp.json();
-    var runs = (data.workflow_runs || []);
+    var runs = data.workflow_runs || [];
     if (!runs.length) {
       document.getElementById('runStatusMsg').textContent = 'Nenhuma execucao encontrada ainda...';
       pollTimer = setTimeout(startPolling, 6000);
@@ -590,7 +698,7 @@ async function startPolling() {
     currentRunId = runs[0].id;
     pollRun(runs[0]);
   } catch(e) {
-    document.getElementById('runStatusMsg').textContent = 'Erro ao consultar runs: ' + e.message;
+    document.getElementById('runStatusMsg').textContent = 'Erro: ' + e.message;
     pollTimer = setTimeout(startPolling, 8000);
   }
 }
@@ -598,33 +706,21 @@ async function startPolling() {
 async function pollRun(run) {
   if (!ghCfg) return;
   try {
-    var runResp = await fetch(
-      'https://api.github.com/repos/' + ghCfg.repo + '/actions/runs/' + run.id,
-      { headers: { 'Accept': 'application/vnd.github.v3+json' } }
-    );
+    var runResp = await fetch('https://api.github.com/repos/' + ghCfg.repo + '/actions/runs/' + run.id, { headers: { 'Accept': 'application/vnd.github.v3+json' } });
     if (!runResp.ok) throw new Error('HTTP ' + runResp.status);
     var runData = await runResp.json();
-
-    var jobsResp = await fetch(
-      'https://api.github.com/repos/' + ghCfg.repo + '/actions/runs/' + run.id + '/jobs',
-      { headers: { 'Accept': 'application/vnd.github.v3+json' } }
-    );
+    var jobsResp = await fetch('https://api.github.com/repos/' + ghCfg.repo + '/actions/runs/' + run.id + '/jobs', { headers: { 'Accept': 'application/vnd.github.v3+json' } });
     var jobsData = jobsResp.ok ? await jobsResp.json() : { jobs: [] };
-
     renderRunStatus(runData, jobsData.jobs || []);
-
     if (runData.status !== 'completed') {
       pollTimer = setTimeout(function() { pollRun(runData); }, 6000);
     } else {
       var icon = runData.conclusion === 'success' ? '✅' : '❌';
       document.getElementById('runStatusMsg').innerHTML = icon + ' Pipeline concluido: <strong>' + (runData.conclusion || '') + '</strong>';
-      if (!runReloadPending) {
-        runReloadPending = true;
-        setTimeout(function() { runReloadPending = false; loadAll(true); }, 8000);
-      }
+      if (!runReloadPending) { runReloadPending = true; setTimeout(function() { runReloadPending = false; loadAll(true); }, 8000); }
     }
   } catch(e) {
-    document.getElementById('runStatusMsg').textContent = 'Erro ao atualizar status: ' + e.message;
+    document.getElementById('runStatusMsg').textContent = 'Erro: ' + e.message;
     pollTimer = setTimeout(function() { pollRun(run); }, 8000);
   }
 }
@@ -637,10 +733,8 @@ function runStatusIcon(s, conclusion) {
     if (conclusion === 'cancelled') return '🚫';
     return '⚪';
   }
-  if (s === 'in_progress') return '⟳';
-  return '○';
+  return s === 'in_progress' ? '⟳' : '○';
 }
-
 function jobDotClass(s, conclusion) {
   if (s === 'in_progress') return 'dot-running';
   if (s === 'completed') {
@@ -655,38 +749,21 @@ function renderRunStatus(run, jobs) {
   var statusLabel = run.status === 'completed'
     ? (run.conclusion === 'success' ? '✅ Concluido' : '❌ ' + run.conclusion)
     : '⟳ ' + (run.status || 'em andamento');
-
-  document.getElementById('runStatusMsg').innerHTML =
-    statusLabel + ' &nbsp;|&nbsp; Run <strong>#' + run.run_number + '</strong>';
-
-  document.getElementById('runInfo').innerHTML =
-    '<a href="' + run.html_url + '" target="_blank">Ver no GitHub ↗</a>' +
-    (run.created_at ? ' &nbsp;·&nbsp; Iniciado: ' + new Date(run.created_at).toLocaleString('pt-BR') : '');
-
-  if (!jobs.length) {
-    document.getElementById('jobsGrid').innerHTML =
-      '<div style="color:var(--muted);font-size:13px;">Aguardando jobs inicializarem...</div>';
-    return;
-  }
-
+  document.getElementById('runStatusMsg').innerHTML = statusLabel + ' &nbsp;|&nbsp; Run <strong>#' + run.run_number + '</strong>';
+  document.getElementById('runInfo').innerHTML = '<a href="' + run.html_url + '" target="_blank">Ver no GitHub ↗</a>' + (run.created_at ? ' &nbsp;·&nbsp; Iniciado: ' + new Date(run.created_at).toLocaleString('pt-BR') : '');
+  if (!jobs.length) { document.getElementById('jobsGrid').innerHTML = '<div style="color:var(--muted);font-size:13px;">Aguardando jobs...</div>'; return; }
   document.getElementById('jobsGrid').innerHTML = jobs.map(function(job) {
     var dotCls = jobDotClass(job.status, job.conclusion);
     var steps = (job.steps || []).map(function(step) {
       var icon = runStatusIcon(step.status, step.conclusion);
-      var color = step.status === 'completed' && step.conclusion !== 'success' ? 'var(--fail)'
-                : step.status === 'in_progress' ? '#fbbf24' : 'inherit';
-      return '<div class="step-row"><span class="step-icon">' + icon + '</span>' +
-        '<span style="color:' + color + '">' + step.name + '</span></div>';
+      var color = step.status === 'completed' && step.conclusion !== 'success' ? 'var(--fail)' : step.status === 'in_progress' ? '#fbbf24' : 'inherit';
+      return '<div class="step-row"><span class="step-icon">' + icon + '</span><span style="color:' + color + '">' + step.name + '</span></div>';
     }).join('');
-
-    return '<div class="job-card">' +
-      '<div class="job-title" onclick="toggleJobSteps(this)" style="cursor:pointer;user-select:none"><span class="job-status-dot ' + dotCls + '"></span>' + job.name + '<span class="job-chevron" style="margin-left:auto;font-size:11px;color:var(--muted);transition:transform .2s">&#9660;</span></div>' +
-      '<div class="step-list" style="overflow:hidden;transition:max-height .25s ease;max-height:0">' + (steps || '<div class="step-row"><span class="step-icon">○</span>Aguardando...</div>') + '</div>' +
-    '</div>';
+    return '<div class="job-card"><div class="job-title" onclick="toggleJobSteps(this)" style="cursor:pointer;user-select:none"><span class="job-status-dot ' + dotCls + '"></span>' + job.name + '<span class="job-chevron" style="margin-left:auto;font-size:11px;color:var(--muted);transition:transform .2s">&#9660;</span></div><div class="step-list" style="overflow:hidden;transition:max-height .25s ease;max-height:0">' + (steps || '<div class="step-row"><span class="step-icon">○</span>Aguardando...</div>') + '</div></div>';
   }).join('');
 }
 
-// ── Fetch all results ────────────────────────────────────────
+// ── Load all results ─────────────────────────────────────────
 async function loadAll(silent) {
   if (!silent) {
     document.getElementById('loadingMsg').style.display = '';
@@ -696,320 +773,173 @@ async function loadAll(silent) {
     var idxResp = await fetch(API_BASE + '/k6/results/index.json?t=' + Date.now());
     if (!idxResp.ok) throw new Error('index.json nao encontrado');
     var idx = await idxResp.json();
+    verInfo = { run: idx.run, sha: idx.sha, timestamp: idx.timestamp };
+
     var verEl = document.getElementById('hdr-version');
-    var verStr = '';
-    if (idx.run || idx.sha) {
-      verStr = (idx.run ? '#' + idx.run : '') + (idx.sha ? '  ' + idx.sha : '') + (idx.timestamp ? '  ' + new Date(idx.timestamp).toLocaleString('pt-BR') : '');
-      if (verEl) verEl.textContent = verStr;
-      var sbVer = document.getElementById('sb-version');
-      if (sbVer && idx.run) sbVer.textContent = 'Run #' + idx.run;
+    if (verEl && (idx.run || idx.sha)) {
+      verEl.textContent = (idx.run ? '#' + idx.run : '') + (idx.sha ? '  ' + idx.sha : '') + (idx.timestamp ? '  ' + new Date(idx.timestamp).toLocaleString('pt-BR') : '');
     }
-    var files = idx.files || (idx.tests ? idx.tests.map(function(t){ return t.file; }) : []);
+    var sbBtn = document.getElementById('sbVersionBtn');
+    if (sbBtn && idx.run) sbBtn.textContent = 'Run #' + idx.run + (idx.sha ? '  ' + idx.sha : '');
 
-    if (files.length === 0) {
-      document.getElementById('loadingMsg').textContent = 'Nenhum resultado encontrado em /k6/results/.';
-      return;
-    }
+    var files = idx.files || (idx.tests ? idx.tests.map(function(t) { return t.file; }) : []);
+    if (!files.length) { document.getElementById('loadingMsg').textContent = 'Nenhum resultado encontrado.'; return; }
 
-    var settled = await Promise.allSettled(
-      files.map(function(f) {
-        return fetch(API_BASE + '/k6/results/' + f + '?t=' + Date.now())
-          .then(function(r) { return r.ok ? r.json() : null; })
-          .catch(function() { return null; });
-      })
-    );
-
-    allData = settled
-      .map(function(r, i) {
-        return (r.status === 'fulfilled' && r.value) ? Object.assign({}, r.value, { _file: files[i] }) : null;
-      })
-      .filter(Boolean);
-
+    var settled = await Promise.allSettled(files.map(function(f) {
+      return fetch(API_BASE + '/k6/results/' + f + '?t=' + Date.now()).then(function(r) { return r.ok ? r.json() : null; }).catch(function() { return null; });
+    }));
+    allData = settled.map(function(r, i) { return (r.status === 'fulfilled' && r.value) ? Object.assign({}, r.value, { _file: files[i] }) : null; }).filter(Boolean);
     allData.sort(function(a, b) {
       var ai = TYPE_ORDER.indexOf((a.meta && a.meta.test_type ? a.meta.test_type : '').toLowerCase());
       var bi = TYPE_ORDER.indexOf((b.meta && b.meta.test_type ? b.meta.test_type : '').toLowerCase());
       return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
     });
-
     render();
   } catch(e) {
-    document.getElementById('loadingMsg').textContent = '❌ Erro ao carregar resultados: ' + e.message;
+    document.getElementById('loadingMsg').textContent = '❌ Erro: ' + e.message;
     document.getElementById('loadingMsg').style.display = '';
   }
 }
 
-// ── Main render ──────────────────────────────────────────────
 function render() {
   document.getElementById('loadingMsg').style.display = 'none';
   document.getElementById('dashContent').style.display = '';
-
   var total = allData.length;
   document.getElementById('hdr-count').textContent = total + ' teste' + (total !== 1 ? 's' : '') + ' carregado' + (total !== 1 ? 's' : '');
   document.getElementById('hdr-updated').textContent = 'Atualizado: ' + new Date().toLocaleString('pt-BR');
-
-  renderResults();
-  renderConfig();
-  renderTimeline();
-  renderCharts();
-  renderRoutes();
-  renderTabs();
+  renderResults(); renderConfig(); renderTimeline(); renderCharts(); renderRoutes(); renderTabs();
 }
 
-// ── Secao 1: Resumo ──────────────────────────────────────────
 function renderResults() {
   var rows = [];
   allData.forEach(function(d) {
     var m = d.meta || {};
     (d.scenarios || []).forEach(function(sc) {
-      rows.push('<tr>' +
-        '<td>' + typeBadge(m.test_type) + '</td>' +
-        '<td>' + (sc.sc || '—') + '</td>' +
-        '<td>' + fmt(sc.p50) + '</td>' +
-        '<td>' + fmt(sc.p95) + '</td>' +
-        '<td>' + fmt(sc.p99) + '</td>' +
-        '<td>' + fmt(sc.rps) + '</td>' +
-        '<td>' + (sc.total || '—') + '</td>' +
-        '<td>' + ((sc.err || 0) * 100).toFixed(2) + '%</td>' +
-        '<td><span class="' + (sc.ok ? 'badge-pass' : 'badge-fail') + '">' + (sc.ok ? 'OK' : 'FAIL') + '</span></td>' +
-      '</tr>');
+      rows.push('<tr><td>' + typeBadge(m.test_type) + '</td><td>' + (sc.sc||'—') + '</td><td>' + fmt(sc.p50) + '</td><td>' + fmt(sc.p95) + '</td><td>' + fmt(sc.p99) + '</td><td>' + fmt(sc.rps) + '</td><td>' + (sc.total||'—') + '</td><td>' + ((sc.err||0)*100).toFixed(2) + '%</td><td><span class="' + (sc.ok?'badge-pass':'badge-fail') + '">' + (sc.ok?'OK':'FAIL') + '</span></td></tr>');
     });
   });
   document.getElementById('res-count').textContent = rows.length + ' cenarios';
   document.getElementById('resultsTableBody').innerHTML = rows.join('');
 }
 
-// ── Secao 2: Timeline de Latencia ────────────────────────────
 function renderTimeline() {
-  if (allData.length < 2) {
-    document.getElementById('timelineBlock').style.display = 'none';
-    return;
-  }
-  document.getElementById('timelineBlock').style.display = '';
+  if (allData.length < 2) return;
   document.getElementById('timeline-count').textContent = allData.length + ' tipos';
-
-  var labels = [];
-  var p50vals = [], p95vals = [], p99vals = [];
-
+  var labels = [], p50vals = [], p95vals = [], p99vals = [];
   allData.forEach(function(d) {
     var m = d.meta || {};
-    var tt = (m.test_type || d._file.replace('.json', '')).toUpperCase();
-    labels.push(tt);
+    labels.push((m.test_type || d._file.replace('.json','')).toUpperCase());
     var scs = d.scenarios || [];
-    p50vals.push(avg(scs, 'p50'));
-    p95vals.push(avg(scs, 'p95'));
-    p99vals.push(avg(scs, 'p99'));
+    p50vals.push(avg(scs,'p50')); p95vals.push(avg(scs,'p95')); p99vals.push(avg(scs,'p99'));
   });
-
-  if (charts.timeline) { charts.timeline.destroy(); }
+  if (charts.timeline) charts.timeline.destroy();
   charts.timeline = new Chart(document.getElementById('chartTimeline'), {
     type: 'line',
-    data: {
-      labels: labels,
-      datasets: [
-        { label: 'p50', data: p50vals, borderColor: '#06b6d4', backgroundColor: 'rgba(6,182,212,.08)', borderWidth: 2, pointRadius: 5, pointHoverRadius: 7, tension: 0.35, fill: false },
-        { label: 'p95', data: p95vals, borderColor: '#a78bfa', backgroundColor: 'rgba(124,58,237,.08)', borderWidth: 2, pointRadius: 5, pointHoverRadius: 7, tension: 0.35, fill: false },
-        { label: 'p99', data: p99vals, borderColor: '#f87171', backgroundColor: 'rgba(239,68,68,.08)', borderWidth: 2, pointRadius: 5, pointHoverRadius: 7, tension: 0.35, fill: false }
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { display: true, labels: { color: '#94a3b8', font: { size: 12 }, boxWidth: 14, padding: 16 } },
-        tooltip: { callbacks: { label: function(ctx) { return ' ' + ctx.dataset.label + ': ' + (ctx.parsed.y != null ? ctx.parsed.y.toFixed(1) + ' ms' : '—'); } } }
-      },
-      scales: {
-        x: { ticks: { color: '#94a3b8', font: { size: 12 } }, grid: { color: 'rgba(255,255,255,.05)' } },
-        y: { ticks: { color: '#94a3b8', font: { size: 12 }, callback: function(v) { return v + ' ms'; } }, grid: { color: 'rgba(255,255,255,.05)' } }
-      }
-    }
+    data: { labels: labels, datasets: [
+      { label:'p50', data:p50vals, borderColor:'#06b6d4', backgroundColor:'rgba(6,182,212,.08)', borderWidth:2, pointRadius:5, pointHoverRadius:7, tension:0.35, fill:false },
+      { label:'p95', data:p95vals, borderColor:'#a78bfa', backgroundColor:'rgba(124,58,237,.08)', borderWidth:2, pointRadius:5, pointHoverRadius:7, tension:0.35, fill:false },
+      { label:'p99', data:p99vals, borderColor:'#f87171', backgroundColor:'rgba(239,68,68,.08)', borderWidth:2, pointRadius:5, pointHoverRadius:7, tension:0.35, fill:false }
+    ]},
+    options: { responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+      plugins:{ legend:{display:true,labels:{color:'#94a3b8',font:{size:12},boxWidth:14,padding:16}}, tooltip:{callbacks:{label:function(ctx){return ' '+ctx.dataset.label+': '+(ctx.parsed.y!=null?ctx.parsed.y.toFixed(1)+' ms':'—');}}} },
+      scales:{ x:{ticks:{color:'#94a3b8',font:{size:12}},grid:{color:'rgba(255,255,255,.05)'}}, y:{ticks:{color:'#94a3b8',font:{size:12},callback:function(v){return v+' ms';}},grid:{color:'rgba(255,255,255,.05)'}} } }
   });
 }
 
-// ── Secao 3: Configuracao ────────────────────────────────────
 function renderConfig() {
   document.getElementById('cfg-count').textContent = allData.length + ' testes';
   document.getElementById('configTableBody').innerHTML = allData.map(function(d) {
-    var m = d.meta || {};
-    var allOk = (d.scenarios || []).every(function(s) { return s.ok; });
-    return '<tr>' +
-      '<td>' + typeBadge(m.test_type) + '</td>' +
-      '<td><code style="font-size:12px">' + (m.target_url || '—') + '</code></td>' +
-      '<td>' + (m.vus || '—') + '</td>' +
-      '<td>' + (m.duration || '—') + '</td>' +
-      '<td><span class="' + (allOk ? 'badge-pass' : 'badge-fail') + '">' + (allOk ? 'OK' : 'FAIL') + '</span></td>' +
-    '</tr>';
+    var m = d.meta||{}; var allOk = (d.scenarios||[]).every(function(s){return s.ok;});
+    return '<tr><td>'+typeBadge(m.test_type)+'</td><td><code style="font-size:12px">'+(m.target_url||'—')+'</code></td><td>'+(m.vus||'—')+'</td><td>'+(m.duration||'—')+'</td><td><span class="'+(allOk?'badge-pass':'badge-fail')+'">'+(allOk?'OK':'FAIL')+'</span></td></tr>';
   }).join('');
 }
 
-// ── Secao 4: Graficos de Performance ─────────────────────────
 function renderCharts() {
   document.getElementById('charts-count').textContent = '3 graficos';
-
-  var labels = [];
-  var rps = [], errPct = [], totalReq = [];
-  var borderColors = [], bgColors = [];
-
+  var labels=[], rps=[], errPct=[], totalReq=[], borderColors=[], bgColors=[];
   allData.forEach(function(d) {
-    var m = d.meta || {};
-    var tt = (m.test_type || d._file.replace('.json', '')).toLowerCase();
-    labels.push(tt.toUpperCase());
-    var scs = d.scenarios || [];
-    rps.push(avg(scs, 'rps'));
-    errPct.push(avg(scs, 'err') * 100);
-    totalReq.push(scs.reduce(function(a, s) { return a + (s.total || 0); }, 0));
-    var c = TYPE_COLORS[tt] || { border: '#94a3b8', bg: 'rgba(148,163,184,.25)' };
-    borderColors.push(c.border);
-    bgColors.push(c.bg);
+    var m=d.meta||{}; var tt=(m.test_type||d._file.replace('.json','')).toLowerCase();
+    labels.push(tt.toUpperCase()); var scs=d.scenarios||[];
+    rps.push(avg(scs,'rps')); errPct.push(avg(scs,'err')*100);
+    totalReq.push(scs.reduce(function(a,s){return a+(s.total||0);},0));
+    var c=TYPE_COLORS[tt]||{border:'#94a3b8',bg:'rgba(148,163,184,.25)'}; borderColors.push(c.border); bgColors.push(c.bg);
   });
-
-  var baseScale = {
-    x: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,.05)' } },
-    y: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,.05)' } }
-  };
-
-  if (charts.rps) { charts.rps.destroy(); }
-  charts.rps = new Chart(document.getElementById('chartRps'), {
-    type: 'bar',
-    data: { labels: labels, datasets: [{ label: 'req/s', data: rps, backgroundColor: bgColors, borderColor: borderColors, borderWidth: 2, borderRadius: 4 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
-      scales: { x: baseScale.x, y: Object.assign({}, baseScale.y, { ticks: { color: '#94a3b8', font: { size: 11 }, callback: function(v) { return v + ' r/s'; } } }) } }
-  });
-
-  if (charts.errors) { charts.errors.destroy(); }
-  charts.errors = new Chart(document.getElementById('chartErrors'), {
-    type: 'bar',
-    data: { labels: labels, datasets: [{ label: 'Erro %', data: errPct,
-      backgroundColor: errPct.map(function(v) { return v > 0 ? 'rgba(239,68,68,.55)' : 'rgba(16,185,129,.45)'; }),
-      borderColor: errPct.map(function(v) { return v > 0 ? '#ef4444' : '#10b981'; }),
-      borderWidth: 2, borderRadius: 4 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
-      scales: { x: baseScale.x, y: Object.assign({}, baseScale.y, { ticks: { color: '#94a3b8', font: { size: 11 }, callback: function(v) { return v.toFixed(1) + '%'; } } }) } }
-  });
-
-  if (charts.total) { charts.total.destroy(); }
-  charts.total = new Chart(document.getElementById('chartTotal'), {
-    type: 'bar',
-    data: { labels: labels, datasets: [{ label: 'Total', data: totalReq, backgroundColor: bgColors, borderColor: borderColors, borderWidth: 2, borderRadius: 4 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: baseScale }
-  });
+  var baseScale = { x:{ticks:{color:'#94a3b8',font:{size:11}},grid:{color:'rgba(255,255,255,.05)'}}, y:{ticks:{color:'#94a3b8',font:{size:11}},grid:{color:'rgba(255,255,255,.05)'}} };
+  if (charts.rps) charts.rps.destroy();
+  charts.rps = new Chart(document.getElementById('chartRps'), { type:'bar', data:{labels,datasets:[{label:'req/s',data:rps,backgroundColor:bgColors,borderColor:borderColors,borderWidth:2,borderRadius:4}]}, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:baseScale.x,y:Object.assign({},baseScale.y,{ticks:{color:'#94a3b8',font:{size:11},callback:function(v){return v+' r/s';}}})}} });
+  if (charts.errors) charts.errors.destroy();
+  charts.errors = new Chart(document.getElementById('chartErrors'), { type:'bar', data:{labels,datasets:[{label:'Erro %',data:errPct,backgroundColor:errPct.map(function(v){return v>0?'rgba(239,68,68,.55)':'rgba(16,185,129,.45)';}),borderColor:errPct.map(function(v){return v>0?'#ef4444':'#10b981';}),borderWidth:2,borderRadius:4}]}, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:baseScale.x,y:Object.assign({},baseScale.y,{ticks:{color:'#94a3b8',font:{size:11},callback:function(v){return v.toFixed(1)+'%';}}})}} });
+  if (charts.total) charts.total.destroy();
+  charts.total = new Chart(document.getElementById('chartTotal'), { type:'bar', data:{labels,datasets:[{label:'Total',data:totalReq,backgroundColor:bgColors,borderColor:borderColors,borderWidth:2,borderRadius:4}]}, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:baseScale} });
 }
 
 function avg(arr, key) {
-  if (!arr || arr.length === 0) return 0;
-  var sum = arr.reduce(function(a, s) { return a + (parseFloat(s[key]) || 0); }, 0);
-  return sum / arr.length;
+  if (!arr||!arr.length) return 0;
+  return arr.reduce(function(a,s){return a+(parseFloat(s[key])||0);},0) / arr.length;
 }
 
-// ── Secao 5: Rotas (accordion por tipo) ─────────────────────
 function renderRoutes() {
-  var hasAny = false;
-  var totalRoutes = 0;
-  var html = '';
-
-  allData.forEach(function(d, idx) {
-    if (!d.routes || !d.routes.length) return;
-    hasAny = true;
-    var m = d.meta || {};
-    var tt = (m.test_type || d._file.replace('.json', '')).toLowerCase();
-    totalRoutes += d.routes.length;
-
-    var tableRows = d.routes.map(function(r) {
-      var errPct = ((r.err || 0) * 100).toFixed(2);
-      var errColor = parseFloat(errPct) > 0 ? 'var(--fail)' : 'var(--pass)';
-      var methodCls = 'method-' + (r.method || 'GET').toUpperCase();
-      return '<tr>' +
-        '<td><span class="route-method ' + methodCls + '">' + (r.method || 'GET') + '</span></td>' +
-        '<td><code style="font-size:12px;color:var(--accent2)">' + (r.path || '—') + '</code></td>' +
-        '<td>' + fmt(r.p50) + '</td>' +
-        '<td>' + fmt(r.p95) + '</td>' +
-        '<td>' + (r.count != null && r.count !== undefined ? r.count : (r.total != null ? r.total : '—')) + '</td>' +
-        '<td style="color:' + errColor + '">' + errPct + '%</td>' +
-      '</tr>';
+  var hasAny=false, totalRoutes=0, html='';
+  allData.forEach(function(d) {
+    if (!d.routes||!d.routes.length) return;
+    hasAny=true; var m=d.meta||{}; totalRoutes+=d.routes.length;
+    var tableRows=d.routes.map(function(r){
+      var errPct=((r.err||0)*100).toFixed(2); var errColor=parseFloat(errPct)>0?'var(--fail)':'var(--pass)';
+      var methodCls='method-'+(r.method||'GET').toUpperCase();
+      return '<tr><td><span class="route-method '+methodCls+'">'+(r.method||'GET')+'</span></td><td><code style="font-size:12px;color:var(--accent2)">'+(r.path||'—')+'</code></td><td>'+fmt(r.p50)+'</td><td>'+fmt(r.p95)+'</td><td>'+(r.count!=null?r.count:(r.total!=null?r.total:'—'))+'</td><td style="color:'+errColor+'">'+errPct+'%</td></tr>';
     }).join('');
-
-    html += '<div class="route-group">' +
-      '<div class="route-group-header" onclick="toggleRouteGroup(this)">' +
-        typeBadge(m.test_type) +
-        '<span style="font-size:12px;color:var(--muted);margin-left:8px;">' + (m.target_url || '') + '</span>' +
-        '<span style="margin-left:auto;font-size:11px;color:var(--accent2);background:rgba(6,182,212,.12);padding:2px 8px;border-radius:10px;">' + d.routes.length + ' rotas</span>' +
-        '<span class="route-group-chevron" style="margin-left:10px;">&#9660;</span>' +
-      '</div>' +
-      '<div class="route-group-content">' +
-        '<table style="margin-bottom:8px;">' +
-          '<thead><tr><th>Metodo</th><th>Rota</th><th>p50 (ms)</th><th>p95 (ms)</th><th>Total</th><th>Erro %</th></tr></thead>' +
-          '<tbody>' + tableRows + '</tbody>' +
-        '</table>' +
-      '</div>' +
-    '</div>';
+    html+='<div class="route-group"><div class="route-group-header" onclick="toggleRouteGroup(this)">'+typeBadge(m.test_type)+'<span style="font-size:12px;color:var(--muted);margin-left:8px;">'+(m.target_url||'')+'</span><span style="margin-left:auto;font-size:11px;color:var(--accent2);background:rgba(6,182,212,.12);padding:2px 8px;border-radius:10px;">'+d.routes.length+' rotas</span><span class="route-group-chevron" style="margin-left:10px;">&#9660;</span></div><div class="route-group-content"><table style="margin-bottom:8px;"><thead><tr><th>Metodo</th><th>Rota</th><th>p50 (ms)</th><th>p95 (ms)</th><th>Total</th><th>Erro %</th></tr></thead><tbody>'+tableRows+'</tbody></table></div></div>';
   });
-
-  if (!hasAny) {
-    document.getElementById('routesBlock').style.display = 'none';
-    return;
-  }
-  document.getElementById('routesBlock').style.display = '';
+  if (!hasAny) return;
   document.getElementById('routes-count').textContent = totalRoutes + ' rotas';
   document.getElementById('routesContent').innerHTML = html;
 }
 
-// ── Secao 6: Detalhes (Tabs + KPI) ──────────────────────────
 function renderTabs() {
-  if (!allData.length) { document.getElementById('detailsBlock').style.display = 'none'; return; }
-  document.getElementById('detailsBlock').style.display = '';
+  if (!allData.length) { document.getElementById('detailsBlock').style.display='none'; return; }
+  document.getElementById('detailsBlock').style.display='';
   document.getElementById('detail-count').textContent = allData.length + ' tipos';
-  document.getElementById('scenarioTabs').innerHTML = allData.map(function(d, i) {
-    var t = (d.meta && d.meta.test_type ? d.meta.test_type : d._file.replace('.json', '')).toUpperCase();
-    return '<button class="scenario-tab ' + (i === activeTab ? 'active' : '') + '" onclick="selectTab(' + i + ')">' + t + '</button>';
+  document.getElementById('scenarioTabs').innerHTML = allData.map(function(d,i) {
+    var t=(d.meta&&d.meta.test_type?d.meta.test_type:d._file.replace('.json','')).toUpperCase();
+    return '<button class="scenario-tab '+(i===activeTab?'active':'')+'" onclick="selectTab('+i+')">'+t+'</button>';
   }).join('');
   renderPanel(activeTab);
 }
 
 function selectTab(i) {
-  activeTab = i;
-  document.querySelectorAll('.scenario-tab').forEach(function(b, j) { b.classList.toggle('active', j === i); });
+  activeTab=i;
+  document.querySelectorAll('.scenario-tab').forEach(function(b,j){b.classList.toggle('active',j===i);});
   renderPanel(i);
 }
 
 function renderPanel(i) {
-  var d = allData[i];
-  if (!d) { document.getElementById('scenarioPanel').innerHTML = '<div class="empty-state">Sem dados.</div>'; return; }
-  var m = d.meta || {};
-  document.getElementById('scenarioPanel').innerHTML = (d.scenarios || []).map(function(sc) {
-    var errColor = (sc.err || 0) > 0 ? 'var(--fail)' : 'var(--pass)';
-    return '<div style="margin: 0 16px 24px;">' +
-      '<div style="font-size:14px;font-weight:600;color:var(--text);margin:16px 0 8px;">' +
-        typeBadge(m.test_type) + ' &nbsp; Cenario: <span style="color:var(--accent2)">' + sc.sc + '</span>' +
-        ' &nbsp; <span class="' + (sc.ok ? 'badge-pass' : 'badge-fail') + '">' + (sc.ok ? 'OK' : 'FAIL') + '</span>' +
-      '</div>' +
-      '<div class="kpi-grid" style="padding:0">' +
-        kpiCard('Latencia p50', fmt(sc.p50), 'ms', '50% das requisicoes responderam neste tempo. Ideal abaixo de 200ms.') +
-        kpiCard('Latencia p95', fmt(sc.p95), 'ms', '95% das requisicoes neste tempo ou menos. Threshold recomendado: abaixo de 500ms.') +
-        kpiCard('Latencia p99', fmt(sc.p99), 'ms', 'Pico de latencia - o pior 1% das requisicoes. Alerta se acima de 1s.') +
-        kpiCard('Throughput',   fmt(sc.rps),  'req/s', 'Requisicoes processadas por segundo. Quanto maior, melhor a capacidade do sistema.') +
-        kpiCard('Total Req',    sc.total || '—', '', 'Total de chamadas HTTP realizadas durante o teste.') +
-        '<div class="kpi-card"><div class="kpi-hint">% de requisicoes com falha (HTTP 5xx, timeout ou recusada). Smoke/Load: 0% ideal. Stress: abaixo de 1% aceitavel. Acima de 2% = sistema sobrecarregado.</div><div class="kpi-label">Taxa de Erro</div>' +
-          '<div class="kpi-value" style="color:' + errColor + '">' + ((sc.err || 0) * 100).toFixed(2) + '<span class="kpi-unit">%</span></div>' +
-        '</div>' +
-      '</div>' +
-    '</div>';
+  var d=allData[i];
+  if (!d) { document.getElementById('scenarioPanel').innerHTML='<div class="empty-state">Sem dados.</div>'; return; }
+  var m=d.meta||{};
+  document.getElementById('scenarioPanel').innerHTML=(d.scenarios||[]).map(function(sc){
+    var errColor=(sc.err||0)>0?'var(--fail)':'var(--pass)';
+    return '<div style="margin:0 16px 24px;"><div style="font-size:14px;font-weight:600;color:var(--text);margin:16px 0 8px;">'+typeBadge(m.test_type)+' &nbsp; Cenario: <span style="color:var(--accent2)">'+sc.sc+'</span> &nbsp; <span class="'+(sc.ok?'badge-pass':'badge-fail')+'">'+(sc.ok?'OK':'FAIL')+'</span></div><div class="kpi-grid" style="padding:0">'+
+      kpiCard('Latencia p50',fmt(sc.p50),'ms','50% das requisicoes responderam neste tempo. Ideal abaixo de 200ms.')+
+      kpiCard('Latencia p95',fmt(sc.p95),'ms','95% das requisicoes neste tempo ou menos. Threshold recomendado: abaixo de 500ms.')+
+      kpiCard('Latencia p99',fmt(sc.p99),'ms','Pico de latencia - o pior 1% das requisicoes. Alerta se acima de 1s.')+
+      kpiCard('Throughput',fmt(sc.rps),'req/s','Requisicoes processadas por segundo. Quanto maior, melhor a capacidade do sistema.')+
+      kpiCard('Total Req',sc.total||'—','','Total de chamadas HTTP realizadas durante o teste.')+
+      '<div class="kpi-card"><div class="kpi-hint">% de requisicoes com falha. Smoke/Load: 0% ideal. Stress: abaixo de 1% aceitavel. Acima de 2% = sistema sobrecarregado.</div><div class="kpi-label">Taxa de Erro</div><div class="kpi-value" style="color:'+errColor+'">'+((sc.err||0)*100).toFixed(2)+'<span class="kpi-unit">%</span></div></div>'+
+    '</div></div>';
   }).join('');
 }
 
-function kpiCard(label, value, unit, hint) {
-  return '<div class="kpi-card">' +
-    (hint ? '<div class="kpi-hint">' + hint + '</div>' : '') +
-    '<div class="kpi-label">' + label + '</div>' +
-    '<div class="kpi-value">' + value + (unit ? '<span class="kpi-unit">' + unit + '</span>' : '') + '</div>' +
-  '</div>';
+function kpiCard(label,value,unit,hint) {
+  return '<div class="kpi-card">'+(hint?'<div class="kpi-hint">'+hint+'</div>':'')+
+    '<div class="kpi-label">'+label+'</div><div class="kpi-value">'+value+(unit?'<span class="kpi-unit">'+unit+'</span>':'')+
+  '</div></div>';
 }
 
 function toggleJobSteps(titleEl) {
-  var stepList = titleEl.nextElementSibling;
-  var chevron = titleEl.querySelector('.job-chevron');
-  var isCollapsed = stepList.style.maxHeight === '0px' || stepList.style.maxHeight === '';
-  stepList.style.maxHeight = isCollapsed ? stepList.scrollHeight + 'px' : '0px';
-  if (chevron) chevron.style.transform = isCollapsed ? 'rotate(90deg)' : 'rotate(0deg)';
+  var stepList=titleEl.nextElementSibling; var chevron=titleEl.querySelector('.job-chevron');
+  var isCollapsed=stepList.style.maxHeight==='0px'||stepList.style.maxHeight==='';
+  stepList.style.maxHeight=isCollapsed?stepList.scrollHeight+'px':'0px';
+  if (chevron) chevron.style.transform=isCollapsed?'rotate(90deg)':'rotate(0deg)';
 }
 
 window.addEventListener('DOMContentLoaded', function() {
@@ -1018,33 +948,22 @@ window.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 <script>
-(function () {
+(function() {
   function initChartHints() {
-    document.querySelectorAll('.chart-hint-icon').forEach(function (icon) {
-      var hint = icon.querySelector('.chart-hint');
-      if (!hint) return;
-      var timer = null;
-      hint.style.position = 'fixed';
-      hint.style.zIndex   = '9999';
-      hint.style.pointerEvents = 'auto';
-      function show() {
-        clearTimeout(timer);
-        var r = icon.getBoundingClientRect();
-        hint.style.top    = (r.bottom + 8) + 'px';
-        hint.style.left   = Math.max(4, Math.min(r.left, window.innerWidth - 292)) + 'px';
-        hint.style.bottom = '';
-        hint.style.opacity = '1';
-      }
-      function hide() { hint.style.opacity = '0'; }
-      icon.addEventListener('mouseenter', show);
-      icon.addEventListener('mouseleave', function () { timer = setTimeout(hide, 150); });
-      hint.addEventListener('mouseenter', function () { clearTimeout(timer); });
-      hint.addEventListener('mouseleave', function () { timer = setTimeout(hide, 150); });
+    document.querySelectorAll('.chart-hint-icon').forEach(function(icon) {
+      var hint=icon.querySelector('.chart-hint'); if (!hint) return;
+      var timer=null;
+      hint.style.position='fixed'; hint.style.zIndex='9999'; hint.style.pointerEvents='auto';
+      function show() { clearTimeout(timer); var r=icon.getBoundingClientRect(); hint.style.top=(r.bottom+8)+'px'; hint.style.left=Math.max(4,Math.min(r.left,window.innerWidth-292))+'px'; hint.style.bottom=''; hint.style.opacity='1'; }
+      function hide() { hint.style.opacity='0'; }
+      icon.addEventListener('mouseenter',show);
+      icon.addEventListener('mouseleave',function(){timer=setTimeout(hide,150);});
+      hint.addEventListener('mouseenter',function(){clearTimeout(timer);});
+      hint.addEventListener('mouseleave',function(){timer=setTimeout(hide,150);});
     });
   }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initChartHints);
-  } else { initChartHints(); }
+  if (document.readyState==='loading') document.addEventListener('DOMContentLoaded',initChartHints);
+  else initChartHints();
 })();
 </script>
 </body>
