@@ -1,4 +1,4 @@
-import http from "k6/http";
+﻿import http from "k6/http";
 import { check, sleep } from "k6";
 import { Rate, Trend } from "k6/metrics";
 import { textSummary } from "https://jslib.k6.io/k6-summary/0.0.2/index.js";
@@ -62,7 +62,7 @@ function buildStructured(data, testType, defaultVus, defaultDuration, errThr) {
     if (!m[metricKey]) return null;
     return { method: rd.method, path: rd.path,
       p50: r(dv["med"] || 0), p95: r(dv["p(95)"] || 0),
-      count: dv["count"] || 0, err: r(fv["rate"] || 0, 4) };
+      count: v("http_reqs{name:" + rd.tag + "}")["count"] || 0, err: r(fv["rate"] || 0, 4) };
   }).filter(Boolean);
   return {
     meta: { test_type: testType, target_url: __ENV.TARGET_URL || "http://2.25.122.11:5020",

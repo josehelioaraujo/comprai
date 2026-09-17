@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -21,6 +21,7 @@ header { background: var(--surface); border-bottom: 1px solid var(--border); pad
 .header-meta { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
 .run-controls { margin-left: auto; display: none; align-items: center; gap: 10px; }
 .run-controls select {
+  position: relative;
   background: var(--surface2); border: 1px solid var(--border); color: var(--text);
   padding: 7px 12px; border-radius: 7px; font-size: 13px; cursor: pointer; outline: none;
 }
@@ -120,6 +121,35 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
 /* ── KPI Cards ── */
 .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px,1fr)); gap: 12px; padding: 16px; }
+.kpi-hint {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0d1117;
+  color: #c9d1d9;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 11px;
+  line-height: 1.5;
+  width: 210px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .2s;
+  z-index: 100;
+  text-align: center;
+}
+.kpi-hint::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--border);
+}
+.kpi-card:hover .kpi-hint { opacity: 1; }
 .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
 .kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
 .kpi-value { font-size: 22px; font-weight: 700; color: var(--text); }
@@ -780,7 +810,7 @@ function renderRoutes() {
         '<td><code style="font-size:12px;color:var(--accent2)">' + (r.path || '—') + '</code></td>' +
         '<td>' + fmt(r.p50) + '</td>' +
         '<td>' + fmt(r.p95) + '</td>' +
-        '<td>' + (r.count || r.total || '—') + '</td>' +
+        '<td>' + (r.count != null && r.count !== undefined ? r.count : (r.total != null ? r.total : '—')) + '</td>' +
         '<td style="color:' + errColor + '">' + errPct + '%</td>' +
       '</tr>';
     }).join('');
@@ -840,9 +870,9 @@ function renderPanel(i) {
         ' &nbsp; <span class="' + (sc.ok ? 'badge-pass' : 'badge-fail') + '">' + (sc.ok ? 'OK' : 'FAIL') + '</span>' +
       '</div>' +
       '<div class="kpi-grid" style="padding:0">' +
-        kpiCard('Latência p50', fmt(sc.p50), 'ms') +
-        kpiCard('Latência p95', fmt(sc.p95), 'ms') +
-        kpiCard('Latência p99', fmt(sc.p99), 'ms') +
+        kpiCard('Latência p50', fmt(sc.p50), 'ms', '50% das requisições responderam neste tempo. Ideal abaixo de 200ms.') +
+        kpiCard('Latência p95', fmt(sc.p95), 'ms', '95% das requisições neste tempo ou menos. Threshold recomendado: abaixo de 500ms.') +
+        kpiCard('Latência p99', fmt(sc.p99), 'ms', 'Pico de latência - o pior 1% das requisições. Alerta se acima de 1s.') +
         kpiCard('Throughput',   fmt(sc.rps),  'req/s') +
         kpiCard('Total Req',    sc.total || '—', '') +
         '<div class="kpi-card"><div class="kpi-label">Taxa de Erro</div>' +
