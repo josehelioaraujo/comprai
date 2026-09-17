@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -7,30 +7,105 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 :root {
-  --bg: #0f1117; --surface: #1a1d27; --surface2: #20243a;
-  --border: #2a2d3e; --accent: #7c3aed; --accent2: #06b6d4;
-  --text: #e2e8f0; --muted: #94a3b8;
+  --bg: #0B0F19; --surface: #161C2A; --surface2: #1E2538;
+  --border: #242F41; --accent: #7c3aed; --accent2: #06b6d4;
+  --text: #e2e8f0; --muted: #64748b;
   --pass: #10b981; --fail: #ef4444;
+  --sidebar-w: 220px; --sidebar-collapsed-w: 52px;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; display: flex; flex-direction: column; }
 
-/* ── Header ── */
-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 32px; display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
-.header-logo { font-size: 22px; font-weight: 700; color: var(--accent); }
-.header-meta { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
-.run-controls { margin-left: auto; display: none; align-items: center; gap: 10px; }
+/* ── App shell ── */
+.app-shell { display: flex; flex: 1; min-height: 0; }
+
+/* ── Sidebar ── */
+.sidebar {
+  width: var(--sidebar-w);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  transition: width .25s cubic-bezier(.4,0,.2,1);
+  flex-shrink: 0;
+  position: sticky; top: 0; height: 100vh; overflow: hidden;
+}
+.sidebar.collapsed { width: var(--sidebar-collapsed-w); }
+
+.sidebar-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 16px 14px; border-bottom: 1px solid var(--border);
+  min-height: 56px; overflow: hidden; white-space: nowrap;
+}
+.sidebar-logo { font-size: 18px; font-weight: 800; color: var(--accent); flex-shrink: 0; }
+.sidebar-logo-text { font-size: 13px; font-weight: 700; color: var(--text); opacity: 1; transition: opacity .15s; }
+.sidebar.collapsed .sidebar-logo-text { opacity: 0; pointer-events: none; }
+
+.sidebar-toggle {
+  margin-left: auto; background: none; border: none; color: var(--muted);
+  cursor: pointer; font-size: 16px; flex-shrink: 0; padding: 4px;
+  border-radius: 6px; transition: background .15s, color .15s; line-height: 1;
+}
+.sidebar-toggle:hover { background: var(--surface2); color: var(--text); }
+.sidebar.collapsed .sidebar-toggle { margin-left: 0; }
+
+.sidebar-nav { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 8px 0; }
+.sidebar-nav::-webkit-scrollbar { width: 4px; }
+.sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+.sidebar-nav::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.nav-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--muted); padding: 10px 14px 4px; white-space: nowrap;
+  opacity: 1; transition: opacity .15s;
+}
+.sidebar.collapsed .nav-label { opacity: 0; }
+
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 14px; cursor: pointer;
+  color: var(--muted); font-size: 13px; font-weight: 500;
+  border-left: 3px solid transparent;
+  transition: background .15s, color .15s, border-color .15s;
+  white-space: nowrap; overflow: hidden;
+  user-select: none;
+}
+.nav-item:hover { background: var(--surface2); color: var(--text); }
+.nav-item.active { color: var(--accent2); border-left-color: var(--accent2); background: rgba(6,182,212,.06); }
+.nav-icon { font-size: 15px; flex-shrink: 0; width: 20px; text-align: center; }
+.nav-text { opacity: 1; transition: opacity .15s; }
+.sidebar.collapsed .nav-text { opacity: 0; pointer-events: none; }
+
+.sidebar-footer {
+  border-top: 1px solid var(--border); padding: 12px 14px;
+  font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden;
+}
+.sidebar-footer-text { opacity: 1; transition: opacity .15s; }
+.sidebar.collapsed .sidebar-footer-text { opacity: 0; }
+
+/* ── Main content area ── */
+.main-area { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow-y: auto; }
+
+/* ── Topbar ── */
+.topbar {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 0 24px; display: flex; align-items: center; gap: 16px;
+  height: 56px; flex-shrink: 0; position: sticky; top: 0; z-index: 50;
+}
+.topbar-meta { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.topbar-meta span { display: flex; align-items: center; gap: 5px; }
+.topbar-divider { width: 1px; height: 20px; background: var(--border); }
+.topbar-version { font-family: monospace; font-size: 11px; opacity: .6; }
+
+.run-controls { margin-left: auto; display: none; align-items: center; gap: 8px; }
 .run-controls select {
-  position: relative;
   background: var(--surface2); border: 1px solid var(--border); color: var(--text);
-  padding: 7px 12px; border-radius: 7px; font-size: 13px; cursor: pointer; outline: none;
+  padding: 6px 11px; border-radius: 7px; font-size: 12px; cursor: pointer; outline: none;
 }
 .run-controls select:focus { border-color: var(--accent); }
 .btn-run {
   background: var(--accent); color: #fff; border: none; border-radius: 7px;
-  padding: 7px 18px; font-size: 13px; font-weight: 600; cursor: pointer;
-  display: flex; align-items: center; gap: 7px; transition: opacity .15s;
-  white-space: nowrap;
+  padding: 6px 16px; font-size: 12px; font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; gap: 6px; transition: opacity .15s;
 }
 .btn-run:hover { opacity: .85; }
 .btn-run:disabled { opacity: .45; cursor: not-allowed; }
@@ -41,7 +116,7 @@ header { background: var(--surface); border-bottom: 1px solid var(--border); pad
   padding: 0; max-height: 0; overflow: hidden;
   transition: max-height .4s cubic-bezier(.4,0,.2,1), padding .4s;
 }
-#runPanel.open { max-height: 600px; padding: 16px 32px; }
+#runPanel.open { max-height: 600px; padding: 16px 24px; }
 .run-panel-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
 .run-panel-title { font-size: 14px; font-weight: 700; color: var(--text); }
 .run-panel-close { margin-left: auto; background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer; line-height: 1; }
@@ -64,34 +139,35 @@ header { background: var(--surface); border-bottom: 1px solid var(--border); pad
 .run-info a:hover { text-decoration: underline; }
 #runStatusMsg { font-size: 13px; color: var(--muted); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
 
-main { padding: 28px 32px; max-width: 1400px; margin: 0 auto; }
+/* ── Page content ── */
+.page-content { padding: 24px; max-width: 1400px; width: 100%; margin: 0 auto; }
 
 /* ── Collapsible Sections ── */
-.section-block { margin-top: 28px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.section-block { margin-top: 24px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
 .section-header {
   display: flex; align-items: center; gap: 10px;
-  padding: 14px 20px;
+  padding: 13px 18px;
   background: var(--surface); cursor: pointer;
   user-select: none; transition: background .15s;
 }
 .section-header:hover { background: var(--surface2); }
 .section-title-text { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; flex: 1; }
-.section-count { font-size: 11px; color: var(--accent2); background: rgba(6,182,212,.12); padding: 2px 8px; border-radius: 10px; }
-.section-chevron { color: var(--muted); font-size: 14px; transition: transform .25s; }
+.section-count { font-size: 11px; color: var(--accent2); background: rgba(6,182,212,.1); padding: 2px 8px; border-radius: 10px; }
+.section-chevron { color: var(--muted); font-size: 13px; transition: transform .25s; }
 .section-header.collapsed .section-chevron { transform: rotate(-90deg); }
 .section-content { overflow: hidden; transition: max-height .3s cubic-bezier(.4,0,.2,1); max-height: 4000px; }
 .section-content.collapsed { max-height: 0; }
 .section-inner { padding: 0 0 8px; }
 
-/* ── Route Groups (accordion within routes section) ── */
+/* ── Route Groups ── */
 .route-group { border-top: 1px solid var(--border); }
 .route-group:first-child { border-top: none; }
 .route-group-header {
   display: flex; align-items: center; gap: 10px;
   padding: 10px 16px; cursor: pointer; user-select: none;
-  background: rgba(255,255,255,.015); transition: background .15s;
+  background: rgba(255,255,255,.01); transition: background .15s;
 }
-.route-group-header:hover { background: rgba(255,255,255,.035); }
+.route-group-header:hover { background: rgba(255,255,255,.03); }
 .route-group-chevron { color: var(--muted); font-size: 12px; transition: transform .2s; }
 .route-group-header.collapsed .route-group-chevron { transform: rotate(-90deg); }
 .route-group-content { overflow: hidden; max-height: 1200px; transition: max-height .25s ease; }
@@ -99,8 +175,8 @@ main { padding: 28px 32px; max-width: 1400px; margin: 0 auto; }
 
 /* ── Tables ── */
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
-th { background: rgba(255,255,255,.04); padding: 10px 16px; text-align: left; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
-td { padding: 11px 16px; border-top: 1px solid var(--border); }
+th { background: rgba(255,255,255,.03); padding: 9px 16px; text-align: left; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+td { padding: 10px 16px; border-top: 1px solid var(--border); }
 tr:hover td { background: rgba(255,255,255,.02); }
 
 /* ── Badges ── */
@@ -115,39 +191,22 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
 /* ── Scenario Tabs ── */
 .scenario-tabs { display: flex; gap: 6px; flex-wrap: wrap; border-bottom: 2px solid var(--border); padding: 12px 16px 0; background: rgba(255,255,255,.01); }
-.scenario-tab { padding: 10px 18px; background: none; border: none; border-bottom: 3px solid transparent; color: var(--muted); cursor: pointer; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; transition: color .15s; margin-bottom: -2px; }
+.scenario-tab { padding: 9px 16px; background: none; border: none; border-bottom: 3px solid transparent; color: var(--muted); cursor: pointer; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; transition: color .15s; margin-bottom: -2px; }
 .scenario-tab:hover { color: var(--text); }
 .scenario-tab.active { color: var(--accent2); border-bottom-color: var(--accent2); }
 
 /* ── KPI Cards ── */
 .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px,1fr)); gap: 12px; padding: 16px; }
 .kpi-hint {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: #0d1117;
-  color: #c9d1d9;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 11px;
-  line-height: 1.5;
-  width: 210px;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity .2s;
-  z-index: 100;
-  text-align: center;
+  position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+  background: #0a0e18; color: #c9d1d9; border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 12px; font-size: 11px; line-height: 1.5;
+  width: 210px; pointer-events: none; opacity: 0; transition: opacity .2s;
+  z-index: 100; text-align: center;
 }
 .kpi-hint::after {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border: 5px solid transparent;
-  border-top-color: var(--border);
+  content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+  border: 5px solid transparent; border-top-color: var(--border);
 }
 .kpi-card:hover .kpi-hint { opacity: 1; }
 .kpi-card { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
@@ -156,13 +215,12 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .kpi-unit  { font-size: 12px; color: var(--muted); margin-left: 2px; }
 
 /* ── Charts ── */
-.charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; padding: 16px; }
+.charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 16px; padding: 16px; }
 .chart-card { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
 .chart-hint-icon { position: relative; cursor: default; font-size: 11px; opacity: .45; margin-left: 6px; vertical-align: middle; }
 .chart-hint-icon:hover { opacity: 1; }
-.chart-hint { position: absolute; top: calc(100% + 6px); left: 0; background: #0d1117; color: #c9d1d9; border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 11px; line-height: 1.6; width: 280px; pointer-events: none; opacity: 0; transition: opacity .2s; z-index: 200; text-align: left; white-space: normal; text-transform: none; letter-spacing: 0; font-weight: 400; }
+.chart-hint { position: absolute; top: calc(100% + 6px); left: 0; background: #0a0e18; color: #c9d1d9; border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 11px; line-height: 1.6; width: 280px; pointer-events: none; opacity: 0; transition: opacity .2s; z-index: 200; text-align: left; white-space: normal; text-transform: none; letter-spacing: 0; font-weight: 400; }
 .chart-hint::after { content: ''; position: absolute; bottom: 100%; left: 20px; border: 5px solid transparent; border-bottom-color: var(--border); }
-/* chart-hint hover via JS */
 .chart-title { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 14px; font-weight: 600; }
 .chart-wrap { position: relative; height: 220px; }
 .chart-wrap-tall { position: relative; height: 280px; }
@@ -182,152 +240,195 @@ tr:hover td { background: rgba(255,255,255,.02); }
 </head>
 <body>
 
-<header>
-  <div class="header-logo">&#9889; Comprai — K6 Dashboard</div>
-  <div class="header-meta">
-    <span id="hdr-count">—</span>
-    <span id="hdr-version" style="font-family:monospace;font-size:11px;opacity:.55;margin-left:8px"></span>
-    <span id="hdr-updated">—</span>
+<!-- ── Sidebar ── -->
+<div class="app-shell">
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <span class="sidebar-logo">&#9889;</span>
+    <span class="sidebar-logo-text">Comprai K6</span>
+    <button class="sidebar-toggle" onclick="toggleSidebar()" title="Recolher menu">&#8644;</button>
   </div>
-  <!-- Run controls: shown only when gh-config.json loaded -->
-  <div class="run-controls" id="runControls">
-    <select id="testTypeSelect">
-      <option value="smoke">Smoke</option>
-      <option value="load">Load</option>
-      <option value="stress">Stress</option>
-      <option value="spike">Spike</option>
-      <option value="soak">Soak</option>
-      <option value="all">Todos</option>
-    </select>
-    <button class="btn-run" id="btnRun" onclick="triggerTest()">&#9654; Executar</button>
+  <div class="sidebar-nav">
+    <div class="nav-label">Dashboard</div>
+    <div class="nav-item active" onclick="scrollToSection('detailsBlock', this)" title="Detalhes por Tipo">
+      <span class="nav-icon">&#128269;</span><span class="nav-text">Detalhes</span>
+    </div>
+    <div class="nav-item" onclick="scrollToSection('resumoBlock', this)" title="Resumo de Resultados">
+      <span class="nav-icon">&#128202;</span><span class="nav-text">Resumo</span>
+    </div>
+    <div class="nav-item" onclick="scrollToSection('timelineBlock', this)" title="Timeline de Latencia">
+      <span class="nav-icon">&#128200;</span><span class="nav-text">Timeline</span>
+    </div>
+    <div class="nav-label">Analise</div>
+    <div class="nav-item" onclick="scrollToSection('configBlock', this)" title="Configuracao dos Testes">
+      <span class="nav-icon">&#9881;</span><span class="nav-text">Configuracao</span>
+    </div>
+    <div class="nav-item" onclick="scrollToSection('chartsBlock', this)" title="Graficos de Performance">
+      <span class="nav-icon">&#128201;</span><span class="nav-text">Graficos</span>
+    </div>
+    <div class="nav-item" onclick="scrollToSection('routesBlock', this)" title="Rotas Chamadas">
+      <span class="nav-icon">&#127760;</span><span class="nav-text">Rotas</span>
+    </div>
   </div>
-</header>
-
-<!-- Pipeline status panel -->
-<div id="runPanel">
-  <div class="run-panel-header">
-    <div class="run-panel-title">&#128295; Pipeline em Execução</div>
-    <button class="run-panel-close" onclick="closeRunPanel()">&#10005;</button>
+  <div class="sidebar-footer">
+    <span class="sidebar-footer-text" id="sb-version">K6 Dashboard</span>
   </div>
-  <div id="runStatusMsg"></div>
-  <div class="jobs-grid" id="jobsGrid"></div>
-  <div class="run-info" id="runInfo"></div>
-</div>
+</nav>
 
-<main>
-  <div id="loadingMsg" class="loading">&#9203; Carregando resultados dos testes...</div>
+<!-- ── Main area ── -->
+<div class="main-area">
 
-  <div id="dashContent" style="display:none">
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="topbar-meta">
+      <span id="hdr-count">—</span>
+      <span class="topbar-divider"></span>
+      <span id="hdr-updated" style="color:var(--muted)">—</span>
+      <span class="topbar-divider"></span>
+      <span id="hdr-version" class="topbar-version"></span>
+    </div>
+    <div class="run-controls" id="runControls">
+      <select id="testTypeSelect">
+        <option value="smoke">Smoke</option>
+        <option value="load">Load</option>
+        <option value="stress">Stress</option>
+        <option value="spike">Spike</option>
+        <option value="soak">Soak</option>
+        <option value="all">Todos</option>
+      </select>
+      <button class="btn-run" id="btnRun" onclick="triggerTest()">&#9654; Executar</button>
+    </div>
+  </header>
 
-    <!-- Seção 6: Detalhes por Tipo -->
-    <div class="section-block" id="detailsBlock">
-      <div class="section-header" onclick="toggleSection(this)">
-        <span class="section-title-text">&#128269; Detalhes por Tipo de Teste</span>
-        <span class="section-count" id="detail-count"></span>
-        <span class="section-chevron">&#9660;</span>
-      </div>
-      <div class="section-content">
-        <div class="section-inner">
-          <div class="scenario-tabs" id="scenarioTabs"></div>
-          <div id="scenarioPanel"></div>
+  <!-- Pipeline status panel -->
+  <div id="runPanel">
+    <div class="run-panel-header">
+      <div class="run-panel-title">&#128295; Pipeline em Execucao</div>
+      <button class="run-panel-close" onclick="closeRunPanel()">&#10005;</button>
+    </div>
+    <div id="runStatusMsg"></div>
+    <div class="jobs-grid" id="jobsGrid"></div>
+    <div class="run-info" id="runInfo"></div>
+  </div>
+
+  <!-- Page content -->
+  <div class="page-content">
+    <div id="loadingMsg" class="loading">&#9203; Carregando resultados dos testes...</div>
+
+    <div id="dashContent" style="display:none">
+
+      <!-- Secao: Detalhes por Tipo -->
+      <div class="section-block" id="detailsBlock">
+        <div class="section-header" onclick="toggleSection(this)">
+          <span class="section-title-text">&#128269; Detalhes por Tipo de Teste</span>
+          <span class="section-count" id="detail-count"></span>
+          <span class="section-chevron">&#9660;</span>
+        </div>
+        <div class="section-content">
+          <div class="section-inner">
+            <div class="scenario-tabs" id="scenarioTabs"></div>
+            <div id="scenarioPanel"></div>
+          </div>
         </div>
       </div>
-    </div>
-    <!-- Seção 1: Resumo -->
-    <div class="section-block">
-      <div class="section-header" onclick="toggleSection(this)">
-        <span class="section-title-text">&#128202; Resumo de Resultados</span>
-        <span class="section-count" id="res-count"></span>
-        <span class="section-chevron">&#9660;</span>
-      </div>
-      <div class="section-content">
-        <div class="section-inner">
-          <table>
-            <thead><tr><th>Tipo</th><th>Cenário</th><th>p50 (ms)</th><th>p95 (ms)</th><th>p99 (ms)</th><th>Req/s</th><th>Total</th><th>Erro %</th><th>Status</th></tr></thead>
-            <tbody id="resultsTableBody"></tbody>
-          </table>
+
+      <!-- Secao: Resumo -->
+      <div class="section-block" id="resumoBlock">
+        <div class="section-header" onclick="toggleSection(this)">
+          <span class="section-title-text">&#128202; Resumo de Resultados</span>
+          <span class="section-count" id="res-count"></span>
+          <span class="section-chevron">&#9660;</span>
+        </div>
+        <div class="section-content">
+          <div class="section-inner">
+            <table>
+              <thead><tr><th>Tipo</th><th>Cenario</th><th>p50 (ms)</th><th>p95 (ms)</th><th>p99 (ms)</th><th>Req/s</th><th>Total</th><th>Erro %</th><th>Status</th></tr></thead>
+              <tbody id="resultsTableBody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Seção 2: Timeline de Latência (novo) -->
-    <div class="section-block" id="timelineBlock" style="display:none">
-      <div class="section-header collapsed" onclick="toggleSection(this, 'timeline')">
-        <span class="section-title-text">&#128200; Timeline de Latência</span>
-        <span class="section-count" id="timeline-count"></span>
-        <span class="section-chevron">&#9660;</span>
-      </div>
-      <div class="section-content collapsed">
-        <div class="section-inner">
-          <div style="padding: 16px;">
-            <div class="chart-card">
-              <div class="chart-title">Evolução de Latência por Tipo de Teste (ms) — p50 / p95 / p99</div>
-              <div class="chart-wrap-tall"><canvas id="chartTimeline"></canvas></div>
+      <!-- Secao: Timeline de Latencia -->
+      <div class="section-block" id="timelineBlock" style="display:none">
+        <div class="section-header collapsed" onclick="toggleSection(this, 'timeline')">
+          <span class="section-title-text">&#128200; Timeline de Latencia</span>
+          <span class="section-count" id="timeline-count"></span>
+          <span class="section-chevron">&#9660;</span>
+        </div>
+        <div class="section-content collapsed">
+          <div class="section-inner">
+            <div style="padding: 16px;">
+              <div class="chart-card">
+                <div class="chart-title">Evolucao de Latencia por Tipo de Teste (ms) — p50 / p95 / p99</div>
+                <div class="chart-wrap-tall"><canvas id="chartTimeline"></canvas></div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Seção 3: Configuração -->
-    <div class="section-block">
-      <div class="section-header collapsed" onclick="toggleSection(this)">
-        <span class="section-title-text">&#9881; Configuração dos Testes</span>
-        <span class="section-count" id="cfg-count"></span>
-        <span class="section-chevron">&#9660;</span>
-      </div>
-      <div class="section-content collapsed">
-        <div class="section-inner">
-          <table>
-            <thead><tr><th>Tipo</th><th>URL Alvo</th><th>VUs</th><th>Duração</th><th>Status</th></tr></thead>
-            <tbody id="configTableBody"></tbody>
-          </table>
+      <!-- Secao: Configuracao -->
+      <div class="section-block" id="configBlock">
+        <div class="section-header collapsed" onclick="toggleSection(this)">
+          <span class="section-title-text">&#9881; Configuracao dos Testes</span>
+          <span class="section-count" id="cfg-count"></span>
+          <span class="section-chevron">&#9660;</span>
+        </div>
+        <div class="section-content collapsed">
+          <div class="section-inner">
+            <table>
+              <thead><tr><th>Tipo</th><th>URL Alvo</th><th>VUs</th><th>Duracao</th><th>Status</th></tr></thead>
+              <tbody id="configTableBody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Seção 4: Gráficos de Performance -->
-    <div class="section-block">
-      <div class="section-header collapsed" onclick="toggleSection(this, 'charts')">
-        <span class="section-title-text">&#128201; Gráficos de Performance</span>
-        <span class="section-count" id="charts-count"></span>
-        <span class="section-chevron">&#9660;</span>
-      </div>
-      <div class="section-content collapsed">
-        <div class="section-inner">
-          <div class="charts-grid">
-            <div class="chart-card">
-              <div class="chart-title">Throughput por Tipo (req/s)<span class="chart-hint-icon">&#9432;<span class="chart-hint">Requisições processadas por segundo por cenãrio. Smoke: linha de base ménima. Load: valida capacidade sob carga normal. Stress: identifica o ponto de saturação. Spike: mede recuperação a picos súbitos. Soak: detecta degradação gradual ao longo do tempo.</span></span></div>
-              <div class="chart-wrap"><canvas id="chartRps"></canvas></div>
-            </div>
-            <div class="chart-card">
-              <div class="chart-title">Taxa de Erro por Tipo (%)<span class="chart-hint-icon">&#9432;<span class="chart-hint">% de requisições com falha (HTTP 5xx, timeout ou rejeição). Smoke/Load: 0% é o ideal — qualquer erro indica problema. Stress: até 1% é aceitével sob carga extrema. Spike: erros transitõrios são esperados no pico. Soak: erros crescentes indicam vazamento de recursos.</span></span></div>
-              <div class="chart-wrap"><canvas id="chartErrors"></canvas></div>
-            </div>
-            <div class="chart-card">
-              <div class="chart-title">Total de Requisições por Tipo<span class="chart-hint-icon">&#9432;<span class="chart-hint">Volume total de chamadas HTTP em cada cenãrio. Reflete duração — VUs — taxa de iteração. Stress e Soak naturalmente acumulam maior volume. Compare entre execuções do mesmo tipo para detectar regressão de capacidade.</span></span></div>
-              <div class="chart-wrap"><canvas id="chartTotal"></canvas></div>
+      <!-- Secao: Graficos de Performance -->
+      <div class="section-block" id="chartsBlock">
+        <div class="section-header collapsed" onclick="toggleSection(this, 'charts')">
+          <span class="section-title-text">&#128201; Graficos de Performance</span>
+          <span class="section-count" id="charts-count"></span>
+          <span class="section-chevron">&#9660;</span>
+        </div>
+        <div class="section-content collapsed">
+          <div class="section-inner">
+            <div class="charts-grid">
+              <div class="chart-card">
+                <div class="chart-title">Throughput por Tipo (req/s)<span class="chart-hint-icon">&#9432;<span class="chart-hint">Requisicoes processadas por segundo por cenario. Smoke: linha de base minima. Load: valida capacidade sob carga normal. Stress: identifica o ponto de saturacao. Spike: mede recuperacao a picos subitos. Soak: detecta degradacao gradual ao longo do tempo.</span></span></div>
+                <div class="chart-wrap"><canvas id="chartRps"></canvas></div>
+              </div>
+              <div class="chart-card">
+                <div class="chart-title">Taxa de Erro por Tipo (%)<span class="chart-hint-icon">&#9432;<span class="chart-hint">% de requisicoes com falha (HTTP 5xx, timeout ou rejeicao). Smoke/Load: 0% e o ideal. Stress: ate 1% e aceitavel sob carga extrema. Spike: erros transitorios sao esperados no pico. Soak: erros crescentes indicam vazamento de recursos.</span></span></div>
+                <div class="chart-wrap"><canvas id="chartErrors"></canvas></div>
+              </div>
+              <div class="chart-card">
+                <div class="chart-title">Total de Requisicoes por Tipo<span class="chart-hint-icon">&#9432;<span class="chart-hint">Volume total de chamadas HTTP em cada cenario. Reflete duracao, VUs e taxa de iteracao. Stress e Soak naturalmente acumulam maior volume. Compare entre execucoes do mesmo tipo para detectar regressao de capacidade.</span></span></div>
+                <div class="chart-wrap"><canvas id="chartTotal"></canvas></div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Seção 5: Rotas Chamadas (accordion por tipo) -->
-    <div class="section-block" id="routesBlock" style="display:none">
-      <div class="section-header collapsed" onclick="toggleSection(this)">
-        <span class="section-title-text">&#127760; Rotas Chamadas</span>
-        <span class="section-count" id="routes-count"></span>
-        <span class="section-chevron">&#9660;</span>
+      <!-- Secao: Rotas -->
+      <div class="section-block" id="routesBlock" style="display:none">
+        <div class="section-header collapsed" onclick="toggleSection(this)">
+          <span class="section-title-text">&#127760; Rotas Chamadas</span>
+          <span class="section-count" id="routes-count"></span>
+          <span class="section-chevron">&#9660;</span>
+        </div>
+        <div class="section-content collapsed">
+          <div class="section-inner" id="routesContent"></div>
+        </div>
       </div>
-      <div class="section-content collapsed">
-        <div class="section-inner" id="routesContent"></div>
-      </div>
-    </div>
 
+    </div><!-- /dashContent -->
+  </div><!-- /page-content -->
 
-  </div><!-- /dashContent -->
-</main>
+</div><!-- /main-area -->
+</div><!-- /app-shell -->
 
 <script>
 const API_BASE = 'https://comprai.2.25.122.11.nip.io';
@@ -347,6 +448,34 @@ const TYPE_COLORS = {
   spike:  { border: '#f87171', bg: 'rgba(239,68,68,.25)' },
   soak:   { border: '#34d399', bg: 'rgba(16,185,129,.25)' }
 };
+
+// ── Sidebar toggle ───────────────────────────────────────────
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('collapsed');
+  setTimeout(function() {
+    Object.values(charts).forEach(function(c) { if (c) c.resize(); });
+  }, 300);
+}
+
+// ── Sidebar nav scroll ───────────────────────────────────────
+function scrollToSection(id, navEl) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  // expand if collapsed
+  var header = el.querySelector('.section-header');
+  var content = el.querySelector('.section-content');
+  if (header && content && content.classList.contains('collapsed')) {
+    header.classList.remove('collapsed');
+    content.classList.remove('collapsed');
+    setTimeout(function() {
+      Object.values(charts).forEach(function(c) { if (c) c.resize(); });
+    }, 350);
+  }
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // active state
+  document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+  if (navEl) navEl.classList.add('active');
+}
 
 // ── Toggle collapsible sections ──────────────────────────────
 function toggleSection(header, chartKey) {
@@ -446,7 +575,6 @@ function closeRunPanel() {
 async function startPolling() {
   if (!ghCfg) return;
   try {
-    // Find the latest run for this workflow
     var resp = await fetch(
       'https://api.github.com/repos/' + ghCfg.repo + '/actions/workflows/' + ghCfg.workflow_file + '/runs?per_page=3',
       { headers: { 'Accept': 'application/vnd.github.v3+json' } }
@@ -455,7 +583,7 @@ async function startPolling() {
     var data = await resp.json();
     var runs = (data.workflow_runs || []);
     if (!runs.length) {
-      document.getElementById('runStatusMsg').textContent = 'Nenhuma execução encontrada ainda...';
+      document.getElementById('runStatusMsg').textContent = 'Nenhuma execucao encontrada ainda...';
       pollTimer = setTimeout(startPolling, 6000);
       return;
     }
@@ -470,7 +598,6 @@ async function startPolling() {
 async function pollRun(run) {
   if (!ghCfg) return;
   try {
-    // Refresh run status
     var runResp = await fetch(
       'https://api.github.com/repos/' + ghCfg.repo + '/actions/runs/' + run.id,
       { headers: { 'Accept': 'application/vnd.github.v3+json' } }
@@ -478,7 +605,6 @@ async function pollRun(run) {
     if (!runResp.ok) throw new Error('HTTP ' + runResp.status);
     var runData = await runResp.json();
 
-    // Get jobs
     var jobsResp = await fetch(
       'https://api.github.com/repos/' + ghCfg.repo + '/actions/runs/' + run.id + '/jobs',
       { headers: { 'Accept': 'application/vnd.github.v3+json' } }
@@ -490,9 +616,8 @@ async function pollRun(run) {
     if (runData.status !== 'completed') {
       pollTimer = setTimeout(function() { pollRun(runData); }, 6000);
     } else {
-      // Pipeline done — reload results after a delay
       var icon = runData.conclusion === 'success' ? '✅' : '❌';
-      document.getElementById('runStatusMsg').innerHTML = icon + ' Pipeline concluído: <strong>' + (runData.conclusion || '') + '</strong>';
+      document.getElementById('runStatusMsg').innerHTML = icon + ' Pipeline concluido: <strong>' + (runData.conclusion || '') + '</strong>';
       if (!runReloadPending) {
         runReloadPending = true;
         setTimeout(function() { runReloadPending = false; loadAll(true); }, 8000);
@@ -528,7 +653,7 @@ function jobDotClass(s, conclusion) {
 
 function renderRunStatus(run, jobs) {
   var statusLabel = run.status === 'completed'
-    ? (run.conclusion === 'success' ? '✅ Concluído' : '❌ ' + run.conclusion)
+    ? (run.conclusion === 'success' ? '✅ Concluido' : '❌ ' + run.conclusion)
     : '⟳ ' + (run.status || 'em andamento');
 
   document.getElementById('runStatusMsg').innerHTML =
@@ -569,11 +694,15 @@ async function loadAll(silent) {
   }
   try {
     var idxResp = await fetch(API_BASE + '/k6/results/index.json?t=' + Date.now());
-    if (!idxResp.ok) throw new Error('index.json não encontrado');
+    if (!idxResp.ok) throw new Error('index.json nao encontrado');
     var idx = await idxResp.json();
     var verEl = document.getElementById('hdr-version');
-    if (verEl && (idx.run || idx.sha)) {
-      verEl.textContent = (idx.run ? '#' + idx.run : '') + (idx.sha ? '  ' + idx.sha : '') + (idx.timestamp ? '  ' + new Date(idx.timestamp).toLocaleString('pt-BR') : '');
+    var verStr = '';
+    if (idx.run || idx.sha) {
+      verStr = (idx.run ? '#' + idx.run : '') + (idx.sha ? '  ' + idx.sha : '') + (idx.timestamp ? '  ' + new Date(idx.timestamp).toLocaleString('pt-BR') : '');
+      if (verEl) verEl.textContent = verStr;
+      var sbVer = document.getElementById('sb-version');
+      if (sbVer && idx.run) sbVer.textContent = 'Run #' + idx.run;
     }
     var files = idx.files || (idx.tests ? idx.tests.map(function(t){ return t.file; }) : []);
 
@@ -626,7 +755,7 @@ function render() {
   renderTabs();
 }
 
-// ── Seção 1: Resumo ──────────────────────────────────────────
+// ── Secao 1: Resumo ──────────────────────────────────────────
 function renderResults() {
   var rows = [];
   allData.forEach(function(d) {
@@ -645,11 +774,11 @@ function renderResults() {
       '</tr>');
     });
   });
-  document.getElementById('res-count').textContent = rows.length + ' cenários';
+  document.getElementById('res-count').textContent = rows.length + ' cenarios';
   document.getElementById('resultsTableBody').innerHTML = rows.join('');
 }
 
-// ── Seção 2: Timeline de Latência ────────────────────────────
+// ── Secao 2: Timeline de Latencia ────────────────────────────
 function renderTimeline() {
   if (allData.length < 2) {
     document.getElementById('timelineBlock').style.display = 'none';
@@ -677,24 +806,9 @@ function renderTimeline() {
     data: {
       labels: labels,
       datasets: [
-        {
-          label: 'p50', data: p50vals,
-          borderColor: '#06b6d4', backgroundColor: 'rgba(6,182,212,.08)',
-          borderWidth: 2, pointRadius: 5, pointHoverRadius: 7,
-          tension: 0.35, fill: false
-        },
-        {
-          label: 'p95', data: p95vals,
-          borderColor: '#a78bfa', backgroundColor: 'rgba(124,58,237,.08)',
-          borderWidth: 2, pointRadius: 5, pointHoverRadius: 7,
-          tension: 0.35, fill: false
-        },
-        {
-          label: 'p99', data: p99vals,
-          borderColor: '#f87171', backgroundColor: 'rgba(239,68,68,.08)',
-          borderWidth: 2, pointRadius: 5, pointHoverRadius: 7,
-          tension: 0.35, fill: false
-        }
+        { label: 'p50', data: p50vals, borderColor: '#06b6d4', backgroundColor: 'rgba(6,182,212,.08)', borderWidth: 2, pointRadius: 5, pointHoverRadius: 7, tension: 0.35, fill: false },
+        { label: 'p95', data: p95vals, borderColor: '#a78bfa', backgroundColor: 'rgba(124,58,237,.08)', borderWidth: 2, pointRadius: 5, pointHoverRadius: 7, tension: 0.35, fill: false },
+        { label: 'p99', data: p99vals, borderColor: '#f87171', backgroundColor: 'rgba(239,68,68,.08)', borderWidth: 2, pointRadius: 5, pointHoverRadius: 7, tension: 0.35, fill: false }
       ]
     },
     options: {
@@ -702,27 +816,17 @@ function renderTimeline() {
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: true, labels: { color: '#94a3b8', font: { size: 12 }, boxWidth: 14, padding: 16 } },
-        tooltip: {
-          callbacks: {
-            label: function(ctx) { return ' ' + ctx.dataset.label + ': ' + (ctx.parsed.y != null ? ctx.parsed.y.toFixed(1) + ' ms' : '—'); }
-          }
-        }
+        tooltip: { callbacks: { label: function(ctx) { return ' ' + ctx.dataset.label + ': ' + (ctx.parsed.y != null ? ctx.parsed.y.toFixed(1) + ' ms' : '—'); } } }
       },
       scales: {
-        x: {
-          ticks: { color: '#94a3b8', font: { size: 12 } },
-          grid: { color: 'rgba(255,255,255,.05)' }
-        },
-        y: {
-          ticks: { color: '#94a3b8', font: { size: 12 }, callback: function(v) { return v + ' ms'; } },
-          grid: { color: 'rgba(255,255,255,.05)' }
-        }
+        x: { ticks: { color: '#94a3b8', font: { size: 12 } }, grid: { color: 'rgba(255,255,255,.05)' } },
+        y: { ticks: { color: '#94a3b8', font: { size: 12 }, callback: function(v) { return v + ' ms'; } }, grid: { color: 'rgba(255,255,255,.05)' } }
       }
     }
   });
 }
 
-// ── Seção 3: Configuração ────────────────────────────────────
+// ── Secao 3: Configuracao ────────────────────────────────────
 function renderConfig() {
   document.getElementById('cfg-count').textContent = allData.length + ' testes';
   document.getElementById('configTableBody').innerHTML = allData.map(function(d) {
@@ -738,9 +842,9 @@ function renderConfig() {
   }).join('');
 }
 
-// ── Seção 4: Gráficos de Performance ─────────────────────────
+// ── Secao 4: Graficos de Performance ─────────────────────────
 function renderCharts() {
-  document.getElementById('charts-count').textContent = '3 gráficos';
+  document.getElementById('charts-count').textContent = '3 graficos';
 
   var labels = [];
   var rps = [], errPct = [], totalReq = [];
@@ -797,7 +901,7 @@ function avg(arr, key) {
   return sum / arr.length;
 }
 
-// ── Seção 5: Rotas (accordion por tipo) ─────────────────────
+// ── Secao 5: Rotas (accordion por tipo) ─────────────────────
 function renderRoutes() {
   var hasAny = false;
   var totalRoutes = 0;
@@ -810,7 +914,6 @@ function renderRoutes() {
     var tt = (m.test_type || d._file.replace('.json', '')).toLowerCase();
     totalRoutes += d.routes.length;
 
-    var groupId = 'rg-' + idx;
     var tableRows = d.routes.map(function(r) {
       var errPct = ((r.err || 0) * 100).toFixed(2);
       var errColor = parseFloat(errPct) > 0 ? 'var(--fail)' : 'var(--pass)';
@@ -834,7 +937,7 @@ function renderRoutes() {
       '</div>' +
       '<div class="route-group-content">' +
         '<table style="margin-bottom:8px;">' +
-          '<thead><tr><th>Método</th><th>Rota</th><th>p50 (ms)</th><th>p95 (ms)</th><th>Total</th><th>Erro %</th></tr></thead>' +
+          '<thead><tr><th>Metodo</th><th>Rota</th><th>p50 (ms)</th><th>p95 (ms)</th><th>Total</th><th>Erro %</th></tr></thead>' +
           '<tbody>' + tableRows + '</tbody>' +
         '</table>' +
       '</div>' +
@@ -850,7 +953,7 @@ function renderRoutes() {
   document.getElementById('routesContent').innerHTML = html;
 }
 
-// ── Seção 6: Detalhes (Tabs + KPI) ──────────────────────────
+// ── Secao 6: Detalhes (Tabs + KPI) ──────────────────────────
 function renderTabs() {
   if (!allData.length) { document.getElementById('detailsBlock').style.display = 'none'; return; }
   document.getElementById('detailsBlock').style.display = '';
@@ -876,16 +979,16 @@ function renderPanel(i) {
     var errColor = (sc.err || 0) > 0 ? 'var(--fail)' : 'var(--pass)';
     return '<div style="margin: 0 16px 24px;">' +
       '<div style="font-size:14px;font-weight:600;color:var(--text);margin:16px 0 8px;">' +
-        typeBadge(m.test_type) + ' &nbsp; Cenário: <span style="color:var(--accent2)">' + sc.sc + '</span>' +
+        typeBadge(m.test_type) + ' &nbsp; Cenario: <span style="color:var(--accent2)">' + sc.sc + '</span>' +
         ' &nbsp; <span class="' + (sc.ok ? 'badge-pass' : 'badge-fail') + '">' + (sc.ok ? 'OK' : 'FAIL') + '</span>' +
       '</div>' +
       '<div class="kpi-grid" style="padding:0">' +
-        kpiCard('Latência p50', fmt(sc.p50), 'ms', '50% das requisições responderam neste tempo. Ideal abaixo de 200ms.') +
-        kpiCard('Latência p95', fmt(sc.p95), 'ms', '95% das requisições neste tempo ou menos. Threshold recomendado: abaixo de 500ms.') +
-        kpiCard('Latência p99', fmt(sc.p99), 'ms', 'Pico de latência - o pior 1% das requisições. Alerta se acima de 1s.') +
-        kpiCard('Throughput',   fmt(sc.rps),  'req/s', 'Requisições processadas por segundo. Quanto maior, melhor a capacidade do sistema.') +
+        kpiCard('Latencia p50', fmt(sc.p50), 'ms', '50% das requisicoes responderam neste tempo. Ideal abaixo de 200ms.') +
+        kpiCard('Latencia p95', fmt(sc.p95), 'ms', '95% das requisicoes neste tempo ou menos. Threshold recomendado: abaixo de 500ms.') +
+        kpiCard('Latencia p99', fmt(sc.p99), 'ms', 'Pico de latencia - o pior 1% das requisicoes. Alerta se acima de 1s.') +
+        kpiCard('Throughput',   fmt(sc.rps),  'req/s', 'Requisicoes processadas por segundo. Quanto maior, melhor a capacidade do sistema.') +
         kpiCard('Total Req',    sc.total || '—', '', 'Total de chamadas HTTP realizadas durante o teste.') +
-        '<div class="kpi-card"><div class="kpi-hint">% de requisições com falha (HTTP 5xx, timeout ou recusada). Smoke/Load: 0% ideal. Stress: abaixo de 1% aceitével. Acima de 2% = sistema sobrecarregado.</div><div class="kpi-label">Taxa de Erro</div>' +
+        '<div class="kpi-card"><div class="kpi-hint">% de requisicoes com falha (HTTP 5xx, timeout ou recusada). Smoke/Load: 0% ideal. Stress: abaixo de 1% aceitavel. Acima de 2% = sistema sobrecarregado.</div><div class="kpi-label">Taxa de Erro</div>' +
           '<div class="kpi-value" style="color:' + errColor + '">' + ((sc.err || 0) * 100).toFixed(2) + '<span class="kpi-unit">%</span></div>' +
         '</div>' +
       '</div>' +
@@ -908,6 +1011,7 @@ function toggleJobSteps(titleEl) {
   stepList.style.maxHeight = isCollapsed ? stepList.scrollHeight + 'px' : '0px';
   if (chevron) chevron.style.transform = isCollapsed ? 'rotate(90deg)' : 'rotate(0deg)';
 }
+
 window.addEventListener('DOMContentLoaded', function() {
   loadGhConfig();
   loadAll();
