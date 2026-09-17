@@ -56,7 +56,7 @@ header { background: var(--surface); border-bottom: 1px solid var(--border); pad
 .dot-failure   { background: var(--fail); }
 .dot-skipped   { background: var(--muted); opacity: .5; }
 @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.4; } }
-.step-list { display: flex; flex-direction: column; gap: 5px; }
+.step-list { display: flex; flex-direction: column; gap: 5px; max-height: 0; overflow: hidden; transition: max-height .35s ease; }
 .step-row { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); }
 .step-icon { font-size: 13px; flex-shrink: 0; width: 16px; text-align: center; }
 .run-info { font-size: 12px; color: var(--muted); margin-top: 10px; }
@@ -150,7 +150,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
   border-top-color: var(--border);
 }
 .kpi-card:hover .kpi-hint { opacity: 1; }
-.kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+.kpi-card { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
 .kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
 .kpi-value { font-size: 22px; font-weight: 700; color: var(--text); }
 .kpi-unit  { font-size: 12px; color: var(--muted); margin-left: 2px; }
@@ -550,7 +550,7 @@ function renderRunStatus(run, jobs) {
 
     return '<div class="job-card">' +
       '<div class="job-title" onclick="toggleJobSteps(this)" style="cursor:pointer;user-select:none"><span class="job-status-dot ' + dotCls + '"></span>' + job.name + '<span class="job-chevron" style="margin-left:auto;font-size:11px;color:var(--muted);transition:transform .2s">&#9660;</span></div>' +
-      '<div class="step-list" style="overflow:hidden;transition:max-height .25s ease;max-height:600px">' + (steps || '<div class="step-row"><span class="step-icon">○</span>Aguardando...</div>') + '</div>' +
+      '<div class="step-list" style="overflow:hidden;transition:max-height .25s ease;max-height:0">' + (steps || '<div class="step-row"><span class="step-icon">○</span>Aguardando...</div>') + '</div>' +
     '</div>';
   }).join('');
 }
@@ -873,9 +873,9 @@ function renderPanel(i) {
         kpiCard('Latência p50', fmt(sc.p50), 'ms', '50% das requisições responderam neste tempo. Ideal abaixo de 200ms.') +
         kpiCard('Latência p95', fmt(sc.p95), 'ms', '95% das requisições neste tempo ou menos. Threshold recomendado: abaixo de 500ms.') +
         kpiCard('Latência p99', fmt(sc.p99), 'ms', 'Pico de latência - o pior 1% das requisições. Alerta se acima de 1s.') +
-        kpiCard('Throughput',   fmt(sc.rps),  'req/s') +
-        kpiCard('Total Req',    sc.total || '—', '') +
-        '<div class="kpi-card"><div class="kpi-label">Taxa de Erro</div>' +
+        kpiCard('Throughput',   fmt(sc.rps),  'req/s', 'Requisições processadas por segundo. Quanto maior, melhor a capacidade do sistema.') +
+        kpiCard('Total Req',    sc.total || '—', '', 'Total de chamadas HTTP realizadas durante o teste.') +
+        '<div class="kpi-card"><div class="kpi-hint">% de requisições com falha (HTTP 5xx, timeout ou recusada). Smoke/Load: 0% ideal. Stress: abaixo de 1% aceitével. Acima de 2% = sistema sobrecarregado.</div><div class="kpi-label">Taxa de Erro</div>' +
           '<div class="kpi-value" style="color:' + errColor + '">' + ((sc.err || 0) * 100).toFixed(2) + '<span class="kpi-unit">%</span></div>' +
         '</div>' +
       '</div>' +
@@ -883,8 +883,9 @@ function renderPanel(i) {
   }).join('');
 }
 
-function kpiCard(label, value, unit) {
+function kpiCard(label, value, unit, hint) {
   return '<div class="kpi-card">' +
+    (hint ? '<div class="kpi-hint">' + hint + '</div>' : '') +
     '<div class="kpi-label">' + label + '</div>' +
     '<div class="kpi-value">' + value + (unit ? '<span class="kpi-unit">' + unit + '</span>' : '') + '</div>' +
   '</div>';
@@ -893,10 +894,9 @@ function kpiCard(label, value, unit) {
 function toggleJobSteps(titleEl) {
   var stepList = titleEl.nextElementSibling;
   var chevron = titleEl.querySelector('.job-chevron');
-  var isCollapsed = stepList.style.maxHeight === '0px';
-  stepList.style.maxHeight = isCollapsed ? '600px' : '0px';
-  stepList.style.overflow = 'hidden';
-  if (chevron) chevron.style.transform = isCollapsed ? '' : 'rotate(-90deg)';
+  var isCollapsed = stepList.style.maxHeight === '0px' || stepList.style.maxHeight === '';
+  stepList.style.maxHeight = isCollapsed ? stepList.scrollHeight + 'px' : '0px';
+  if (chevron) chevron.style.transform = isCollapsed ? 'rotate(90deg)' : 'rotate(0deg)';
 }
 window.addEventListener('DOMContentLoaded', function() {
   loadGhConfig();
