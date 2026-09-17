@@ -1,4 +1,4 @@
-# Comprai — Plataforma de Comércio Agêntico baseada em UCP
+﻿# Comprai — Plataforma de Comércio Agêntico baseada em UCP
 
 [![GitHub Pages](https://img.shields.io/badge/Dashboard-GitHub%20Pages-brightgreen)](https://josehelioaraujo.github.io/comprai/)
 [![CI/CD](https://github.com/josehelioaraujo/comprai/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/josehelioaraujo/comprai/actions/workflows/ci-cd.yml)
@@ -820,3 +820,18 @@ MIT License — veja [LICENSE](LICENSE) para detalhes.
 
 Para dúvidas, issues ou contribuições, abra uma issue ou pull request no repositório.
 
+### k6 Stress Test Dashboard
+
+Access the live dashboard at `https://comprai.2.25.122.11.nip.io/k6/dashboard/`.
+
+**Running via GitHub Actions:** trigger the `stress-tests` workflow (`workflow_dispatch`) with
+parameters `test_type` (smoke/load/stress/spike/soak), `target_url`, `vus`, and `duration`.
+Use the `smoke` workflow to publish the dashboard without running heavy tests.
+
+**Dashboard features:**
+- Header shows run number, short SHA (7 chars), and UTC timestamp of the last execution
+- KPI cards (Req/s, P95 latency, error rate, total requests) with hover tooltips
+- Per-type tabs (Load / Stress / Spike / Soak / Smoke) with per-route breakdown and TOTAL counts
+- Performance charts (Throughput, Error Rate, Total Requests) with info hint icons
+- Collapsible sections for latency timeline, test configuration, and called routes
+- Pipeline drilldown showing live GitHub Actions step status with expandable logs

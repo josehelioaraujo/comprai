@@ -1,4 +1,4 @@
-## [3.2.1] - 2026-09-12
+﻿## [3.2.1] - 2026-09-12
 
 ### Added
 - **Dashboard k6 no GitHub Pages**
