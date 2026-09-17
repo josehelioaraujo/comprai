@@ -56,13 +56,13 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', syste
 .sidebar.collapsed .sidebar-toggle-collapse { display: none; }
 /* Botao expand — aparece so quando colapsado, fixo sobre a sidebar */
 .sidebar-expand-btn {
-  display: none; position: absolute; top: 14px; left: calc(var(--sidebar-collapsed-w) - 14px);
+  display: none; position: absolute; top: 12px; left: 10px;
   width: 28px; height: 28px; border-radius: 50%;
   background: var(--surface2); border: 1px solid var(--border);
   color: var(--muted); cursor: pointer; font-size: 14px; line-height: 1;
   align-items: center; justify-content: center;
   transition: background .15s, color .15s, opacity .15s;
-  z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,.3);
+  z-index: 200; box-shadow: 0 2px 8px rgba(0,0,0,.3);
 }
 .sidebar-expand-btn:hover { background: var(--accent2); color: #fff; border-color: var(--accent2); }
 .sidebar.collapsed .sidebar-expand-btn { display: flex; }
