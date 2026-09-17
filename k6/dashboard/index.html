@@ -157,7 +157,12 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
 /* ── Charts ── */
 .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; padding: 16px; }
-.chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+.chart-card { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+.chart-hint-icon { position: relative; cursor: default; font-size: 11px; opacity: .45; margin-left: 6px; vertical-align: middle; }
+.chart-hint-icon:hover { opacity: 1; }
+.chart-hint { position: absolute; bottom: calc(100% + 6px); left: 0; background: #0d1117; color: #c9d1d9; border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 11px; line-height: 1.6; width: 280px; pointer-events: none; opacity: 0; transition: opacity .2s; z-index: 200; text-align: left; white-space: normal; text-transform: none; letter-spacing: 0; font-weight: 400; }
+.chart-hint::after { content: ''; position: absolute; top: 100%; left: 20px; border: 5px solid transparent; border-top-color: var(--border); }
+.chart-hint-icon:hover .chart-hint { opacity: 1; }
 .chart-title { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 14px; font-weight: 600; }
 .chart-wrap { position: relative; height: 220px; }
 .chart-wrap-tall { position: relative; height: 280px; }
@@ -291,15 +296,15 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <div class="section-inner">
           <div class="charts-grid">
             <div class="chart-card">
-              <div class="chart-title">Throughput por Tipo (req/s)</div>
+              <div class="chart-title">Throughput por Tipo (req/s)<span class="chart-hint-icon">&#9432;<span class="chart-hint">Requisições processadas por segundo por cenãrio. Smoke: linha de base ménima. Load: valida capacidade sob carga normal. Stress: identifica o ponto de saturação. Spike: mede recuperação a picos súbitos. Soak: detecta degradação gradual ao longo do tempo.</span></span></div>
               <div class="chart-wrap"><canvas id="chartRps"></canvas></div>
             </div>
             <div class="chart-card">
-              <div class="chart-title">Taxa de Erro por Tipo (%)</div>
+              <div class="chart-title">Taxa de Erro por Tipo (%)<span class="chart-hint-icon">&#9432;<span class="chart-hint">% de requisições com falha (HTTP 5xx, timeout ou rejeição). Smoke/Load: 0% é o ideal — qualquer erro indica problema. Stress: até 1% é aceitével sob carga extrema. Spike: erros transitõrios são esperados no pico. Soak: erros crescentes indicam vazamento de recursos.</span></span></div>
               <div class="chart-wrap"><canvas id="chartErrors"></canvas></div>
             </div>
             <div class="chart-card">
-              <div class="chart-title">Total de Requisições por Tipo</div>
+              <div class="chart-title">Total de Requisições por Tipo<span class="chart-hint-icon">&#9432;<span class="chart-hint">Volume total de chamadas HTTP em cada cenãrio. Reflete duração — VUs — taxa de iteração. Stress e Soak naturalmente acumulam maior volume. Compare entre execuções do mesmo tipo para detectar regressão de capacidade.</span></span></div>
               <div class="chart-wrap"><canvas id="chartTotal"></canvas></div>
             </div>
           </div>
