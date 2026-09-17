@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>K6 Stress Test Dashboard — Comprai</title>
+<title>Comprai · QA Hub</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 :root {
@@ -91,8 +91,11 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', syste
 .nav-item:hover { background: var(--surface2); color: var(--text); }
 .nav-item.active { color: var(--accent2); border-left-color: var(--accent2); background: rgba(6,182,212,.06); }
 .nav-icon { font-size: 15px; flex-shrink: 0; width: 20px; text-align: center; }
-.nav-text { opacity: 1; transition: opacity .15s; }
+.nav-text { opacity: 1; transition: opacity .15s; display: flex; align-items: center; gap: 6px; }
 .sidebar.collapsed .nav-text { opacity: 0; pointer-events: none; }
+.nav-soon { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; background: rgba(124,58,237,.2); color: #a78bfa; padding: 1px 5px; border-radius: 4px; flex-shrink: 0; }
+.nav-item-soon { opacity: .5; cursor: default; }
+.nav-item-soon:hover { background: none; color: var(--muted); }
 
 /* ── Sidebar footer ── */
 .sidebar-footer {
@@ -322,7 +325,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
 <nav class="sidebar" id="sidebar">
   <div class="sidebar-header">
     <span class="sidebar-logo">&#9889;</span>
-    <span class="sidebar-logo-text">Comprai K6</span>
+    <span class="sidebar-logo-text">QA Hub</span>
     <button class="sidebar-toggle sidebar-toggle-collapse" onclick="toggleSidebar()" title="Recolher sidebar">&#8249;</button>
   </div>
   <!-- Botao expandir: visivel so quando colapsado -->
@@ -338,7 +341,17 @@ tr:hover td { background: rgba(255,255,255,.02); }
     <div class="nav-item" id="nav-timeline" onclick="showSection('timelineBlock', this)" title="Timeline de Latencia">
       <span class="nav-icon">&#128200;</span><span class="nav-text">Timeline</span>
     </div>
-    <div class="nav-label">Analise</div>
+    <div class="nav-label">Testes</div>
+    <div class="nav-item" id="nav-stress" onclick="showSection('stressBlock', this)" title="Stress Test K6">
+      <span class="nav-icon">&#128293;</span><span class="nav-text">Stress Test</span>
+    </div>
+    <div class="nav-item nav-item-soon" title="Em breve">
+      <span class="nav-icon">&#128260;</span><span class="nav-text">Testes Integrados<span class="nav-soon">Em breve</span></span>
+    </div>
+    <div class="nav-item nav-item-soon" title="Em breve">
+      <span class="nav-icon">&#129522;</span><span class="nav-text">Mutacao<span class="nav-soon">Em breve</span></span>
+    </div>
+    <div class="nav-label">Analise K6</div>
     <div class="nav-item" id="nav-config" onclick="showSection('configBlock', this)" title="Configuracao dos Testes">
       <span class="nav-icon">&#9881;</span><span class="nav-text">Configuracao</span>
     </div>
@@ -366,19 +379,9 @@ tr:hover td { background: rgba(255,255,255,.02); }
       <span id="hdr-count">—</span>
       <span class="topbar-divider"></span>
       <span id="hdr-updated" style="color:var(--muted)">—</span>
-
     </div>
-    <div class="run-controls" id="runControls">
-      <select id="testTypeSelect">
-        <option value="smoke">Smoke</option>
-        <option value="load">Load</option>
-        <option value="stress">Stress</option>
-        <option value="spike">Spike</option>
-        <option value="soak">Soak</option>
-        <option value="all">Todos</option>
-      </select>
-      <button class="btn-run" id="btnRun" onclick="triggerTest()">&#9654; Executar</button>
-    </div>
+    <!-- run-controls movido para sidebar -->
+    <div id="runControls" style="display:none"></div>
   </header>
 
   <div id="runPanel">
@@ -406,6 +409,34 @@ tr:hover td { background: rgba(255,255,255,.02); }
           <div class="section-inner">
             <div class="scenario-tabs" id="scenarioTabs"></div>
             <div id="scenarioPanel"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stress Test K6 -->
+      <div class="section-block" id="stressBlock" style="display:none">
+        <div class="section-header" onclick="toggleSection(this)">
+          <span class="section-title-text">&#128293; Stress Test — K6</span>
+          <span class="section-count" id="stress-count"></span>
+          <span class="section-chevron">&#9660;</span>
+        </div>
+        <div class="section-content">
+          <div class="section-inner">
+            <div style="padding:16px 20px 8px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+              <select id="testTypeSelect" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 12px;border-radius:8px;font-size:13px;cursor:pointer;outline:none;min-width:140px;">
+                <option value="smoke">Smoke</option>
+                <option value="load">Load</option>
+                <option value="stress">Stress</option>
+                <option value="spike">Spike</option>
+                <option value="soak">Soak</option>
+                <option value="all">Todos</option>
+              </select>
+              <button class="btn-run" id="btnRun" onclick="triggerTest()" style="display:flex;">&#9654;&nbsp; Executar Teste</button>
+              <span style="font-size:12px;color:var(--muted);margin-left:auto;" id="stress-last-run"></span>
+            </div>
+            <div style="padding:0 20px 16px;">
+              <div id="stress-info" style="font-size:12px;color:var(--muted);">Selecione um tipo de teste e clique em Executar para disparar o pipeline via GitHub Actions.</div>
+            </div>
           </div>
         </div>
       </div>
@@ -519,7 +550,7 @@ let runReloadPending = false;
 let verInfo = {};
 
 // IDs das secoes navegaveis (exceto detalhes que e fixo)
-const NAV_SECTIONS = ['resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock'];
+const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock'];
 let activeSection = null; // null = nenhuma extra visivel
 
 const TYPE_ORDER = ['smoke','load','stress','spike','soak'];
@@ -648,7 +679,11 @@ async function loadGhConfig() {
     var cfg = await r.json();
     if (cfg && cfg.repo) {
       ghCfg = cfg;
-      document.getElementById('runControls').style.display = 'flex';
+      // Exibe secao stress no sidebar quando gh-config disponivel
+      var sc = document.getElementById('stressBlock');
+      if (sc) sc.setAttribute('data-ready','1');
+      var si = document.getElementById('stress-info');
+      if (si) si.textContent = 'Pipeline conectado. Selecione o tipo e execute.';
     }
   } catch(e) {}
 }
@@ -821,6 +856,11 @@ function render() {
   document.getElementById('hdr-count').textContent = total + ' teste' + (total !== 1 ? 's' : '') + ' carregado' + (total !== 1 ? 's' : '');
   document.getElementById('hdr-updated').textContent = 'Atualizado: ' + new Date().toLocaleString('pt-BR');
   renderResults(); renderConfig(); renderTimeline(); renderCharts(); renderRoutes(); renderTabs();
+  // stress section info
+  var sc = document.getElementById('stress-count');
+  if (sc) sc.textContent = allData.length + ' cenarios';
+  var sl = document.getElementById('stress-last-run');
+  if (sl && verInfo.run) sl.textContent = 'Ultimo run: #' + verInfo.run;
 }
 
 function renderResults() {
