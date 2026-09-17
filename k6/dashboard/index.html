@@ -316,6 +316,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       <div class="ver-row"><span class="ver-label">SHA</span><span class="ver-value" id="vm-sha">—</span></div>
       <div class="ver-row"><span class="ver-label">Timestamp</span><span class="ver-value" id="vm-ts">—</span></div>
       <div class="ver-row"><span class="ver-label">Testes</span><span class="ver-value" id="vm-tests">—</span></div>
+      <div class="ver-row"><span class="ver-label">Atualizado</span><span class="ver-value" id="vm-updated">—</span></div>
     </div>
   </div>
 </div>
@@ -325,7 +326,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
 <nav class="sidebar" id="sidebar">
   <div class="sidebar-header">
     <span class="sidebar-logo">&#9889;</span>
-    <span class="sidebar-logo-text">QA Hub</span>
+    <span class="sidebar-logo-text">Comprai · QA Hub</span>
     <button class="sidebar-toggle sidebar-toggle-collapse" onclick="toggleSidebar()" title="Recolher sidebar">&#8249;</button>
   </div>
   <!-- Botao expandir: visivel so quando colapsado -->
@@ -376,9 +377,8 @@ tr:hover td { background: rgba(255,255,255,.02); }
 <div class="main-area">
   <header class="topbar">
     <div class="topbar-meta">
-      <span id="hdr-count">—</span>
-      <span class="topbar-divider"></span>
-      <span id="hdr-updated" style="color:var(--muted)">—</span>
+      <span id="hdr-count" style="display:none"></span>
+      <span id="hdr-updated" style="display:none"></span>
     </div>
     <!-- run-controls movido para sidebar -->
     <div id="runControls" style="display:none"></div>
@@ -622,6 +622,7 @@ function openVerModal() {
   document.getElementById('vm-sha').textContent = verInfo.sha || '—';
   document.getElementById('vm-ts').textContent  = verInfo.timestamp ? new Date(verInfo.timestamp).toLocaleString('pt-BR') : '—';
   document.getElementById('vm-tests').textContent = allData.length ? allData.length + ' tipo(s) carregados' : '—';
+  document.getElementById('vm-updated').textContent = new Date().toLocaleString('pt-BR');
   document.getElementById('verModal').classList.add('open');
 }
 function closeVerModal(e) {
