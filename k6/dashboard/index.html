@@ -31,8 +31,11 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', syste
   display: flex; flex-direction: column;
   transition: width .25s cubic-bezier(.4,0,.2,1);
   flex-shrink: 0;
-  position: sticky; top: 0; height: 100vh; overflow: hidden;
+  position: sticky; top: 0; height: 100vh; overflow: visible;
 }
+.sidebar > *:not(.sidebar-expand-btn) { overflow: hidden; }
+/* garante que o conteudo interno nao vaze */
+.sidebar-header, .sidebar-nav, .sidebar-footer { overflow: hidden; white-space: nowrap; }
 .sidebar.collapsed { width: var(--sidebar-collapsed-w); }
 
 .sidebar-header {
@@ -50,7 +53,19 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', syste
   border-radius: 6px; transition: background .15s, color .15s; line-height: 1;
 }
 .sidebar-toggle:hover { background: var(--surface2); color: var(--text); }
-.sidebar.collapsed .sidebar-toggle { margin-left: 0; }
+.sidebar.collapsed .sidebar-toggle-collapse { display: none; }
+/* Botao expand — aparece so quando colapsado, fixo sobre a sidebar */
+.sidebar-expand-btn {
+  display: none; position: absolute; top: 14px; left: calc(var(--sidebar-collapsed-w) - 14px);
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--muted); cursor: pointer; font-size: 14px; line-height: 1;
+  align-items: center; justify-content: center;
+  transition: background .15s, color .15s, opacity .15s;
+  z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,.3);
+}
+.sidebar-expand-btn:hover { background: var(--accent2); color: #fff; border-color: var(--accent2); }
+.sidebar.collapsed .sidebar-expand-btn { display: flex; }
 
 .sidebar-nav { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 8px 0; }
 .sidebar-nav::-webkit-scrollbar { width: 4px; }
@@ -308,8 +323,10 @@ tr:hover td { background: rgba(255,255,255,.02); }
   <div class="sidebar-header">
     <span class="sidebar-logo">&#9889;</span>
     <span class="sidebar-logo-text">Comprai K6</span>
-    <button class="sidebar-toggle" id="sidebarToggleBtn" onclick="toggleSidebar()" title="Recolher menu">&#8644;</button>
+    <button class="sidebar-toggle sidebar-toggle-collapse" onclick="toggleSidebar()" title="Recolher sidebar">&#8249;</button>
   </div>
+  <!-- Botao expandir: visivel so quando colapsado -->
+  <button class="sidebar-expand-btn" id="sidebarExpandBtn" onclick="toggleSidebar()" title="Expandir sidebar">&#8250;</button>
   <div class="sidebar-nav">
     <div class="nav-label">Dashboard</div>
     <div class="nav-item active" id="nav-detalhes" onclick="showSection('detailsBlock', this)" title="Detalhes por Tipo">
@@ -349,8 +366,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       <span id="hdr-count">—</span>
       <span class="topbar-divider"></span>
       <span id="hdr-updated" style="color:var(--muted)">—</span>
-      <span class="topbar-divider"></span>
-      <span id="hdr-version" class="topbar-version"></span>
+
     </div>
     <div class="run-controls" id="runControls">
       <select id="testTypeSelect">
@@ -775,10 +791,7 @@ async function loadAll(silent) {
     var idx = await idxResp.json();
     verInfo = { run: idx.run, sha: idx.sha, timestamp: idx.timestamp };
 
-    var verEl = document.getElementById('hdr-version');
-    if (verEl && (idx.run || idx.sha)) {
-      verEl.textContent = (idx.run ? '#' + idx.run : '') + (idx.sha ? '  ' + idx.sha : '') + (idx.timestamp ? '  ' + new Date(idx.timestamp).toLocaleString('pt-BR') : '');
-    }
+    // hdr-version removido da topbar — info disponivel no modal de versionamento
     var sbBtn = document.getElementById('sbVersionBtn');
     if (sbBtn && idx.run) sbBtn.textContent = 'Run #' + idx.run + (idx.sha ? '  ' + idx.sha : '');
 
