@@ -113,6 +113,12 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', syste
   background: rgba(0,0,0,.55); z-index: 1000;
   align-items: flex-end; justify-content: flex-start;
 }
+.about-modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.4); z-index: 1000;
+  align-items: flex-start; justify-content: flex-start;
+}
+.about-modal-overlay.open { display: flex; }
 .ver-modal-overlay.open { display: flex; }
 .ver-modal {
   background: var(--surface); border: 1px solid var(--border);
@@ -308,8 +314,8 @@ tr:hover td { background: rgba(255,255,255,.02); }
 <body>
 
 <!-- About modal -->
-<div class="ver-modal-overlay" id="aboutModal" onclick="closeAboutModal(event)">
-  <div class="ver-modal" style="max-width:380px">
+<div class="about-modal-overlay" id="aboutModal" onclick="closeAboutModal(event)">
+  <div class="ver-modal" style="max-width:380px;margin:60px 0 0 12px;max-height:calc(100vh - 80px);overflow-y:auto">
     <div class="ver-modal-title">
       <span>&#129522; Comprai &middot; QA Hub</span>
       <button class="ver-modal-close" onclick="closeAboutModalDirect()">&#10005;</button>
@@ -1201,6 +1207,9 @@ function openAboutModal() {
 }
 function closeAboutModal(e) {
   if (e.target === document.getElementById('aboutModal')) closeAboutModalDirect();
+}
+function openVerModalFixed() {
+  openVerModal();
 }
 function closeAboutModalDirect() {
   document.getElementById('aboutModal').classList.remove('open');
