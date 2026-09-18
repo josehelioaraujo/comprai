@@ -342,11 +342,13 @@ jobs:
           DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
           BUILD_VERSION: ${{ env.BUILD_VERSION }}
           GH_PAT: ${{ secrets.GH_PAT }}
+          ML_CLIENT_ID: ${{ secrets.ML_CLIENT_ID }}
+          ML_CLIENT_SECRET: ${{ secrets.ML_CLIENT_SECRET }}
         with:
           host: ${{ env.VPS_HOST }}
           username: ${{ env.VPS_USER }}
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
-          envs: DATADOG_API_KEY,BUILD_VERSION,GH_PAT
+          envs: DATADOG_API_KEY,BUILD_VERSION,GH_PAT,ML_CLIENT_ID,ML_CLIENT_SECRET
           script: |
             set -e
             cd ${{ env.VPS_PATH }}
@@ -362,6 +364,14 @@ jobs:
             grep -q '^DD_API_KEY=' .env \
               && sed -i "s|^DD_API_KEY=.*|DD_API_KEY=${DATADOG_API_KEY}|" .env \
               || echo "DD_API_KEY=${DATADOG_API_KEY}" >> .env
+
+            # Injetar credenciais MercadoLivre no .env
+            grep -q '^ML_CLIENT_ID=' .env \
+              && sed -i "s|^ML_CLIENT_ID=.*|ML_CLIENT_ID=${ML_CLIENT_ID}|" .env \
+              || echo "ML_CLIENT_ID=${ML_CLIENT_ID}" >> .env
+            grep -q '^ML_CLIENT_SECRET=' .env \
+              && sed -i "s|^ML_CLIENT_SECRET=.*|ML_CLIENT_SECRET=${ML_CLIENT_SECRET}|" .env \
+              || echo "ML_CLIENT_SECRET=${ML_CLIENT_SECRET}" >> .env
 
             # Garantir OTEL_ENDPOINT aponta para dd-agent (Datadog)
             grep -q '^OTEL_ENDPOINT=' .env \

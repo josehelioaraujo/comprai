@@ -1,4 +1,4 @@
-﻿FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
 WORKDIR /app
 EXPOSE 5020
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
@@ -34,4 +34,6 @@ WORKDIR /app
 COPY --from=publish /app/publish .
 # Dashboard K6 servido como arquivo estático
 COPY k6/dashboard/index.html /app/wwwroot/k6/index.html
+RUN adduser --disabled-password --gecos "" appuser
+USER appuser
 ENTRYPOINT ["dotnet", "UcpAgent.Api.dll"]

@@ -22,6 +22,8 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_ENDPOINT:-http://comprai-otel-collector:4317}
       OTEL_SERVICE_NAME: "comprai-api"
       Ollama__BaseUrl: "http://host-gateway:11434"
+      MercadoLivre__ClientId: ${ML_CLIENT_ID:-}
+      MercadoLivre__ClientSecret: ${ML_CLIENT_SECRET:-}
     extra_hosts:
       - "host-gateway:host-gateway"
     depends_on:
