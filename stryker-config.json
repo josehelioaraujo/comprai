@@ -15,15 +15,6 @@
       "ToString",
       "GetHashCode",
       "Equals"
-    ],
-    "mutate": [
-      "src/UcpAgent.Application/**/*.cs",
-      "!src/UcpAgent.Application/**/*Command.cs",
-      "!src/UcpAgent.Application/**/*Query.cs",
-      "!src/UcpAgent.Application/**/*Service.cs",
-      "!src/UcpAgent.Application/**/I*.cs",
-      "!src/UcpAgent.Application/**/*Type.cs",
-      "!src/UcpAgent.Application/**/*Result.cs"
     ]
   }
 }
