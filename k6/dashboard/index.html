@@ -521,6 +521,92 @@ tr:hover td { background: rgba(255,255,255,.02); }
 </div>
 </div>
 
+    <!-- ===== MUTACAO BLOCK ===== -->
+    <div class="section-block" id="mutacaoBlock" style="display:none">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title-text">&#129522; Testes de Mutacao (Stryker.NET)</span>
+        <span class="section-toggle">&#9660;</span>
+      </div>
+      <div class="section-content">
+
+        <!-- KPI cards em row -->
+        <div class="kpi-row" id="mut-kpi-row" style="display:none">
+          <div class="kpi-card">
+            <div class="kpi-label">Mutation Score</div>
+            <div class="kpi-value" id="mut-score">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Mutantes Gerados</div>
+            <div class="kpi-value" id="mut-total">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Eliminados</div>
+            <div class="kpi-value" style="color:var(--success)" id="mut-killed">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Sobreviventes</div>
+            <div class="kpi-value" style="color:var(--danger)" id="mut-survived">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Sem Cobertura</div>
+            <div class="kpi-value" style="color:var(--warning)" id="mut-nocov">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Run</div>
+            <div class="kpi-value" id="mut-run">--</div>
+          </div>
+        </div>
+
+        <!-- Badge + barra de progresso -->
+        <div id="mut-badge-area" style="margin:12px 0;display:none">
+          <span id="mut-badge" style="padding:6px 18px;border-radius:20px;font-weight:700;font-size:1rem"></span>
+          <span id="mut-timestamp" style="margin-left:12px;color:var(--muted);font-size:0.82rem"></span>
+        </div>
+        <div id="mut-progress-area" style="margin:0 0 20px;display:none">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="font-size:0.82rem;color:var(--muted)">Score de Mutacao</span>
+            <span style="font-size:0.82rem;color:var(--muted)">Meta: 80%</span>
+          </div>
+          <div style="background:var(--border);border-radius:8px;height:14px;overflow:hidden">
+            <div id="mut-progress-bar" style="height:100%;border-radius:8px;transition:width .6s;width:0%"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:0.78rem;color:var(--muted)">
+            <span>0%</span><span>50%</span><span>80%</span><span>100%</span>
+          </div>
+        </div>
+
+        <!-- Subssecao colapsavel: Score por Arquivo -->
+        <div id="mut-files-area" style="display:none">
+          <div class="section-header" onclick="toggleSection(this)">
+            <span class="section-title-text" style="font-size:0.9rem">&#128196; Score por Arquivo</span>
+            <span class="section-toggle">&#9660;</span>
+          </div>
+          <div class="section-content">
+            <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+              <thead>
+                <tr style="color:var(--muted);text-align:left;border-bottom:1px solid var(--border)">
+                  <th style="padding:6px 8px">Arquivo</th>
+                  <th style="padding:6px 8px;text-align:center">Score</th>
+                  <th style="padding:6px 8px;text-align:center">Total</th>
+                  <th style="padding:6px 8px;text-align:center">Killed</th>
+                  <th style="padding:6px 8px;text-align:center">Survived</th>
+                  <th style="padding:6px 8px;text-align:center">No Cov</th>
+                </tr>
+              </thead>
+              <tbody id="mut-files-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Empty/erro state -->
+        <div id="mut-empty" style="text-align:center;padding:40px;color:var(--muted)">
+          <div style="font-size:2rem;margin-bottom:8px">&#129522;</div>
+          <div>Carregando dados de mutacao...</div>
+        </div>
+
+      </div>
+    </div>
+
 <script>
 const API_BASE = 'https://comprai.2.25.122.11.nip.io';
 let allData = [];
@@ -1084,81 +1170,5 @@ window.addEventListener('DOMContentLoaded', function() {
     if (id === 'mutacaoBlock') loadMutationData();
   };
 </script>
-    <!-- ===== MUTACAO BLOCK ===== -->
-    <div class="section-block" id="mutacaoBlock" style="display:none">
-      <div class="section-header" onclick="toggleSection(this)">
-        <span class="section-title-text">&#129522; Testes de Mutacao (Stryker.NET)</span>
-        <span class="section-toggle">&#9660;</span>
-      </div>
-      <div class="section-content">
-        <div class="kpi-row" id="mut-kpi-row" style="display:none">
-          <div class="kpi-card">
-            <div class="kpi-label">Mutation Score</div>
-            <div class="kpi-value" id="mut-score">--</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-label">Mutantes Gerados</div>
-            <div class="kpi-value" id="mut-total">--</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-label">Eliminados</div>
-            <div class="kpi-value" style="color:var(--success)" id="mut-killed">--</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-label">Sobreviventes</div>
-            <div class="kpi-value" style="color:var(--danger)" id="mut-survived">--</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-label">Sem Cobertura</div>
-            <div class="kpi-value" style="color:var(--warning)" id="mut-nocov">--</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-label">Run</div>
-            <div class="kpi-value" id="mut-run">--</div>
-          </div>
-        </div>
-        <div id="mut-badge-area" style="margin:12px 0;display:none">
-          <span id="mut-badge" style="padding:6px 18px;border-radius:20px;font-weight:700;font-size:1rem"></span>
-          <span id="mut-timestamp" style="margin-left:12px;color:var(--muted);font-size:0.82rem"></span>
-        </div>
-        <div id="mut-progress-area" style="margin:16px 0 20px;display:none">
-          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-            <span style="font-size:0.82rem;color:var(--muted)">Score de Mutacao</span>
-            <span style="font-size:0.82rem;color:var(--muted)">Meta: 80%</span>
-          </div>
-          <div style="background:var(--border);border-radius:8px;height:14px;overflow:hidden">
-            <div id="mut-progress-bar" style="height:100%;border-radius:8px;transition:width .6s;width:0%"></div>
-          </div>
-          <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:0.78rem;color:var(--muted)">
-            <span>0%</span><span>50%</span><span>80%</span><span>100%</span>
-          </div>
-        </div>
-        <div id="mut-files-area" style="display:none">
-          <div class="section-header" onclick="toggleSection(this)" style="margin-top:8px">
-            <span class="section-title-text" style="font-size:0.9rem">&#128196; Score por Arquivo</span>
-            <span class="section-toggle">&#9660;</span>
-          </div>
-          <div class="section-content">
-            <table style="width:100%;border-collapse:collapse;font-size:0.82rem" id="mut-files-table">
-              <thead>
-                <tr style="color:var(--muted);text-align:left;border-bottom:1px solid var(--border)">
-                  <th style="padding:6px 8px">Arquivo</th>
-                  <th style="padding:6px 8px;text-align:center">Score</th>
-                  <th style="padding:6px 8px;text-align:center">Total</th>
-                  <th style="padding:6px 8px;text-align:center">Killed</th>
-                  <th style="padding:6px 8px;text-align:center">Survived</th>
-                  <th style="padding:6px 8px;text-align:center">No Cov</th>
-                </tr>
-              </thead>
-              <tbody id="mut-files-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-        <div id="mut-empty" style="text-align:center;padding:40px;color:var(--muted)">
-          <div style="font-size:2rem;margin-bottom:8px">&#129522;</div>
-          <div>Carregando dados de mutacao...</div>
-        </div>
-      </div>
-    </div>
 </body>
 </html>
