@@ -34,6 +34,6 @@ WORKDIR /app
 COPY --from=publish /app/publish .
 # Dashboard K6 servido como arquivo estático
 COPY k6/dashboard/index.html /app/wwwroot/k6/index.html
-RUN adduser --disabled-password --gecos "" appuser
+RUN useradd -m appuser
 USER appuser
 ENTRYPOINT ["dotnet", "UcpAgent.Api.dll"]
