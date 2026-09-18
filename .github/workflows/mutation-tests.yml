@@ -126,6 +126,32 @@ jobs:
             mutation-output/latest.json
           retention-days: 30
 
+      - name: Gerar index.json para Versionamento
+        env:
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          python3 - << 'PYEOF'
+          import json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          out = {
+              "run": os.environ.get("GITHUB_RUN_NUMBER", "0"),
+              "sha": os.environ.get("GITHUB_SHA", "")[:7],
+              "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "test_type": "mutation",
+              "vus": "N/A",
+              "target_url": "N/A",
+              "scenarios": []
+          }
+          Path("mutation-output").mkdir(parents=True, exist_ok=True)
+          Path("mutation-output/index.json").write_text(
+              json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8"
+          )
+          print(f"[OK] index.json gerado — Run #{out['run']} | SHA: {out['sha']}")
+          PYEOF
+
       - name: Criar pasta na VPS
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -143,6 +169,17 @@ jobs:
           source: "mutation-output/latest.json"
           target: "/var/www/html/k6/results/mutation/"
           strip_components: 1
+
+      - name: Copiar index.json para VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: 2.25.122.11
+          username: root
+          key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          source: "mutation-output/index.json"
+          target: "/var/www/html/k6/results/"
+          strip_components: 1
+          overwrite: true
 
       - name: Job Summary
         if: always()
