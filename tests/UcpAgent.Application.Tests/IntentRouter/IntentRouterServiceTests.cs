@@ -211,7 +211,8 @@ public sealed class IntentRouterServiceTests
     [Fact]
     public void Detect_FraseComSeisPalavrasSemIntencao_RetornaUnknown()
     {
-        var result = _sut.Detect("essa frase tem seis palavras aqui");
+        // 6 palavras sem nenhuma palavra-chave de intent
+        var result = _sut.Detect("uma longa descricao sem qualquer intencao clara");
         result.Intent.Should().Be(IntentType.Unknown);
     }
 
