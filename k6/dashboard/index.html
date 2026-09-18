@@ -359,10 +359,18 @@ tr:hover td { background: rgba(255,255,255,.02); }
       <span style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:11px;color:var(--muted)">Ollama</span>
       <span style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:11px;color:var(--muted)">UCP</span>
     </div>
-    <div style="border-top:1px solid var(--border);padding-top:10px;display:flex;justify-content:space-between;align-items:center">
-      <span style="font-size:11px;color:var(--muted)" id="about-run-info">—</span>
-      <a href="https://github.com/josehelioaraujo/comprai" target="_blank"
-         style="font-size:11px;color:var(--accent2);text-decoration:none">GitHub &#8599;</a>
+    <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px">Versionamento</div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:12px" id="about-ver-grid">
+        <span style="color:var(--muted)">Run</span><span id="about-ver-run" style="color:var(--text)">—</span>
+        <span style="color:var(--muted)">SHA</span><span id="about-ver-sha" style="color:var(--text);font-family:monospace">—</span>
+        <span style="color:var(--muted)">Atualizado</span><span id="about-ver-ts" style="color:var(--text)">—</span>
+        <span style="color:var(--muted)">Tipo</span><span id="about-ver-type" style="color:var(--text)">—</span>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:10px">
+        <a href="https://github.com/josehelioaraujo/comprai" target="_blank"
+           style="font-size:11px;color:var(--accent2);text-decoration:none">GitHub &#8599;</a>
+      </div>
     </div>
   </div>
 </div>
@@ -429,10 +437,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
     <div class="nav-item sb-theme-item" onclick="toggleTheme()" id="themeBtn" title="Alternar tema claro/escuro">
       <span class="nav-icon" id="themeIcon">&#9790;</span>
     </div>
-    <div class="nav-item sb-ver-item" onclick="openVerModal()" id="sbVersionBtn" title="Ver versionamento">
-      <span class="nav-icon">&#128204;</span>
-      <span class="nav-text" id="sbVersionLabel">Ver versao</span>
-    </div>
+
   </div>
 </nav>
 
@@ -1029,9 +1034,6 @@ async function loadAll(silent) {
     verInfo = { run: idx.run, sha: idx.sha, timestamp: idx.timestamp };
 
     // hdr-version removido da topbar — info disponivel no modal de versionamento
-    var sbBtn = document.getElementById('sbVersionBtn');
-    var sbLbl = document.getElementById('sbVersionLabel');
-    if (sbLbl && idx.run) sbLbl.textContent = 'Ver versao  #' + idx.run;
 
     var files = idx.files || (idx.tests ? idx.tests.map(function(t) { return t.file; }) : []);
     if (!files.length) { document.getElementById('loadingMsg').textContent = 'Nenhum resultado encontrado.'; return; }
@@ -1201,13 +1203,14 @@ function toggleJobSteps(titleEl) {
 
 // ── About modal ──────────────────────────────────────────────
 function openAboutModal() {
-  var runInfo = document.getElementById('about-run-info');
-  if (runInfo) {
-    var parts = [];
-    if (verInfo.run) parts.push('Run #' + verInfo.run);
-    if (verInfo.sha) parts.push('SHA ' + verInfo.sha);
-    runInfo.textContent = parts.length ? parts.join(' · ') : '—';
-  }
+  var f = function(id, val) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = val || '—';
+  };
+  f('about-ver-run',  verInfo.run  ? '#' + verInfo.run : '—');
+  f('about-ver-sha',  verInfo.sha  || '—');
+  f('about-ver-ts',   verInfo.timestamp ? new Date(verInfo.timestamp).toLocaleString('pt-BR') : '—');
+  f('about-ver-type', verInfo.test_type || '—');
   document.getElementById('aboutModal').classList.add('open');
 }
 function closeAboutModal(e) {
