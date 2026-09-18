@@ -364,6 +364,27 @@ jobs:
             sleep 20
             curl -f http://localhost:${{ env.API_PORT }}/health/live || exit 1
 
+  # ── 4b. DEPLOY DASHBOARD ────────────────────────────────────────────────────
+  deploy-dashboard:
+    name: 📊 Deploy Dashboard K6
+    runs-on: ubuntu-latest
+    needs: deploy
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Copiar dashboard para VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          source: "k6/dashboard/index.html"
+          target: "/var/www/html/k6/dashboard/"
+          strip_components: 2
+
   # ── 5. SMOKE TESTS ──────────────────────────────────────────────────────────
   smoke-tests:
     name: 💨 Smoke Tests Newman
