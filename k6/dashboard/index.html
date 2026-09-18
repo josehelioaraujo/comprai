@@ -330,17 +330,16 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
 <!-- About modal -->
 <div class="about-modal-overlay" id="aboutModal" onclick="closeAboutModal(event)">
-  <div class="ver-modal" style="max-width:380px;margin:60px 0 0 12px;max-height:calc(100vh - 80px);overflow-y:auto">
+  <div class="ver-modal" style="max-width:360px;margin:60px 0 0 12px;max-height:calc(100vh - 80px);overflow-y:auto">
     <div class="ver-modal-title">
-      <span>&#129522; Comprai &middot; QA Hub</span>
+      <span>&#128202; QA Hub</span>
       <button class="ver-modal-close" onclick="closeAboutModalDirect()">&#10005;</button>
     </div>
     <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6">
-      Painel centralizado de qualidade para o agente de e-commerce <strong style="color:var(--text)">Comprai</strong> —
-      baseado no Universal Commerce Protocol (UCP) da Google.
+      Painel centralizado de qualidade e seguranca para aplicacoes .NET — stress tests K6, mutation tests Stryker.NET, SonarCloud e checklists OWASP &amp; PCI DSS.
     </p>
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px">Funcionalidades</div>
-    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">
       <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px">
         <span style="color:var(--accent2);flex-shrink:0">&#128293;</span>
         <span><strong style="color:var(--text)">Stress Tests K6</strong> — smoke, load, stress, spike e soak com resultados em tempo real</span>
@@ -350,42 +349,40 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <span><strong style="color:var(--text)">Mutation Tests</strong> — Stryker.NET analisa a eficacia dos testes unitarios</span>
       </div>
       <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px">
-        <span style="color:var(--accent2);flex-shrink:0">&#128200;</span>
-        <span><strong style="color:var(--text)">Timeline & Graficos</strong> — evolucao de latencia, throughput e taxa de erro</span>
+        <span style="color:var(--accent2);flex-shrink:0">&#9728;</span>
+        <span><strong style="color:var(--text)">SonarCloud</strong> — quality gate, coverage 100%, bugs, smells e ratings A/B/C/D/E</span>
       </div>
       <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px">
         <span style="color:var(--accent2);flex-shrink:0">&#127760;</span>
-        <span><strong style="color:var(--text)">Rotas</strong> — p50/p95 e taxa de erro por endpoint chamado</span>
+        <span><strong style="color:var(--text)">OWASP Top 10</strong> — checklist das 10 vulnerabilidades web mais criticas</span>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px">
+        <span style="color:var(--accent2);flex-shrink:0">&#128179;</span>
+        <span><strong style="color:var(--text)">PCI DSS</strong> — controles de seguranca para processamento de pagamentos</span>
       </div>
       <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px">
         <span style="color:var(--accent2);flex-shrink:0">&#128295;</span>
         <span><strong style="color:var(--text)">Pipeline</strong> — disparo e acompanhamento de testes via GitHub Actions</span>
       </div>
     </div>
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px">Stack</div>
-    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">
-      <span style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:11px;color:var(--muted)">.NET 10</span>
-      <span style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:11px;color:var(--muted)">K6</span>
-      <span style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:11px;color:var(--muted)">Stryker.NET</span>
-      <span style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:11px;color:var(--muted)">SonarCloud</span>
-      <span style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:11px;color:var(--muted)">Datadog APM</span>
-      <span style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:11px;color:var(--muted)">GitHub Actions</span>
-      <span style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:11px;color:var(--muted)">Redis</span>
-      <span style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:11px;color:var(--muted)">Ollama</span>
-      <span style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:11px;color:var(--muted)">UCP</span>
-    </div>
-    <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px">Versionamento</div>
-      <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:12px" id="about-ver-grid">
-        <span style="color:var(--muted)">Run</span><span id="about-ver-run" style="color:var(--text)">—</span>
-        <span style="color:var(--muted)">SHA</span><span id="about-ver-sha" style="color:var(--text);font-family:monospace">—</span>
-        <span style="color:var(--muted)">Atualizado</span><span id="about-ver-ts" style="color:var(--text)">—</span>
-        <span style="color:var(--muted)">Tipo</span><span id="about-ver-type" style="color:var(--text)">—</span>
+    <div style="border-top:1px solid var(--border);padding-top:12px;display:flex;align-items:center;justify-content:space-between">
+      <div style="position:relative;display:inline-block" id="about-ver-wrap">
+        <span id="about-ver-trigger" style="font-size:11px;color:var(--muted);cursor:default;border-bottom:1px dashed var(--border);padding-bottom:1px"
+          onmouseenter="document.getElementById('about-ver-pop').style.display='block'"
+          onmouseleave="document.getElementById('about-ver-pop').style.display='none'">
+          Versionamento
+        </span>
+        <div id="about-ver-pop" style="display:none;position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;width:240px;font-size:12px;box-shadow:0 8px 24px rgba(0,0,0,.4)">
+          <div style="display:grid;grid-template-columns:auto 1fr;gap:5px 12px" id="about-ver-grid">
+            <span style="color:var(--muted)">Run</span><span id="about-ver-run" style="color:var(--text)">—</span>
+            <span style="color:var(--muted)">SHA</span><span id="about-ver-sha" style="color:var(--text);font-family:monospace">—</span>
+            <span style="color:var(--muted)">Atualizado</span><span id="about-ver-ts" style="color:var(--text)">—</span>
+            <span style="color:var(--muted)">Tipo</span><span id="about-ver-type" style="color:var(--text)">—</span>
+          </div>
+        </div>
       </div>
-      <div style="display:flex;justify-content:flex-end;margin-top:10px">
-        <a href="https://github.com/josehelioaraujo/comprai" target="_blank"
-           style="font-size:11px;color:var(--accent2);text-decoration:none">GitHub &#8599;</a>
-      </div>
+      <a href="https://github.com/josehelioaraujo/comprai" target="_blank"
+         style="font-size:11px;color:var(--accent2);text-decoration:none">GitHub &#8599;</a>
     </div>
   </div>
 </div>
