@@ -45,7 +45,7 @@ jobs:
         run: |
           dotnet stryker \
             --config-file ../../stryker-config.json \
-            --project "../../src/UcpAgent.Application/UcpAgent.Application.csproj" \
+            --project "UcpAgent.Application.csproj" \
             --output ../../StrykerOutput \
             --reporter json \
             --reporter progress \
