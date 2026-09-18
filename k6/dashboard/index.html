@@ -328,7 +328,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
 <div class="app-shell">
 <nav class="sidebar" id="sidebar">
   <div class="sidebar-header">
-    <span class="sidebar-logo-text">Comprai · QA Hub</span>
+    <span class="sidebar-logo-text" onclick="openVerModal()" style="cursor:pointer" title="Ver versionamento">Comprai · QA Hub</span>
     <button class="sidebar-toggle sidebar-toggle-collapse" onclick="toggleSidebar()" title="Recolher sidebar">&#8249;</button>
   </div>
   <!-- Botao expandir: visivel so quando colapsado -->
@@ -1174,11 +1174,54 @@ window.addEventListener('DOMContentLoaded', function() {
       wrap.addEventListener('mouseleave', function() { box.style.opacity = '0'; });
     });
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initInfoHints);
-  else initInfoHints();
+
+  function initKpiHints() {
+    document.querySelectorAll('.kpi-card').forEach(function(card) {
+      var hint = card.querySelector('.kpi-hint');
+      if (!hint || hint._kinit) return;
+      hint._kinit = true;
+      hint.style.position = 'fixed';
+      hint.style.zIndex = '9999';
+      hint.style.width = '220px';
+      hint.style.pointerEvents = 'none';
+      hint.style.opacity = '0';
+      hint.style.transition = 'opacity .15s';
+      hint.style.background = 'var(--surface)';
+      hint.style.color = 'var(--text)';
+      hint.style.border = '1px solid var(--accent)';
+      hint.style.borderRadius = '10px';
+      hint.style.padding = '10px 14px';
+      hint.style.fontSize = '12px';
+      hint.style.lineHeight = '1.6';
+      hint.style.boxShadow = '0 8px 24px rgba(0,0,0,.5)';
+      hint.style.textAlign = 'left';
+      hint.style.transform = 'none';
+      hint.style.bottom = 'auto';
+      hint.style.left = 'auto';
+      card.addEventListener('mouseenter', function() {
+        var r = card.getBoundingClientRect();
+        var top = r.top - (hint.offsetHeight || 90) - 10;
+        if (top < 8) top = r.bottom + 8;
+        hint.style.top = top + 'px';
+        hint.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 230)) + 'px';
+        hint.style.opacity = '1';
+      });
+      card.addEventListener('mouseleave', function() { hint.style.opacity = '0'; });
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() { initInfoHints(); initKpiHints(); });
+  } else {
+    initInfoHints();
+    initKpiHints();
+  }
   var _oLoad = window.loadMutationData;
   if (typeof _oLoad === 'function') {
-    window.loadMutationData = async function() { await _oLoad(); setTimeout(initInfoHints, 200); };
+    window.loadMutationData = async function() {
+      await _oLoad();
+      setTimeout(function() { initInfoHints(); initKpiHints(); }, 200);
+    };
   }
 })();
 
