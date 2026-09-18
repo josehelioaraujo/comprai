@@ -402,16 +402,6 @@ tr:hover td { background: rgba(255,255,255,.02); }
   <!-- Botao expandir: visivel so quando colapsado -->
   <button class="sidebar-expand-btn" id="sidebarExpandBtn" onclick="toggleSidebar()" title="Expandir sidebar">&#8250;</button>
   <div class="sidebar-nav">
-    <div class="nav-label">Dashboard</div>
-    <div class="nav-item active" id="nav-detalhes" onclick="showSection('detailsBlock', this)" title="Detalhes por Tipo">
-      <span class="nav-icon">&#128269;</span><span class="nav-text">Detalhes</span>
-    </div>
-    <div class="nav-item" id="nav-resumo" onclick="showSection('resumoBlock', this)" title="Resumo de Resultados">
-      <span class="nav-icon">&#128202;</span><span class="nav-text">Resumo</span>
-    </div>
-    <div class="nav-item" id="nav-timeline" onclick="showSection('timelineBlock', this)" title="Timeline de Latencia">
-      <span class="nav-icon">&#128200;</span><span class="nav-text">Timeline</span>
-    </div>
     <div class="nav-label">Testes</div>
     <div class="nav-item" id="nav-stress" onclick="showSection('stressBlock', this)" title="Stress Test K6">
       <span class="nav-icon">&#128293;</span><span class="nav-text">Stress Test</span>
@@ -427,6 +417,15 @@ tr:hover td { background: rgba(255,255,255,.02); }
       <span class="nav-icon">&#9728;</span><span class="nav-text">SonarCloud</span>
     </div>
     <div class="nav-label">Analise K6</div>
+    <div class="nav-item active" id="nav-detalhes" onclick="showSection('detailsBlock', this)" title="Detalhes por Tipo">
+      <span class="nav-icon">&#128269;</span><span class="nav-text">Detalhes</span>
+    </div>
+    <div class="nav-item" id="nav-resumo" onclick="showSection('resumoBlock', this)" title="Resumo de Resultados">
+      <span class="nav-icon">&#128202;</span><span class="nav-text">Resumo</span>
+    </div>
+    <div class="nav-item" id="nav-timeline" onclick="showSection('timelineBlock', this)" title="Timeline de Latencia">
+      <span class="nav-icon">&#128200;</span><span class="nav-text">Timeline</span>
+    </div>
     <div class="nav-item" id="nav-graficos" onclick="showSection('chartsBlock', this)" title="Graficos de Performance">
       <span class="nav-icon">&#128201;</span><span class="nav-text">Graficos</span>
     </div>
