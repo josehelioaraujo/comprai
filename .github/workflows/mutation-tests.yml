@@ -88,11 +88,13 @@ jobs:
 
           files_out.sort(key=lambda x: x["score"])
 
-          total    = sum(f["total"]       for f in files_out)
-          killed   = sum(f["killed"]      for f in files_out)
-          survived = sum(f["survived"]    for f in files_out)
-          timeout  = sum(f["timeout"]     for f in files_out)
-          no_cov   = sum(f["no_coverage"] for f in files_out)
+          # Excluir mutantes ignorados (killed=survived=timeout=no_cov=0) igual ao Stryker
+          active   = [f for f in files_out if f["killed"]+f["survived"]+f["timeout"]+f["no_coverage"]>0]
+          total    = sum(f["total"]       for f in active)
+          killed   = sum(f["killed"]      for f in active)
+          survived = sum(f["survived"]    for f in active)
+          timeout  = sum(f["timeout"]     for f in active)
+          no_cov   = sum(f["no_coverage"] for f in active)
           score    = round(killed / total * 100, 1) if total else 0.0
 
           out = {
