@@ -416,6 +416,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
     <div class="nav-item" id="nav-sonar" onclick="showSection('sonarBlock', this)" title="SonarCloud Quality Gate">
       <span class="nav-icon">&#9728;</span><span class="nav-text">SonarCloud</span>
     </div>
+    <div class="nav-label">Seguranca</div>
     <div class="nav-item" id="nav-owasp" onclick="showSection('owaspBlock', this)" title="OWASP Top 10">
       <span class="nav-icon">&#127760;</span><span class="nav-text">OWASP Top 10</span>
     </div>
@@ -1335,7 +1336,7 @@ function renderRoutes() {
 
 function renderTabs() {
   if (!allData.length) { document.getElementById('detailsBlock').style.display='none'; return; }
-  document.getElementById('detailsBlock').style.display='';
+  // nao forcar visivel — usuario clica no menu para ver
   document.getElementById('detail-count').textContent = allData.length + ' tipos';
   document.getElementById('scenarioTabs').innerHTML = allData.map(function(d,i) {
     var t=(d.meta&&d.meta.test_type?d.meta.test_type:d._file.replace('.json','')).toUpperCase();
