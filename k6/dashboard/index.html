@@ -1257,7 +1257,15 @@ function renderRoutes() {
     }).join('');
     html+='<div class="route-group"><div class="route-group-header" onclick="toggleRouteGroup(this)">'+typeBadge(m.test_type)+'<span style="font-size:12px;color:var(--muted);margin-left:8px;">'+(m.target_url||'')+'</span><span style="margin-left:auto;font-size:11px;color:var(--accent2);background:rgba(6,182,212,.12);padding:2px 8px;border-radius:10px;">'+d.routes.length+' rotas</span><span class="route-group-chevron" style="margin-left:10px;">&#9660;</span></div><div class="route-group-content"><table style="margin-bottom:8px;"><thead><tr><th>Metodo</th><th>Rota</th><th>p50 (ms)</th><th>p95 (ms)</th><th>Total</th><th>Erro %</th></tr></thead><tbody>'+tableRows+'</tbody></table></div></div>';
   });
-  if (!hasAny) return;
+  if (!hasAny) {
+    document.getElementById('routesContent').innerHTML =
+      '<div style="text-align:center;padding:40px;color:var(--muted)">' +
+      '<div style="font-size:2rem;margin-bottom:8px">&#127760;</div>' +
+      '<div>Nenhuma rota registrada nos resultados atuais.</div>' +
+      '<div style="font-size:0.8rem;margin-top:6px">Execute um stress test para ver o breakdown por rota.</div>' +
+      '</div>';
+    return;
+  }
   document.getElementById('routes-count').textContent = totalRoutes + ' rotas';
   document.getElementById('routesContent').innerHTML = html;
 }
@@ -1632,6 +1640,7 @@ window.addEventListener('DOMContentLoaded', function() {
   window.showSection = function(id, el) {
     if (typeof _origShowSectionSonar === 'function') _origShowSectionSonar(id, el);
     if (id === 'sonarBlock') loadSonarData();
+    if (id === 'routesBlock') renderRoutes();
   };
 
 </script>
