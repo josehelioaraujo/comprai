@@ -1,8 +1,10 @@
 using Microsoft.Extensions.Http.Resilience;
 using Polly;
+using System.Diagnostics.CodeAnalysis;
 
 namespace UcpAgent.Api.Resilience;
 
+[ExcludeFromCodeCoverage]
 public static class ResilienceExtensions
 {
     public static IHttpClientBuilder AddCatalogResilience(

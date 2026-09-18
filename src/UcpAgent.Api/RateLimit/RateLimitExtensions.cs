@@ -2,9 +2,11 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Logging;
 using System.Globalization;
 using System.Threading.RateLimiting;
+using System.Diagnostics.CodeAnalysis;
 
 namespace UcpAgent.Api.RateLimit;
 
+[ExcludeFromCodeCoverage]
 public static class RateLimitExtensions
 {
     public const string CatalogPolicy = "catalog";
