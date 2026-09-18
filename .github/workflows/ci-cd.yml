@@ -298,30 +298,26 @@ jobs:
         run: dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
 
 
-      - name: Publicar métricas SonarCloud na VPS
+      - name: Publicar metricas SonarCloud na VPS
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           VPS_SSH_KEY: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          RUN_NUMBER: ${{ github.run_number }}
+          RUN_SHA: ${{ github.sha }}
         run: |
-          # Consultar API SonarCloud
           METRICS="alert_status,bugs,vulnerabilities,code_smells,coverage,duplicated_lines_density,security_rating,reliability_rating,sqale_rating,ncloc"
-          SONAR_JSON=$(curl -s -u "$SONAR_TOKEN:" \
-            "https://sonarcloud.io/api/measures/component?component=josehelioaraujo_comprai&metricKeys=$METRICS")
+          SHORT_SHA="${RUN_SHA:0:7}"
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-          # Adicionar run number e timestamp
-          SONAR_JSON=$(echo "$SONAR_JSON" | python3 -c "
-import json, sys, datetime
-d = json.load(sys.stdin)
-d['run'] = ${{ github.run_number }}
-d['sha'] = '${{ github.sha }}'[:7]
-d['timestamp'] = datetime.datetime.utcnow().isoformat() + 'Z'
-print(json.dumps(d))
-")
+          curl -s -u "$SONAR_TOKEN:" \
+            "https://sonarcloud.io/api/measures/component?component=josehelioaraujo_comprai&metricKeys=$METRICS" \
+            -o sonar-raw.json
 
-          # Salvar JSON localmente
-          echo "$SONAR_JSON" > sonar-metrics.json
+          # Injetar run, sha e timestamp via jq
+          jq --argjson run "$RUN_NUMBER" --arg sha "$SHORT_SHA" --arg ts "$TIMESTAMP" \
+            '. + {run: $run, sha: $sha, timestamp: $ts}' sonar-raw.json > sonar-metrics.json
 
-          # Copiar para VPS via SSH
+          # Copiar para VPS
           mkdir -p ~/.ssh
           echo "$VPS_SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
@@ -330,7 +326,7 @@ print(json.dumps(d))
             "mkdir -p /var/www/html/k6/results/sonar"
           scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
             sonar-metrics.json root@2.25.122.11:/var/www/html/k6/results/sonar/latest.json
-          echo "SonarCloud metrics publicados na VPS"
+          echo "SonarCloud metrics publicados"
 
   # ── 4. DEPLOY VPS ───────────────────────────────────────────────────────────
   deploy:
