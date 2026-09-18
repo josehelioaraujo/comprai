@@ -307,6 +307,60 @@ tr:hover td { background: rgba(255,255,255,.02); }
 </head>
 <body>
 
+<!-- About modal -->
+<div class="ver-modal-overlay" id="aboutModal" onclick="closeAboutModal(event)">
+  <div class="ver-modal" style="max-width:380px">
+    <div class="ver-modal-title">
+      <span>&#129522; Comprai &middot; QA Hub</span>
+      <button class="ver-modal-close" onclick="closeAboutModalDirect()">&#10005;</button>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6">
+      Painel centralizado de qualidade para o agente de e-commerce <strong style="color:var(--text)">Comprai</strong> —
+      baseado no Universal Commerce Protocol (UCP) da Google.
+    </p>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px">Funcionalidades</div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+      <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px">
+        <span style="color:var(--accent2);flex-shrink:0">&#128293;</span>
+        <span><strong style="color:var(--text)">Stress Tests K6</strong> — smoke, load, stress, spike e soak com resultados em tempo real</span>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px">
+        <span style="color:var(--accent2);flex-shrink:0">&#129522;</span>
+        <span><strong style="color:var(--text)">Mutation Tests</strong> — Stryker.NET analisa a eficacia dos testes unitarios</span>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px">
+        <span style="color:var(--accent2);flex-shrink:0">&#128200;</span>
+        <span><strong style="color:var(--text)">Timeline & Graficos</strong> — evolucao de latencia, throughput e taxa de erro</span>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px">
+        <span style="color:var(--accent2);flex-shrink:0">&#127760;</span>
+        <span><strong style="color:var(--text)">Rotas</strong> — p50/p95 e taxa de erro por endpoint chamado</span>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px">
+        <span style="color:var(--accent2);flex-shrink:0">&#128295;</span>
+        <span><strong style="color:var(--text)">Pipeline</strong> — disparo e acompanhamento de testes via GitHub Actions</span>
+      </div>
+    </div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px">Stack</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">
+      <span style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:11px;color:var(--muted)">.NET 10</span>
+      <span style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:11px;color:var(--muted)">K6</span>
+      <span style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:11px;color:var(--muted)">Stryker.NET</span>
+      <span style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:11px;color:var(--muted)">SonarCloud</span>
+      <span style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:11px;color:var(--muted)">Datadog APM</span>
+      <span style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:11px;color:var(--muted)">GitHub Actions</span>
+      <span style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:11px;color:var(--muted)">Redis</span>
+      <span style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:11px;color:var(--muted)">Ollama</span>
+      <span style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:11px;color:var(--muted)">UCP</span>
+    </div>
+    <div style="border-top:1px solid var(--border);padding-top:10px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:11px;color:var(--muted)" id="about-run-info">—</span>
+      <a href="https://github.com/josehelioaraujo/comprai" target="_blank"
+         style="font-size:11px;color:var(--accent2);text-decoration:none">GitHub &#8599;</a>
+    </div>
+  </div>
+</div>
+
 <!-- Version modal -->
 <div class="ver-modal-overlay" id="verModal" onclick="closeVerModal(event)">
   <div class="ver-modal">
@@ -328,7 +382,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
 <div class="app-shell">
 <nav class="sidebar" id="sidebar">
   <div class="sidebar-header">
-    <span class="sidebar-logo-text" onclick="openVerModal()" style="cursor:pointer" title="Ver versionamento">Comprai · QA Hub</span>
+    <span class="sidebar-logo-text" onclick="openAboutModal()" style="cursor:pointer" title="Sobre o Comprai QA Hub">Comprai · QA Hub</span>
     <button class="sidebar-toggle sidebar-toggle-collapse" onclick="toggleSidebar()" title="Recolher sidebar">&#8249;</button>
   </div>
   <!-- Botao expandir: visivel so quando colapsado -->
@@ -1133,6 +1187,24 @@ function toggleJobSteps(titleEl) {
   if (chevron) chevron.style.transform=isCollapsed?'rotate(90deg)':'rotate(0deg)';
 }
 
+
+// ── About modal ──────────────────────────────────────────────
+function openAboutModal() {
+  var runInfo = document.getElementById('about-run-info');
+  if (runInfo) {
+    var parts = [];
+    if (verInfo.run) parts.push('Run #' + verInfo.run);
+    if (verInfo.sha) parts.push('SHA ' + verInfo.sha);
+    runInfo.textContent = parts.length ? parts.join(' · ') : '—';
+  }
+  document.getElementById('aboutModal').classList.add('open');
+}
+function closeAboutModal(e) {
+  if (e.target === document.getElementById('aboutModal')) closeAboutModalDirect();
+}
+function closeAboutModalDirect() {
+  document.getElementById('aboutModal').classList.remove('open');
+}
 window.addEventListener('DOMContentLoaded', function() {
   loadGhConfig();
   loadAll();
