@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Comprai · QA Hub</title>
+<title>QA Hub</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 :root {
@@ -396,7 +396,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
 <div class="app-shell">
 <nav class="sidebar" id="sidebar">
   <div class="sidebar-header">
-    <span class="sidebar-logo-text" onclick="openAboutModal()" style="cursor:pointer" title="Sobre o Comprai QA Hub">Comprai · QA Hub</span>
+    <span class="sidebar-logo-text" onclick="openAboutModal()" style="cursor:pointer" title="Sobre o QA Hub">QA Hub</span>
     <button class="sidebar-toggle sidebar-toggle-collapse" onclick="toggleSidebar()" title="Recolher sidebar">&#8249;</button>
   </div>
   <!-- Botao expandir: visivel so quando colapsado -->
@@ -423,7 +423,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       <span class="nav-icon">&#128179;</span><span class="nav-text">PCI DSS</span>
     </div>
     <div class="nav-label">Analise K6</div>
-    <div class="nav-item active" id="nav-detalhes" onclick="showSection('detailsBlock', this)" title="Detalhes por Tipo">
+    <div class="nav-item" id="nav-detalhes" onclick="showSection('detailsBlock', this)" title="Detalhes por Tipo">
       <span class="nav-icon">&#128269;</span><span class="nav-text">Detalhes</span>
     </div>
     <div class="nav-item" id="nav-resumo" onclick="showSection('resumoBlock', this)" title="Resumo de Resultados">
@@ -465,10 +465,15 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
   <div class="page-content">
     <div id="loadingMsg" class="loading">&#9203; Carregando resultados dos testes...</div>
-    <div id="dashContent" style="display:none">
+    <div id="welcomeState" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;color:var(--muted);text-align:center;padding:40px">
+  <div style="font-size:3rem;margin-bottom:16px">&#128202;</div>
+  <div style="font-size:1.2rem;font-weight:600;color:var(--text);margin-bottom:8px">QA Hub</div>
+  <div style="font-size:0.9rem;max-width:340px;line-height:1.7">Selecione uma opcao no menu lateral para visualizar os dados de qualidade e seguranca.</div>
+</div>
+<div id="dashContent" style="display:none">
 
       <!-- FIXO: Detalhes por Tipo -->
-      <div class="section-block" id="detailsBlock">
+      <div class="section-block" id="detailsBlock" style="display:none">
         <div class="section-header" onclick="toggleSection(this)">
           <span class="section-title-text">&#128293; Stress Test &#8212; Tipos de Teste</span>
           <span class="section-count" id="detail-count"></span>
@@ -939,6 +944,12 @@ function showSection(id, navEl) {
     return;
   }
 
+  // esconde welcome state e mostra dashContent na primeira interacao
+  var ws = document.getElementById('welcomeState');
+  if (ws) ws.style.display = 'none';
+  var dc = document.getElementById('dashContent');
+  if (dc) dc.style.display = '';
+
   // esconde todas as secoes extras
   NAV_SECTIONS.forEach(function(sid) {
     var el = document.getElementById(sid);
@@ -1217,7 +1228,7 @@ async function loadAll(silent) {
 
 function render() {
   document.getElementById('loadingMsg').style.display = 'none';
-  document.getElementById('dashContent').style.display = '';
+  // dashContent só aparece quando usuario clica no menu — welcomeState fica visível
   var total = allData.length;
   document.getElementById('hdr-count').textContent = total + ' teste' + (total !== 1 ? 's' : '') + ' carregado' + (total !== 1 ? 's' : '');
   document.getElementById('hdr-updated').textContent = 'Atualizado: ' + new Date().toLocaleString('pt-BR');
