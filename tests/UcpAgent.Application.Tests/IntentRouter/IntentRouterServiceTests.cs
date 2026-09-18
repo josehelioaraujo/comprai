@@ -178,4 +178,80 @@ public sealed class IntentRouterServiceTests
         var result = _sut.Detect(input);
         result.RawInput.Should().Be(input);
     }
+
+    // ── Mutantes linha 51: input null ?? string.Empty ────────────────────────
+
+    [Fact]
+    public void Detect_InputNull_RawInputEhStringVazia()
+    {
+        var result = _sut.Detect(null!);
+        result.Intent.Should().Be(IntentType.Unknown);
+        result.RawInput.Should().Be(string.Empty);
+    }
+
+    [Fact]
+    public void Detect_InputNull_RawInputNaoEhPlaceholder()
+    {
+        var result = _sut.Detect(null!);
+        result.RawInput.Should().NotBe("Stryker was here!");
+        result.RawInput.Should().Be(string.Empty);
+    }
+
+    // ── Mutante linha 73: WordCount <= 5 vs < 5 ──────────────────────────────
+
+    [Theory]
+    [InlineData("notebook gamer barato bom rapido")]
+    [InlineData("tenis running confortavel leve duravel")]
+    public void Detect_FraseComExatamenteCincoPalavras_RetornaSearch(string input)
+    {
+        var result = _sut.Detect(input);
+        result.Intent.Should().Be(IntentType.SearchProducts);
+    }
+
+    [Fact]
+    public void Detect_FraseComSeisPalavrasSemIntencao_RetornaUnknown()
+    {
+        var result = _sut.Detect("essa frase tem seis palavras aqui");
+        result.Intent.Should().Be(IntentType.Unknown);
+    }
+
+    // ── Mutantes linha 83-84: CleanQuery espaco nao vazio ────────────────────
+
+    [Fact]
+    public void Detect_CleanQuery_ContemTermoPrincipalAposRemocaoStopword()
+    {
+        var result = _sut.Detect("quero notebook gamer");
+        result.Intent.Should().Be(IntentType.SearchProducts);
+        result.ExtractedQuery.Should().Contain("notebook");
+        result.ExtractedQuery.Should().NotContain("quero");
+    }
+
+    [Fact]
+    public void Detect_CleanQuery_NaoContemEspacoDuplo()
+    {
+        var result = _sut.Detect("buscar ver notebook");
+        result.Intent.Should().Be(IntentType.SearchProducts);
+        result.ExtractedQuery.Should().Contain("notebook");
+        result.ExtractedQuery.Should().NotContain("  ");
+    }
+
+    // ── Mutantes linha 90: ExtractProductId ──────────────────────────────────
+
+    [Fact]
+    public void Detect_RemoveComProductId_ExtraiIdCorreto()
+    {
+        var result = _sut.Detect("remover ABC123 do carrinho");
+        result.Intent.Should().Be(IntentType.RemoveFromCart);
+        result.ProductId.Should().Be("ABC123");
+        result.ProductId.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void Detect_RemoveSemProductId_ProductIdNulo()
+    {
+        var result = _sut.Detect("remover item do carrinho");
+        result.Intent.Should().Be(IntentType.RemoveFromCart);
+        result.ProductId.Should().BeNull();
+    }
+
 }
