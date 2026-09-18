@@ -1538,7 +1538,8 @@ window.addEventListener('DOMContentLoaded', function() {
       // Ratings
       function setRating(elId, val) {
         var el = document.getElementById(elId);
-        var label = RATING_LABELS[val] || val || '—';
+        var key = val ? String(Math.round(parseFloat(val))) : '';
+        var label = RATING_LABELS[key] || key || '—';
         el.textContent = label;
         el.style.color = RATING_COLORS[label] || 'var(--text)';
       }
