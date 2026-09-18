@@ -297,6 +297,41 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
 
+
+      - name: Publicar métricas SonarCloud na VPS
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          VPS_SSH_KEY: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+        run: |
+          # Consultar API SonarCloud
+          METRICS="alert_status,bugs,vulnerabilities,code_smells,coverage,duplicated_lines_density,security_rating,reliability_rating,sqale_rating,ncloc"
+          SONAR_JSON=$(curl -s -u "$SONAR_TOKEN:" \
+            "https://sonarcloud.io/api/measures/component?component=josehelioaraujo_comprai&metricKeys=$METRICS")
+
+          # Adicionar run number e timestamp
+          SONAR_JSON=$(echo "$SONAR_JSON" | python3 -c "
+import json, sys, datetime
+d = json.load(sys.stdin)
+d['run'] = ${{ github.run_number }}
+d['sha'] = '${{ github.sha }}'[:7]
+d['timestamp'] = datetime.datetime.utcnow().isoformat() + 'Z'
+print(json.dumps(d))
+")
+
+          # Salvar JSON localmente
+          echo "$SONAR_JSON" > sonar-metrics.json
+
+          # Copiar para VPS via SSH
+          mkdir -p ~/.ssh
+          echo "$VPS_SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H 2.25.122.11 >> ~/.ssh/known_hosts 2>/dev/null
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no root@2.25.122.11 \
+            "mkdir -p /var/www/html/k6/results/sonar"
+          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
+            sonar-metrics.json root@2.25.122.11:/var/www/html/k6/results/sonar/latest.json
+          echo "SonarCloud metrics publicados na VPS"
+
   # ── 4. DEPLOY VPS ───────────────────────────────────────────────────────────
   deploy:
     name: 🚀 Deploy VPS Hostinger

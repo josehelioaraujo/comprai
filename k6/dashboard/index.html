@@ -423,6 +423,9 @@ tr:hover td { background: rgba(255,255,255,.02); }
       <span class="nav-icon">&#129522;</span><span class="nav-text">Mutacao</span>
     </div>
     <div class="nav-label">Analise K6</div>
+    <div class="nav-item" id="nav-sonar" onclick="showSection('sonarBlock', this)" title="SonarCloud Quality Gate">
+      <span class="nav-icon">&#9728;</span><span class="nav-text">SonarCloud</span>
+    </div>
     <div class="nav-item" id="nav-config" onclick="showSection('configBlock', this)" title="Configuracao dos Testes">
       <span class="nav-icon">&#9881;</span><span class="nav-text">Configuracao</span>
     </div>
@@ -739,6 +742,88 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
     </div>
 
+    <div class="section-block" id="sonarBlock" style="display:none">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title-text">&#9728; SonarCloud · Quality Gate
+          <span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative">
+            <span class="info-hint-btn">i</span>
+            <span class="info-hint-box" style="position:fixed;width:260px;z-index:9999">Metricas de qualidade de codigo coletadas pelo SonarCloud a cada execucao do CI/CD. Coverage = cobertura de linhas pelos testes. Code Smells = problemas de manutencao. Bugs = erros detectados por analise estatica.</span>
+          </span>
+        </span>
+        <span class="section-toggle">&#9660;</span>
+      </div>
+      <div class="section-content">
+
+        <!-- Quality Gate badge -->
+        <div id="sonar-gate-area" style="display:none;padding:16px 16px 4px;display:none">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <span id="sonar-gate-badge" style="padding:6px 20px;border-radius:20px;font-weight:700;font-size:1rem;letter-spacing:.02em"></span>
+            <span id="sonar-run" style="color:var(--muted);font-size:0.82rem"></span>
+            <span id="sonar-timestamp" style="color:var(--muted);font-size:0.82rem"></span>
+          </div>
+        </div>
+
+        <!-- KPI cards -->
+        <div class="kpi-grid" id="sonar-kpi-row" style="display:none;padding:12px 16px 8px">
+          <div class="kpi-card">
+            <div class="kpi-hint">Porcentagem de linhas de codigo cobertas pelos testes unitarios. Meta: 90%+.</div>
+            <div class="kpi-label">Coverage</div>
+            <div class="kpi-value" id="sonar-coverage">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-hint">Problemas de manutencao detectados — codigo confuso, duplicado ou dificil de entender. Zero e o ideal.</div>
+            <div class="kpi-label">Code Smells</div>
+            <div class="kpi-value" id="sonar-smells">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-hint">Erros detectados por analise estatica que podem causar falhas em producao.</div>
+            <div class="kpi-label">Bugs</div>
+            <div class="kpi-value" id="sonar-bugs">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-hint">Vulnerabilidades de seguranca detectadas no codigo-fonte.</div>
+            <div class="kpi-label">Vulnerabilidades</div>
+            <div class="kpi-value" id="sonar-vuln">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-hint">Percentual de codigo duplicado. Meta: abaixo de 3%.</div>
+            <div class="kpi-label">Duplicacoes</div>
+            <div class="kpi-value" id="sonar-dupl">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-hint">Total de linhas de codigo analisadas (excluindo comentarios e linhas em branco).</div>
+            <div class="kpi-label">Linhas (ncloc)</div>
+            <div class="kpi-value" id="sonar-ncloc">--</div>
+          </div>
+        </div>
+
+        <!-- Ratings row -->
+        <div id="sonar-ratings-area" style="display:none;padding:0 16px 16px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px">Ratings</div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap">
+            <div style="border:1px solid var(--border);border-radius:10px;padding:10px 18px;text-align:center;min-width:90px">
+              <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Security</div>
+              <div id="sonar-sec-rating" style="font-size:1.6rem;font-weight:700">—</div>
+            </div>
+            <div style="border:1px solid var(--border);border-radius:10px;padding:10px 18px;text-align:center;min-width:90px">
+              <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Reliability</div>
+              <div id="sonar-rel-rating" style="font-size:1.6rem;font-weight:700">—</div>
+            </div>
+            <div style="border:1px solid var(--border);border-radius:10px;padding:10px 18px;text-align:center;min-width:90px">
+              <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Maintainability</div>
+              <div id="sonar-maint-rating" style="font-size:1.6rem;font-weight:700">—</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty/erro state -->
+        <div id="sonar-empty" style="text-align:center;padding:40px;color:var(--muted)">
+          <div style="font-size:2rem;margin-bottom:8px">&#9728;</div>
+          <div>Carregando dados do SonarCloud...</div>
+        </div>
+      </div>
+    </div>
+
 <script>
 const API_BASE = 'https://comprai.2.25.122.11.nip.io';
 let allData = [];
@@ -751,7 +836,7 @@ let runReloadPending = false;
 let verInfo = {};
 
 // IDs das secoes navegaveis (exceto detalhes que e fixo)
-const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','mutacaoBlock'];
+const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','mutacaoBlock','sonarBlock'];
 let activeSection = null; // null = nenhuma extra visivel
 
 const TYPE_ORDER = ['smoke','load','stress','spike','soak'];
@@ -1389,6 +1474,97 @@ window.addEventListener('DOMContentLoaded', function() {
     if (typeof _origShowSection === 'function') _origShowSection(id, el);
     if (id === 'mutacaoBlock') loadMutationData();
   };
+
+  // ===== SONARCLOUD =====
+  var RATING_LABELS = { '1': 'A', '2': 'B', '3': 'C', '4': 'D', '5': 'E' };
+  var RATING_COLORS = { 'A': '#22c55e', 'B': '#84cc16', 'C': '#f59e0b', 'D': '#f97316', 'E': '#ef4444' };
+
+  async function loadSonarData() {
+    var empty = document.getElementById('sonar-empty');
+    try {
+      var res = await fetch('/k6/results/sonar/latest.json?t=' + Date.now());
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var d = await res.json();
+
+      // Extrair measures
+      var measures = {};
+      var comp = d.component || {};
+      var mList = comp.measures || [];
+      mList.forEach(function(m) { measures[m.metric] = m.value; });
+
+      // Quality Gate
+      var gate = measures['alert_status'] || 'UNKNOWN';
+      var gateOk = gate === 'OK' || gate === 'PASSED';
+      var gateBadge = document.getElementById('sonar-gate-badge');
+      gateBadge.textContent = gateOk ? '✓ Passed' : (gate === 'ERROR' ? '✕ Failed' : gate);
+      gateBadge.style.background = (gateOk ? '#22c55e' : '#ef4444') + '22';
+      gateBadge.style.color = gateOk ? '#22c55e' : '#ef4444';
+      gateBadge.style.border = '1px solid ' + (gateOk ? '#22c55e' : '#ef4444');
+
+      // Run / timestamp
+      if (d.run) document.getElementById('sonar-run').textContent = 'Run #' + d.run;
+      if (d.timestamp) document.getElementById('sonar-timestamp').textContent = 'Atualizado: ' + new Date(d.timestamp).toLocaleString('pt-BR');
+
+      // KPIs
+      var cov = measures['coverage'];
+      var covVal = cov ? parseFloat(cov).toFixed(1) + '%' : '--';
+      var covEl = document.getElementById('sonar-coverage');
+      covEl.textContent = covVal;
+      covEl.style.color = cov && parseFloat(cov) >= 90 ? '#22c55e' : cov && parseFloat(cov) >= 70 ? '#f59e0b' : '#ef4444';
+
+      var smells = measures['code_smells'] || '--';
+      var smellsEl = document.getElementById('sonar-smells');
+      smellsEl.textContent = smells;
+      smellsEl.style.color = smells === '0' ? '#22c55e' : smells !== '--' && parseInt(smells) <= 5 ? '#f59e0b' : '#ef4444';
+
+      var bugs = measures['bugs'] || '0';
+      var bugsEl = document.getElementById('sonar-bugs');
+      bugsEl.textContent = bugs;
+      bugsEl.style.color = bugs === '0' ? '#22c55e' : '#ef4444';
+
+      var vuln = measures['vulnerabilities'] || '0';
+      var vulnEl = document.getElementById('sonar-vuln');
+      vulnEl.textContent = vuln;
+      vulnEl.style.color = vuln === '0' ? '#22c55e' : '#ef4444';
+
+      var dupl = measures['duplicated_lines_density'];
+      var duplVal = dupl ? parseFloat(dupl).toFixed(1) + '%' : '--';
+      var duplEl = document.getElementById('sonar-dupl');
+      duplEl.textContent = duplVal;
+      duplEl.style.color = dupl && parseFloat(dupl) < 3 ? '#22c55e' : '#f59e0b';
+
+      document.getElementById('sonar-ncloc').textContent = measures['ncloc'] ? parseInt(measures['ncloc']).toLocaleString('pt-BR') : '--';
+
+      // Ratings
+      function setRating(elId, val) {
+        var el = document.getElementById(elId);
+        var label = RATING_LABELS[val] || val || '—';
+        el.textContent = label;
+        el.style.color = RATING_COLORS[label] || 'var(--text)';
+      }
+      setRating('sonar-sec-rating',  measures['security_rating']);
+      setRating('sonar-rel-rating',  measures['reliability_rating']);
+      setRating('sonar-maint-rating', measures['sqale_rating']);
+
+      // Mostrar áreas
+      document.getElementById('sonar-gate-area').style.display  = '';
+      document.getElementById('sonar-kpi-row').style.display    = '';
+      document.getElementById('sonar-ratings-area').style.display = '';
+      if (empty) empty.style.display = 'none';
+    } catch(e) {
+      if (empty) empty.innerHTML =
+        '<div style="font-size:2rem">&#9728;</div>' +
+        '<div style="color:var(--danger)">Erro ao carregar dados: ' + e.message + '</div>' +
+        '<div style="color:var(--muted);font-size:0.8rem;margin-top:4px">Execute o CI/CD para gerar os dados do SonarCloud.</div>';
+    }
+  }
+
+  var _origShowSectionSonar = window.showSection;
+  window.showSection = function(id, el) {
+    if (typeof _origShowSectionSonar === 'function') _origShowSectionSonar(id, el);
+    if (id === 'sonarBlock') loadSonarData();
+  };
+
 </script>
 
     </div>
