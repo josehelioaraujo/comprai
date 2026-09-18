@@ -33,8 +33,7 @@ jobs:
           dotnet-version: "10.0.x"
 
       - name: Restaurar dependencias
-        run: dotnet restore comprai.sln
-
+        run: dotnet restore tests/UcpAgent.Tests/UcpAgent.Tests.csproj
 
       - name: Instalar dotnet-stryker
         run: dotnet tool install -g dotnet-stryker
@@ -42,12 +41,12 @@ jobs:
       - name: Executar Stryker.NET
         id: stryker
         continue-on-error: true
+        working-directory: tests/UcpAgent.Tests
         run: |
           dotnet stryker \
-            --config-file stryker-config.json \
+            --config-file ../../stryker-config.json \
             --project "UcpAgent.Application/UcpAgent.Application.csproj" \
-            --test-project "tests/UcpAgent.Tests/UcpAgent.Tests.csproj" \
-            --output StrykerOutput \
+            --output ../../StrykerOutput \
             --reporter json \
             --reporter progress \
             --break-at ${{ github.event.inputs.break_threshold || '0' }}
@@ -77,12 +76,12 @@ jobs:
           files_out = []
           for path, data in report.get("files", {}).items():
               mutants = data.get("mutants", [])
-              total      = len(mutants)
-              killed     = sum(1 for m in mutants if m.get("status") == "Killed")
-              survived   = sum(1 for m in mutants if m.get("status") == "Survived")
-              timeout    = sum(1 for m in mutants if m.get("status") == "Timeout")
-              no_cov     = sum(1 for m in mutants if m.get("status") == "NoCoverage")
-              score      = round(killed / total * 100, 1) if total else 0.0
+              total    = len(mutants)
+              killed   = sum(1 for m in mutants if m.get("status") == "Killed")
+              survived = sum(1 for m in mutants if m.get("status") == "Survived")
+              timeout  = sum(1 for m in mutants if m.get("status") == "Timeout")
+              no_cov   = sum(1 for m in mutants if m.get("status") == "NoCoverage")
+              score    = round(killed / total * 100, 1) if total else 0.0
               files_out.append({"file": path, "total": total, "killed": killed,
                                 "survived": survived, "timeout": timeout,
                                 "no_coverage": no_cov, "score": score, "status": status(score)})
