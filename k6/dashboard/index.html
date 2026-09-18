@@ -416,8 +416,11 @@ tr:hover td { background: rgba(255,255,255,.02); }
     <div class="nav-item" id="nav-sonar" onclick="showSection('sonarBlock', this)" title="SonarCloud Quality Gate">
       <span class="nav-icon">&#9728;</span><span class="nav-text">SonarCloud</span>
     </div>
-    <div class="nav-item" id="nav-security" onclick="showSection('securityBlock', this)" title="Seguranca OWASP e PCI DSS">
-      <span class="nav-icon">&#128274;</span><span class="nav-text">Seguranca</span>
+    <div class="nav-item" id="nav-owasp" onclick="showSection('owaspBlock', this)" title="OWASP Top 10">
+      <span class="nav-icon">&#127760;</span><span class="nav-text">OWASP Top 10</span>
+    </div>
+    <div class="nav-item" id="nav-pci" onclick="showSection('pciBlock', this)" title="PCI DSS">
+      <span class="nav-icon">&#128179;</span><span class="nav-text">PCI DSS</span>
     </div>
     <div class="nav-label">Analise K6</div>
     <div class="nav-item active" id="nav-detalhes" onclick="showSection('detailsBlock', this)" title="Detalhes por Tipo">
@@ -851,60 +854,39 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
     </div>
 
-    <div class="section-block" id="securityBlock" style="display:none">
+    <div class="section-block" id="owaspBlock" style="display:none">
       <div class="section-header" onclick="toggleSection(this)">
-        <span class="section-title-text">&#128274; Seguranca — OWASP &amp; PCI DSS
+        <span class="section-title-text">&#127760; OWASP Top 10 — 2021
           <span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative">
             <span class="info-hint-btn">i</span>
-            <span class="info-hint-box" style="position:fixed;width:280px;z-index:9999">Checklist de seguranca baseado nos padroes OWASP Top 10 (vulnerabilidades web mais criticas) e PCI DSS (obrigatorio para aplicacoes que processam pagamentos com cartao). Status baseado na implementacao atual do Comprai.</span>
+            <span class="info-hint-box" style="position:fixed;width:280px;z-index:9999">Lista das 10 vulnerabilidades mais criticas em aplicacoes web, publicada pela Open Web Application Security Project. E o padrao de referencia global para desenvolvimento seguro. Cada item representa uma categoria de risco com exemplos, impacto e como mitigar.</span>
           </span>
         </span>
-        <span class="section-toggle">&#9660;</span>
+        <span class="section-count" id="owasp-score"></span>
+        <span class="section-chevron">&#9660;</span>
       </div>
       <div class="section-content">
-        <div style="padding:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start">
-
-          <!-- Badge OWASP -->
-          <div style="position:relative;display:inline-block">
-            <div class="sec-badge" id="owasp-badge" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:20px;border:1px solid #f59e0b;background:rgba(245,158,11,.1);cursor:default">
-              <span style="font-size:1.1rem">&#127760;</span>
-              <span style="font-weight:700;color:#f59e0b;font-size:0.9rem">OWASP Top 10</span>
-              <span id="owasp-score" style="font-size:0.8rem;color:var(--muted)"></span>
-            </div>
-            <div class="sec-popover" style="display:none;position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;width:300px;font-size:12px;line-height:1.6;box-shadow:0 8px 24px rgba(0,0,0,.4)">
-              <div style="font-weight:700;color:var(--text);margin-bottom:6px">&#127760; O que e OWASP Top 10?</div>
-              <div style="color:var(--muted)">Lista das 10 vulnerabilidades mais criticas em aplicacoes web, publicada pela Open Web Application Security Project. E o padrao de referencia global para desenvolvimento seguro. Cada item representa uma categoria de risco com exemplos, impacto e como mitigar.</div>
-              <div style="margin-top:8px;color:var(--muted)"><span style="color:#22c55e">&#10003;</span> Mitigado &nbsp;<span style="color:#f59e0b">&#9888;</span> Parcial &nbsp;<span style="color:#ef4444">&#10005;</span> Pendente</div>
-            </div>
-          </div>
-
-          <!-- Badge PCI DSS -->
-          <div style="position:relative;display:inline-block">
-            <div class="sec-badge" id="pci-badge" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:20px;border:1px solid #a78bfa;background:rgba(167,139,250,.1);cursor:default">
-              <span style="font-size:1.1rem">&#128179;</span>
-              <span style="font-weight:700;color:#a78bfa;font-size:0.9rem">PCI DSS</span>
-              <span id="pci-score" style="font-size:0.8rem;color:var(--muted)"></span>
-            </div>
-            <div class="sec-popover" style="display:none;position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;width:300px;font-size:12px;line-height:1.6;box-shadow:0 8px 24px rgba(0,0,0,.4)">
-              <div style="font-weight:700;color:var(--text);margin-bottom:6px">&#128179; O que e PCI DSS?</div>
-              <div style="color:var(--muted)">Payment Card Industry Data Security Standard — padrao obrigatorio para toda aplicacao que processa, armazena ou transmite dados de cartao de credito/debito. Criado pelas bandeiras Visa, Mastercard, Amex, Discover e JCB. Nao conformidade pode resultar em multas e perda da capacidade de processar pagamentos.</div>
-              <div style="margin-top:8px;color:var(--muted)"><span style="color:#22c55e">&#10003;</span> Conforme &nbsp;<span style="color:#f59e0b">&#9888;</span> Parcial &nbsp;<span style="color:#ef4444">&#10005;</span> Pendente</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- OWASP Top 10 Checklist -->
-        <div style="margin:0 16px 16px">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">OWASP Top 10 — 2021</div>
+        <div style="padding:12px 16px 16px">
           <div id="owasp-list"></div>
         </div>
+      </div>
+    </div>
 
-        <!-- PCI DSS Checklist -->
-        <div style="margin:0 16px 24px">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">PCI DSS v4.0 — Controles Relevantes</div>
+    <div class="section-block" id="pciBlock" style="display:none">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title-text">&#128179; PCI DSS v4.0 — Controles Relevantes
+          <span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative">
+            <span class="info-hint-btn">i</span>
+            <span class="info-hint-box" style="position:fixed;width:280px;z-index:9999">Payment Card Industry Data Security Standard — padrao obrigatorio para toda aplicacao que processa, armazena ou transmite dados de cartao. Criado pelas bandeiras Visa, Mastercard, Amex, Discover e JCB. Nao conformidade pode resultar em multas e perda da capacidade de processar pagamentos.</span>
+          </span>
+        </span>
+        <span class="section-count" id="pci-score"></span>
+        <span class="section-chevron">&#9660;</span>
+      </div>
+      <div class="section-content">
+        <div style="padding:12px 16px 16px">
           <div id="pci-list"></div>
         </div>
-
       </div>
     </div>
 
@@ -920,7 +902,7 @@ let runReloadPending = false;
 let verInfo = {};
 
 // IDs das secoes navegaveis (exceto detalhes que e fixo)
-const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','mutacaoBlock','sonarBlock','securityBlock'];
+const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','mutacaoBlock','sonarBlock','owaspBlock','pciBlock'];
 let activeSection = null; // null = nenhuma extra visivel
 
 const TYPE_ORDER = ['smoke','load','stress','spike','soak'];
@@ -1220,6 +1202,16 @@ async function loadAll(silent) {
   } catch(e) {
     document.getElementById('loadingMsg').textContent = '❌ Erro: ' + e.message;
     document.getElementById('loadingMsg').style.display = '';
+  }
+  // Fallback: popular verInfo com sonar/latest.json se K6 nao carregou
+  if (!verInfo.run) {
+    try {
+      var sr = await fetch(API_BASE + '/k6/results/sonar/latest.json?t=' + Date.now());
+      if (sr.ok) {
+        var sd = await sr.json();
+        if (sd.run) verInfo = { run: sd.run, sha: sd.sha, timestamp: sd.timestamp, source: 'sonar' };
+      }
+    } catch(e2) {}
   }
 }
 
@@ -1801,7 +1793,8 @@ window.addEventListener('DOMContentLoaded', function() {
     var _origSS = window.showSection;
     window.showSection = function(id, el) {
       if (typeof _origSS === 'function') _origSS(id, el);
-      if (id === 'securityBlock') { renderSecurity(); setTimeout(initSecPopovers, 100); }
+      if (id === 'owaspBlock') { buildSecList(OWASP_ITEMS, 'owasp-list'); var ow=countStatus(OWASP_ITEMS); var owEl=document.getElementById('owasp-score'); if(owEl) owEl.textContent=ow.ok+'/'+ow.total+' OK'; }
+      if (id === 'pciBlock')   { buildSecList(PCI_ITEMS,   'pci-list');   var pc=countStatus(PCI_ITEMS);   var pcEl=document.getElementById('pci-score');   if(pcEl) pcEl.textContent=pc.ok+'/'+pc.total+' OK'; }
     };
   })();
 
