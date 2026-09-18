@@ -1331,7 +1331,7 @@ window.addEventListener('DOMContentLoaded', function() {
   async function loadMutationData() {
     var empty = document.getElementById('mut-empty');
     try {
-      var res = await fetch('/k6/results/mutation/latest.json');
+      var res = await fetch('/k6/results/mutation/latest.json?t=' + Date.now());
       if (!res.ok) throw new Error('HTTP ' + res.status);
       var d = await res.json();
 
