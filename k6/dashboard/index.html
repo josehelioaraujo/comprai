@@ -1008,6 +1008,82 @@ window.addEventListener('DOMContentLoaded', function() {
   if (document.readyState==='loading') document.addEventListener('DOMContentLoaded',initChartHints);
   else initChartHints();
 })();
+
+  // ===== MUTACAO =====
+  function buildFileRow(f) {
+    var sc = f.score;
+    var color = sc >= 70 ? '#22c55e' : sc >= 50 ? '#f59e0b' : '#ef4444';
+    var shortName = f.file.replace(/.*[\/\\]/, '').replace('.cs', '');
+    var tr = document.createElement('tr');
+    tr.style.borderBottom = '1px solid var(--border)';
+    tr.innerHTML =
+      '<td style="padding:6px 8px;font-family:monospace;color:var(--muted)" title="' + f.file + '">' + shortName + '</td>' +
+      '<td style="padding:6px 8px;text-align:center">' +
+        '<span style="color:' + color + ';font-weight:700">' + sc + '%</span>' +
+        '<div style="background:var(--border);border-radius:4px;height:4px;margin-top:3px;overflow:hidden">' +
+          '<div style="width:' + sc + '%;height:100%;background:' + color + ';border-radius:4px"></div>' +
+        '</div>' +
+      '</td>' +
+      '<td style="padding:6px 8px;text-align:center">' + f.total + '</td>' +
+      '<td style="padding:6px 8px;text-align:center;color:#22c55e">' + f.killed + '</td>' +
+      '<td style="padding:6px 8px;text-align:center;color:#ef4444">' + f.survived + '</td>' +
+      '<td style="padding:6px 8px;text-align:center;color:#f59e0b">' + f.no_coverage + '</td>';
+    return tr;
+  }
+
+  async function loadMutationData() {
+    var empty = document.getElementById('mut-empty');
+    try {
+      var res = await fetch('/k6/results/mutation/latest.json');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var d = await res.json();
+
+      document.getElementById('mut-score').textContent    = d.score + '%';
+      document.getElementById('mut-total').textContent    = d.summary.total;
+      document.getElementById('mut-killed').textContent   = d.summary.killed;
+      document.getElementById('mut-survived').textContent = d.summary.survived;
+      document.getElementById('mut-nocov').textContent    = d.summary.no_coverage;
+      document.getElementById('mut-run').textContent      = '#' + d.run;
+
+      var colors = { green: '#22c55e', yellow: '#f59e0b', red: '#ef4444' };
+      var labels = { green: 'APROVADO', yellow: 'ATENCAO', red: 'REPROVADO' };
+      var badge = document.getElementById('mut-badge');
+      badge.textContent = labels[d.status] || d.status;
+      badge.style.background = (colors[d.status] || '#888') + '22';
+      badge.style.color = colors[d.status] || '#888';
+      badge.style.border = '1px solid ' + (colors[d.status] || '#888');
+      document.getElementById('mut-timestamp').textContent = 'Atualizado: ' + new Date(d.timestamp).toLocaleString('pt-BR');
+
+      var bar = document.getElementById('mut-progress-bar');
+      bar.style.width = Math.min(d.score, 100) + '%';
+      bar.style.background = colors[d.status] || '#888';
+
+      var tbody = document.getElementById('mut-files-tbody');
+      tbody.innerHTML = '';
+      var files = (d.files || []).slice().reverse();
+      for (var i = 0; i < files.length; i++) {
+        tbody.appendChild(buildFileRow(files[i]));
+      }
+
+      document.getElementById('mut-kpi-row').style.display      = '';
+      document.getElementById('mut-badge-area').style.display    = '';
+      document.getElementById('mut-progress-area').style.display = '';
+      document.getElementById('mut-files-area').style.display    = '';
+      if (empty) empty.style.display = 'none';
+    } catch(e) {
+      if (empty) empty.innerHTML =
+        '<div style="font-size:2rem">&#129522;</div>' +
+        '<div style="color:var(--danger)">Erro ao carregar dados: ' + e.message + '</div>' +
+        '<div style="color:var(--muted);font-size:0.8rem;margin-top:4px">Execute o workflow Mutation Tests para gerar os dados.</div>';
+    }
+  }
+
+  var _origShowSection = window.showSection;
+  window.showSection = function(id, el) {
+    if (typeof _origShowSection === 'function') _origShowSection(id, el);
+    if (id === 'mutacaoBlock') loadMutationData();
+  };
+</script>
     <!-- ===== MUTACAO BLOCK ===== -->
     <div class="section-block" id="mutacaoBlock" style="display:none">
       <div class="section-header" onclick="toggleSection(this)">
@@ -1015,7 +1091,6 @@ window.addEventListener('DOMContentLoaded', function() {
         <span class="section-toggle">&#9660;</span>
       </div>
       <div class="section-content">
-        <!-- KPI cards -->
         <div class="kpi-row" id="mut-kpi-row" style="display:none">
           <div class="kpi-card">
             <div class="kpi-label">Mutation Score</div>
@@ -1042,14 +1117,10 @@ window.addEventListener('DOMContentLoaded', function() {
             <div class="kpi-value" id="mut-run">--</div>
           </div>
         </div>
-
-        <!-- Badge de saude -->
         <div id="mut-badge-area" style="margin:12px 0;display:none">
           <span id="mut-badge" style="padding:6px 18px;border-radius:20px;font-weight:700;font-size:1rem"></span>
           <span id="mut-timestamp" style="margin-left:12px;color:var(--muted);font-size:0.82rem"></span>
         </div>
-
-        <!-- Barra de progresso do score -->
         <div id="mut-progress-area" style="margin:16px 0 20px;display:none">
           <div style="display:flex;justify-content:space-between;margin-bottom:4px">
             <span style="font-size:0.82rem;color:var(--muted)">Score de Mutacao</span>
@@ -1062,8 +1133,6 @@ window.addEventListener('DOMContentLoaded', function() {
             <span>0%</span><span>50%</span><span>80%</span><span>100%</span>
           </div>
         </div>
-
-        <!-- Tabela por arquivo -->
         <div id="mut-files-area" style="display:none">
           <div class="section-header" onclick="toggleSection(this)" style="margin-top:8px">
             <span class="section-title-text" style="font-size:0.9rem">&#128196; Score por Arquivo</span>
@@ -1085,88 +1154,11 @@ window.addEventListener('DOMContentLoaded', function() {
             </table>
           </div>
         </div>
-
-        <!-- Empty state -->
         <div id="mut-empty" style="text-align:center;padding:40px;color:var(--muted)">
           <div style="font-size:2rem;margin-bottom:8px">&#129522;</div>
           <div>Carregando dados de mutacao...</div>
         </div>
       </div>
     </div>
-
-
-  // ===== MUTACAO =====
-  async function loadMutationData() {
-    const empty = document.getElementById('mut-empty');
-    try {
-      const res = await fetch('/k6/results/mutation/latest.json');
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const d = await res.json();
-
-      // KPIs
-      document.getElementById('mut-score').textContent   = d.score + '%';
-      document.getElementById('mut-total').textContent   = d.summary.total;
-      document.getElementById('mut-killed').textContent  = d.summary.killed;
-      document.getElementById('mut-survived').textContent= d.summary.survived;
-      document.getElementById('mut-nocov').textContent   = d.summary.no_coverage;
-      document.getElementById('mut-run').textContent     = '#' + d.run;
-
-      // Badge
-      const colors = { green: '#22c55e', yellow: '#f59e0b', red: '#ef4444' };
-      const labels = { green: 'APROVADO', yellow: 'ATENCAO', red: 'REPROVADO' };
-      const badge = document.getElementById('mut-badge');
-      badge.textContent = labels[d.status] || d.status;
-      badge.style.background = (colors[d.status] || '#888') + '22';
-      badge.style.color = colors[d.status] || '#888';
-      badge.style.border = '1px solid ' + (colors[d.status] || '#888');
-      document.getElementById('mut-timestamp').textContent = 'Atualizado: ' + new Date(d.timestamp).toLocaleString('pt-BR');
-
-      // Progress bar
-      const bar = document.getElementById('mut-progress-bar');
-      bar.style.width = Math.min(d.score, 100) + '%';
-      bar.style.background = colors[d.status] || '#888';
-
-      // Tabela de arquivos
-      const tbody = document.getElementById('mut-files-tbody');
-      tbody.innerHTML = '';
-      (d.files || []).slice().reverse().forEach(f => {
-        const sc = f.score;
-        const color = sc >= 70 ? '#22c55e' : sc >= 50 ? '#f59e0b' : '#ef4444';
-        const shortName = f.file.replace(/.*[/\\]/, '').replace('.cs', '');
-        const row = document.createElement('tr');
-        row.style.borderBottom = '1px solid var(--border)';
-        row.innerHTML = \`
-          <td style="padding:6px 8px;font-family:monospace;color:var(--muted)" title="\${f.file}">\${shortName}</td>
-          <td style="padding:6px 8px;text-align:center">
-            <span style="color:\${color};font-weight:700">\${sc}%</span>
-            <div style="background:var(--border);border-radius:4px;height:4px;margin-top:3px;overflow:hidden">
-              <div style="width:\${sc}%;height:100%;background:\${color};border-radius:4px"></div>
-            </div>
-          </td>
-          <td style="padding:6px 8px;text-align:center">\${f.total}</td>
-          <td style="padding:6px 8px;text-align:center;color:#22c55e">\${f.killed}</td>
-          <td style="padding:6px 8px;text-align:center;color:#ef4444">\${f.survived}</td>
-          <td style="padding:6px 8px;text-align:center;color:#f59e0b">\${f.no_coverage}</td>
-        \`;
-        tbody.appendChild(row);
-      });
-
-      document.getElementById('mut-kpi-row').style.display   = '';
-      document.getElementById('mut-badge-area').style.display = '';
-      document.getElementById('mut-progress-area').style.display = '';
-      document.getElementById('mut-files-area').style.display  = '';
-      if (empty) empty.style.display = 'none';
-    } catch(e) {
-      if (empty) empty.innerHTML = '<div style="font-size:2rem">&#129522;</div><div style="color:var(--danger)">Erro ao carregar dados: ' + e.message + '</div><div style="color:var(--muted);font-size:0.8rem;margin-top:4px">Execute o workflow Mutation Tests para gerar os dados.</div>';
-    }
-  }
-
-  // Carrega ao mostrar a secao
-  const _origShowSection = window.showSection;
-  window.showSection = function(id, el) {
-    if (typeof _origShowSection === 'function') _origShowSection(id, el);
-    if (id === 'mutacaoBlock') loadMutationData();
-  };
-</script>
 </body>
 </html>
