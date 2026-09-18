@@ -515,7 +515,18 @@ tr:hover td { background: rgba(255,255,255,.02); }
       <!-- FIXO: Detalhes por Tipo -->
       <div class="section-block" id="detailsBlock" style="display:none">
         <div class="section-header" onclick="toggleSection(this)">
-          <span class="section-title-text">&#128293; Stress Test &#8212; Tipos de Teste</span>
+          <span class="section-title-text">&#128293; Stress Test &#8212; Tipos de Teste
+            <span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative">
+              <span class="info-hint-btn">i</span>
+              <span class="info-hint-box" style="position:fixed;width:300px;z-index:9999;line-height:1.8">
+                <strong style="color:var(--text)">Smoke</strong> — carga minima (3 VUs/40s). Valida que a API responde corretamente antes de qualquer teste maior.<br>
+                <strong style="color:var(--text)">Load</strong> — carga normal esperada em producao (ate 100 VUs/5min). Mede comportamento sob uso real.<br>
+                <strong style="color:var(--text)">Stress</strong> — carga acima do limite (ate 400 VUs/10min). Encontra o ponto de ruptura da API.<br>
+                <strong style="color:var(--text)">Spike</strong> — pico abrupto de trafego (0→200 VUs em 10s). Simula Black Friday ou viral.<br>
+                <strong style="color:var(--text)">Soak</strong> — carga sustentada por longo periodo (50 VUs/4min+). Detecta memory leaks e degradacao gradual.
+              </span>
+            </span>
+          </span>
           <span class="section-count" id="detail-count"></span>
           <span class="section-chevron">&#9660;</span>
         </div>
