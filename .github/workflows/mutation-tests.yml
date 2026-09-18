@@ -35,6 +35,9 @@ jobs:
       - name: Restaurar dependencias
         run: dotnet restore comprai.sln
 
+      - name: Build
+        run: dotnet build comprai.sln --no-restore --configuration Release
+
       - name: Instalar dotnet-stryker
         run: dotnet tool install -g dotnet-stryker
 
@@ -44,6 +47,8 @@ jobs:
         run: |
           dotnet stryker \
             --config-file stryker-config.json \
+            --project "UcpAgent.Application/UcpAgent.Application.csproj" \
+            --test-project "tests/UcpAgent.Tests/UcpAgent.Tests.csproj" \
             --output StrykerOutput \
             --reporter json \
             --reporter progress \
@@ -150,10 +155,10 @@ jobs:
           import json, os
           from pathlib import Path
 
-          d      = json.loads(Path("mutation-output/latest.json").read_text())
-          badge  = {"green": "OK", "yellow": "AVISO", "red": "FALHA"}.get(d["status"], "?")
-          run    = os.environ.get("GITHUB_RUN_NUMBER", "?")
-          s      = d["summary"]
+          d     = json.loads(Path("mutation-output/latest.json").read_text())
+          badge = {"green": "OK", "yellow": "AVISO", "red": "FALHA"}.get(d["status"], "?")
+          run   = os.environ.get("GITHUB_RUN_NUMBER", "?")
+          s     = d["summary"]
 
           lines = [
               f"## Mutation Tests -- Run #{run} -- {badge}",

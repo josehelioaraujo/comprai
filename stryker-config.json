@@ -4,7 +4,6 @@
       "name": "comprai",
       "version": "main"
     },
-    "solution": "comprai.sln",
     "mutation-level": "Standard",
     "reporters": ["json", "progress"],
     "thresholds": {
@@ -12,10 +11,6 @@
       "low": 70,
       "break": 0
     },
-    "project": "UcpAgent.Application/UcpAgent.Application.csproj",
-    "test-projects": [
-      "tests/UcpAgent.Tests/UcpAgent.Tests.csproj"
-    ],
     "ignore-methods": [
       "ToString",
       "GetHashCode",
