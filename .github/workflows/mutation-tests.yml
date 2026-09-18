@@ -76,26 +76,27 @@ jobs:
           files_out = []
           for path, data in report.get("files", {}).items():
               mutants = data.get("mutants", [])
-              # Excluir Ignored do calculo — igual ao Stryker
-              active   = [m for m in mutants if m.get("status") != "Ignored"]
-              total    = len(active)
-              killed   = sum(1 for m in active if m.get("status") == "Killed")
-              survived = sum(1 for m in active if m.get("status") == "Survived")
-              timeout  = sum(1 for m in active if m.get("status") == "Timeout")
-              no_cov   = sum(1 for m in active if m.get("status") == "NoCoverage")
+              total    = len(mutants)
+              killed   = sum(1 for m in mutants if m.get("status") == "Killed")
+              survived = sum(1 for m in mutants if m.get("status") == "Survived")
+              timeout  = sum(1 for m in mutants if m.get("status") == "Timeout")
+              no_cov   = sum(1 for m in mutants if m.get("status") == "NoCoverage")
               score    = round(killed / total * 100, 1) if total else 0.0
               files_out.append({"file": path, "total": total, "killed": killed,
                                 "survived": survived, "timeout": timeout,
                                 "no_coverage": no_cov, "score": score, "status": status(score)})
 
+          # Remover arquivos sem mutantes (interfaces, commands, queries, enums)
+          files_out = [f for f in files_out if f["total"] > 0]
           files_out.sort(key=lambda x: x["score"])
 
-          # total ja exclui Ignored (calculado por arquivo acima)
-          total    = sum(f["total"]    for f in files_out)
-          killed   = sum(f["killed"]   for f in files_out)
-          survived = sum(f["survived"] for f in files_out)
-          timeout  = sum(f["timeout"]  for f in files_out)
-          no_cov   = sum(f["no_coverage"] for f in files_out)
+          # Excluir mutantes ignorados (killed=survived=timeout=no_cov=0) igual ao Stryker
+          active   = [f for f in files_out if f["killed"]+f["survived"]+f["timeout"]+f["no_coverage"]>0]
+          total    = sum(f["total"]       for f in active)
+          killed   = sum(f["killed"]      for f in active)
+          survived = sum(f["survived"]    for f in active)
+          timeout  = sum(f["timeout"]     for f in active)
+          no_cov   = sum(f["no_coverage"] for f in active)
           score    = round(killed / total * 100, 1) if total else 0.0
 
           out = {
