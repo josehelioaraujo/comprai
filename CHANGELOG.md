@@ -1,3 +1,65 @@
+## [3.3.0] - 2026-09-18
+
+### Added
+- **QA Hub — Painel centralizado de qualidade e seguranca**
+  - Renomeado de "Comprai · QA Hub" para "QA Hub" — identidade agnostica, pronta para virar produto independente
+  - Sidebar com grupos colapsaveis: Testes / Qualidade / Seguranca / Analise K6
+  - Tela inicial em branco — conteudo so aparece ao clicar em uma opcao do menu
+  - Modal "Sobre" redesenhado: descricao agnostica, sem secao Stack, versionamento exibido via hover
+  - Info hint no header Stress Test explicando cada cenario (Smoke/Load/Stress/Spike/Soak)
+
+- **Secao SonarCloud no QA Hub**
+  - Badge Quality Gate (Passed/Failed) com cor em tempo real
+  - KPIs: Coverage, Code Smells, Bugs, Vulnerabilidades, Duplicacoes, ncloc
+  - Ratings Security / Reliability / Maintainability com labels A/B/C/D/E e cores
+  - Popover hover nos ratings explicando a escala de cada dimensao
+  - Step no CI/CD publica `sonar/latest.json` na VPS apos cada analise
+
+- **Secao OWASP Top 10 no QA Hub**
+  - Checklist completo das 10 vulnerabilidades com status real do Comprai (Mitigado / Parcial / Pendente)
+  - Badge com score (ex: 3/10 OK) e popover explicando o padrao OWASP
+  - Separado em secao propria "Seguranca" no sidebar
+
+- **Secao PCI DSS no QA Hub**
+  - 8 controles relevantes para processamento de pagamentos com status real
+  - Badge com score e popover explicando obrigatoriedade e consequencias de nao conformidade
+  - Separado em secao propria junto ao OWASP
+
+### Fixed
+- **Seguranca: secrets ML removidos do codigo-fonte**
+  - `ClientId` e `ClientSecret` do MercadoLivre removidos do `appsettings.json` (eram hardcoded)
+  - Substituidos por placeholders vazios; valores injetados via GitHub Secrets (`ML_CLIENT_ID`, `ML_CLIENT_SECRET`) e `.env` na VPS
+  - Secrets `ML_CLIENT_ID` e `ML_CLIENT_SECRET` criados no repositorio
+- **Dockerfile: container nao roda mais como root**
+  - Adicionado `RUN useradd -m appuser` + `USER appuser` antes do `ENTRYPOINT`
+  - Corrige issue de Security Rating E no SonarCloud (3 vulnerabilidades -> 0)
+  - Security Rating: E → A
+- **Coverage: ExcludeFromCodeCoverage em RateLimitExtensions e ResilienceExtensions**
+  - Arquivos de configuracao de middleware sem logica de negocio excluidos da analise
+  - Coverage on New Code: 37.9% → 100%
+- **SonarCloud: exclusoes de k6/, .github/, docs/, deploy/**
+  - Arquivos de infraestrutura e scripts excluidos da analise estatica
+  - Quality Gate voltou a passar apos adicao dos novos arquivos
+- **Dashboard: ratings float convertidos para label A/B/C/D/E**
+  - API do SonarCloud retorna `"1.0"`, `"5.0"` — parseFloat + Math.round antes do lookup
+  - Security, Reliability e Maintainability agora exibem letra correta com cor correspondente
+- **Dashboard: routesBlock exibe empty state**
+  - Antes ficava em branco sem aviso; agora exibe mensagem orientando a executar um stress test
+- **Dashboard: stress test nao aparece fixo no topo**
+  - `detailsBlock` e `stressBlock` passaram a comecar com `display:none`
+  - `renderTabs()` nao forca mais visibilidade automatica
+
+### Changed
+- **README: secao Qualidade & Testes com subsecoes colapsaveis**
+  - Secao `## 🧪 Testes` expandida para `## 🧪 Qualidade & Testes`
+  - 4 subsecoes `<details>`: Stress Tests K6, Mutacao Stryker.NET, SonarCloud, Testes Unitarios & Integracao
+  - Nova secao `## 📊 QA Hub` com link direto e tabela de funcionalidades por modulo
+- **CI/CD: step Publicar metricas SonarCloud na VPS**
+  - Apos cada analise SonarCloud, metricas sao salvas em `/var/www/html/k6/results/sonar/latest.json`
+  - Usa `jq` para injetar run number, SHA e timestamp sem Python inline (evita conflito YAML)
+- **docker-compose: variaveis ML injetadas via env**
+  - `MercadoLivre__ClientId` e `MercadoLivre__ClientSecret` lidos do `.env` da VPS
+
 ﻿## [3.2.2] - 2026-09-17
 
 ### Fixed
