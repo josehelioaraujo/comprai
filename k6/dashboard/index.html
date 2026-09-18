@@ -331,8 +331,8 @@ tr:hover td { background: rgba(255,255,255,.02); }
     <div class="nav-item nav-item-soon" title="Em breve">
       <span class="nav-icon">&#128260;</span><span class="nav-text">Testes Integrados<span class="nav-soon">Em breve</span></span>
     </div>
-    <div class="nav-item nav-item-soon" title="Em breve">
-      <span class="nav-icon">&#129522;</span><span class="nav-text">Mutacao<span class="nav-soon">Em breve</span></span>
+    <div class="nav-item" id="nav-mutacao" onclick="showSection('mutacaoBlock', this)" title="Testes de Mutacao">
+      <span class="nav-icon">&#129522;</span><span class="nav-text">Mutacao</span>
     </div>
     <div class="nav-label">Analise K6</div>
     <div class="nav-item" id="nav-config" onclick="showSection('configBlock', this)" title="Configuracao dos Testes">
@@ -1008,6 +1008,165 @@ window.addEventListener('DOMContentLoaded', function() {
   if (document.readyState==='loading') document.addEventListener('DOMContentLoaded',initChartHints);
   else initChartHints();
 })();
+    <!-- ===== MUTACAO BLOCK ===== -->
+    <div class="section-block" id="mutacaoBlock" style="display:none">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title-text">&#129522; Testes de Mutacao (Stryker.NET)</span>
+        <span class="section-toggle">&#9660;</span>
+      </div>
+      <div class="section-content">
+        <!-- KPI cards -->
+        <div class="kpi-row" id="mut-kpi-row" style="display:none">
+          <div class="kpi-card">
+            <div class="kpi-label">Mutation Score</div>
+            <div class="kpi-value" id="mut-score">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Mutantes Gerados</div>
+            <div class="kpi-value" id="mut-total">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Eliminados</div>
+            <div class="kpi-value" style="color:var(--success)" id="mut-killed">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Sobreviventes</div>
+            <div class="kpi-value" style="color:var(--danger)" id="mut-survived">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Sem Cobertura</div>
+            <div class="kpi-value" style="color:var(--warning)" id="mut-nocov">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Run</div>
+            <div class="kpi-value" id="mut-run">--</div>
+          </div>
+        </div>
+
+        <!-- Badge de saude -->
+        <div id="mut-badge-area" style="margin:12px 0;display:none">
+          <span id="mut-badge" style="padding:6px 18px;border-radius:20px;font-weight:700;font-size:1rem"></span>
+          <span id="mut-timestamp" style="margin-left:12px;color:var(--muted);font-size:0.82rem"></span>
+        </div>
+
+        <!-- Barra de progresso do score -->
+        <div id="mut-progress-area" style="margin:16px 0 20px;display:none">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="font-size:0.82rem;color:var(--muted)">Score de Mutacao</span>
+            <span style="font-size:0.82rem;color:var(--muted)">Meta: 80%</span>
+          </div>
+          <div style="background:var(--border);border-radius:8px;height:14px;overflow:hidden">
+            <div id="mut-progress-bar" style="height:100%;border-radius:8px;transition:width .6s;width:0%"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:0.78rem;color:var(--muted)">
+            <span>0%</span><span>50%</span><span>80%</span><span>100%</span>
+          </div>
+        </div>
+
+        <!-- Tabela por arquivo -->
+        <div id="mut-files-area" style="display:none">
+          <div class="section-header" onclick="toggleSection(this)" style="margin-top:8px">
+            <span class="section-title-text" style="font-size:0.9rem">&#128196; Score por Arquivo</span>
+            <span class="section-toggle">&#9660;</span>
+          </div>
+          <div class="section-content">
+            <table style="width:100%;border-collapse:collapse;font-size:0.82rem" id="mut-files-table">
+              <thead>
+                <tr style="color:var(--muted);text-align:left;border-bottom:1px solid var(--border)">
+                  <th style="padding:6px 8px">Arquivo</th>
+                  <th style="padding:6px 8px;text-align:center">Score</th>
+                  <th style="padding:6px 8px;text-align:center">Total</th>
+                  <th style="padding:6px 8px;text-align:center">Killed</th>
+                  <th style="padding:6px 8px;text-align:center">Survived</th>
+                  <th style="padding:6px 8px;text-align:center">No Cov</th>
+                </tr>
+              </thead>
+              <tbody id="mut-files-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Empty state -->
+        <div id="mut-empty" style="text-align:center;padding:40px;color:var(--muted)">
+          <div style="font-size:2rem;margin-bottom:8px">&#129522;</div>
+          <div>Carregando dados de mutacao...</div>
+        </div>
+      </div>
+    </div>
+
+
+  // ===== MUTACAO =====
+  async function loadMutationData() {
+    const empty = document.getElementById('mut-empty');
+    try {
+      const res = await fetch('/k6/results/mutation/latest.json');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const d = await res.json();
+
+      // KPIs
+      document.getElementById('mut-score').textContent   = d.score + '%';
+      document.getElementById('mut-total').textContent   = d.summary.total;
+      document.getElementById('mut-killed').textContent  = d.summary.killed;
+      document.getElementById('mut-survived').textContent= d.summary.survived;
+      document.getElementById('mut-nocov').textContent   = d.summary.no_coverage;
+      document.getElementById('mut-run').textContent     = '#' + d.run;
+
+      // Badge
+      const colors = { green: '#22c55e', yellow: '#f59e0b', red: '#ef4444' };
+      const labels = { green: 'APROVADO', yellow: 'ATENCAO', red: 'REPROVADO' };
+      const badge = document.getElementById('mut-badge');
+      badge.textContent = labels[d.status] || d.status;
+      badge.style.background = (colors[d.status] || '#888') + '22';
+      badge.style.color = colors[d.status] || '#888';
+      badge.style.border = '1px solid ' + (colors[d.status] || '#888');
+      document.getElementById('mut-timestamp').textContent = 'Atualizado: ' + new Date(d.timestamp).toLocaleString('pt-BR');
+
+      // Progress bar
+      const bar = document.getElementById('mut-progress-bar');
+      bar.style.width = Math.min(d.score, 100) + '%';
+      bar.style.background = colors[d.status] || '#888';
+
+      // Tabela de arquivos
+      const tbody = document.getElementById('mut-files-tbody');
+      tbody.innerHTML = '';
+      (d.files || []).slice().reverse().forEach(f => {
+        const sc = f.score;
+        const color = sc >= 70 ? '#22c55e' : sc >= 50 ? '#f59e0b' : '#ef4444';
+        const shortName = f.file.replace(/.*[/\\]/, '').replace('.cs', '');
+        const row = document.createElement('tr');
+        row.style.borderBottom = '1px solid var(--border)';
+        row.innerHTML = \`
+          <td style="padding:6px 8px;font-family:monospace;color:var(--muted)" title="\${f.file}">\${shortName}</td>
+          <td style="padding:6px 8px;text-align:center">
+            <span style="color:\${color};font-weight:700">\${sc}%</span>
+            <div style="background:var(--border);border-radius:4px;height:4px;margin-top:3px;overflow:hidden">
+              <div style="width:\${sc}%;height:100%;background:\${color};border-radius:4px"></div>
+            </div>
+          </td>
+          <td style="padding:6px 8px;text-align:center">\${f.total}</td>
+          <td style="padding:6px 8px;text-align:center;color:#22c55e">\${f.killed}</td>
+          <td style="padding:6px 8px;text-align:center;color:#ef4444">\${f.survived}</td>
+          <td style="padding:6px 8px;text-align:center;color:#f59e0b">\${f.no_coverage}</td>
+        \`;
+        tbody.appendChild(row);
+      });
+
+      document.getElementById('mut-kpi-row').style.display   = '';
+      document.getElementById('mut-badge-area').style.display = '';
+      document.getElementById('mut-progress-area').style.display = '';
+      document.getElementById('mut-files-area').style.display  = '';
+      if (empty) empty.style.display = 'none';
+    } catch(e) {
+      if (empty) empty.innerHTML = '<div style="font-size:2rem">&#129522;</div><div style="color:var(--danger)">Erro ao carregar dados: ' + e.message + '</div><div style="color:var(--muted);font-size:0.8rem;margin-top:4px">Execute o workflow Mutation Tests para gerar os dados.</div>';
+    }
+  }
+
+  // Carrega ao mostrar a secao
+  const _origShowSection = window.showSection;
+  window.showSection = function(id, el) {
+    if (typeof _origShowSection === 'function') _origShowSection(id, el);
+    if (id === 'mutacaoBlock') loadMutationData();
+  };
 </script>
 </body>
 </html>
