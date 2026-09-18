@@ -35,8 +35,6 @@ jobs:
       - name: Restaurar dependencias
         run: dotnet restore comprai.sln
 
-      - name: Build
-        run: dotnet build comprai.sln --no-restore --configuration Release
 
       - name: Instalar dotnet-stryker
         run: dotnet tool install -g dotnet-stryker
