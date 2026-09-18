@@ -801,17 +801,41 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <div id="sonar-ratings-area" style="display:none;padding:0 16px 16px">
           <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px">Ratings</div>
           <div style="display:flex;gap:12px;flex-wrap:wrap">
-            <div style="border:1px solid var(--border);border-radius:10px;padding:10px 18px;text-align:center;min-width:90px">
+            <div class="sonar-rating-card" style="border:1px solid var(--border);border-radius:10px;padding:10px 18px;text-align:center;min-width:90px;position:relative;cursor:default">
               <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Security</div>
               <div id="sonar-sec-rating" style="font-size:1.6rem;font-weight:700">—</div>
+              <div class="sonar-rating-popover" style="display:none;position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;width:220px;font-size:12px;line-height:1.6;box-shadow:0 8px 24px rgba(0,0,0,.4);text-align:left">
+                <div style="font-weight:700;color:var(--text);margin-bottom:6px">🔒 Security Rating</div>
+                <div style="color:var(--muted)"><span style="color:#22c55e;font-weight:700">A</span> — Nenhuma vulnerabilidade</div>
+                <div style="color:var(--muted)"><span style="color:#84cc16;font-weight:700">B</span> — 1 minor</div>
+                <div style="color:var(--muted)"><span style="color:#f59e0b;font-weight:700">C</span> — 1 major</div>
+                <div style="color:var(--muted)"><span style="color:#f97316;font-weight:700">D</span> — 1 critical</div>
+                <div style="color:var(--muted)"><span style="color:#ef4444;font-weight:700">E</span> — 1 blocker</div>
+              </div>
             </div>
-            <div style="border:1px solid var(--border);border-radius:10px;padding:10px 18px;text-align:center;min-width:90px">
+            <div class="sonar-rating-card" style="border:1px solid var(--border);border-radius:10px;padding:10px 18px;text-align:center;min-width:90px;position:relative;cursor:default">
               <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Reliability</div>
               <div id="sonar-rel-rating" style="font-size:1.6rem;font-weight:700">—</div>
+              <div class="sonar-rating-popover" style="display:none;position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;width:220px;font-size:12px;line-height:1.6;box-shadow:0 8px 24px rgba(0,0,0,.4);text-align:left">
+                <div style="font-weight:700;color:var(--text);margin-bottom:6px">🛡️ Reliability Rating</div>
+                <div style="color:var(--muted)"><span style="color:#22c55e;font-weight:700">A</span> — Nenhum bug</div>
+                <div style="color:var(--muted)"><span style="color:#84cc16;font-weight:700">B</span> — 1 minor bug</div>
+                <div style="color:var(--muted)"><span style="color:#f59e0b;font-weight:700">C</span> — 1 major bug</div>
+                <div style="color:var(--muted)"><span style="color:#f97316;font-weight:700">D</span> — 1 critical bug</div>
+                <div style="color:var(--muted)"><span style="color:#ef4444;font-weight:700">E</span> — 1 blocker bug</div>
+              </div>
             </div>
-            <div style="border:1px solid var(--border);border-radius:10px;padding:10px 18px;text-align:center;min-width:90px">
+            <div class="sonar-rating-card" style="border:1px solid var(--border);border-radius:10px;padding:10px 18px;text-align:center;min-width:90px;position:relative;cursor:default">
               <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Maintainability</div>
               <div id="sonar-maint-rating" style="font-size:1.6rem;font-weight:700">—</div>
+              <div class="sonar-rating-popover" style="display:none;position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;width:220px;font-size:12px;line-height:1.6;box-shadow:0 8px 24px rgba(0,0,0,.4);text-align:left">
+                <div style="font-weight:700;color:var(--text);margin-bottom:6px">🔧 Maintainability Rating</div>
+                <div style="color:var(--muted)"><span style="color:#22c55e;font-weight:700">A</span> — &lt; 5% technical debt ratio</div>
+                <div style="color:var(--muted)"><span style="color:#84cc16;font-weight:700">B</span> — 6–10%</div>
+                <div style="color:var(--muted)"><span style="color:#f59e0b;font-weight:700">C</span> — 11–20%</div>
+                <div style="color:var(--muted)"><span style="color:#f97316;font-weight:700">D</span> — 21–50%</div>
+                <div style="color:var(--muted)"><span style="color:#ef4444;font-weight:700">E</span> — &gt; 50%</div>
+              </div>
             </div>
           </div>
         </div>
@@ -1552,6 +1576,11 @@ window.addEventListener('DOMContentLoaded', function() {
       document.getElementById('sonar-kpi-row').style.display    = '';
       document.getElementById('sonar-ratings-area').style.display = '';
       if (empty) empty.style.display = 'none';
+
+      // Atualizar verInfo com dados do SonarCloud se K6 não carregou ainda
+      if (!verInfo.run && d.run) {
+        verInfo = { run: d.run, sha: d.sha, timestamp: d.timestamp, source: 'sonar' };
+      }
     } catch(e) {
       if (empty) empty.innerHTML =
         '<div style="font-size:2rem">&#9728;</div>' +
@@ -1559,6 +1588,45 @@ window.addEventListener('DOMContentLoaded', function() {
         '<div style="color:var(--muted);font-size:0.8rem;margin-top:4px">Execute o CI/CD para gerar os dados do SonarCloud.</div>';
     }
   }
+
+
+  // ── Sonar Rating Popovers (hover) ─────────────────────────────
+  (function() {
+    function initRatingPopovers() {
+      document.querySelectorAll('.sonar-rating-card').forEach(function(card) {
+        var pop = card.querySelector('.sonar-rating-popover');
+        if (!pop) return;
+        card.addEventListener('mouseenter', function(e) {
+          var rect = card.getBoundingClientRect();
+          pop.style.display = 'block';
+          // Posicionar abaixo do card, alinhado à esquerda
+          var left = rect.left;
+          var top  = rect.bottom + 6;
+          // Evitar sair da tela pela direita
+          if (left + 220 > window.innerWidth - 8) left = window.innerWidth - 228;
+          pop.style.left = left + 'px';
+          pop.style.top  = top  + 'px';
+        });
+        card.addEventListener('mouseleave', function() {
+          pop.style.display = 'none';
+        });
+      });
+    }
+    // Inicializar após carregar dados (seção pode estar display:none inicialmente)
+    var _origLoad = window.loadSonarData;
+    if (typeof _origLoad === 'function') {
+      window.loadSonarData = async function() {
+        await _origLoad();
+        setTimeout(initRatingPopovers, 100);
+      };
+    }
+    // Fallback: inicializar no load
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initRatingPopovers);
+    } else {
+      initRatingPopovers();
+    }
+  })();
 
   var _origShowSectionSonar = window.showSection;
   window.showSection = function(id, el) {
