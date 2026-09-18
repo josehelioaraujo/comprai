@@ -256,6 +256,29 @@ tr:hover td { background: rgba(255,255,255,.02); }
   border: 5px solid transparent; border-top-color: var(--border);
 }
 .kpi-card:hover .kpi-hint { opacity: 1; }
+/* ── Info hint para headers de secao ── */
+.info-hint-wrap { position: relative; display: inline-flex; align-items: center; margin-left: 8px; }
+.info-hint-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--muted); font-size: 11px; cursor: default;
+  font-weight: 700; line-height: 1; user-select: none;
+  transition: border-color .2s, color .2s;
+}
+.info-hint-btn:hover { border-color: var(--accent); color: var(--accent); }
+.info-hint-box {
+  position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+  background: #0a0e18; color: #c9d1d9; border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 14px; font-size: 11px; line-height: 1.6;
+  width: 260px; pointer-events: none; opacity: 0; transition: opacity .2s;
+  z-index: 200; text-align: left; font-weight: 400;
+}
+.info-hint-box::after {
+  content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+  border: 5px solid transparent; border-top-color: var(--border);
+}
+.info-hint-wrap:hover .info-hint-box { opacity: 1; }
 .kpi-card { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
 .kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
 .kpi-value { font-size: 22px; font-weight: 700; color: var(--text); }
@@ -524,7 +547,12 @@ tr:hover td { background: rgba(255,255,255,.02); }
     <!-- ===== MUTACAO BLOCK ===== -->
     <div class="section-block" id="mutacaoBlock" style="display:none">
       <div class="section-header" onclick="toggleSection(this)">
-        <span class="section-title-text">&#129522; Testes de Mutacao (Stryker.NET)</span>
+        <span class="section-title-text">&#129522; Testes de Mutacao (Stryker.NET)
+          <span class="info-hint-wrap" onclick="event.stopPropagation()">
+            <span class="info-hint-btn">i</span>
+            <span class="info-hint-box">O Stryker.NET gera pequenas alteracoes no codigo (mutantes) e verifica se os testes unitarios as detectam. Mutante morto = teste eficaz. Mutation Score = % de mutantes eliminados.</span>
+          </span>
+        </span>
         <span class="section-toggle">&#9660;</span>
       </div>
       <div class="section-content">
@@ -563,8 +591,14 @@ tr:hover td { background: rgba(255,255,255,.02); }
           <span id="mut-timestamp" style="margin-left:12px;color:var(--muted);font-size:0.82rem"></span>
         </div>
         <div id="mut-progress-area" style="margin:0 0 20px;display:none">
-          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-            <span style="font-size:0.82rem;color:var(--muted)">Score de Mutacao</span>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <span style="font-size:0.82rem;color:var(--muted);display:flex;align-items:center;gap:6px">
+              Score de Mutacao
+              <span class="info-hint-wrap">
+                <span class="info-hint-btn">i</span>
+                <span class="info-hint-box">Verde (>=70%): APROVADO. Amarelo (50-69%): ATENCAO. Vermelho (<50%): REPROVADO. Meta recomendada: 80%+. Score 100% significa que todos os mutantes foram detectados pelos testes.</span>
+              </span>
+            </span>
             <span style="font-size:0.82rem;color:var(--muted)">Meta: 80%</span>
           </div>
           <div style="background:var(--border);border-radius:8px;height:14px;overflow:hidden">
@@ -578,7 +612,12 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <!-- Subssecao colapsavel: Score por Arquivo -->
         <div id="mut-files-area" style="display:none">
           <div class="section-header" onclick="toggleSection(this)">
-            <span class="section-title-text" style="font-size:0.9rem">&#128196; Score por Arquivo</span>
+            <span class="section-title-text" style="font-size:0.9rem">&#128196; Score por Arquivo
+              <span class="info-hint-wrap" onclick="event.stopPropagation()">
+                <span class="info-hint-btn">i</span>
+                <span class="info-hint-box">Arquivos ordenados pelo score (menor primeiro). Foque nos arquivos com score abaixo de 70% — eles possuem logica nao validada pelos testes. Score 100% = todos os mutantes foram detectados.</span>
+              </span>
+            </span>
             <span class="section-toggle">&#9660;</span>
           </div>
           <div class="section-content">
