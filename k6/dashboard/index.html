@@ -543,9 +543,9 @@ tr:hover td { background: rgba(255,255,255,.02); }
     <div class="section-block" id="mutacaoBlock" style="display:none">
       <div class="section-header" onclick="toggleSection(this)">
         <span class="section-title-text">&#129522; Testes de Mutacao (Stryker.NET)
-          <span class="info-hint-wrap" onclick="event.stopPropagation()">
+          <span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative">
             <span class="info-hint-btn">i</span>
-            <span class="info-hint-box">O Stryker.NET gera pequenas alteracoes no codigo (mutantes) e verifica se os testes unitarios as detectam. Mutante morto = teste eficaz. Mutation Score = % de mutantes eliminados.</span>
+            <span class="info-hint-box" style="position:fixed;width:260px;z-index:9999">O Stryker.NET gera pequenas alteracoes no codigo (mutantes) e verifica se os testes unitarios as detectam. Mutante morto = teste eficaz. Mutation Score = % de mutantes eliminados.</span>
           </span>
         </span>
         <span class="section-toggle">&#9660;</span>
@@ -553,7 +553,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       <div class="section-content">
 
         <!-- KPI cards em row -->
-        <div class="kpi-row" id="mut-kpi-row" style="display:none">
+        <div class="kpi-grid" id="mut-kpi-row" style="display:none;padding:16px 16px 8px">
           <div class="kpi-card">
             <div class="kpi-label">Mutation Score</div>
             <div class="kpi-value" id="mut-score">--</div>
@@ -581,17 +581,17 @@ tr:hover td { background: rgba(255,255,255,.02); }
         </div>
 
         <!-- Badge + barra de progresso -->
-        <div id="mut-badge-area" style="margin:12px 0;display:none">
+        <div id="mut-badge-area" style="margin:0 16px 12px;display:none">
           <span id="mut-badge" style="padding:6px 18px;border-radius:20px;font-weight:700;font-size:1rem"></span>
           <span id="mut-timestamp" style="margin-left:12px;color:var(--muted);font-size:0.82rem"></span>
         </div>
-        <div id="mut-progress-area" style="margin:0 0 20px;display:none">
+        <div id="mut-progress-area" style="margin:0 16px 16px;display:none">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
             <span style="font-size:0.82rem;color:var(--muted);display:flex;align-items:center;gap:6px">
               Score de Mutacao
-              <span class="info-hint-wrap">
+              <span class="info-hint-wrap" style="position:relative">
                 <span class="info-hint-btn">i</span>
-                <span class="info-hint-box">Verde (>=70%): APROVADO. Amarelo (50-69%): ATENCAO. Vermelho (<50%): REPROVADO. Meta recomendada: 80%+. Score 100% significa que todos os mutantes foram detectados pelos testes.</span>
+                <span class="info-hint-box" style="position:fixed;width:260px;z-index:9999">Verde (>=70%): APROVADO. Amarelo (50-69%): ATENCAO. Vermelho (<50%): REPROVADO. Meta recomendada: 80%+. Score 100% significa que todos os mutantes foram detectados pelos testes.</span>
               </span>
             </span>
             <span style="font-size:0.82rem;color:var(--muted)">Meta: 80%</span>
@@ -607,13 +607,13 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <!-- Subssecao colapsavel: Score por Arquivo -->
         <div id="mut-files-area" style="display:none">
           <div class="section-header" onclick="toggleSection(this)">
-            <span class="section-title-text" style="font-size:0.9rem">&#128196; Score por Arquivo
-              <span class="info-hint-wrap" onclick="event.stopPropagation()">
+            <span class="section-title-text">&#128196; Score por Arquivo
+              <span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative">
                 <span class="info-hint-btn">i</span>
-                <span class="info-hint-box">Arquivos ordenados pelo score (menor primeiro). Foque nos arquivos com score abaixo de 70% — eles possuem logica nao validada pelos testes. Score 100% = todos os mutantes foram detectados.</span>
+                <span class="info-hint-box" style="position:fixed;width:260px;z-index:9999">Arquivos ordenados pelo score (menor primeiro). Foque nos arquivos com score abaixo de 70% — eles possuem logica nao validada pelos testes. Score 100% = todos os mutantes foram detectados.</span>
               </span>
             </span>
-            <span class="section-toggle">&#9660;</span>
+            <span class="section-chevron">&#9660;</span>
           </div>
           <div class="section-content">
             <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
@@ -653,7 +653,7 @@ let runReloadPending = false;
 let verInfo = {};
 
 // IDs das secoes navegaveis (exceto detalhes que e fixo)
-const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock'];
+const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','mutacaoBlock'];
 let activeSection = null; // null = nenhuma extra visivel
 
 const TYPE_ORDER = ['smoke','load','stress','spike','soak'];
@@ -1127,6 +1127,31 @@ window.addEventListener('DOMContentLoaded', function() {
   }
   if (document.readyState==='loading') document.addEventListener('DOMContentLoaded',initChartHints);
   else initChartHints();
+})();
+(function() {
+  function initInfoHints() {
+    document.querySelectorAll('.info-hint-wrap').forEach(function(wrap) {
+      var box = wrap.querySelector('.info-hint-box');
+      if (!box || box._hinit) return;
+      box._hinit = true;
+      wrap.addEventListener('mouseenter', function() {
+        var r = wrap.getBoundingClientRect();
+        var top = r.top - 10;
+        if (top - 120 < 4) top = r.bottom + 10;
+        else top = top - (box.offsetHeight || 80);
+        box.style.top = Math.max(4, top) + 'px';
+        box.style.left = Math.max(4, Math.min(r.left - 60, window.innerWidth - 270)) + 'px';
+        box.style.opacity = '1';
+      });
+      wrap.addEventListener('mouseleave', function() { box.style.opacity = '0'; });
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initInfoHints);
+  else initInfoHints();
+  var _oLoad = window.loadMutationData;
+  if (typeof _oLoad === 'function') {
+    window.loadMutationData = async function() { await _oLoad(); setTimeout(initInfoHints, 200); };
+  }
 })();
 
   // ===== MUTACAO =====
