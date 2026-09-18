@@ -416,6 +416,9 @@ tr:hover td { background: rgba(255,255,255,.02); }
     <div class="nav-item" id="nav-sonar" onclick="showSection('sonarBlock', this)" title="SonarCloud Quality Gate">
       <span class="nav-icon">&#9728;</span><span class="nav-text">SonarCloud</span>
     </div>
+    <div class="nav-item" id="nav-security" onclick="showSection('securityBlock', this)" title="Seguranca OWASP e PCI DSS">
+      <span class="nav-icon">&#128274;</span><span class="nav-text">Seguranca</span>
+    </div>
     <div class="nav-label">Analise K6</div>
     <div class="nav-item active" id="nav-detalhes" onclick="showSection('detailsBlock', this)" title="Detalhes por Tipo">
       <span class="nav-icon">&#128269;</span><span class="nav-text">Detalhes</span>
@@ -848,6 +851,63 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
     </div>
 
+    <div class="section-block" id="securityBlock" style="display:none">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title-text">&#128274; Seguranca — OWASP &amp; PCI DSS
+          <span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative">
+            <span class="info-hint-btn">i</span>
+            <span class="info-hint-box" style="position:fixed;width:280px;z-index:9999">Checklist de seguranca baseado nos padroes OWASP Top 10 (vulnerabilidades web mais criticas) e PCI DSS (obrigatorio para aplicacoes que processam pagamentos com cartao). Status baseado na implementacao atual do Comprai.</span>
+          </span>
+        </span>
+        <span class="section-toggle">&#9660;</span>
+      </div>
+      <div class="section-content">
+        <div style="padding:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start">
+
+          <!-- Badge OWASP -->
+          <div style="position:relative;display:inline-block">
+            <div class="sec-badge" id="owasp-badge" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:20px;border:1px solid #f59e0b;background:rgba(245,158,11,.1);cursor:default">
+              <span style="font-size:1.1rem">&#127760;</span>
+              <span style="font-weight:700;color:#f59e0b;font-size:0.9rem">OWASP Top 10</span>
+              <span id="owasp-score" style="font-size:0.8rem;color:var(--muted)"></span>
+            </div>
+            <div class="sec-popover" style="display:none;position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;width:300px;font-size:12px;line-height:1.6;box-shadow:0 8px 24px rgba(0,0,0,.4)">
+              <div style="font-weight:700;color:var(--text);margin-bottom:6px">&#127760; O que e OWASP Top 10?</div>
+              <div style="color:var(--muted)">Lista das 10 vulnerabilidades mais criticas em aplicacoes web, publicada pela Open Web Application Security Project. E o padrao de referencia global para desenvolvimento seguro. Cada item representa uma categoria de risco com exemplos, impacto e como mitigar.</div>
+              <div style="margin-top:8px;color:var(--muted)"><span style="color:#22c55e">&#10003;</span> Mitigado &nbsp;<span style="color:#f59e0b">&#9888;</span> Parcial &nbsp;<span style="color:#ef4444">&#10005;</span> Pendente</div>
+            </div>
+          </div>
+
+          <!-- Badge PCI DSS -->
+          <div style="position:relative;display:inline-block">
+            <div class="sec-badge" id="pci-badge" style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:20px;border:1px solid #a78bfa;background:rgba(167,139,250,.1);cursor:default">
+              <span style="font-size:1.1rem">&#128179;</span>
+              <span style="font-weight:700;color:#a78bfa;font-size:0.9rem">PCI DSS</span>
+              <span id="pci-score" style="font-size:0.8rem;color:var(--muted)"></span>
+            </div>
+            <div class="sec-popover" style="display:none;position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;width:300px;font-size:12px;line-height:1.6;box-shadow:0 8px 24px rgba(0,0,0,.4)">
+              <div style="font-weight:700;color:var(--text);margin-bottom:6px">&#128179; O que e PCI DSS?</div>
+              <div style="color:var(--muted)">Payment Card Industry Data Security Standard — padrao obrigatorio para toda aplicacao que processa, armazena ou transmite dados de cartao de credito/debito. Criado pelas bandeiras Visa, Mastercard, Amex, Discover e JCB. Nao conformidade pode resultar em multas e perda da capacidade de processar pagamentos.</div>
+              <div style="margin-top:8px;color:var(--muted)"><span style="color:#22c55e">&#10003;</span> Conforme &nbsp;<span style="color:#f59e0b">&#9888;</span> Parcial &nbsp;<span style="color:#ef4444">&#10005;</span> Pendente</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- OWASP Top 10 Checklist -->
+        <div style="margin:0 16px 16px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">OWASP Top 10 — 2021</div>
+          <div id="owasp-list"></div>
+        </div>
+
+        <!-- PCI DSS Checklist -->
+        <div style="margin:0 16px 24px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">PCI DSS v4.0 — Controles Relevantes</div>
+          <div id="pci-list"></div>
+        </div>
+
+      </div>
+    </div>
+
 <script>
 const API_BASE = 'https://comprai.2.25.122.11.nip.io';
 let allData = [];
@@ -860,7 +920,7 @@ let runReloadPending = false;
 let verInfo = {};
 
 // IDs das secoes navegaveis (exceto detalhes que e fixo)
-const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','mutacaoBlock','sonarBlock'];
+const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','mutacaoBlock','sonarBlock','securityBlock'];
 let activeSection = null; // null = nenhuma extra visivel
 
 const TYPE_ORDER = ['smoke','load','stress','spike','soak'];
@@ -1634,6 +1694,115 @@ window.addEventListener('DOMContentLoaded', function() {
     } else {
       initRatingPopovers();
     }
+  })();
+
+
+  // ===== SEGURANCA (OWASP + PCI DSS) =====
+  var OWASP_ITEMS = [
+    { id:'A01', name:'Broken Access Control',        status:'partial',  note:'Endpoints cart/checkout sem autenticacao — JWT planejado' },
+    { id:'A02', name:'Cryptographic Failures',       status:'ok',       note:'Secrets removidos do codigo — injetados via GitHub Secrets e .env' },
+    { id:'A03', name:'Injection',                    status:'partial',  note:'Parametros de busca passados via query string — sanitizacao basica' },
+    { id:'A04', name:'Insecure Design',              status:'ok',       note:'Arquitetura Hexagonal + Plugin Pattern — separacao de responsabilidades' },
+    { id:'A05', name:'Security Misconfiguration',    status:'pending',  note:'AllowedHosts: * no appsettings — restringir em producao' },
+    { id:'A06', name:'Vulnerable Components',        status:'partial',  note:'Dependencias gerenciadas via NuGet — sem scan automatico de CVEs' },
+    { id:'A07', name:'Auth & Session Failures',      status:'pending',  note:'Autenticacao nao implementada — roadmap v2' },
+    { id:'A08', name:'Software Integrity Failures',  status:'ok',       note:'CI/CD com build deterministico + hash de imagem Docker' },
+    { id:'A09', name:'Security Logging Failures',    status:'partial',  note:'Logs via OTel/Datadog — sem alertas de tentativas suspeitas' },
+    { id:'A10', name:'SSRF',                         status:'partial',  note:'Plugins fazem requests externos — URLs fixas por plugin, sem input do usuario' },
+  ];
+
+  var PCI_ITEMS = [
+    { id:'R1',  name:'Nunca armazenar CVV/CVC',         status:'ok',      note:'IPaymentPort nao persiste dados de cartao — tokenizacao via Stripe/Efi' },
+    { id:'R2',  name:'TLS em todos os endpoints',       status:'ok',      note:'HTTPS via nginx reverse proxy na VPS — certificado nip.io' },
+    { id:'R3',  name:'Tokenizacao de cartao',           status:'ok',      note:'Stripe e Efi retornam token — numero real nunca trafega no backend' },
+    { id:'R4',  name:'Logs de auditoria de transacoes', status:'partial', note:'OTel rastreia requests — sem log dedicado de eventos financeiros' },
+    { id:'R5',  name:'Segregacao sandbox x producao',   status:'ok',      note:'Feature flag PaymentProvider=mock|stripe|efi + ambientes separados' },
+    { id:'R6',  name:'Controle de acesso aos dados',    status:'pending', note:'Sem autenticacao nos endpoints — acesso aberto atualmente' },
+    { id:'R7',  name:'Scan de vulnerabilidades',        status:'partial', note:'SonarCloud detecta issues de codigo — sem DAST ou pentest automatizado' },
+    { id:'R8',  name:'Politica de senhas e secrets',    status:'ok',      note:'Secrets via GitHub Secrets + .env na VPS — sem hardcode no repositorio' },
+  ];
+
+  function secStatusIcon(s) {
+    if (s === 'ok')      return '<span style="color:#22c55e;font-size:1rem">&#10003;</span>';
+    if (s === 'partial') return '<span style="color:#f59e0b;font-size:1rem">&#9888;</span>';
+    return                      '<span style="color:#ef4444;font-size:1rem">&#10005;</span>';
+  }
+  function secStatusColor(s) {
+    return s === 'ok' ? '#22c55e' : s === 'partial' ? '#f59e0b' : '#ef4444';
+  }
+  function secStatusLabel(s) {
+    return s === 'ok' ? 'Mitigado' : s === 'partial' ? 'Parcial' : 'Pendente';
+  }
+
+  function buildSecList(items, containerId) {
+    var el = document.getElementById(containerId);
+    if (!el) return;
+    el.innerHTML = items.map(function(item) {
+      var color = secStatusColor(item.status);
+      return '<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid var(--border);margin-bottom:6px;background:var(--surface)">' +
+        '<div style="flex-shrink:0;margin-top:1px">' + secStatusIcon(item.status) + '</div>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
+            '<span style="font-size:11px;font-weight:700;color:var(--muted);font-family:monospace">' + item.id + '</span>' +
+            '<span style="font-size:13px;font-weight:600;color:var(--text)">' + item.name + '</span>' +
+            '<span style="font-size:11px;padding:1px 8px;border-radius:10px;border:1px solid ' + color + ';color:' + color + ';background:' + color + '22">' + secStatusLabel(item.status) + '</span>' +
+          '</div>' +
+          '<div style="font-size:12px;color:var(--muted);margin-top:3px">' + item.note + '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  function countStatus(items) {
+    var ok = items.filter(function(i) { return i.status==='ok'; }).length;
+    var partial = items.filter(function(i) { return i.status==='partial'; }).length;
+    var pending = items.filter(function(i) { return i.status==='pending'; }).length;
+    return { ok: ok, partial: partial, pending: pending, total: items.length };
+  }
+
+  function renderSecurity() {
+    buildSecList(OWASP_ITEMS, 'owasp-list');
+    buildSecList(PCI_ITEMS,   'pci-list');
+
+    var ow = countStatus(OWASP_ITEMS);
+    var pc = countStatus(PCI_ITEMS);
+    var owEl = document.getElementById('owasp-score');
+    var pcEl = document.getElementById('pci-score');
+    if (owEl) owEl.textContent = ow.ok + '/' + ow.total + ' OK';
+    if (pcEl) pcEl.textContent = pc.ok + '/' + pc.total + ' OK';
+  }
+
+  // Popovers hover nos badges OWASP e PCI DSS
+  (function() {
+    function initSecPopovers() {
+      document.querySelectorAll('.sec-badge').forEach(function(badge) {
+        var pop = badge.parentElement.querySelector('.sec-popover');
+        if (!pop) return;
+        badge.addEventListener('mouseenter', function() {
+          var rect = badge.getBoundingClientRect();
+          pop.style.display = 'block';
+          var left = rect.left;
+          var top  = rect.bottom + 6;
+          if (left + 300 > window.innerWidth - 8) left = window.innerWidth - 308;
+          pop.style.left = left + 'px';
+          pop.style.top  = top  + 'px';
+        });
+        badge.addEventListener('mouseleave', function() {
+          pop.style.display = 'none';
+        });
+      });
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initSecPopovers);
+    } else {
+      initSecPopovers();
+    }
+    // Re-init após showSection (seção pode estar display:none)
+    var _origSS = window.showSection;
+    window.showSection = function(id, el) {
+      if (typeof _origSS === 'function') _origSS(id, el);
+      if (id === 'securityBlock') { renderSecurity(); setTimeout(initSecPopovers, 100); }
+    };
   })();
 
   var _origShowSectionSonar = window.showSection;
