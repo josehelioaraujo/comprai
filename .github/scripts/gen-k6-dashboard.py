@@ -9,6 +9,7 @@ run   = os.environ.get('RUN_NUMBER', '0')
 ttype = os.environ.get('TEST_TYPE', 'all')
 url   = os.environ.get('TARGET_URL', 'http://2.25.122.11:5020')
 vus   = os.environ.get('VUS_OVERRIDE', 'padrao')
+sha   = os.environ.get('GIT_SHA', '')[:7]
 api   = os.environ.get('API_BASE', 'http://2.25.122.11:5020')
 
 scenarios = ['smoke', 'load', 'stress', 'spike', 'soak']
@@ -434,6 +435,7 @@ print(f'✓ dist/index.html gerado com links para dashboards individuais ({len(r
 # Gerar index.json em k6/results/ com a lista de resultados para o frontend
 results_index = {
     'run': run,
+    'sha': sha,
     'test_type': ttype,
     'target_url': url,
     'vus': vus,

@@ -384,6 +384,7 @@ jobs:
           source: "k6/dashboard/index.html"
           target: "/var/www/html/k6/dashboard/"
           strip_components: 2
+          overwrite: true
 
   # ── 5. SMOKE TESTS ──────────────────────────────────────────────────────────
   smoke-tests:
