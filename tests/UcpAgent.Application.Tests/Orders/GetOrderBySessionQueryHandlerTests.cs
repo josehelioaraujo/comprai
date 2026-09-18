@@ -12,8 +12,8 @@ public class GetOrderBySessionQueryHandlerTests
     private readonly IOrderPort _orders = Substitute.For<IOrderPort>();
     private readonly Faker _faker = new("pt_BR");
 
-    private OrderStatusDto MakeOrder(string orderId) =>
-        new(orderId, "Pending", 299.90m,
+    private OrderStatusDto MakeOrder(string orderId, string status = "Pending", decimal total = 299.90m) =>
+        new(orderId, status, total,
             new CustomerDto(_faker.Name.FullName(), _faker.Internet.Email(),
                             _faker.Phone.PhoneNumber(), _faker.Address.FullAddress()),
             "[]", DateTime.UtcNow);
@@ -29,6 +29,19 @@ public class GetOrderBySessionQueryHandlerTests
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Handle_SessionSemOrder_ValueEhExatamenteNull()
+    {
+        var sessionId = _faker.Random.Guid().ToString();
+        _orders.GetOrderIdBySessionAsync(sessionId, Arg.Any<CancellationToken>()).Returns((string?)null);
+        var handler = new GetOrderBySessionQueryHandler(_orders);
+
+        var result = await handler.Handle(new GetOrderBySessionQuery(sessionId), CancellationToken.None);
+
+        result.Value.Should().BeNull();
+        ((object?)result.Value).Should().BeNull();
     }
 
     [Fact]
@@ -56,8 +69,8 @@ public class GetOrderBySessionQueryHandlerTests
         var result = await handler.Handle(new GetOrderBySessionQuery(sessionId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
+        result.Value.Should().NotBeNull();
         result.Value!.OrderId.Should().Be(orderId);
-        result.Value.Status.Should().Be("Pending");
     }
 
     [Fact]
@@ -75,12 +88,11 @@ public class GetOrderBySessionQueryHandlerTests
     }
 
     [Fact]
-    public async Task Handle_RetornaOrderComStatusCorreto()
+    public async Task Handle_RetornaOrderComStatusETotal()
     {
         var sessionId = _faker.Random.Guid().ToString();
         var orderId = $"ORDER-{_faker.Random.AlphaNumeric(8).ToUpper()}";
-        var customer = new CustomerDto("Helio", "helio@email.com", "11999", "Rua X");
-        var order = new OrderStatusDto(orderId, "Confirmed", 500m, customer, "[]", DateTime.UtcNow);
+        var order = MakeOrder(orderId, "Confirmed", 500m);
         _orders.GetOrderIdBySessionAsync(sessionId, Arg.Any<CancellationToken>()).Returns(orderId);
         _orders.GetStatusAsync(orderId, Arg.Any<CancellationToken>()).Returns(order);
         var handler = new GetOrderBySessionQueryHandler(_orders);
@@ -89,5 +101,20 @@ public class GetOrderBySessionQueryHandlerTests
 
         result.Value!.Status.Should().Be("Confirmed");
         result.Value.Total.Should().Be(500m);
+    }
+
+    [Fact]
+    public async Task Handle_RetornaExatamenteOOrderDoPort()
+    {
+        var sessionId = _faker.Random.Guid().ToString();
+        var orderId = $"ORDER-{_faker.Random.AlphaNumeric(8).ToUpper()}";
+        var expected = MakeOrder(orderId, "Shipped", 1200m);
+        _orders.GetOrderIdBySessionAsync(sessionId, Arg.Any<CancellationToken>()).Returns(orderId);
+        _orders.GetStatusAsync(orderId, Arg.Any<CancellationToken>()).Returns(expected);
+        var handler = new GetOrderBySessionQueryHandler(_orders);
+
+        var result = await handler.Handle(new GetOrderBySessionQuery(sessionId), CancellationToken.None);
+
+        result.Value.Should().BeSameAs(expected);
     }
 }
