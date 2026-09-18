@@ -552,26 +552,32 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <!-- KPI cards em row -->
         <div class="kpi-grid" id="mut-kpi-row" style="display:none;padding:16px 16px 8px">
           <div class="kpi-card">
+            <div class="kpi-hint">% de mutantes eliminados pelos testes. Quanto mais proximo de 100%, mais eficazes sao seus testes na deteccao de bugs reais.</div>
             <div class="kpi-label">Mutation Score</div>
             <div class="kpi-value" id="mut-score">--</div>
           </div>
           <div class="kpi-card">
+            <div class="kpi-hint">Total de variacoes de codigo geradas pelo Stryker. Cada mutante representa uma possivel falha que seus testes deveriam detectar.</div>
             <div class="kpi-label">Mutantes Gerados</div>
             <div class="kpi-value" id="mut-total">--</div>
           </div>
           <div class="kpi-card">
+            <div class="kpi-hint">Mutantes que seus testes detectaram — o teste falhou quando o codigo foi alterado, provando que valida a logica corretamente.</div>
             <div class="kpi-label">Eliminados</div>
-            <div class="kpi-value" style="color:var(--success)" id="mut-killed">--</div>
+            <div class="kpi-value" style="color:#22c55e" id="mut-killed">--</div>
           </div>
           <div class="kpi-card">
+            <div class="kpi-hint">Mutantes que seus testes nao detectaram — o codigo foi alterado mas o teste continuou passando. Indica logica nao validada.</div>
             <div class="kpi-label">Sobreviventes</div>
-            <div class="kpi-value" style="color:var(--danger)" id="mut-survived">--</div>
+            <div class="kpi-value" style="color:#ef4444" id="mut-survived">--</div>
           </div>
           <div class="kpi-card">
+            <div class="kpi-hint">Mutantes em codigo nao executado pelos testes. Partes do codigo nao alcancadas pelos testes unitarios existentes.</div>
             <div class="kpi-label">Sem Cobertura</div>
-            <div class="kpi-value" style="color:var(--warning)" id="mut-nocov">--</div>
+            <div class="kpi-value" style="color:#f59e0b" id="mut-nocov">--</div>
           </div>
           <div class="kpi-card">
+            <div class="kpi-hint">Numero da execucao do workflow Mutation Tests no GitHub Actions que gerou estes resultados.</div>
             <div class="kpi-label">Run</div>
             <div class="kpi-value" id="mut-run">--</div>
           </div>
@@ -630,13 +636,13 @@ tr:hover td { background: rgba(255,255,255,.02); }
         </div>
 
         <!-- Painel Sobre colapsavel -->
-        <div id="mut-about-area" style="display:none;margin:0 0 8px">
+        <div id="mut-about-area" style="display:none;margin:0 16px 8px">
           <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">
             <div class="section-header" onclick="toggleSection(this)" style="padding:10px 16px">
               <span class="section-title-text">&#128218; Sobre os Testes de Mutacao</span>
               <span class="section-chevron">&#9660;</span>
             </div>
-            <div class="section-content collapsed">
+            <div class="section-content">
               <div style="padding:16px;font-size:13px;color:var(--muted);line-height:1.7">
                 <p style="margin-bottom:10px"><strong style="color:var(--text)">O que sao testes de mutacao?</strong><br>
                 O Stryker.NET modifica automaticamente o codigo-fonte (cria "mutantes") e verifica se os testes unitarios detectam cada alteracao. Se o teste falhar, o mutante foi eliminado — seus testes sao eficazes. Se o teste passar, o mutante sobreviveu — ha logica nao validada.</p>
