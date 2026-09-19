@@ -1271,7 +1271,7 @@ window.addEventListener('DOMContentLoaded', function() {
 
   // ===== TESTES INTEGRADOS =====
   const IT_REPO   = 'josehelioaraujo/comprai';
-  const IT_WF     = 'ci-cd.yml';
+  const IT_WF     = 'integration-tests.yml';
   const IT_BRANCH = 'main';
 
   // Hints por classe de teste — baseados nos arquivos reais
@@ -1410,7 +1410,14 @@ window.addEventListener('DOMContentLoaded', function() {
       'deploy':'🚀', 'smoke':'💨', 'mutation':'🧬', 'dashboard':'📊'
     };
 
-    panel.innerHTML = jobs.map(job => {
+    // Filtrar apenas job de integração e seus steps
+    const IT_JOBS_FILTER = ['integra'];
+    const filteredJobs = jobs.filter(j =>
+      IT_JOBS_FILTER.some(k => j.name.toLowerCase().includes(k))
+    );
+    // Se não encontrou nenhum, mostrar todos (fallback)
+    const jobsToRender = filteredJobs.length > 0 ? filteredJobs : jobs;
+    panel.innerHTML = jobsToRender.map(job => {
       const key    = Object.keys(JOB_ICONS).find(k => job.name.toLowerCase().includes(k)) ?? '';
       const icon   = JOB_ICONS[key] ?? '⚙';
       const sts    = job.conclusion ?? job.status ?? 'queued';
@@ -1453,7 +1460,6 @@ window.addEventListener('DOMContentLoaded', function() {
       return `<div class="it-job-row" id="it-job-${jobKey}">
         <div class="it-job-header" style="cursor:${hasSteps ? 'pointer' : 'default'}"
              onclick="${hasSteps ? `itToggleJob('${jobKey}')` : ''}">
-          <span style="font-size:14px">${icon}</span>
           <span class="it-job-name">${job.name}</span>
           <span class="it-job-elapsed">${elapsed}</span>
           <span class="it-job-status ${sts === 'completed' ? (job.conclusion ?? 'success') : sts}">${label}</span>

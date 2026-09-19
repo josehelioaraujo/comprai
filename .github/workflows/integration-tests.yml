@@ -1,0 +1,53 @@
+name: Integration Tests
+
+on:
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '10.0.x'
+
+jobs:
+  integration-tests:
+    name: 🔗 Testes de Integração
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore tests/UcpAgent.Integration.Tests/UcpAgent.Integration.Tests.csproj
+
+      - name: Build
+        run: dotnet build tests/UcpAgent.Integration.Tests/UcpAgent.Integration.Tests.csproj --configuration Release --no-restore
+
+      - name: Run Integration Tests
+        env:
+          ML_ACCESS_TOKEN: ${{ secrets.ML_ACCESS_TOKEN }}
+          ML_SKIP_TOKEN_TEST: 'true'
+          SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
+          SHOPIFY_STORE_URL: 'comprai-dev.myshopify.com'
+          Features__UsarMockDados: 'false'
+          Features__UsarRedis: 'false'
+          Features__UsarKafka: 'false'
+          Features__UsarRabbitMQ: 'false'
+          MercadoLivre__AccessToken: ${{ secrets.ML_ACCESS_TOKEN }}
+          Shopify__AccessToken: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
+          Shopify__StoreUrl: 'comprai-dev.myshopify.com'
+        run: |
+          dotnet test tests/UcpAgent.Integration.Tests/UcpAgent.Integration.Tests.csproj \
+            --configuration Release \
+            --no-build \
+            --logger "trx;LogFileName=integration-results.trx" \
+            --results-directory ./test-results/integration
+
+      - name: Upload Integration Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-results
+          path: ./test-results/integration/*.trx
+          if-no-files-found: ignore
