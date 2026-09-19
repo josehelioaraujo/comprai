@@ -4,7 +4,118 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QA Hub</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js">
+// ── Dependency Scanner ────────────────────────────────────────
+async function loadDepData() {
+  var empty   = document.getElementById('dep-empty');
+  var allclear= document.getElementById('dep-allclear');
+  var kpiRow  = document.getElementById('dep-kpi-row');
+  var statusBar = document.getElementById('dep-status-bar');
+  var tableWrap = document.getElementById('dep-table-wrap');
+
+  if (empty) empty.style.display = '';
+  if (allclear) allclear.style.display = 'none';
+  if (kpiRow) kpiRow.style.display = 'none';
+  if (statusBar) { statusBar.style.display = 'none'; statusBar.removeAttribute('style'); statusBar.style.display = 'none'; }
+  if (tableWrap) tableWrap.style.display = 'none';
+
+  try {
+    var res = await fetch('/k6/results/vulnerabilities/latest.json?t=' + Date.now());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var d = await res.json();
+
+    // KPIs
+    var sevs = ['Critical','High','Moderate','Low'];
+    sevs.forEach(function(s) {
+      var el = document.getElementById('dep-num-' + s.toLowerCase());
+      if (el) el.textContent = (d.counts && d.counts[s]) ? d.counts[s] : '0';
+      var card = document.getElementById('dep-kpi-' + s.toLowerCase());
+      if (card) {
+        card.style.opacity = (d.counts && d.counts[s] && d.counts[s] > 0) ? '1' : '.4';
+      }
+    });
+    if (kpiRow) kpiRow.style.display = '';
+
+    // Badge status
+    var badge = document.getElementById('dep-gate-badge');
+    if (badge) {
+      var statusMap = {
+        ok:       { text: '✔ SEM VULNERABILIDADES', cls: 'dep-badge-ok' },
+        warning:  { text: '⚠ ATENÇÃO',             cls: 'dep-badge-warning' },
+        critical: { text: '✖ CRÍTICO',              cls: 'dep-badge-critical' }
+      };
+      var s = statusMap[d.status] || statusMap['warning'];
+      badge.textContent  = s.text;
+      badge.className    = s.cls;
+      badge.style.cssText = 'font-size:11px;font-weight:700;padding:3px 10px;border-radius:4px;letter-spacing:.04em';
+    }
+
+    // Meta
+    var ts = document.getElementById('dep-timestamp');
+    if (ts && d.timestamp) ts.textContent = 'Scan: ' + new Date(d.timestamp).toLocaleString('pt-BR');
+    var rn = document.getElementById('dep-run');
+    if (rn && d.run) rn.textContent = 'Run #' + d.run + (d.sha ? ' · ' + d.sha : '');
+
+    if (statusBar) { statusBar.removeAttribute('style'); }
+
+    // Score no header
+    var sc = document.getElementById('dep-score');
+    if (sc) {
+      if (d.total === 0) {
+        sc.textContent = '✔ Limpo';
+        sc.style.cssText = 'background:rgba(34,197,94,.15);color:#22c55e;font-size:11px;padding:2px 8px;border-radius:10px';
+      } else {
+        sc.textContent = d.total + ' issue' + (d.total > 1 ? 's' : '');
+        sc.style.cssText = 'background:rgba(239,68,68,.15);color:#ef4444;font-size:11px;padding:2px 8px;border-radius:10px';
+      }
+    }
+
+    if (d.total === 0) {
+      if (empty) empty.style.display = 'none';
+      if (allclear) allclear.style.display = '';
+    } else {
+      // Tabela
+      var tbody = document.getElementById('dep-tbody');
+      if (tbody) {
+        tbody.innerHTML = '';
+        (d.packages || []).forEach(function(p) {
+          var tr = document.createElement('tr');
+          var advisoryId = p.advisory ? p.advisory.split('/').pop() : '';
+          tr.innerHTML =
+            '<td style="color:var(--text);font-weight:500">' + escHtml(p.package) + '</td>' +
+            '<td style="color:var(--muted);font-family:monospace">' + escHtml(p.resolved || p.requested || '') + '</td>' +
+            '<td style="text-align:center"><span class="dep-sev-pill ' + escHtml(p.severity) + '">' + escHtml(p.severity) + '</span></td>' +
+            '<td style="color:var(--muted);font-size:11px">' + escHtml(shortProject(p.project || '')) + '</td>' +
+            '<td style="text-align:center">' +
+              (p.advisory
+                ? '<a href="' + escHtml(p.advisory) + '" target="_blank" style="color:var(--accent2);font-size:11px;text-decoration:none" title="' + escHtml(p.advisory) + '">GHSA-' + escHtml(advisoryId.substring(0,8)) + ' &#8599;</a>'
+                : '<span style="color:var(--muted)">—</span>') +
+            '</td>';
+          tbody.appendChild(tr);
+        });
+      }
+      if (empty) empty.style.display = 'none';
+      if (tableWrap) tableWrap.style.display = '';
+    }
+
+  } catch(e) {
+    if (empty) {
+      empty.innerHTML = '<div style="font-size:32px;margin-bottom:8px">🔒</div><div style="font-size:13px">Scan ainda não executado.<br>Execute o workflow <strong>Dependency Scan</strong> no GitHub Actions.</div>';
+      empty.style.display = '';
+    }
+    console.warn('depData:', e);
+  }
+}
+
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function shortProject(p) {
+  return p.replace(/^.*[/\\]/, '').replace(/\.csproj$/, '');
+}
+
+</script>
 
   <!-- ===== STATUS DRAWER ===== -->
   <div id="status-drawer-overlay" class="status-drawer-overlay" onclick="closeStatusDrawer()"></div>
@@ -70,7 +181,7 @@ let runReloadPending = false;
 let verInfo = {};
 
 // IDs das secoes navegaveis (exceto detalhes que e fixo)
-const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','mutacaoBlock','sonarBlock','owaspBlock','pciBlock'];
+const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','mutacaoBlock','sonarBlock','owaspBlock','pciBlock','depBlock'];
 let activeSection = null; // null = nenhuma extra visivel
 
 const TYPE_ORDER = ['smoke','load','stress','spike','soak'];
@@ -990,6 +1101,7 @@ window.addEventListener('DOMContentLoaded', function() {
       if (typeof _origSS === 'function') _origSS(id, el);
       if (id === 'owaspBlock') { buildSecList(OWASP_ITEMS, 'owasp-list'); var ow=countStatus(OWASP_ITEMS); var owEl=document.getElementById('owasp-score'); if(owEl) owEl.textContent=ow.ok+'/'+ow.total+' OK'; }
       if (id === 'pciBlock')   { buildSecList(PCI_ITEMS,   'pci-list');   var pc=countStatus(PCI_ITEMS);   var pcEl=document.getElementById('pci-score');   if(pcEl) pcEl.textContent=pc.ok+'/'+pc.total+' OK'; }
+      if (id === 'depBlock')   { loadDepData(); }
     };
   })();
 
@@ -2691,6 +2803,9 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <div class="nav-item" id="nav-pci" onclick="showSection('pciBlock', this)" title="PCI DSS">
           <span class="nav-icon">&#128179;</span><span class="nav-text">PCI DSS</span>
         </div>
+        <div class="nav-item" id="nav-dep" onclick="showSection('depBlock', this)" title="Dependencias &amp; CVEs">
+          <span class="nav-icon">&#128274;</span><span class="nav-text">Dependencias</span>
+        </div>
       </div>
     </div>
     <div class="nav-group" id="group-k6">
@@ -3193,6 +3308,89 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
 
 
+
+    <div class="section-block" id="depBlock" style="display:none">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title-text">&#128274; Segurança de Dependências — CVEs NuGet
+          <span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative">
+            <span class="info-hint-btn">i</span>
+            <span class="info-hint-box" style="position:fixed;width:280px;z-index:9999">Scan automático de vulnerabilidades em pacotes NuGet usando dotnet list package --vulnerable. Dados coletados pelo GitHub Actions e publicados após cada push na main.</span>
+          </span>
+        </span>
+        <span class="section-count" id="dep-score"></span>
+        <span class="section-chevron">&#9660;</span>
+      </div>
+      <div class="section-content">
+        <div style="padding:16px">
+
+          <!-- KPI bar de severidades -->
+          <div id="dep-kpi-row" style="display:none;margin-bottom:20px">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+              <div class="dep-sev-card dep-critical" id="dep-kpi-critical">
+                <div class="dep-sev-num" id="dep-num-critical">0</div>
+                <div class="dep-sev-label">Critical</div>
+              </div>
+              <div class="dep-sev-card dep-high" id="dep-kpi-high">
+                <div class="dep-sev-num" id="dep-num-high">0</div>
+                <div class="dep-sev-label">High</div>
+              </div>
+              <div class="dep-sev-card dep-moderate" id="dep-kpi-moderate">
+                <div class="dep-sev-num" id="dep-num-moderate">0</div>
+                <div class="dep-sev-label">Moderate</div>
+              </div>
+              <div class="dep-sev-card dep-low" id="dep-kpi-low">
+                <div class="dep-sev-num" id="dep-num-low">0</div>
+                <div class="dep-sev-label">Low</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Status badge + meta -->
+          <div id="dep-status-bar" style="display:none;margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span id="dep-gate-badge" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:4px;letter-spacing:.04em"></span>
+            <span id="dep-timestamp" style="font-size:11px;color:var(--muted)"></span>
+            <span id="dep-run" style="font-size:11px;color:var(--muted)"></span>
+            <button onclick="loadDepData()" style="margin-left:auto;background:none;border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer">&#8635; Atualizar</button>
+          </div>
+
+          <!-- Tabela de pacotes -->
+          <div id="dep-table-wrap" style="display:none">
+            <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">
+              Pacotes Vulneráveis
+            </div>
+            <div style="overflow-x:auto;border-radius:6px;border:1px solid var(--border)">
+              <table style="width:100%;border-collapse:collapse;font-size:12px">
+                <thead>
+                  <tr style="background:var(--surface2);border-bottom:1px solid var(--border)">
+                    <th style="padding:8px 12px;text-align:left;color:var(--muted);font-weight:600">Pacote</th>
+                    <th style="padding:8px 12px;text-align:left;color:var(--muted);font-weight:600">Versão</th>
+                    <th style="padding:8px 12px;text-align:center;color:var(--muted);font-weight:600">Severidade</th>
+                    <th style="padding:8px 12px;text-align:left;color:var(--muted);font-weight:600">Projeto</th>
+                    <th style="padding:8px 12px;text-align:center;color:var(--muted);font-weight:600">Advisory</th>
+                  </tr>
+                </thead>
+                <tbody id="dep-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Estado vazio / ok -->
+          <div id="dep-empty" style="text-align:center;padding:32px 0;color:var(--muted)">
+            <div style="font-size:32px;margin-bottom:8px">⏳</div>
+            <div style="font-size:13px">Carregando dados do scan...</div>
+          </div>
+
+          <!-- Estado all-clear -->
+          <div id="dep-allclear" style="display:none;text-align:center;padding:32px 0">
+            <div style="font-size:36px;margin-bottom:8px">✅</div>
+            <div style="font-size:14px;font-weight:600;color:#22c55e;margin-bottom:4px">Nenhuma vulnerabilidade encontrada</div>
+            <div style="font-size:12px;color:var(--muted)">Todos os pacotes NuGet estão limpos.</div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
     <div id="integrationBlock" class="content-section" style="display:none">
 
       <!-- Header -->
@@ -3256,5 +3454,6 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
 
     </div>
+
 
 

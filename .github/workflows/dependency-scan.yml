@@ -1,0 +1,124 @@
+name: 🔒 Dependency Scan
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1'   # toda segunda-feira 06h UTC
+  push:
+    branches: [main]
+    paths:
+      - 'src/**/*.csproj'
+      - 'comprai.sln'
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  VPS_HOST: '2.25.122.11'
+  VPS_USER: 'root'
+
+jobs:
+  dependency-scan:
+    name: 🔍 Vulnerability Scan
+    runs-on: ubuntu-latest
+    continue-on-error: true   # não bloqueia o pipeline principal
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore Solution
+        run: dotnet restore comprai.sln
+
+      - name: Scan — vulnerabilidades NuGet
+        id: scan
+        run: |
+          dotnet list comprai.sln package --vulnerable --include-transitive 2>&1 | tee /tmp/vuln-raw.txt
+          echo "scan_done=true" >> $GITHUB_OUTPUT
+
+      - name: Gerar vulnerabilities.json
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
+          RUN_SHA: ${{ github.sha }}
+        run: |
+          python3 << 'PYEOF'
+          import re, json, os
+          from datetime import datetime, timezone
+
+          raw = open('/tmp/vuln-raw.txt').read()
+          packages = []
+          current_project = None
+
+          for line in raw.splitlines():
+              pm = re.match(r"Project '(.+?)' has the following vulnerable", line)
+              if pm:
+                  current_project = pm.group(1)
+                  continue
+
+              # linha do pacote: "> PackageName  Requested  Resolved  Severity  Advisory URL"
+              lm = re.match(
+                  r'\s*>\s+(\S+)\s+(\S+)\s+(\S+)\s+(Critical|High|Moderate|Low|critical|high|moderate|low)\s+(\S+)',
+                  line
+              )
+              if lm:
+                  packages.append({
+                      "project":  current_project or "unknown",
+                      "package":  lm.group(1),
+                      "requested": lm.group(2),
+                      "resolved":  lm.group(3),
+                      "severity":  lm.group(4).capitalize(),
+                      "advisory":  lm.group(5)
+                  })
+
+          counts = {"Critical": 0, "High": 0, "Moderate": 0, "Low": 0}
+          for p in packages:
+              sev = p["severity"]
+              if sev in counts:
+                  counts[sev] += 1
+
+          total = len(packages)
+          status = "ok" if total == 0 else ("warning" if counts["Critical"] == 0 and counts["High"] == 0 else "critical")
+
+          result = {
+              "run":       int(os.environ.get("RUN_NUMBER", 0)),
+              "sha":       os.environ.get("RUN_SHA", "")[:7],
+              "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "status":    status,
+              "total":     total,
+              "counts":    counts,
+              "packages":  packages
+          }
+
+          json.dump(result, open('vulnerabilities.json', 'w'), indent=2)
+          print(f"✅ {total} vulnerabilidades encontradas — status: {status}")
+          for k, v in counts.items():
+              if v: print(f"   {k}: {v}")
+          PYEOF
+
+      - name: Publicar na VPS
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$VPS_SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
+            "mkdir -p /var/www/html/k6/results/vulnerabilities"
+
+          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
+            vulnerabilities.json \
+            ${{ env.VPS_USER }}@${{ env.VPS_HOST }}:/var/www/html/k6/results/vulnerabilities/latest.json
+
+          echo "✅ vulnerabilities.json publicado na VPS"
+
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vulnerability-report
+          path: vulnerabilities.json
+          if-no-files-found: ignore
