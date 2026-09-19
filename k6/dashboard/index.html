@@ -1863,8 +1863,8 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <div class="nav-item" id="nav-stress" onclick="showSection('stressBlock', this)" title="Stress Test K6">
           <span class="nav-icon">&#128293;</span><span class="nav-text">Stress Test</span>
         </div>
-        <div class="nav-item nav-item-soon" title="Em breve">
-          <span class="nav-icon">&#128260;</span><span class="nav-text">Testes Integrados<span class="nav-soon">Em breve</span></span>
+        <div class="nav-item" id="nav-integration" onclick="showSection('integrationBlock', this)" title="Testes Integrados">
+          <span class="nav-icon">&#128260;</span><span class="nav-text">Testes Integrados</span>
         </div>
         <div class="nav-item" id="nav-mutacao" onclick="showSection('mutacaoBlock', this)" title="Testes de Mutacao">
           <span class="nav-icon">&#129522;</span><span class="nav-text">Mutacao</span>
@@ -2394,5 +2394,18 @@ tr:hover td { background: rgba(255,255,255,.02); }
     </div>
 
 
+
+    <div id="integrationBlock" class="content-section" style="display:none">
+      <div class="section-header">
+        <h2 class="section-title">&#128260; Testes Integrados</h2>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:16px;color:var(--text-muted)">
+        <span style="font-size:48px">&#128260;</span>
+        <div style="font-size:16px;font-weight:600;color:var(--text-secondary)">Em implementação</div>
+        <div style="font-size:13px;text-align:center;max-width:360px;line-height:1.6">
+          Botão de execução, acompanhamento em tempo real e resultado por suite chegam na próxima versão.
+        </div>
+      </div>
+    </div>
 
 
