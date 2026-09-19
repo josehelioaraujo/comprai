@@ -1091,14 +1091,14 @@ window.addEventListener('DOMContentLoaded', function() {
     const indicator = data.status?.indicator ?? 'major_outage';
     const meta = PILL_META[indicator] ?? PILL_META.major_outage;
     const pill = document.getElementById('status-pill');
+    if (!pill) return;
     pill.className = 'status-pill ' + meta.cls;
-    pill.title = meta.label;  // tooltip mostra o label completo
+    pill.title = meta.label;
   }
 
   function updatePillError() {
     const pill = document.getElementById('status-pill');
-    pill.className = 'status-pill maj';
-    document.getElementById('pill-label').textContent = 'Status indisponível';
+    if (pill) pill.className = 'status-pill maj';
   }
 
   function startCountdown() {
@@ -1267,6 +1267,267 @@ window.addEventListener('DOMContentLoaded', function() {
     updateCollapseBtn();
     fetchStatusData();
   });
+
+  // ===== TESTES INTEGRADOS =====
+  const IT_REPO   = 'josehelioaraujo/comprai';
+  const IT_WF     = 'ci-cd.yml';
+  const IT_BRANCH = 'main';
+  const IT_SUITES = [
+    { id:'resilience',   name:'Resiliência (Polly)',       icon:'🛡',
+      hint:'Valida retry, circuit breaker e timeout em falhas simuladas de plugins externos.' },
+    { id:'catalog',      name:'Catálogos de Produtos',     icon:'🛒',
+      hint:'Testa integração real com MercadoLivre, Shopify, VTEX e DummyJSON — busca, preço e disponibilidade.' },
+    { id:'cart',         name:'Carrinho UCP',              icon:'🛒',
+      hint:'Fluxo completo: adicionar, remover e recuperar itens do carrinho com Redis opcional.' },
+    { id:'checkout',     name:'Checkout & Pagamento',      icon:'💳',
+      hint:'Valida o pipeline Search → Cart → Checkout → Payment com Mock e Stripe sandbox.' },
+    { id:'ratelimit',    name:'Rate Limiting',             icon:'🚦',
+      hint:'Confirma que 429 é retornado após o threshold e que o header Retry-After está presente.' },
+  ];
+
+  let itRunId   = null;
+  let itPollTimer = null;
+  let itStartTs   = null;
+  let itElapsedTimer = null;
+  let itPat     = null;
+  let itHistory = [];
+
+  function itGetPat() {
+    if (itPat) return itPat;
+    // Tenta pegar do gh-config se disponível
+    if (window.ghConfig && window.ghConfig.token) { itPat = window.ghConfig.token; return itPat; }
+    itPat = prompt('PAT do GitHub (repo + workflow):');
+    return itPat;
+  }
+
+  async function itRunTests() {
+    const pat = itGetPat();
+    if (!pat) return;
+
+    const btn = document.getElementById('it-run-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="btn-spinner"></span> Executando...';
+
+    itSetStatus('running', '⏳', 'Disparando workflow...');
+    document.getElementById('it-progress-wrap').style.display = '';
+    document.getElementById('it-gh-link').style.display = 'none';
+    itRenderSuites('pending');
+
+    try {
+      const res = await fetch(`https://api.github.com/repos/${IT_REPO}/actions/workflows/${IT_WF}/dispatches`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${pat}`, 'Content-Type': 'application/json', 'X-GitHub-Api-Version': '2022-11-28' },
+        body: JSON.stringify({ ref: IT_BRANCH })
+      });
+      if (!res.ok) throw new Error('Dispatch falhou: ' + res.status);
+
+      itStartTs = Date.now();
+      itStartElapsed();
+      itSetStatus('running', '⏳', 'Aguardando início do run...');
+
+      // Espera 5s para o run aparecer na API
+      await new Promise(r => setTimeout(r, 5000));
+      await itPollForRun(pat);
+    } catch(e) {
+      itSetStatus('failure', '❌', 'Erro: ' + e.message);
+      btn.disabled = false;
+      btn.innerHTML = '<span>▶</span> Executar Testes';
+      itStopElapsed();
+    }
+  }
+
+  async function itPollForRun(pat) {
+    try {
+      const res = await fetch(
+        `https://api.github.com/repos/${IT_REPO}/actions/workflows/${IT_WF}/runs?per_page=1&branch=${IT_BRANCH}`,
+        { headers: { Authorization: `Bearer ${pat}`, 'X-GitHub-Api-Version': '2022-11-28' } }
+      );
+      const data = await res.json();
+      const run = data.workflow_runs?.[0];
+      if (!run) { setTimeout(() => itPollForRun(pat), 4000); return; }
+
+      itRunId = run.id;
+      const link = document.getElementById('it-gh-link');
+      link.href = run.html_url;
+      link.style.display = '';
+      itPollStatus(pat);
+    } catch(e) {
+      setTimeout(() => itPollForRun(pat), 5000);
+    }
+  }
+
+  async function itPollStatus(pat) {
+    clearTimeout(itPollTimer);
+    if (!itRunId) return;
+    try {
+      // Jobs do run
+      const jRes = await fetch(
+        `https://api.github.com/repos/${IT_REPO}/actions/runs/${itRunId}/jobs`,
+        { headers: { Authorization: `Bearer ${pat}`, 'X-GitHub-Api-Version': '2022-11-28' } }
+      );
+      const jData = await jRes.json();
+      const jobs  = jData.jobs ?? [];
+
+      // Run geral
+      const rRes = await fetch(
+        `https://api.github.com/repos/${IT_REPO}/actions/runs/${itRunId}`,
+        { headers: { Authorization: `Bearer ${pat}`, 'X-GitHub-Api-Version': '2022-11-28' } }
+      );
+      const run = await rRes.json();
+
+      // Encontrar job de integration-tests
+      const itJob = jobs.find(j => j.name && j.name.includes('Integra'));
+      itRenderFromJobs(jobs, itJob, run);
+
+      if (run.status === 'completed') {
+        const ok = run.conclusion === 'success';
+        itSetStatus(ok ? 'success' : 'failure',
+          ok ? '✅' : '❌',
+          ok ? 'Todos os testes passaram' : `Falhou: ${run.conclusion}`);
+        itStopElapsed();
+        itAddHistory(run);
+        const btn = document.getElementById('it-run-btn');
+        btn.disabled = false;
+        btn.innerHTML = '<span>▶</span> Executar Novamente';
+        document.getElementById('it-progress-fill').style.width = '100%';
+      } else {
+        document.getElementById('it-progress-fill').style.width =
+          run.status === 'in_progress' ? '60%' : '30%';
+        itPollTimer = setTimeout(() => itPollStatus(pat), 5000);
+      }
+    } catch(e) {
+      itPollTimer = setTimeout(() => itPollStatus(pat), 8000);
+    }
+  }
+
+  function itRenderSuites(defaultStatus) {
+    const wrap = document.getElementById('it-suites');
+    wrap.innerHTML = '';
+    IT_SUITES.forEach(s => {
+      const card = document.createElement('div');
+      card.className = 'it-suite-card';
+      card.id = 'it-suite-' + s.id;
+      card.innerHTML =
+        '<div class="it-suite-header" onclick="itToggleSuite(\'' + s.id + '\')">' +
+          '<span class="it-suite-icon">' + s.icon + '</span>' +
+          '<span class="it-suite-name">' + s.name + '</span>' +
+          '<span class="it-suite-meta" id="it-meta-' + s.id + '"></span>' +
+          '<span class="it-suite-badge ' + defaultStatus + '" id="it-badge-' + s.id + '">' +
+            itBadgeLabel(defaultStatus) + '</span>' +
+        '</div>' +
+        '<div class="it-suite-body" id="it-body-' + s.id + '">' +
+          '<div class="it-suite-body-inner">' +
+            '<div class="it-hint">' + s.hint + '</div>' +
+            '<div id="it-tests-' + s.id + '"></div>' +
+          '</div>' +
+        '</div>';
+      wrap.appendChild(card);
+    });
+  }
+
+  function itRenderFromJobs(jobs, itJob, run) {
+    if (!itJob) { itSetStatus('running','⏳','Aguardando job de integração...'); return; }
+
+    const steps = itJob.steps ?? [];
+    const runStep = steps.find(s => s.name && s.name.toLowerCase().includes('integration'));
+    const jobStatus = itJob.conclusion ?? itJob.status;
+
+    // Mapear suites para steps (aproximado por nome)
+    IT_SUITES.forEach((s, i) => {
+      const badge = document.getElementById('it-badge-' + s.id);
+      const meta  = document.getElementById('it-meta-' + s.id);
+      const tests = document.getElementById('it-tests-' + s.id);
+      if (!badge) return;
+
+      let status = 'pending';
+      if (jobStatus === 'success')   status = 'pass';
+      else if (jobStatus === 'failure') status = i === 0 ? 'fail' : 'pending';
+      else if (jobStatus === 'in_progress') status = 'running';
+
+      badge.className = 'it-suite-badge ' + status;
+      badge.textContent = itBadgeLabel(status);
+
+      if (run.updated_at) {
+        const elapsed = Math.round((new Date(run.updated_at) - new Date(run.created_at)) / 1000);
+        if (meta && elapsed > 0) meta.textContent = elapsed + 's';
+      }
+    });
+
+    if (jobStatus === 'failure') {
+      // Abrir o primeiro suite com falha
+      const first = IT_SUITES[0];
+      const body = document.getElementById('it-body-' + first.id);
+      if (body) body.classList.add('open');
+    }
+  }
+
+  function itToggleSuite(id) {
+    const body = document.getElementById('it-body-' + id);
+    if (body) body.classList.toggle('open');
+  }
+
+  function itBadgeLabel(s) {
+    return { pass:'Pass', fail:'Fail', skip:'Skip', running:'Running', pending:'Pending' }[s] ?? s;
+  }
+
+  function itSetStatus(cls, icon, text) {
+    const bar = document.getElementById('it-status-bar');
+    const ic  = document.getElementById('it-status-icon');
+    const tx  = document.getElementById('it-status-text');
+    if (!bar) return;
+    bar.className = 'it-status-bar ' + cls;
+    if (ic) ic.textContent = icon;
+    if (tx) tx.textContent = text;
+  }
+
+  function itStartElapsed() {
+    itStartTs = itStartTs || Date.now();
+    itStopElapsed();
+    itElapsedTimer = setInterval(() => {
+      const el = document.getElementById('it-status-elapsed');
+      if (el) el.textContent = Math.round((Date.now() - itStartTs) / 1000) + 's';
+    }, 1000);
+  }
+
+  function itStopElapsed() { clearInterval(itElapsedTimer); }
+
+  function itAddHistory(run) {
+    itHistory.unshift(run);
+    if (itHistory.length > 5) itHistory.pop();
+    const wrap = document.getElementById('it-history-wrap');
+    const list = document.getElementById('it-history');
+    if (!wrap || !list) return;
+    wrap.style.display = '';
+    list.innerHTML = itHistory.map(r => {
+      const ok  = r.conclusion === 'success';
+      const ts  = new Date(r.created_at).toLocaleString('pt-BR');
+      const dur = Math.round((new Date(r.updated_at) - new Date(r.created_at)) / 1000);
+      return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px">' +
+        '<span>' + (ok ? '✅' : '❌') + '</span>' +
+        '<span style="color:var(--text-secondary)">' + ts + '</span>' +
+        '<span style="color:var(--text-muted)">' + dur + 's</span>' +
+        '<a href="' + r.html_url + '" target="_blank" class="it-run-link" style="margin-left:auto">Run #' + r.run_number + '</a>' +
+        '</div>';
+    }).join('');
+  }
+
+  // Carregar gh-config ao abrir seção
+  const _origShowSectionIT = window.showSection;
+  window.showSection = function(id, el) {
+    if (typeof _origShowSectionIT === 'function') _origShowSectionIT(id, el);
+    if (id === 'integrationBlock') itInitSection();
+  };
+
+  function itInitSection() {
+    if (document.getElementById('it-suites').children.length === 0) {
+      itRenderSuites('pending');
+    }
+    // Tentar carregar PAT do gh-config
+    fetch('/var/www/html/k6/results/gh-config.json')
+      .then(r => r.ok ? r.json() : null)
+      .then(cfg => { if (cfg && cfg.token) itPat = cfg.token; })
+      .catch(() => {});
+  }
 </script>
 
     </div>
