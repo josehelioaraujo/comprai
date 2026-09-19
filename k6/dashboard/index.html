@@ -1034,12 +1034,68 @@ window.addEventListener('DOMContentLoaded', function() {
   const GROUP_SERVICES  = ['ollama','rabbitmq','kafka','datadog-otel'];
 
   const COMP_HINTS = {
-    api:           { ok:'API respondendo normalmente.',          fail:'API com problemas — serviço pode estar indisponível.' },
-    redis:         { ok:'Cache ativo — buscas rápidas.',        fail:'Cache offline — buscas mais lentas até a recuperação.' },
-    ollama:        { ok:'LLM disponível para inferências.',     fail:'Ollama offline — funcionalidades de IA indisponíveis.' },
-    rabbitmq:      { ok:'Mensageria operacional.',              fail:'RabbitMQ inacessível — eventos assíncronos suspensos.' },
-    kafka:         { ok:'Streaming de eventos ativo.',          fail:'Kafka inacessível — pipeline de eventos suspenso.' },
-    'datadog-otel':{ ok:'Telemetria enviando para o Datadog.',  fail:'OTel Collector offline — traces não estão sendo enviados.' },
+    api: {
+      ok:      'API respondendo normalmente.',
+      fail:    'API com problemas — serviço pode estar indisponível.',
+      actions: [
+        'Verificar logs: ssh root@2.25.122.11 "docker logs comprai-api --tail 50"',
+        'Reiniciar container: docker restart comprai-api',
+        'Verificar saúde: curl http://localhost:5020/health',
+        'Checar porta: ss -tlnp | grep 5020',
+      ]
+    },
+    redis: {
+      ok:      'Cache ativo — buscas rápidas.',
+      fail:    'Cache offline — buscas mais lentas até a recuperação.',
+      actions: [
+        'Verificar container: docker ps | grep redis',
+        'Reiniciar Redis: docker restart comprai-redis',
+        'Testar conexão: docker exec comprai-redis redis-cli ping',
+        'Verificar memória: docker stats comprai-redis --no-stream',
+      ]
+    },
+    ollama: {
+      ok:      'LLM disponível para inferências.',
+      fail:    'Ollama offline — funcionalidades de IA indisponíveis.',
+      actions: [
+        'Verificar serviço: systemctl status ollama',
+        'Reiniciar Ollama: systemctl restart ollama',
+        'Verificar API: curl http://localhost:11434/api/tags',
+        'Ver modelos carregados: ollama list',
+        'Checar VRAM/RAM: free -h && nvidia-smi 2>/dev/null || true',
+      ]
+    },
+    rabbitmq: {
+      ok:      'Mensageria operacional.',
+      fail:    'RabbitMQ inacessível — eventos assíncronos suspensos.',
+      actions: [
+        'RabbitMQ roda com --profile rabbitmq (desligado por padrão)',
+        'Iniciar: docker compose --profile rabbitmq up -d',
+        'Verificar: docker logs comprai-rabbitmq --tail 30',
+        'Management UI: http://2.25.122.11:15672 (guest/guest)',
+      ]
+    },
+    kafka: {
+      ok:      'Streaming de eventos ativo.',
+      fail:    'Kafka inacessível — pipeline de eventos suspenso.',
+      actions: [
+        'Kafka roda com --profile kafka (desligado por padrão)',
+        'Iniciar: docker compose --profile kafka up -d',
+        'Verificar broker: docker logs comprai-kafka --tail 30',
+        'Listar tópicos: docker exec comprai-kafka kafka-topics.sh --list --bootstrap-server localhost:9092',
+      ]
+    },
+    'datadog-otel': {
+      ok:      'Telemetria enviando para o Datadog.',
+      fail:    'OTel Collector offline — traces não estão sendo enviados.',
+      actions: [
+        'Verificar agent: docker ps | grep dd-agent',
+        'Reiniciar: docker restart comprai-dd-agent',
+        'Verificar API Key: echo $DATADOG_API_KEY | head -c 8',
+        'Checar porta OTel: nc -zv localhost 4317',
+        'Logs do agent: docker logs comprai-dd-agent --tail 30',
+      ]
+    },
   };
 
   function buildContextHint(components) {
@@ -2269,6 +2325,38 @@ tr:hover td { background: rgba(255,255,255,.02); }
     /* IT seções */
     #it-jobs-panel .it-job-row { margin-bottom:2px; }
     #it-suites .it-suite-card  { margin-bottom:2px; }
+
+  
+    /* ===== BADGE TOOLTIP DE REMEDIAÇÃO ===== */
+    .status-badge-wrap { position:relative; display:inline-flex; }
+    .remediation-tooltip {
+      position:absolute; bottom:calc(100% + 6px); right:0;
+      background:#0d1117; border:1px solid #1e2d3d;
+      border-radius:8px; padding:10px 12px; width:280px;
+      box-shadow:0 8px 24px rgba(0,0,0,.6);
+      z-index:9999; pointer-events:none;
+      opacity:0; transform:translateY(4px);
+      transition:opacity .15s, transform .15s;
+      font-size:11px; line-height:1.6;
+    }
+    .status-badge-wrap:hover .remediation-tooltip { opacity:1; transform:translateY(0); }
+    .remediation-tooltip-title {
+      font-size:10px; font-weight:700; text-transform:uppercase;
+      letter-spacing:.07em; color:#475569; margin-bottom:6px;
+    }
+    .remediation-action {
+      display:flex; gap:6px; padding:3px 0;
+      border-bottom:1px solid rgba(255,255,255,.04); color:#94a3b8;
+    }
+    .remediation-action:last-child { border-bottom:none; }
+    .remediation-action-num {
+      flex-shrink:0; width:14px; font-size:10px;
+      color:#475569; font-weight:600; padding-top:1px;
+    }
+    .remediation-action-cmd {
+      font-family:monospace; font-size:10.5px;
+      color:#cbd5e1; word-break:break-all;
+    }
 
   </style>
 </head>
