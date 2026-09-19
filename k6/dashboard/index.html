@@ -9,24 +9,24 @@
   <!-- ===== STATUS DRAWER ===== -->
   <div id="status-drawer-overlay" class="status-drawer-overlay" onclick="closeStatusDrawer()"></div>
   <div id="status-drawer" class="status-drawer">
-    <div class="drawer-header">
-      <div>
-        <div class="drawer-title">&#127881; Status do Sistema</div>
-        <div class="drawer-subtitle" id="drawer-subtitle">Atualizando...</div>
+    <div class="drawer-header" style="padding:14px 16px">
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#475569">Sistema</div>
+        <div class="drawer-subtitle" id="drawer-subtitle" style="font-size:11px;color:#475569">Atualizando...</div>
       </div>
-      <button class="drawer-close" onclick="closeStatusDrawer()" title="Fechar">&#10005;</button>
+      <button class="drawer-close" onclick="closeStatusDrawer()" title="Fechar" style="font-size:16px;padding:4px 6px">&#10005;</button>
     </div>
     <div class="drawer-body">
       <!-- Banner global -->
-      <div id="drawer-global-banner" class="drawer-global-banner op">
-        <span id="drawer-global-icon">&#9203;</span>
+      <div id="drawer-global-banner" class="drawer-global-banner op" style="padding:10px 14px;font-size:13px">
+        <span id="drawer-global-icon" style="font-size:14px">&#9203;</span>
         <span id="drawer-global-text">Carregando...</span>
       </div>
 
       <!-- Seção 1: Infraestrutura -->
       <div class="drawer-section" id="ds-infra">
         <div class="drawer-section-header" onclick="toggleDrawerSection('infra')">
-          <span>&#128421; Infraestrutura &amp; API</span>
+          <span style="display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:50%;background:#22c55e;display:inline-block" id="dot-infra"></span>Infraestrutura &amp; API</span>
           <span class="drawer-section-chevron open" id="dsc-infra">&#9660;</span>
         </div>
         <div class="drawer-section-body" id="dsb-infra" style="max-height:1000px">
@@ -48,7 +48,7 @@
       <!-- Histórico de uptime -->
       <div class="drawer-section">
         <div class="drawer-section-header" onclick="toggleDrawerSection('uptime')">
-          <span>&#128202; Hist&#243;rico de Uptime</span>
+          <span>Hist&#243;rico de Uptime</span>
           <span class="drawer-section-chevron" id="dsc-uptime">&#9660;</span>
         </div>
         <div class="drawer-section-body" id="dsb-uptime" style="max-height:0">
@@ -1128,14 +1128,14 @@ window.addEventListener('DOMContentLoaded', function() {
     // Subtitle
     const ts = new Date(data.page?.updatedAt ?? Date.now());
     document.getElementById('drawer-subtitle').textContent =
-      'Atualizado: ' + ts.toLocaleTimeString('pt-BR') + ' · próximo em ' + statusCountdown + 's';
+      ts.toLocaleTimeString('pt-BR') + ' · próx. check em ' + statusCountdown + 's';
 
     // Hint contextual
     let hintEl = document.getElementById('drawer-hint');
     if (!hintEl) {
       hintEl = document.createElement('div');
       hintEl.id = 'drawer-hint';
-      hintEl.style.cssText = 'font-size:12px;color:#94a3b8;padding:8px 14px 4px;line-height:1.5;font-style:italic;border-left:3px solid;margin-bottom:2px;border-radius:0 4px 4px 0;';
+      hintEl.style.cssText = 'font-size:11.5px;color:#64748b;padding:6px 12px;line-height:1.6;border-left:2px solid;margin-bottom:4px;border-radius:0 6px 6px 0;background:rgba(0,0,0,.2);';
       banner.insertAdjacentElement('afterend', hintEl);
     }
     const borderColors = {op:'#22c55e', deg:'#eab308', po:'#f97316', maj:'#ef4444'};
@@ -1155,6 +1155,14 @@ window.addEventListener('DOMContentLoaded', function() {
 
   function renderCompGroup(group, comps, allComps) {
     const container = document.getElementById('drawer-comps-' + group);
+    // Atualizar dot do header da seção
+    const dot = document.getElementById('dot-' + group);
+    if (dot && comps.length) {
+      const worst = comps.some(c => c.status === 'major_outage') ? '#ef4444'
+                  : comps.some(c => c.status === 'degraded')     ? '#eab308'
+                  : '#22c55e';
+      dot.style.background = worst;
+    }
     if (!container) return;
     container.innerHTML = '';
     comps.forEach(c => {
@@ -1649,11 +1657,11 @@ tr:hover td { background: rgba(255,255,255,.02); }
     }
     .status-drawer-overlay.open { opacity:1; pointer-events:all; }
     .status-drawer {
-      position:fixed; top:0; right:-480px; width:460px; max-width:95vw;
-      height:100vh; background:#0f1520; border-left:1px solid #242f41;
-      z-index:1001; display:flex; flex-direction:column;
+      position:fixed; top:0; right:-420px; width:400px; max-width:92vw;
+      height:100vh; background:#0d1117; border-left:1px solid #1e2d3d;
+      z-index:9998; display:flex; flex-direction:column;
       transition:right .28s cubic-bezier(.4,0,.2,1);
-      font-family:inherit;
+      font-family:inherit; box-shadow:-8px 0 32px rgba(0,0,0,.5);
     }
     .status-drawer.open { right:0; }
     .drawer-header {
@@ -1698,7 +1706,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
     /* Drawer — component row */
     .drawer-comp-row {
       display:flex; flex-direction:column;
-      border-top:1px solid #1e293b;
+      border-top:1px solid rgba(255,255,255,.04);
     }
     .drawer-comp-main {
       display:flex; align-items:center; padding:10px 14px; gap:10px;
