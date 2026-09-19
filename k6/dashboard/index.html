@@ -348,7 +348,149 @@ tr:hover td { background: rgba(255,255,255,.02); }
     .uptime-tick.down     { background:#ef4444; }
     .uptime-tick.unknown  { background:var(--border); }
 
-  </style>
+  
+    /* ===== STATUS PILL + DRAWER ===== */
+    .status-pill {
+      display: flex; align-items: center; gap: 8px;
+      padding: 5px 14px; border-radius: 20px; cursor: pointer;
+      font-size: 12px; font-weight: 600; border: 1px solid;
+      transition: all .2s; user-select: none; white-space: nowrap;
+    }
+    .status-pill:hover { filter: brightness(1.15); }
+    .status-pill .pill-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      animation: pulse-dot 2s infinite;
+    }
+    .status-pill.op  { background:rgba(34,197,94,.12);  border-color:rgba(34,197,94,.3);  color:#22c55e; }
+    .status-pill.deg { background:rgba(234,179,8,.12);  border-color:rgba(234,179,8,.3);  color:#eab308; }
+    .status-pill.po  { background:rgba(249,115,22,.12); border-color:rgba(249,115,22,.3); color:#f97316; }
+    .status-pill.maj { background:rgba(239,68,68,.12);  border-color:rgba(239,68,68,.3);  color:#ef4444; }
+    .status-pill.op  .pill-dot { background:#22c55e; }
+    .status-pill.deg .pill-dot { background:#eab308; }
+    .status-pill.po  .pill-dot { background:#f97316; }
+    .status-pill.maj .pill-dot { background:#ef4444; }
+    @keyframes pulse-dot {
+      0%,100%{opacity:1;transform:scale(1)}
+      50%{opacity:.5;transform:scale(1.3)}
+    }
+    .pill-countdown { font-size:10px; opacity:.7; font-weight:400; }
+    .pill-spinner { width:12px; height:12px; border:2px solid currentColor;
+      border-top-color:transparent; border-radius:50%; animation:spin .7s linear infinite; }
+    @keyframes spin { to{transform:rotate(360deg)} }
+
+    /* Drawer */
+    .status-drawer-overlay {
+      position:fixed; inset:0; background:rgba(0,0,0,.45);
+      z-index:1000; opacity:0; pointer-events:none; transition:opacity .25s;
+    }
+    .status-drawer-overlay.open { opacity:1; pointer-events:all; }
+    .status-drawer {
+      position:fixed; top:0; right:-480px; width:460px; max-width:95vw;
+      height:100vh; background:#0f1520; border-left:1px solid #242f41;
+      z-index:1001; display:flex; flex-direction:column;
+      transition:right .28s cubic-bezier(.4,0,.2,1);
+      font-family:inherit;
+    }
+    .status-drawer.open { right:0; }
+    .drawer-header {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:18px 20px; border-bottom:1px solid #242f41; flex-shrink:0;
+    }
+    .drawer-title { font-size:15px; font-weight:700; color:#e2e8f0; }
+    .drawer-subtitle { font-size:11px; color:#64748b; margin-top:2px; }
+    .drawer-close {
+      background:none; border:none; color:#64748b; font-size:20px;
+      cursor:pointer; padding:4px 8px; border-radius:6px; line-height:1;
+      transition:all .15s;
+    }
+    .drawer-close:hover { background:#1e293b; color:#e2e8f0; }
+    .drawer-body { flex:1; overflow-y:auto; padding:16px 20px; display:flex; flex-direction:column; gap:16px; }
+
+    /* Drawer — banner global */
+    .drawer-global-banner {
+      display:flex; align-items:center; gap:10px;
+      padding:12px 16px; border-radius:8px; border:1px solid;
+      font-size:13px; font-weight:600;
+    }
+    .drawer-global-banner.op  { background:rgba(34,197,94,.08);  border-color:rgba(34,197,94,.2);  color:#22c55e; }
+    .drawer-global-banner.deg { background:rgba(234,179,8,.08);  border-color:rgba(234,179,8,.2);  color:#eab308; }
+    .drawer-global-banner.po  { background:rgba(249,115,22,.08); border-color:rgba(249,115,22,.2); color:#f97316; }
+    .drawer-global-banner.maj { background:rgba(239,68,68,.08);  border-color:rgba(239,68,68,.2);  color:#ef4444; }
+
+    /* Drawer — seções drilldown */
+    .drawer-section { border:1px solid #242f41; border-radius:8px; overflow:hidden; }
+    .drawer-section-header {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:10px 14px; background:#161c2a; cursor:pointer;
+      font-size:12px; font-weight:600; color:#94a3b8;
+      text-transform:uppercase; letter-spacing:.06em;
+      user-select:none; transition:background .15s;
+    }
+    .drawer-section-header:hover { background:#1e293b; }
+    .drawer-section-chevron { transition:transform .2s; font-size:10px; }
+    .drawer-section-chevron.open { transform:rotate(180deg); }
+    .drawer-section-body { overflow:hidden; transition:max-height .25s ease; }
+
+    /* Drawer — component row */
+    .drawer-comp-row {
+      display:flex; flex-direction:column;
+      border-top:1px solid #1e293b;
+    }
+    .drawer-comp-main {
+      display:flex; align-items:center; padding:10px 14px; gap:10px;
+      cursor:pointer; transition:background .15s;
+    }
+    .drawer-comp-main:hover { background:#1a2235; }
+    .drawer-comp-name { flex:1; font-size:13px; color:#cbd5e1; font-weight:500; }
+    .drawer-comp-latency { font-size:11px; color:#475569; margin-right:8px; }
+    .drawer-comp-badge {
+      font-size:10px; font-weight:700; padding:2px 8px;
+      border-radius:12px; white-space:nowrap;
+    }
+    .drawer-comp-badge.op  { background:rgba(34,197,94,.15);  color:#22c55e; }
+    .drawer-comp-badge.deg { background:rgba(234,179,8,.15);  color:#eab308; }
+    .drawer-comp-badge.po  { background:rgba(249,115,22,.15); color:#f97316; }
+    .drawer-comp-badge.maj { background:rgba(239,68,68,.15);  color:#ef4444; }
+    .drawer-comp-expand { font-size:10px; color:#475569; transition:transform .2s; }
+    .drawer-comp-expand.open { transform:rotate(180deg); }
+    .drawer-comp-detail {
+      padding:0 14px; max-height:0; overflow:hidden;
+      transition:max-height .2s ease, padding .2s;
+      font-size:11px; color:#64748b; font-family:monospace;
+      border-top:0 solid #1e293b;
+    }
+    .drawer-comp-detail.open {
+      max-height:120px; padding:8px 14px 10px;
+      border-top:1px solid #1e293b;
+    }
+
+    /* Uptime mini-bar no drawer */
+    .drawer-uptime { display:flex; flex-direction:column; gap:8px; }
+    .drawer-uptime-row { display:flex; flex-direction:column; gap:3px; }
+    .drawer-uptime-label { display:flex; justify-content:space-between; font-size:11px; color:#64748b; }
+    .drawer-uptime-bar { display:flex; gap:1.5px; }
+    .drawer-uptime-tick { flex:1; height:16px; border-radius:2px; }
+    .drawer-uptime-tick.ok       { background:#22c55e; }
+    .drawer-uptime-tick.degraded { background:#eab308; }
+    .drawer-uptime-tick.down     { background:#ef4444; }
+    .drawer-uptime-tick.unknown  { background:#1e293b; }
+
+    /* Progress bar no pill */
+    .pill-progress {
+      position:absolute; bottom:0; left:0; height:2px;
+      background:currentColor; opacity:.4;
+      transition:width 1s linear; border-radius:0 0 20px 20px;
+    }
+
+  
+    #btn-collapse-all { position:relative; }
+    #btn-collapse-all[title]:hover::after {
+      content: attr(title);
+      position:absolute; bottom:-24px; left:50%; transform:translateX(-50%);
+      background:#1e293b; color:#94a3b8; font-size:10px; padding:2px 6px;
+      border-radius:4px; white-space:nowrap; pointer-events:none; z-index:10;
+    }
+</style>
 </head>
 <body>
 
@@ -433,12 +575,15 @@ tr:hover td { background: rgba(255,255,255,.02); }
 <nav class="sidebar" id="sidebar">
   <div class="sidebar-header">
     <span class="sidebar-logo-text" onclick="openAboutModal()" style="cursor:pointer" title="Sobre o QA Hub">QA Hub</span>
-    <button class="sidebar-toggle sidebar-toggle-collapse" onclick="toggleSidebar()" title="Recolher sidebar">&#8249;</button>
+    <div style="display:flex;align-items:center;gap:4px">
+      <button id="btn-collapse-all" onclick="collapseAllGroups()" title="Recolher tudo" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:13px;padding:3px 5px;border-radius:4px;line-height:1;transition:all .15s" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">&#8644;</button>
+      <button class="sidebar-toggle sidebar-toggle-collapse" onclick="toggleSidebar()" title="Recolher sidebar">&#8249;</button>
+    </div>
   </div>
   <!-- Botao expandir: visivel so quando colapsado -->
   <button class="sidebar-expand-btn" id="sidebarExpandBtn" onclick="toggleSidebar()" title="Expandir sidebar">&#8250;</button>
   <div class="sidebar-nav">
-    <div class="nav-group" id="group-testes">
+    <div class="nav-group" id="group-testes" class="collapsed">
       <div class="nav-label" onclick="toggleNavGroup('group-testes')">
         <span class="nav-text">Testes</span><span class="nav-group-chevron">&#9660;</span>
       </div>
@@ -454,7 +599,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
         </div>
       </div>
     </div>
-    <div class="nav-group" id="group-qualidade">
+    <div class="nav-group" id="group-qualidade" class="collapsed">
       <div class="nav-label" onclick="toggleNavGroup('group-qualidade')">
         <span class="nav-text">Qualidade</span><span class="nav-group-chevron">&#9660;</span>
       </div>
@@ -462,12 +607,10 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <div class="nav-item" id="nav-sonar" onclick="showSection('sonarBlock', this)" title="SonarCloud Quality Gate">
           <span class="nav-icon">&#9728;</span><span class="nav-text">SonarCloud</span>
         </div>
-        <div class="nav-item" id="nav-status" onclick="showSection('statusBlock', this)" title="Status do Sistema">
-          <span class="nav-icon">&#128994;</span><span class="nav-text">Status</span>
-        </div>
+
       </div>
     </div>
-    <div class="nav-group" id="group-seguranca">
+    <div class="nav-group" id="group-seguranca" class="collapsed">
       <div class="nav-label" onclick="toggleNavGroup('group-seguranca')">
         <span class="nav-text">Seguranca</span><span class="nav-group-chevron">&#9660;</span>
       </div>
@@ -480,7 +623,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
         </div>
       </div>
     </div>
-    <div class="nav-group" id="group-k6">
+    <div class="nav-group" id="group-k6" class="collapsed">
       <div class="nav-label" onclick="toggleNavGroup('group-k6')">
         <span class="nav-text">Analise K6</span><span class="nav-group-chevron">&#9660;</span>
       </div>
@@ -523,6 +666,14 @@ tr:hover td { background: rgba(255,255,255,.02); }
     </div>
     <!-- run-controls movido para sidebar -->
     <div id="runControls" style="display:none"></div>
+    <div style="display:flex;align-items:center;gap:10px;margin-left:auto;padding-right:4px">
+      <button id="status-pill" class="status-pill op" onclick="toggleStatusDrawer()" title="Status do Sistema" style="position:relative">
+        <span class="pill-dot"></span>
+        <span id="pill-label">Carregando...</span>
+        <span id="pill-countdown" class="pill-countdown"></span>
+        <span id="pill-spinner" class="pill-spinner" style="display:none"></span>
+      </button>
+    </div>
   </header>
 
 
@@ -970,27 +1121,60 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
     </div>
 
-    <div id="statusBlock" class="content-section" style="display:none">
-      <div class="section-header">
-        <h2 class="section-title">&#127881; Status do Sistema</h2>
-        <div style="display:flex;align-items:center;gap:10px">
-          <span id="status-last-updated" style="font-size:12px;color:var(--text-muted)"></span>
-          <button onclick="loadStatusData()" style="background:none;border:1px solid var(--border);color:var(--text-secondary);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:14px" title="Atualizar">&#8635;</button>
+
+
+
+  <!-- ===== STATUS DRAWER ===== -->
+  <div id="status-drawer-overlay" class="status-drawer-overlay" onclick="closeStatusDrawer()"></div>
+  <div id="status-drawer" class="status-drawer">
+    <div class="drawer-header">
+      <div>
+        <div class="drawer-title">&#127881; Status do Sistema</div>
+        <div class="drawer-subtitle" id="drawer-subtitle">Atualizando...</div>
+      </div>
+      <button class="drawer-close" onclick="closeStatusDrawer()" title="Fechar">&#10005;</button>
+    </div>
+    <div class="drawer-body">
+      <!-- Banner global -->
+      <div id="drawer-global-banner" class="drawer-global-banner op">
+        <span id="drawer-global-icon">&#9203;</span>
+        <span id="drawer-global-text">Carregando...</span>
+      </div>
+
+      <!-- Seção 1: Infraestrutura -->
+      <div class="drawer-section" id="ds-infra">
+        <div class="drawer-section-header" onclick="toggleDrawerSection('infra')">
+          <span>&#128421; Infraestrutura &amp; API</span>
+          <span class="drawer-section-chevron open" id="dsc-infra">&#9660;</span>
+        </div>
+        <div class="drawer-section-body" id="dsb-infra" style="max-height:1000px">
+          <div id="drawer-comps-infra"></div>
         </div>
       </div>
 
-      <div id="status-global-badge" style="display:flex;align-items:center;gap:12px;padding:16px 20px;border-radius:10px;font-size:16px;font-weight:600;border:1px solid;margin-bottom:24px;background:rgba(100,100,100,.08);border-color:var(--border)">
-        <span id="status-global-icon">&#9203;</span>
-        <span id="status-global-text">Carregando...</span>
+      <!-- Seção 2: Serviços -->
+      <div class="drawer-section" id="ds-services">
+        <div class="drawer-section-header" onclick="toggleDrawerSection('services')">
+          <span>&#9881; Serviços &amp; Observabilidade</span>
+          <span class="drawer-section-chevron open" id="dsc-services">&#9660;</span>
+        </div>
+        <div class="drawer-section-body" id="dsb-services" style="max-height:1000px">
+          <div id="drawer-comps-services"></div>
+        </div>
       </div>
 
-      <div class="kpi-grid" id="status-components-grid" style="margin-bottom:28px"></div>
-
-      <div class="card-section">
-        <div class="card-section-header"><span>&#128197; Hist&#243;rico de Uptime</span><span style="font-size:11px;color:var(--text-muted);margin-left:8px">&#250;ltimos 30 checks</span></div>
-        <div id="status-uptime-history" class="card-section-body" style="display:flex;flex-direction:column;gap:10px"></div>
+      <!-- Histórico de uptime -->
+      <div class="drawer-section">
+        <div class="drawer-section-header" onclick="toggleDrawerSection('uptime')">
+          <span>&#128202; Hist&#243;rico de Uptime</span>
+          <span class="drawer-section-chevron" id="dsc-uptime">&#9660;</span>
+        </div>
+        <div class="drawer-section-body" id="dsb-uptime" style="max-height:0">
+          <div class="drawer-uptime" id="drawer-uptime" style="padding:12px 14px"></div>
+        </div>
       </div>
     </div>
+  </div>
 
 <script>
 const API_BASE = 'https://comprai.2.25.122.11.nip.io';
@@ -1910,6 +2094,32 @@ window.addEventListener('DOMContentLoaded', function() {
   function toggleNavGroup(id) {
     var g = document.getElementById(id);
     if (g) g.classList.toggle('collapsed');
+    updateCollapseBtn();
+  }
+
+  function collapseAllGroups() {
+    var allCollapsed = ['group-testes', 'group-qualidade', 'group-seguranca', 'group-k6'].every(function(id) {
+      var g = document.getElementById(id);
+      return g && g.classList.contains('collapsed');
+    });
+    ['group-testes', 'group-qualidade', 'group-seguranca', 'group-k6'].forEach(function(id) {
+      var g = document.getElementById(id);
+      if (!g) return;
+      if (allCollapsed) g.classList.remove('collapsed');
+      else g.classList.add('collapsed');
+    });
+    updateCollapseBtn();
+  }
+
+  function updateCollapseBtn() {
+    var btn = document.getElementById('btn-collapse-all');
+    if (!btn) return;
+    var allCollapsed = ['group-testes', 'group-qualidade', 'group-seguranca', 'group-k6'].every(function(id) {
+      var g = document.getElementById(id);
+      return g && g.classList.contains('collapsed');
+    });
+    btn.title = allCollapsed ? 'Expandir tudo' : 'Recolher tudo';
+    btn.textContent = allCollapsed ? '\u21C5' : '\u21C4';
   }
 
   var _origShowSectionSonar = window.showSection;
@@ -1920,88 +2130,247 @@ window.addEventListener('DOMContentLoaded', function() {
   };
 
 
-  // ===== STATUS PAGE =====
-  const STATUS_API = '/api/health/status';
-  const statusHistory = {};
-  let statusPollTimer = null;
 
-  const STATUS_META = {
-    operational:     { icon: '\u2705', label: 'All Systems Operational', cls: 'status-global-banner-op'  },
-    degraded:        { icon: '\U0001F7E1', label: 'Degraded Performance',    cls: 'status-global-banner-deg' },
-    partial_outage:  { icon: '\U0001F7E0', label: 'Partial System Outage',   cls: 'status-global-banner-po'  },
-    major_outage:    { icon: '\U0001F534', label: 'Major System Outage',      cls: 'status-global-banner-maj' },
+
+  // ===== STATUS PILL + DRAWER (V024) =====
+  const STATUS_API = '/api/health/status';
+  const STATUS_INTERVAL = 30;
+  const statusHistory = {};
+  let statusCountdown = STATUS_INTERVAL;
+  let statusTimer = null;
+  let countdownTimer = null;
+  let statusLastData = null;
+
+  const PILL_META = {
+    operational:    { cls:'op',  icon:'✅', label:'All Systems Operational' },
+    degraded:       { cls:'deg', icon:'🟡', label:'Degraded Performance'    },
+    partial_outage: { cls:'po',  icon:'🟠', label:'Partial System Outage'   },
+    major_outage:   { cls:'maj', icon:'🔴', label:'Major System Outage'     },
   };
 
-  async function loadStatusData() {
+  const GROUP_INFRA     = ['api','redis'];
+  const GROUP_SERVICES  = ['ollama','rabbitmq','kafka','datadog-otel'];
+
+  const COMP_HINTS = {
+    api:           { ok:'API respondendo normalmente.',          fail:'API com problemas — serviço pode estar indisponível.' },
+    redis:         { ok:'Cache ativo — buscas rápidas.',        fail:'Cache offline — buscas mais lentas até a recuperação.' },
+    ollama:        { ok:'LLM disponível para inferências.',     fail:'Ollama offline — funcionalidades de IA indisponíveis.' },
+    rabbitmq:      { ok:'Mensageria operacional.',              fail:'RabbitMQ inacessível — eventos assíncronos suspensos.' },
+    kafka:         { ok:'Streaming de eventos ativo.',          fail:'Kafka inacessível — pipeline de eventos suspenso.' },
+    'datadog-otel':{ ok:'Telemetria enviando para o Datadog.',  fail:'OTel Collector offline — traces não estão sendo enviados.' },
+  };
+
+  function buildContextHint(components) {
+    if (!components || !components.length) return '';
+    const down    = components.filter(c => c.status === 'major_outage');
+    const deg     = components.filter(c => c.status === 'degraded');
+    const allOk   = components.every(c => c.status === 'operational');
+
+    if (allOk) return 'Todos os componentes respondendo dentro dos parâmetros esperados.';
+
+    const parts = [];
+    if (down.length) {
+      const names = down.map(c => COMP_HINTS[c.id]?.fail || (c.name + ' com falha.')).join(' ');
+      parts.push(names);
+    }
+    if (deg.length) {
+      const names = deg.map(c => COMP_HINTS[c.id]?.fail || (c.name + ' degradado.')).join(' ');
+      parts.push(names);
+    }
+    return parts.join(' ');
+  }
+
+  async function fetchStatusData() {
+    const spinner = document.getElementById('pill-spinner');
+    const pillLabel = document.getElementById('pill-label');
+    if (spinner) spinner.style.display = '';
+    if (pillLabel) pillLabel.style.opacity = '.5';
+
     try {
-      const res = await fetch(STATUS_API);
+      const res = await fetch(STATUS_API + '?t=' + Date.now());
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
-      renderStatusPage(data);
-      clearTimeout(statusPollTimer);
-      statusPollTimer = setTimeout(loadStatusData, 30000);
+      statusLastData = data;
+      updatePill(data);
+      if (document.getElementById('status-drawer').classList.contains('open')) {
+        renderDrawer(data);
+      }
     } catch(e) {
-      document.getElementById('status-global-text').textContent = 'Erro ao carregar: ' + e.message;
+      updatePillError();
+    } finally {
+      if (spinner) spinner.style.display = 'none';
+      if (pillLabel) pillLabel.style.opacity = '1';
+      statusCountdown = STATUS_INTERVAL;
+      startCountdown();
     }
   }
 
-  function renderStatusPage(data) {
+  function updatePill(data) {
     const indicator = data.status?.indicator ?? 'major_outage';
-    const meta = STATUS_META[indicator] ?? STATUS_META.major_outage;
-    const banner = document.getElementById('status-global-badge');
-    banner.className = banner.className.replace(/status-global-banner-\S+/g, '');
-    banner.classList.add(meta.cls);
-    document.getElementById('status-global-icon').textContent = meta.icon;
-    document.getElementById('status-global-text').textContent = meta.label;
-    const ts = new Date(data.page?.updatedAt ?? Date.now());
-    document.getElementById('status-last-updated').textContent = 'Atualizado: ' + ts.toLocaleTimeString('pt-BR');
+    const meta = PILL_META[indicator] ?? PILL_META.major_outage;
+    const pill = document.getElementById('status-pill');
+    pill.className = 'status-pill ' + meta.cls;
+    document.getElementById('pill-label').textContent = meta.label;
+  }
 
-    const grid = document.getElementById('status-components-grid');
-    grid.innerHTML = '';
-    (data.components ?? []).forEach(c => {
+  function updatePillError() {
+    const pill = document.getElementById('status-pill');
+    pill.className = 'status-pill maj';
+    document.getElementById('pill-label').textContent = 'Status indisponível';
+  }
+
+  function startCountdown() {
+    clearInterval(countdownTimer);
+    const el = document.getElementById('pill-countdown');
+    countdownTimer = setInterval(() => {
+      statusCountdown--;
+      if (el) el.textContent = statusCountdown + 's';
+      if (statusCountdown <= 0) {
+        clearInterval(countdownTimer);
+        if (el) el.textContent = '';
+        fetchStatusData();
+      }
+    }, 1000);
+  }
+
+  function renderDrawer(data) {
+    const indicator = data.status?.indicator ?? 'major_outage';
+    const meta = PILL_META[indicator] ?? PILL_META.major_outage;
+
+    // Banner global
+    const banner = document.getElementById('drawer-global-banner');
+    banner.className = 'drawer-global-banner ' + meta.cls;
+    document.getElementById('drawer-global-icon').textContent = meta.icon;
+    document.getElementById('drawer-global-text').textContent = meta.label;
+
+    // Subtitle
+    const ts = new Date(data.page?.updatedAt ?? Date.now());
+    document.getElementById('drawer-subtitle').textContent =
+      'Atualizado: ' + ts.toLocaleTimeString('pt-BR') + ' · próximo em ' + statusCountdown + 's';
+
+    // Hint contextual
+    let hintEl = document.getElementById('drawer-hint');
+    if (!hintEl) {
+      hintEl = document.createElement('div');
+      hintEl.id = 'drawer-hint';
+      hintEl.style.cssText = 'font-size:12px;color:#94a3b8;padding:8px 14px 4px;line-height:1.5;font-style:italic;border-left:3px solid;margin-bottom:2px;border-radius:0 4px 4px 0;';
+      banner.insertAdjacentElement('afterend', hintEl);
+    }
+    const borderColors = {op:'#22c55e', deg:'#eab308', po:'#f97316', maj:'#ef4444'};
+    hintEl.style.borderLeftColor = borderColors[meta.cls] ?? '#475569';
+    hintEl.style.background = meta.cls === 'op' ? 'rgba(34,197,94,.05)' : 'rgba(100,100,100,.05)';
+    hintEl.textContent = buildContextHint(data.components);
+
+    // Componentes — split por grupo
+    const comps = data.components ?? [];
+    const infraComps    = comps.filter(c => GROUP_INFRA.includes(c.id));
+    const serviceComps  = comps.filter(c => GROUP_SERVICES.includes(c.id));
+
+    renderCompGroup('infra',    infraComps,   comps);
+    renderCompGroup('services', serviceComps, comps);
+    renderUptimeDrawer(comps);
+  }
+
+  function renderCompGroup(group, comps, allComps) {
+    const container = document.getElementById('drawer-comps-' + group);
+    if (!container) return;
+    container.innerHTML = '';
+    comps.forEach(c => {
       if (!statusHistory[c.id]) statusHistory[c.id] = [];
       statusHistory[c.id].push(c.status);
       if (statusHistory[c.id].length > 30) statusHistory[c.id].shift();
-      const latency = c.latencyMs != null ? c.latencyMs + 'ms' : '\u2014';
-      const card = document.createElement('div');
-      card.className = 'status-component-card';
-      card.innerHTML = '<div class="status-component-top"><div><div class="status-component-name">' + c.name +
-        '</div><div class="status-component-group">' + c.group + '</div></div>' +
-        '<span class="status-badge ' + c.status + '">' + labelStatus(c.status) + '</span></div>' +
-        '<div style="font-size:11px;color:var(--text-muted)">\u23F1 ' + latency +
-        (c.description ? ' \u00B7 ' + c.description : '') + '</div>';
-      grid.appendChild(card);
+
+      const cls = statusCls(c.status);
+      const latency = c.latencyMs != null ? c.latencyMs + 'ms' : '—';
+      const hint = COMP_HINTS[c.id];
+      const hintText = (c.status === 'operational' ? hint?.ok : hint?.fail) ?? (c.description || '');
+      const descText = c.description && c.description !== hintText ? c.description : '';
+
+      const row = document.createElement('div');
+      row.className = 'drawer-comp-row';
+      row.innerHTML =
+        '<div class="drawer-comp-main" onclick="toggleCompDetail(\'' + c.id + '\')">' +
+          '<span class="drawer-comp-name">' + c.name + '</span>' +
+          '<span class="drawer-comp-latency">⏱ ' + latency + '</span>' +
+          '<span class="drawer-comp-badge ' + cls + '">' + labelStatus(c.status) + '</span>' +
+          (hintText || descText ? '<span class="drawer-comp-expand" id="dce-' + c.id + '">&#9660;</span>' : '') +
+        '</div>' +
+        (hintText || descText ?
+          '<div class="drawer-comp-detail" id="dcd-' + c.id + '">' +
+            (hintText ? '<div style="color:#94a3b8;margin-bottom:4px">&#128161; ' + hintText + '</div>' : '') +
+            (descText ? '<div style="color:#64748b;word-break:break-word">' + descText + '</div>' : '') +
+          '</div>' : '') ;
+      container.appendChild(row);
     });
-    renderUptimeHistory(data.components ?? []);
   }
 
-  function renderUptimeHistory(components) {
-    const wrap = document.getElementById('status-uptime-history');
+  function toggleCompDetail(id) {
+    const detail = document.getElementById('dcd-' + id);
+    const chevron = document.getElementById('dce-' + id);
+    if (!detail) return;
+    const isOpen = detail.classList.toggle('open');
+    if (chevron) chevron.classList.toggle('open', isOpen);
+  }
+
+  function renderUptimeDrawer(comps) {
+    const wrap = document.getElementById('drawer-uptime');
+    if (!wrap) return;
     wrap.innerHTML = '';
-    components.forEach(c => {
+    comps.forEach(c => {
       const hist = statusHistory[c.id] ?? [];
       const ticks = Array(30).fill('unknown');
-      hist.forEach((s, i) => { ticks[30 - hist.length + i] = s === 'operational' ? 'ok' : s === 'degraded' ? 'degraded' : 'down'; });
-      const pct = hist.length === 0 ? '\u2014' : (hist.filter(s => s === 'operational').length / hist.length * 100).toFixed(1) + '%';
+      hist.forEach((s, i) => {
+        ticks[30 - hist.length + i] = s === 'operational' ? 'ok' : s === 'degraded' ? 'degraded' : 'down';
+      });
+      const pct = hist.length === 0 ? '—'
+        : (hist.filter(s => s === 'operational').length / hist.length * 100).toFixed(0) + '%';
       const row = document.createElement('div');
-      row.className = 'uptime-row';
-      row.innerHTML = '<div class="uptime-row-header"><span>' + c.name + '</span><span>Uptime: ' + pct + '</span></div>' +
-        '<div class="uptime-bar-track">' + ticks.map(t => '<div class="uptime-tick ' + t + '" title="' + t + '"></div>').join('') + '</div>';
+      row.className = 'drawer-uptime-row';
+      row.innerHTML =
+        '<div class="drawer-uptime-label"><span>' + c.name + '</span><span>' + pct + ' uptime</span></div>' +
+        '<div class="drawer-uptime-bar">' +
+          ticks.map(t => '<div class="drawer-uptime-tick ' + t + '" title="' + t + '"></div>').join('') +
+        '</div>';
       wrap.appendChild(row);
     });
   }
 
+  function statusCls(s) {
+    return {operational:'op', degraded:'deg', partial_outage:'po', major_outage:'maj'}[s] ?? 'maj';
+  }
   function labelStatus(s) {
-    return { operational:'Operational', degraded:'Degraded', partial_outage:'Partial Outage', major_outage:'Outage' }[s] ?? s;
+    return {operational:'Operational', degraded:'Degraded', partial_outage:'Partial', major_outage:'Outage'}[s] ?? s;
   }
 
-  // Hook no showSection existente para carregar status ao abrir a seção
-  const _origShowSectionStatus = window.showSection;
-  window.showSection = function(id, el) {
-    if (typeof _origShowSectionStatus === 'function') _origShowSectionStatus(id, el);
-    if (id === 'statusBlock') loadStatusData();
-  };
+  function toggleDrawerSection(name) {
+    const body    = document.getElementById('dsb-' + name);
+    const chevron = document.getElementById('dsc-' + name);
+    if (!body) return;
+    const isOpen = body.style.maxHeight !== '0px' && body.style.maxHeight !== '';
+    body.style.maxHeight = isOpen ? '0px' : '1000px';
+    if (chevron) chevron.classList.toggle('open', !isOpen);
+  }
 
+  function toggleStatusDrawer() {
+    const drawer  = document.getElementById('status-drawer');
+    const overlay = document.getElementById('status-drawer-overlay');
+    const isOpen  = drawer.classList.contains('open');
+    if (isOpen) { closeStatusDrawer(); return; }
+    drawer.classList.add('open');
+    overlay.classList.add('open');
+    if (statusLastData) renderDrawer(statusLastData);
+    else fetchStatusData();
+  }
+
+  function closeStatusDrawer() {
+    document.getElementById('status-drawer').classList.remove('open');
+    document.getElementById('status-drawer-overlay').classList.remove('open');
+  }
+
+  // Iniciar polling ao carregar
+  window.addEventListener('load', () => {
+    fetchStatusData();
+  });
 </script>
 
     </div>
