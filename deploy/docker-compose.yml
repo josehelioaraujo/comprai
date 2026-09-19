@@ -17,6 +17,7 @@ services:
       Features__UsarRabbitMQ: ${USAR_RABBITMQ:-false}
       Features__UsarKafka:    ${USAR_KAFKA:-false}
       Features__UsarPriceWatcher: ${USAR_PRICE_WATCHER:-true}
+      GitHub__Pat: ${GH_PAT:-}
       # Em producao: OTEL_ENDPOINT=http://comprai-dd-agent:4317 (Datadog)
       # Em dev local: OTEL_ENDPOINT=http://comprai-jaeger:4319  (Jaeger)
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_ENDPOINT:-http://comprai-otel-collector:4317}
