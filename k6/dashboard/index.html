@@ -1310,6 +1310,7 @@ window.addEventListener('DOMContentLoaded', function() {
     document.getElementById('it-gh-link').style.display = 'none';
     itSetProgress(10);
     itSetStatus('running', '⏳', 'Disparando workflow...');
+    itShowSec('execution');
     itStartElapsed();
 
     try {
@@ -1385,7 +1386,9 @@ window.addEventListener('DOMContentLoaded', function() {
         itSetStatus(ok ? 'success' : 'failure', ok ? '✅' : '❌',
           ok ? 'Todos os testes passaram' : 'Falhou — ' + run.conclusion);
         itResetBtn('Executar Novamente');
+        itShowSec('results');
         await itLoadResults(pat, run, itJob);
+        itShowSec('history');
         itAddHistory(run, ok);
       } else {
         itPollTimer = setTimeout(() => itPollStatus(pat), 5000);
@@ -1583,10 +1586,8 @@ window.addEventListener('DOMContentLoaded', function() {
   function itAddHistory(run, ok) {
     itHistory.unshift({run, ok});
     if (itHistory.length > 5) itHistory.pop();
-    const wrap = document.getElementById('it-history-wrap');
     const list = document.getElementById('it-history');
-    if (!wrap || !list) return;
-    wrap.style.display = '';
+    if (!list) return;
     list.innerHTML = itHistory.map(({run:r, ok:o}) => {
       const ts  = new Date(r.created_at).toLocaleString('pt-BR');
       const dur = Math.round((new Date(r.updated_at) - new Date(r.created_at)) / 1000);
@@ -1619,6 +1620,20 @@ window.addEventListener('DOMContentLoaded', function() {
     steps.style.display = isHidden ? '' : 'none';
     if (chev) chev.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(-90deg)';
     window.itJobCollapsed[key] = !isHidden;
+  }
+
+  function itToggleSec(name) {
+    const body  = document.getElementById('it-sec-body-' + name);
+    const chev  = document.getElementById('it-sec-chev-' + name);
+    if (!body) return;
+    const isOpen = body.style.maxHeight !== '0px' && body.style.maxHeight !== '';
+    body.style.maxHeight = isOpen ? '0px' : '2000px';
+    if (chev) chev.classList.toggle('open', !isOpen);
+  }
+
+  function itShowSec(name) {
+    const sec = document.getElementById('it-sec-' + name);
+    if (sec) sec.style.display = '';
   }
 </script>
 
@@ -2233,6 +2248,11 @@ tr:hover td { background: rgba(255,255,255,.02); }
     .it-step-dot.failed    { background:#ef4444; }
     .it-step-name { flex:1; }
     .it-step-dur  { font-size:10px; color:var(--text-muted); }
+
+  
+    /* IT seções */
+    #it-jobs-panel .it-job-row { margin-bottom:2px; }
+    #it-suites .it-suite-card  { margin-bottom:2px; }
 
   </style>
 </head>
@@ -2868,6 +2888,8 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
 
     <div id="integrationBlock" class="content-section" style="display:none">
+
+      <!-- Header -->
       <div class="section-header">
         <h2 class="section-title">&#128260; Testes Integrados</h2>
         <div style="display:flex;align-items:center;gap:10px">
@@ -2879,32 +2901,54 @@ tr:hover td { background: rgba(255,255,255,.02); }
         </div>
       </div>
 
-      <div id="it-status-bar" class="it-status-bar idle">
+      <!-- Status bar global -->
+      <div id="it-status-bar" class="it-status-bar idle" style="margin-bottom:12px">
         <span id="it-status-icon">&#9711;</span>
         <span id="it-status-text">Pronto para executar</span>
         <span id="it-status-elapsed" style="margin-left:auto;font-size:10px;opacity:.7"></span>
       </div>
 
-      <div id="it-progress-wrap" style="display:none;margin-bottom:12px">
+      <!-- Progress bar -->
+      <div id="it-progress-wrap" style="display:none;margin-bottom:14px">
         <div class="it-progress-track"><div class="it-progress-fill" id="it-progress-fill"></div></div>
       </div>
 
-      <!-- Jobs/steps em tempo real -->
-      <div id="it-jobs-panel" style="display:none;margin-bottom:16px;display:flex;flex-direction:column;gap:6px"></div>
-
-      <!-- Cenários aparecem SOMENTE após execução -->
-      <div id="it-results" style="display:none">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-          <span style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#475569">Cenários</span>
-          <span id="it-summary-counts" style="font-size:11px;color:var(--text-muted)"></span>
+      <!-- SEÇÃO 1: EXECUÇÃO -->
+      <div class="drawer-section" id="it-sec-execution" style="display:none;margin-bottom:10px">
+        <div class="drawer-section-header" onclick="itToggleSec('execution')">
+          <span>&#9881; Execução do Pipeline</span>
+          <span class="drawer-section-chevron open" id="it-sec-chev-execution">&#9660;</span>
         </div>
-        <div id="it-suites"></div>
+        <div class="drawer-section-body" id="it-sec-body-execution" style="max-height:2000px">
+          <div id="it-jobs-panel" style="padding:10px;display:flex;flex-direction:column;gap:6px"></div>
+        </div>
       </div>
 
-      <div id="it-history-wrap" style="margin-top:16px;display:none">
-        <div class="card-section-header" style="margin-bottom:8px"><span>&#128203; Histórico de Runs</span></div>
-        <div id="it-history"></div>
+      <!-- SEÇÃO 2: RESULTADOS -->
+      <div class="drawer-section" id="it-sec-results" style="display:none;margin-bottom:10px">
+        <div class="drawer-section-header" onclick="itToggleSec('results')">
+          <span>&#128202; Resultados por Cenário</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span id="it-summary-counts" style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-muted)"></span>
+            <span class="drawer-section-chevron open" id="it-sec-chev-results">&#9660;</span>
+          </div>
+        </div>
+        <div class="drawer-section-body" id="it-sec-body-results" style="max-height:2000px">
+          <div id="it-suites" style="padding:10px;display:flex;flex-direction:column;gap:6px"></div>
+        </div>
       </div>
+
+      <!-- SEÇÃO 3: HISTÓRICO -->
+      <div class="drawer-section" id="it-sec-history" style="display:none">
+        <div class="drawer-section-header" onclick="itToggleSec('history')">
+          <span>&#128203; Histórico de Runs</span>
+          <span class="drawer-section-chevron" id="it-sec-chev-history">&#9660;</span>
+        </div>
+        <div class="drawer-section-body" id="it-sec-body-history" style="max-height:0">
+          <div id="it-history" style="padding:10px"></div>
+        </div>
+      </div>
+
     </div>
 
 
