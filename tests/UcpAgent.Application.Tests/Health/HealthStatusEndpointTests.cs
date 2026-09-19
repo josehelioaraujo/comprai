@@ -6,12 +6,20 @@ using Xunit;
 
 namespace UcpAgent.Application.Tests.Health;
 
-// Usa a CompraApiFactory existente — sem registrar checks duplicados
-public class HealthStatusEndpointTests : IClassFixture<CompraApiFactory>
+// Factory local — sobe a app sem mocks, checks reais são ExcludeFromCodeCoverage
+public class HealthApiFactory : WebApplicationFactory<Program>
+{
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        builder.UseEnvironment("Test");
+    }
+}
+
+public class HealthStatusEndpointTests : IClassFixture<HealthApiFactory>
 {
     private readonly HttpClient _client;
 
-    public HealthStatusEndpointTests(CompraApiFactory factory)
+    public HealthStatusEndpointTests(HealthApiFactory factory)
     {
         _client = factory.CreateClient();
     }
@@ -53,7 +61,7 @@ public class HealthStatusEndpointTests : IClassFixture<CompraApiFactory>
         var response = await _client.GetAsync("/api/health/status");
         var json     = await response.Content.ReadAsStringAsync();
         using var doc = JsonDocument.Parse(json);
-        var comps = doc.RootElement.GetProperty("components").EnumerateArray().ToList();
+        var comps    = doc.RootElement.GetProperty("components").EnumerateArray().ToList();
 
         Assert.NotEmpty(comps);
         Assert.Contains(comps, c => c.GetProperty("id").GetString() == "api");
