@@ -10,28 +10,27 @@ namespace UcpAgent.Application.Tests.Health;
 
 public class HealthTestFactory : WebApplicationFactory<Program>
 {
-    public HealthStatus OllamaStatus  { get; set; } = HealthStatus.Degraded;
-
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Test");
         builder.ConfigureServices(services =>
         {
+            // Remover TODOS os HealthCheckRegistration existentes para evitar duplicatas
+            var toRemove = services
+                .Where(d => d.ServiceType == typeof(HealthCheckRegistration))
+                .ToList();
+            foreach (var d in toRemove)
+                services.Remove(d);
+
+            // Registrar mocks: redis healthy, demais degraded (simula cenario real)
             services.AddHealthChecks()
-                .AddCheck("redis",        () => HealthCheckResult.Healthy(),               tags: ["infra"])
-                .AddCheck("ollama",       () => StatusToResult(OllamaStatus),              tags: ["ai"])
-                .AddCheck("rabbitmq",     () => HealthCheckResult.Degraded("mock"),        tags: ["messaging"])
-                .AddCheck("kafka",        () => HealthCheckResult.Degraded("mock"),        tags: ["messaging"])
-                .AddCheck("datadog-otel", () => HealthCheckResult.Healthy(),               tags: ["observability"]);
+                .AddCheck("redis",        () => HealthCheckResult.Healthy(),        tags: ["infra"])
+                .AddCheck("ollama",       () => HealthCheckResult.Degraded("mock"), tags: ["ai"])
+                .AddCheck("rabbitmq",     () => HealthCheckResult.Degraded("mock"), tags: ["messaging"])
+                .AddCheck("kafka",        () => HealthCheckResult.Degraded("mock"), tags: ["messaging"])
+                .AddCheck("datadog-otel", () => HealthCheckResult.Healthy(),        tags: ["observability"]);
         });
     }
-
-    private static HealthCheckResult StatusToResult(HealthStatus s) => s switch
-    {
-        HealthStatus.Healthy   => HealthCheckResult.Healthy(),
-        HealthStatus.Degraded  => HealthCheckResult.Degraded("mock degraded"),
-        _                      => HealthCheckResult.Unhealthy("mock unhealthy")
-    };
 }
 
 public class HealthStatusEndpointTests : IClassFixture<HealthTestFactory>
@@ -130,6 +129,20 @@ public class HealthStatusEndpointTests : IClassFixture<HealthTestFactory>
         using var doc = JsonDocument.Parse(json);
         var indicator = doc.RootElement.GetProperty("status").GetProperty("indicator").GetString();
 
+        // ollama, rabbitmq, kafka são degraded — indicator não pode ser operational
         Assert.NotEqual("operational", indicator);
+    }
+
+    [Fact]
+    public async Task GetHealthStatus_ComponenteRedis_DeveSerOperational()
+    {
+        var response = await _client.GetAsync("/api/health/status");
+        var json     = await response.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(json);
+        var redis = doc.RootElement.GetProperty("components").EnumerateArray()
+            .FirstOrDefault(c => c.GetProperty("id").GetString() == "redis");
+
+        Assert.NotEqual(default, redis);
+        Assert.Equal("operational", redis.GetProperty("status").GetString());
     }
 }
