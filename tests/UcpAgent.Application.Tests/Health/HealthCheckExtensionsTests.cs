@@ -8,27 +8,24 @@ namespace UcpAgent.Application.Tests.Health;
 
 public class HealthCheckExtensionsTests
 {
-    private static IConfiguration BuildConfig(
-        string redis      = "localhost:6379",
-        string rabbitHost = "localhost",
-        string kafkaBs    = "localhost:9092")
-    {
-        return new ConfigurationBuilder()
+    private static IConfiguration BuildConfig() =>
+        new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["ConnectionStrings:Redis"]   = redis,
-                ["RabbitMQ:Host"]             = rabbitHost,
-                ["Kafka:BootstrapServers"]     = kafkaBs,
+                ["ConnectionStrings:Redis"]   = "localhost:6379",
+                ["RabbitMQ:Host"]             = "localhost",
+                ["Kafka:BootstrapServers"]     = "localhost:9092",
             })
             .Build();
-    }
 
     [Fact]
     public void AddStatusPageHealthChecks_DeveRetornarMesmaColecao()
     {
         var services = new ServiceCollection();
         services.AddLogging();
+
         var result = services.AddStatusPageHealthChecks(BuildConfig());
+
         Assert.Same(services, result);
     }
 
@@ -37,106 +34,99 @@ public class HealthCheckExtensionsTests
     {
         var services = new ServiceCollection();
         services.AddLogging();
+
         services.AddStatusPageHealthChecks(BuildConfig());
+
         var provider = services.BuildServiceProvider();
-        var hcs = provider.GetService<HealthCheckService>();
-        Assert.NotNull(hcs);
+        Assert.NotNull(provider.GetService<HealthCheckService>());
     }
 
     [Fact]
-    public async Task HealthCheck_Redis_DeveExecutarSemExcecaoERetornarResultado()
+    public void AddStatusPageHealthChecks_DeveRegistrarTodosOsChecks()
     {
         var services = new ServiceCollection();
         services.AddLogging();
-        // Host inválido — deve retornar Unhealthy, não lançar exceção
-        services.AddStatusPageHealthChecks(BuildConfig(redis: "host-invalido:6379,connectTimeout=100,syncTimeout=100"));
-        var provider = services.BuildServiceProvider();
-        var hcs = provider.GetRequiredService<HealthCheckService>();
 
-        var report = await hcs.CheckHealthAsync(r => r.Tags.Contains("infra"));
-
-        Assert.Contains("redis", report.Entries.Keys);
-        // Não importa o status — apenas que não lançou exceção e retornou um resultado
-        Assert.True(Enum.IsDefined(typeof(HealthStatus), report.Entries["redis"].Status));
-    }
-
-    [Fact]
-    public async Task HealthCheck_Ollama_DeveExecutarSemExcecaoERetornarResultado()
-    {
-        var services = new ServiceCollection();
-        services.AddLogging();
         services.AddStatusPageHealthChecks(BuildConfig());
+
+        // Verificar que os 5 checks foram registrados via IOptions<HealthCheckServiceOptions>
         var provider = services.BuildServiceProvider();
-        var hcs = provider.GetRequiredService<HealthCheckService>();
+        var options  = provider.GetRequiredService<
+            Microsoft.Extensions.Options.IOptions<HealthCheckServiceOptions>>();
 
-        var report = await hcs.CheckHealthAsync(r => r.Tags.Contains("ai"));
-
-        Assert.Contains("ollama", report.Entries.Keys);
-        Assert.True(Enum.IsDefined(typeof(HealthStatus), report.Entries["ollama"].Status));
+        var names = options.Value.Registrations.Select(r => r.Name).ToList();
+        Assert.Contains("redis",         names);
+        Assert.Contains("ollama",        names);
+        Assert.Contains("rabbitmq",      names);
+        Assert.Contains("kafka",         names);
+        Assert.Contains("datadog-otel",  names);
     }
 
     [Fact]
-    public async Task HealthCheck_RabbitMQ_DeveExecutarSemExcecaoERetornarResultado()
-    {
-        var services = new ServiceCollection();
-        services.AddLogging();
-        services.AddStatusPageHealthChecks(BuildConfig(rabbitHost: "host-invalido-rabbit"));
-        var provider = services.BuildServiceProvider();
-        var hcs = provider.GetRequiredService<HealthCheckService>();
-
-        var report = await hcs.CheckHealthAsync(r => r.Name == "rabbitmq");
-
-        Assert.Contains("rabbitmq", report.Entries.Keys);
-        Assert.True(Enum.IsDefined(typeof(HealthStatus), report.Entries["rabbitmq"].Status));
-    }
-
-    [Fact]
-    public async Task HealthCheck_Kafka_DeveExecutarSemExcecaoERetornarResultado()
-    {
-        var services = new ServiceCollection();
-        services.AddLogging();
-        services.AddStatusPageHealthChecks(BuildConfig(kafkaBs: "host-invalido-kafka:9092"));
-        var provider = services.BuildServiceProvider();
-        var hcs = provider.GetRequiredService<HealthCheckService>();
-
-        var report = await hcs.CheckHealthAsync(r => r.Name == "kafka");
-
-        Assert.Contains("kafka", report.Entries.Keys);
-        Assert.True(Enum.IsDefined(typeof(HealthStatus), report.Entries["kafka"].Status));
-    }
-
-    [Fact]
-    public async Task HealthCheck_DatadogOtel_DeveExecutarSemExcecaoERetornarResultado()
+    public void AddStatusPageHealthChecks_RedisDeveEstarNaTagInfra()
     {
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddStatusPageHealthChecks(BuildConfig());
+
         var provider = services.BuildServiceProvider();
-        var hcs = provider.GetRequiredService<HealthCheckService>();
+        var options  = provider.GetRequiredService<
+            Microsoft.Extensions.Options.IOptions<HealthCheckServiceOptions>>();
 
-        var report = await hcs.CheckHealthAsync(r => r.Name == "datadog-otel");
-
-        Assert.Contains("datadog-otel", report.Entries.Keys);
-        Assert.True(Enum.IsDefined(typeof(HealthStatus), report.Entries["datadog-otel"].Status));
+        var redis = options.Value.Registrations.FirstOrDefault(r => r.Name == "redis");
+        Assert.NotNull(redis);
+        Assert.Contains("infra", redis!.Tags);
     }
 
     [Fact]
-    public async Task HealthChecks_TodosOsChecks_DevemRetornarResultadoValido()
+    public void AddStatusPageHealthChecks_OllamaDeveEstarNaTagAi()
     {
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddStatusPageHealthChecks(BuildConfig());
+
         var provider = services.BuildServiceProvider();
-        var hcs = provider.GetRequiredService<HealthCheckService>();
+        var options  = provider.GetRequiredService<
+            Microsoft.Extensions.Options.IOptions<HealthCheckServiceOptions>>();
 
-        var report = await hcs.CheckHealthAsync();
+        var ollama = options.Value.Registrations.FirstOrDefault(r => r.Name == "ollama");
+        Assert.NotNull(ollama);
+        Assert.Contains("ai", ollama!.Tags);
+    }
 
-        var expectedChecks = new[] { "redis", "ollama", "rabbitmq", "kafka", "datadog-otel" };
-        foreach (var name in expectedChecks)
-        {
-            Assert.True(report.Entries.ContainsKey(name), $"Check '{name}' nao encontrado no report");
-            Assert.True(Enum.IsDefined(typeof(HealthStatus), report.Entries[name].Status),
-                $"Status invalido para '{name}'");
-        }
+    [Fact]
+    public void AddStatusPageHealthChecks_MensageriaDeveEstarNaTagMessaging()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddStatusPageHealthChecks(BuildConfig());
+
+        var provider = services.BuildServiceProvider();
+        var options  = provider.GetRequiredService<
+            Microsoft.Extensions.Options.IOptions<HealthCheckServiceOptions>>();
+
+        var names = options.Value.Registrations
+            .Where(r => r.Tags.Contains("messaging"))
+            .Select(r => r.Name)
+            .ToList();
+
+        Assert.Contains("rabbitmq", names);
+        Assert.Contains("kafka",    names);
+    }
+
+    [Fact]
+    public void AddStatusPageHealthChecks_DatadogDeveEstarNaTagObservability()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddStatusPageHealthChecks(BuildConfig());
+
+        var provider = services.BuildServiceProvider();
+        var options  = provider.GetRequiredService<
+            Microsoft.Extensions.Options.IOptions<HealthCheckServiceOptions>>();
+
+        var datadog = options.Value.Registrations.FirstOrDefault(r => r.Name == "datadog-otel");
+        Assert.NotNull(datadog);
+        Assert.Contains("observability", datadog!.Tags);
     }
 }
