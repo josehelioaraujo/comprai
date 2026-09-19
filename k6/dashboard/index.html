@@ -1303,11 +1303,13 @@ window.addEventListener('DOMContentLoaded', function() {
     const pat = itGetPat();
     if (!pat) return;
     const btn = document.getElementById('it-run-btn');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="btn-spinner"></span> Executando...';
-    document.getElementById('it-results').style.display = 'none';
-    document.getElementById('it-progress-wrap').style.display = '';
-    document.getElementById('it-gh-link').style.display = 'none';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span> Executando...'; }
+    const resEl  = document.getElementById('it-results');
+    const progEl = document.getElementById('it-progress-wrap');
+    const ghLink = document.getElementById('it-gh-link');
+    if (resEl)  resEl.style.display  = 'none';
+    if (progEl) progEl.style.display = '';
+    if (ghLink) ghLink.style.display = 'none';
     itSetProgress(10);
     itSetStatus('running', '⏳', 'Disparando workflow...');
     itShowSec('execution');
@@ -1557,12 +1559,14 @@ window.addEventListener('DOMContentLoaded', function() {
     const tx  = document.getElementById('it-status-text');
     if (!bar) return;
     bar.className = 'it-status-bar ' + cls;
-    if (ic) ic.textContent = icon;
-    if (tx) tx.textContent = text;
+    if (ic) ic.textContent = icon  ?? '';
+    if (tx) tx.textContent = text  ?? '';
   }
 
   function itSetProgress(pct) {
+    const wrap = document.getElementById('it-progress-wrap');
     const fill = document.getElementById('it-progress-fill');
+    if (wrap) wrap.style.display = '';
     if (fill) fill.style.width = pct + '%';
   }
 
@@ -1604,10 +1608,8 @@ window.addEventListener('DOMContentLoaded', function() {
   window.showSection = function(id, el) {
     if (typeof _origShowSectionIT === 'function') _origShowSectionIT(id, el);
     if (id === 'integrationBlock') {
-      fetch('/api/k6/gh-config')
-        .then(r => r.ok ? r.json() : null)
-        .then(cfg => { if (cfg && cfg.token) itPat = cfg.token; })
-        .catch(() => {});
+      // gh-config server-side ainda não implementado — PAT via prompt
+      // fetch('/api/k6/gh-config') removido para evitar 404
     }
   };
 
@@ -1631,9 +1633,16 @@ window.addEventListener('DOMContentLoaded', function() {
     if (chev) chev.classList.toggle('open', !isOpen);
   }
 
-  function itShowSec(name) {
-    const sec = document.getElementById('it-sec-' + name);
-    if (sec) sec.style.display = '';
+  function itShowSec(name, open) {
+    const sec  = document.getElementById('it-sec-' + name);
+    const body = document.getElementById('it-sec-body-' + name);
+    const chev = document.getElementById('it-sec-chev-' + name);
+    if (!sec) return;
+    sec.style.display = '';
+    if (open !== false && body) {
+      body.style.maxHeight = '2000px';
+      if (chev) chev.classList.add('open');
+    }
   }
 </script>
 
