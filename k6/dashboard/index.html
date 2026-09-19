@@ -324,7 +324,31 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
 .loading { padding: 48px; text-align: center; color: var(--muted); font-size: 15px; }
 #scenarioPanel { min-height: 80px; }
-</style>
+
+    /* ---- Status Page ---- */
+    .status-component-card { background:var(--card-bg); border:1px solid var(--border); border-radius:10px; padding:14px 16px; display:flex; flex-direction:column; gap:6px; }
+    .status-component-top { display:flex; justify-content:space-between; align-items:center; }
+    .status-component-name { font-size:13px; font-weight:600; color:var(--text-primary); }
+    .status-component-group { font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.05em; }
+    .status-badge { font-size:11px; font-weight:600; padding:3px 8px; border-radius:20px; white-space:nowrap; }
+    .status-badge.operational   { background:rgba(34,197,94,.15);  color:#22c55e; }
+    .status-badge.degraded      { background:rgba(234,179,8,.15);   color:#eab308; }
+    .status-badge.partial_outage{ background:rgba(249,115,22,.15);  color:#f97316; }
+    .status-badge.major_outage  { background:rgba(239,68,68,.15);   color:#ef4444; }
+    .status-global-banner-op  { background:rgba(34,197,94,.08);  border-color:rgba(34,197,94,.25)!important;  color:#22c55e; }
+    .status-global-banner-deg { background:rgba(234,179,8,.08);   border-color:rgba(234,179,8,.25)!important;  color:#eab308; }
+    .status-global-banner-po  { background:rgba(249,115,22,.08);  border-color:rgba(249,115,22,.25)!important; color:#f97316; }
+    .status-global-banner-maj { background:rgba(239,68,68,.08);   border-color:rgba(239,68,68,.25)!important;  color:#ef4444; }
+    .uptime-row { display:flex; flex-direction:column; gap:4px; }
+    .uptime-row-header { display:flex; justify-content:space-between; font-size:12px; color:var(--text-secondary); }
+    .uptime-bar-track { display:flex; gap:2px; }
+    .uptime-tick { flex:1; height:20px; border-radius:3px; }
+    .uptime-tick.ok       { background:#22c55e; }
+    .uptime-tick.degraded { background:#eab308; }
+    .uptime-tick.down     { background:#ef4444; }
+    .uptime-tick.unknown  { background:var(--border); }
+
+  </style>
 </head>
 <body>
 
@@ -437,6 +461,9 @@ tr:hover td { background: rgba(255,255,255,.02); }
       <div class="nav-group-items">
         <div class="nav-item" id="nav-sonar" onclick="showSection('sonarBlock', this)" title="SonarCloud Quality Gate">
           <span class="nav-icon">&#9728;</span><span class="nav-text">SonarCloud</span>
+        </div>
+        <div class="nav-item" id="nav-status" onclick="showSection('statusBlock', this)" title="Status do Sistema">
+          <span class="nav-icon">&#128994;</span><span class="nav-text">Status</span>
         </div>
       </div>
     </div>
@@ -940,6 +967,28 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <div style="padding:12px 16px 16px">
           <div id="pci-list"></div>
         </div>
+      </div>
+    </div>
+
+    <div id="statusBlock" class="content-section" style="display:none">
+      <div class="section-header">
+        <h2 class="section-title">&#127881; Status do Sistema</h2>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span id="status-last-updated" style="font-size:12px;color:var(--text-muted)"></span>
+          <button onclick="loadStatusData()" style="background:none;border:1px solid var(--border);color:var(--text-secondary);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:14px" title="Atualizar">&#8635;</button>
+        </div>
+      </div>
+
+      <div id="status-global-badge" style="display:flex;align-items:center;gap:12px;padding:16px 20px;border-radius:10px;font-size:16px;font-weight:600;border:1px solid;margin-bottom:24px;background:rgba(100,100,100,.08);border-color:var(--border)">
+        <span id="status-global-icon">&#9203;</span>
+        <span id="status-global-text">Carregando...</span>
+      </div>
+
+      <div class="kpi-grid" id="status-components-grid" style="margin-bottom:28px"></div>
+
+      <div class="card-section">
+        <div class="card-section-header"><span>&#128197; Hist&#243;rico de Uptime</span><span style="font-size:11px;color:var(--text-muted);margin-left:8px">&#250;ltimos 30 checks</span></div>
+        <div id="status-uptime-history" class="card-section-body" style="display:flex;flex-direction:column;gap:10px"></div>
       </div>
     </div>
 
@@ -1868,6 +1917,89 @@ window.addEventListener('DOMContentLoaded', function() {
     if (typeof _origShowSectionSonar === 'function') _origShowSectionSonar(id, el);
     if (id === 'sonarBlock') loadSonarData();
     if (id === 'routesBlock') renderRoutes();
+  };
+
+
+  // ===== STATUS PAGE =====
+  const STATUS_API = '/api/health/status';
+  const statusHistory = {};
+  let statusPollTimer = null;
+
+  const STATUS_META = {
+    operational:     { icon: '\u2705', label: 'All Systems Operational', cls: 'status-global-banner-op'  },
+    degraded:        { icon: '\U0001F7E1', label: 'Degraded Performance',    cls: 'status-global-banner-deg' },
+    partial_outage:  { icon: '\U0001F7E0', label: 'Partial System Outage',   cls: 'status-global-banner-po'  },
+    major_outage:    { icon: '\U0001F534', label: 'Major System Outage',      cls: 'status-global-banner-maj' },
+  };
+
+  async function loadStatusData() {
+    try {
+      const res = await fetch(STATUS_API);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      renderStatusPage(data);
+      clearTimeout(statusPollTimer);
+      statusPollTimer = setTimeout(loadStatusData, 30000);
+    } catch(e) {
+      document.getElementById('status-global-text').textContent = 'Erro ao carregar: ' + e.message;
+    }
+  }
+
+  function renderStatusPage(data) {
+    const indicator = data.status?.indicator ?? 'major_outage';
+    const meta = STATUS_META[indicator] ?? STATUS_META.major_outage;
+    const banner = document.getElementById('status-global-badge');
+    banner.className = banner.className.replace(/status-global-banner-\S+/g, '');
+    banner.classList.add(meta.cls);
+    document.getElementById('status-global-icon').textContent = meta.icon;
+    document.getElementById('status-global-text').textContent = meta.label;
+    const ts = new Date(data.page?.updatedAt ?? Date.now());
+    document.getElementById('status-last-updated').textContent = 'Atualizado: ' + ts.toLocaleTimeString('pt-BR');
+
+    const grid = document.getElementById('status-components-grid');
+    grid.innerHTML = '';
+    (data.components ?? []).forEach(c => {
+      if (!statusHistory[c.id]) statusHistory[c.id] = [];
+      statusHistory[c.id].push(c.status);
+      if (statusHistory[c.id].length > 30) statusHistory[c.id].shift();
+      const latency = c.latencyMs != null ? c.latencyMs + 'ms' : '\u2014';
+      const card = document.createElement('div');
+      card.className = 'status-component-card';
+      card.innerHTML = '<div class="status-component-top"><div><div class="status-component-name">' + c.name +
+        '</div><div class="status-component-group">' + c.group + '</div></div>' +
+        '<span class="status-badge ' + c.status + '">' + labelStatus(c.status) + '</span></div>' +
+        '<div style="font-size:11px;color:var(--text-muted)">\u23F1 ' + latency +
+        (c.description ? ' \u00B7 ' + c.description : '') + '</div>';
+      grid.appendChild(card);
+    });
+    renderUptimeHistory(data.components ?? []);
+  }
+
+  function renderUptimeHistory(components) {
+    const wrap = document.getElementById('status-uptime-history');
+    wrap.innerHTML = '';
+    components.forEach(c => {
+      const hist = statusHistory[c.id] ?? [];
+      const ticks = Array(30).fill('unknown');
+      hist.forEach((s, i) => { ticks[30 - hist.length + i] = s === 'operational' ? 'ok' : s === 'degraded' ? 'degraded' : 'down'; });
+      const pct = hist.length === 0 ? '\u2014' : (hist.filter(s => s === 'operational').length / hist.length * 100).toFixed(1) + '%';
+      const row = document.createElement('div');
+      row.className = 'uptime-row';
+      row.innerHTML = '<div class="uptime-row-header"><span>' + c.name + '</span><span>Uptime: ' + pct + '</span></div>' +
+        '<div class="uptime-bar-track">' + ticks.map(t => '<div class="uptime-tick ' + t + '" title="' + t + '"></div>').join('') + '</div>';
+      wrap.appendChild(row);
+    });
+  }
+
+  function labelStatus(s) {
+    return { operational:'Operational', degraded:'Degraded', partial_outage:'Partial Outage', major_outage:'Outage' }[s] ?? s;
+  }
+
+  // Hook no showSection existente para carregar status ao abrir a seção
+  const _origShowSectionStatus = window.showSection;
+  window.showSection = function(id, el) {
+    if (typeof _origShowSectionStatus === 'function') _origShowSectionStatus(id, el);
+    if (id === 'statusBlock') loadStatusData();
   };
 
 </script>
