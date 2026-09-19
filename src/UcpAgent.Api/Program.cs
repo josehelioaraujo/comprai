@@ -1,3 +1,4 @@
+using System.Text.Json;
 using UcpAgent.Api.Health;
 using UcpAgent.Api.Resilience;
 using UcpAgent.Api.RateLimit;
@@ -202,6 +203,18 @@ builder.Services.AddSingleton<IProductCatalogPort, DummyJsonPlugin>();
 builder.Services.AddCatalogRateLimiter(builder.Configuration);
 
 builder.Services.AddStatusPageHealthChecks(builder.Configuration);
+
+
+// GitHub HttpClient
+builder.Services.AddHttpClient("github", (sp, client) =>
+{
+    var config = sp.GetRequiredService<IConfiguration>();
+    var pat    = config["GitHub:Pat"] ?? Environment.GetEnvironmentVariable("GH_PAT") ?? string.Empty;
+    client.DefaultRequestHeaders.Add("Authorization", $"Bearer {pat}");
+    client.DefaultRequestHeaders.Add("User-Agent",    "comprai-qa-hub/1.0");
+    client.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2022-11-28");
+    client.DefaultRequestHeaders.Add("Accept", "application/vnd.github+json");
+});
 
 var app = builder.Build();
 
@@ -511,6 +524,124 @@ app.MapGet("/k6", async (HttpContext ctx, CancellationToken ct) =>
 
 app.MapHealthStatusEndpoint();
 
+
+// ── GitHub Dispatch ────────────────────────────────────────────────────────────
+app.MapPost("/api/github/dispatch", async (GitHubDispatchRequest req, IConfiguration config, IHttpClientFactory factory) =>
+{
+    var ghPat = config["GitHub:Pat"]
+             ?? Environment.GetEnvironmentVariable("GH_PAT")
+             ?? string.Empty;
+
+    if (string.IsNullOrWhiteSpace(ghPat))
+        return Results.Problem("GH_PAT não configurado no servidor.", statusCode: 503);
+
+    var repo     = req.Repo     ?? "josehelioaraujo/comprai";
+    var workflow = req.Workflow ?? "integration-tests.yml";
+    var branch   = req.Ref      ?? "main";
+
+    var url = $"https://api.github.com/repos/{repo}/actions/workflows/{workflow}/dispatches";
+
+    var client = factory.CreateClient("github");
+    var body   = JsonSerializer.Serialize(new { @ref = branch });
+    var content = new StringContent(body, System.Text.Encoding.UTF8, "application/json");
+
+    var resp = await client.PostAsync(url, content);
+
+    if (!resp.IsSuccessStatusCode)
+    {
+        var err = await resp.Content.ReadAsStringAsync();
+        return Results.Problem($"GitHub API: {(int)resp.StatusCode} — {err}", statusCode: 502);
+    }
+
+    // Aguardar 5s e retornar o run mais recente
+    await Task.Delay(5000);
+    var runsUrl = $"https://api.github.com/repos/{repo}/actions/workflows/{workflow}/runs?per_page=1&branch={branch}";
+    var runsResp = await client.GetAsync(runsUrl);
+    if (runsResp.IsSuccessStatusCode)
+    {
+        var runsJson = await runsResp.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(runsJson);
+        var run = doc.RootElement.GetProperty("workflow_runs").EnumerateArray().FirstOrDefault();
+        if (run.ValueKind != JsonValueKind.Undefined)
+        {
+            return Results.Ok(new
+            {
+                runId  = run.GetProperty("id").GetInt64(),
+                url    = run.GetProperty("html_url").GetString(),
+                status = run.GetProperty("status").GetString()
+            });
+        }
+    }
+
+    return Results.Ok(new { runId = (long?)null, url = (string?)null, status = "queued" });
+})
+.WithName("GitHubDispatch")
+.WithTags("GitHub")
+.AllowAnonymous();
+
+// ── GitHub Run Status ──────────────────────────────────────────────────────────
+app.MapGet("/api/github/run/{runId}/status", async (long runId, string? repo, IConfiguration config, IHttpClientFactory factory) =>
+{
+    var ghPat = config["GitHub:Pat"]
+             ?? Environment.GetEnvironmentVariable("GH_PAT")
+             ?? string.Empty;
+
+    if (string.IsNullOrWhiteSpace(ghPat))
+        return Results.Problem("GH_PAT não configurado.", statusCode: 503);
+
+    repo ??= "josehelioaraujo/comprai";
+    var client = factory.CreateClient("github");
+
+    var runResp  = await client.GetAsync($"https://api.github.com/repos/{repo}/actions/runs/{runId}");
+    var jobsResp = await client.GetAsync($"https://api.github.com/repos/{repo}/actions/runs/{runId}/jobs");
+
+    if (!runResp.IsSuccessStatusCode)
+        return Results.Problem("Erro ao consultar run.", statusCode: 502);
+
+    var runJson  = await runResp.Content.ReadAsStringAsync();
+    var jobsJson = jobsResp.IsSuccessStatusCode ? await jobsResp.Content.ReadAsStringAsync() : "{}";
+
+    using var runDoc  = JsonDocument.Parse(runJson);
+    using var jobsDoc = JsonDocument.Parse(jobsJson);
+
+    var run  = runDoc.RootElement;
+    JsonElement jobsEl;
+    jobsDoc.RootElement.TryGetProperty("jobs", out jobsEl);
+
+    return Results.Ok(new
+    {
+        id         = run.GetProperty("id").GetInt64(),
+        status     = run.GetProperty("status").GetString(),
+        conclusion = run.TryGetProperty("conclusion", out var c) ? c.GetString() : null,
+        htmlUrl    = run.GetProperty("html_url").GetString(),
+        createdAt  = run.GetProperty("created_at").GetString(),
+        updatedAt  = run.GetProperty("updated_at").GetString(),
+        jobs       = jobsEl.ValueKind == JsonValueKind.Array
+            ? jobsEl.EnumerateArray().Select(j => new
+            {
+                name       = j.GetProperty("name").GetString(),
+                status     = j.GetProperty("status").GetString(),
+                conclusion = j.TryGetProperty("conclusion", out var jc) ? jc.GetString() : null,
+                startedAt  = j.TryGetProperty("started_at", out var js) ? js.GetString() : null,
+                completedAt= j.TryGetProperty("completed_at", out var jcp) ? jcp.GetString() : null,
+                steps      = j.TryGetProperty("steps", out var st) && st.ValueKind == JsonValueKind.Array
+                    ? st.EnumerateArray().Select(s => new
+                    {
+                        name        = s.GetProperty("name").GetString(),
+                        status      = s.GetProperty("status").GetString(),
+                        conclusion  = s.TryGetProperty("conclusion", out var sc) ? sc.GetString() : null,
+                        startedAt   = s.TryGetProperty("started_at", out var ss) ? ss.GetString() : null,
+                        completedAt = s.TryGetProperty("completed_at", out var scp) ? scp.GetString() : null,
+                    }).ToList()
+                    : null
+            }).ToList()
+            : null
+    });
+})
+.WithName("GitHubRunStatus")
+.WithTags("GitHub")
+.AllowAnonymous();
+
 app.Run();
 
 // ââ Request DTOs ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
@@ -521,3 +652,5 @@ record PaymentRequestDto(
     UcpAgent.SharedKernel.Ports.PaymentMethodDto Method);
 
 record K6AnalyzeRequest(string Summary, string Question, string? Model);
+
+record GitHubDispatchRequest(string? Repo, string? Workflow, string? Ref);

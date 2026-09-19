@@ -1293,15 +1293,10 @@ window.addEventListener('DOMContentLoaded', function() {
   let itHistory    = [];
 
   function itGetPat() {
-    if (itPat) return itPat;
-    if (window.ghConfig && window.ghConfig.token) { itPat = window.ghConfig.token; return itPat; }
-    itPat = prompt('PAT do GitHub (permissões: repo + workflow):');
-    return itPat;
+    return '__server__'; // PAT gerenciado server-side via /api/github/dispatch
   }
 
   async function itRunTests() {
-    const pat = itGetPat();
-    if (!pat) return;
     const btn = document.getElementById('it-run-btn');
     if (btn) { btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span> Executando...'; }
     const resEl  = document.getElementById('it-results');
@@ -1316,16 +1311,27 @@ window.addEventListener('DOMContentLoaded', function() {
     itStartElapsed();
 
     try {
-      const res = await fetch(
-        `https://api.github.com/repos/${IT_REPO}/actions/workflows/${IT_WF}/dispatches`,
-        { method:'POST', headers:{ Authorization:`Bearer ${pat}`, 'Content-Type':'application/json', 'X-GitHub-Api-Version':'2022-11-28' },
-          body: JSON.stringify({ ref: IT_BRANCH }) }
-      );
-      if (!res.ok) throw new Error('Dispatch falhou: ' + res.status);
+      const res = await fetch('/api/github/dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ repo: IT_REPO, workflow: IT_WF, ref: IT_BRANCH })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || err.title || 'Dispatch falhou: ' + res.status);
+      }
+      const dispatchData = await res.json();
       itSetStatus('running', '⏳', 'Aguardando início...');
       itSetProgress(20);
-      await new Promise(r => setTimeout(r, 6000));
-      await itPollForRun(pat);
+      if (dispatchData.runId) {
+        itRunId = dispatchData.runId;
+        const link = document.getElementById('it-gh-link');
+        if (link && dispatchData.url) { link.href = dispatchData.url; link.style.display = ''; }
+        itPollStatus();
+      } else {
+        await new Promise(r => setTimeout(r, 4000));
+        await itPollForRun();
+      }
     } catch(e) {
       itSetStatus('failure', '❌', 'Erro: ' + e.message);
       itResetBtn();
@@ -1333,36 +1339,32 @@ window.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  async function itPollForRun(pat) {
+  async function itPollForRun() {
     try {
-      const res  = await fetch(
-        `https://api.github.com/repos/${IT_REPO}/actions/workflows/${IT_WF}/runs?per_page=1&branch=${IT_BRANCH}`,
-        { headers:{ Authorization:`Bearer ${pat}`, 'X-GitHub-Api-Version':'2022-11-28' } }
-      );
+      const res  = await fetch(`/api/github/dispatch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ repo: IT_REPO, workflow: IT_WF, ref: IT_BRANCH })
+      });
       const data = await res.json();
-      const run  = data.workflow_runs?.[0];
-      if (!run) { setTimeout(() => itPollForRun(pat), 5000); return; }
-      itRunId = run.id;
+      if (!data.runId) { setTimeout(() => itPollForRun(), 5000); return; }
+      itRunId = data.runId;
       const link = document.getElementById('it-gh-link');
-      if (link) { link.href = run.html_url; link.style.display = ''; }
+      if (link && data.url) { link.href = data.url; link.style.display = ''; }
       itSetProgress(35);
-      itPollStatus(pat);
-    } catch(e) { setTimeout(() => itPollForRun(pat), 6000); }
+      itPollStatus();
+    } catch(e) { setTimeout(() => itPollForRun(), 6000); }
   }
 
-  async function itPollStatus(pat) {
+  async function itPollStatus() {
     clearTimeout(itPollTimer);
     if (!itRunId) return;
     try {
-      const [rRes, jRes] = await Promise.all([
-        fetch(`https://api.github.com/repos/${IT_REPO}/actions/runs/${itRunId}`,
-          { headers:{ Authorization:`Bearer ${pat}`, 'X-GitHub-Api-Version':'2022-11-28' } }),
-        fetch(`https://api.github.com/repos/${IT_REPO}/actions/runs/${itRunId}/jobs`,
-          { headers:{ Authorization:`Bearer ${pat}`, 'X-GitHub-Api-Version':'2022-11-28' } })
-      ]);
-      const run   = await rRes.json();
-      const jData = await jRes.json();
-      const jobs  = jData.jobs ?? [];
+      const rRes = await fetch(`/api/github/run/${itRunId}/status`);
+      if (!rRes.ok) throw new Error('status ' + rRes.status);
+      const data  = await rRes.json();
+      const run   = { status: data.status, conclusion: data.conclusion, html_url: data.htmlUrl, created_at: data.createdAt, updated_at: data.updatedAt };
+      const jobs  = data.jobs ?? [];
       const itJob = jobs.find(j => j.name && j.name.includes('Integra'));
 
       // Renderizar painel de jobs em tempo real
@@ -1393,9 +1395,9 @@ window.addEventListener('DOMContentLoaded', function() {
         itShowSec('history');
         itAddHistory(run, ok);
       } else {
-        itPollTimer = setTimeout(() => itPollStatus(pat), 5000);
+        itPollTimer = setTimeout(() => itPollStatus(), 5000);
       }
-    } catch(e) { itPollTimer = setTimeout(() => itPollStatus(pat), 8000); }
+    } catch(e) { itPollTimer = setTimeout(() => itPollStatus(), 8000); }
   }
 
   function itRenderJobsPanel(jobs) {
