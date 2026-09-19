@@ -365,6 +365,11 @@ jobs:
               && sed -i "s|^DD_API_KEY=.*|DD_API_KEY=${DATADOG_API_KEY}|" .env \
               || echo "DD_API_KEY=${DATADOG_API_KEY}" >> .env
 
+            # Injetar GH_PAT no .env para /api/github/dispatch
+            grep -q '^GH_PAT=' .env \
+              && sed -i "s|^GH_PAT=.*|GH_PAT=${{ secrets.GH_PAT }}|" .env \
+              || echo "GH_PAT=${{ secrets.GH_PAT }}" >> .env
+
             # Injetar credenciais MercadoLivre no .env
             grep -q '^ML_CLIENT_ID=' .env \
               && sed -i "s|^ML_CLIENT_ID=.*|ML_CLIENT_ID=${ML_CLIENT_ID}|" .env \
