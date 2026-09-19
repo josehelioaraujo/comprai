@@ -1,3 +1,52 @@
+## [3.4.0] - 2026-09-19
+
+### Added
+
+- **QA Hub — Status Page (padrão indústria)**
+  - Endpoint `GET /api/health/status` com schema agnóstico (Atlassian Statuspage / Instatus compatível)
+  - Checks: Redis (SDK), Ollama (HTTP), RabbitMQ/Kafka/Datadog OTel (TCP) — sem NuGet extra
+  - Status Pill na topbar com countdown 30s, spinner e indicador de cor por severidade
+  - Drawer lateral direito padrão Datadog/Grafana (z-index 9998, shadow lateral)
+  - 2 seções drilldown com dots de status em tempo real: Infraestrutura & API / Serviços & Observabilidade
+  - Hints contextuais PT-BR por componente — impacto real da falha em linguagem natural
+  - Histórico de uptime — barras de ticks dos últimos 30 checks em memória
+
+- **QA Hub — Runbook de Recuperação**
+  - Modal centralizada com ações de remediação passo a passo para cada componente com problema
+  - Botão copiar por step e "Copiar tudo" para clipboard
+  - Abre automaticamente ao clicar em 📋 Runbook no banner de Partial/Major Outage
+  - Ações específicas por componente: Redis, Ollama, RabbitMQ, Kafka, Datadog OTel, API
+
+- **QA Hub — Testes Integrados**
+  - Workflow dedicado `.github/workflows/integration-tests.yml` — não dispara a esteira completa
+  - Botão ▶ Executar via `POST /api/github/dispatch` — PAT server-side, nunca exposto ao browser
+  - Polling em tempo real com visualização de jobs e steps do CI/CD
+  - 7 suites reais: Fluxo UCP Completo, Resiliência (Polly), Rate Limiting, Shopify, Intent Router, MCP Server, ML Orders
+  - Resultado por suite com hint contextual e histórico dos últimos 5 runs
+  - Endpoints `GET /api/github/run/{runId}/status` para polling server-side
+
+- **QA Hub — UX melhorias**
+  - Sidebar colapsado por default via JS no `load` event
+  - Botão ⇄ collapse-all/expand-all no header do sidebar
+  - Badge "Em breve" removido de Testes Integrados
+
+- **Backend — endpoints novos**
+  - `POST /api/github/dispatch` — dispara workflow via GH_PAT server-side
+  - `GET /api/github/run/{runId}/status` — status de run com jobs e steps
+  - `GET /api/health/status` — status page agnóstico
+
+### Fixed
+
+- **Cobertura SonarCloud**
+  - `ExcludeFromCodeCoverage` cirúrgico nas lambdas de infra (Redis, Ollama, TCP) — Quality Gate mantido
+  - `coverlet.runsettings`: adicionado `[UcpAgent.Api]UcpAgent.Api.Health.*` no `<Include>`
+  - `HealthCheckExtensions` e `HealthStatusEndpoint` cobertos via `HealthApiFactory` local + `IOptions<HealthCheckServiceOptions>`
+  - Coverage on New Code: 0% → 100%
+
+- **Estrutura do repositório**
+  - Pastas duplicadas removidas da raiz: `UcpAgent.Application/`, `UcpAgent.Infrastructure/`, `UcpAgent.Tests/`
+  - `TestPriorityAttribute.cs` movido para `tests/UcpAgent.Unit.Tests/`
+
 ## [3.3.0] - 2026-09-18
 
 ### Added

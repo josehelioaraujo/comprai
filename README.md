@@ -808,7 +808,7 @@ Workflow em `.github/workflows/ci-cd.yml` com 4 jobs sequenciais:
 
 ## 📊 QA Hub
 
-Painel centralizado de qualidade e segurança para o Comprai — acesse em tempo real métricas de stress tests, mutação, cobertura de código e conformidade OWASP & PCI DSS.
+Painel centralizado de qualidade, observabilidade e segurança do Comprai — acesse em tempo real métricas de stress tests, mutação, cobertura, status dos sistemas e conformidade OWASP & PCI DSS.
 
 🌐 **[Acessar QA Hub](https://comprai.2.25.122.11.nip.io/k6/dashboard/)**
 
@@ -823,7 +823,27 @@ Painel centralizado de qualidade e segurança para o Comprai — acesse em tempo
 | 💳 **PCI DSS** | Controles de segurança para processamento de pagamentos |
 | 📈 **Timeline & Gráficos** | Evolução de latência, throughput e taxa de erro |
 | 🌐 **Rotas** | p50/p95 e taxa de erro por endpoint chamado |
-| ⚙️ **Pipeline** | Disparo e acompanhamento de testes via GitHub Actions |
+| 🟢 **Status do Sistema** | Health check em tempo real de todos os componentes (API, Redis, Ollama, Kafka, RabbitMQ, Datadog OTel) |
+| 🔗 **Testes Integrados** | Execução via GitHub Actions com acompanhamento em tempo real dos jobs, resultado por suite e histórico de runs |
+
+### Status do Sistema
+
+O QA Hub inclui uma **Status Page** no padrão da indústria (Atlassian Statuspage / Instatus):
+
+- **Status Pill** na topbar com countdown de 30s e indicador de cor (`🟢` / `🟡` / `🟠` / `🔴`)
+- **Drawer lateral** (padrão Datadog/Grafana) com 2 seções drilldown:
+  - **Infraestrutura & API** — API, Redis Cache
+  - **Serviços & Observabilidade** — Ollama LLM, RabbitMQ, Kafka, Datadog OTel Collector
+- **Runbook de Recuperação** — modal com ações de remediação passo a passo por componente, botão copiar por comando e "Copiar tudo"
+- **Histórico de uptime** — barras de ticks dos últimos 30 checks em memória
+
+### Testes Integrados
+
+- Workflow dedicado `integration-tests.yml` — dispara apenas os testes de integração, sem a esteira completa
+- **7 suites reais** mapeadas: Fluxo UCP Completo, Resiliência (Polly), Rate Limiting, Shopify, Intent Router, MCP Server, ML Orders
+- Botão **▶ Executar** dispara via `/api/github/dispatch` (PAT server-side — token nunca exposto ao browser)
+- Polling a cada 5s com visualização dos jobs e steps em tempo real
+- Resultado por suite com hint contextual explicando o que cada teste valida
 
 ## 🗺️ Roadmap
 
