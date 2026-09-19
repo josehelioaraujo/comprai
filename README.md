@@ -850,15 +850,31 @@ O QA Hub inclui uma **Status Page** no padrão da indústria (Atlassian Statuspa
 <details>
 <summary>Ver próximas fases</summary>
 
-| Fase | Descrição | Status |
-|---|---|---|
-| **IPaymentPort** | MockPayment + Stripe + MercadoPago — fecha o fluxo UCP end-to-end | 🔜 V009 |
-| **ILlmPort** | Intent Router em linguagem natural com Ollama (Gemma 2 PT-BR) | 🔜 V009 |
-| **Canal WhatsApp** | Evolution API self-hosted na VPS — compra por mensagem | 🔜 V009 |
-| **Extensão Chrome** | Price Watcher, Universal Cart e Intent Bar nativos no browser | 🔜 Futuro |
-| **Canal Web** | Next.js 15 + shadcn/ui — painel admin + storefront UCP | 🔜 Futuro |
-| **Canal Teams** | Bot Framework SDK | 🔜 Futuro |
-| **OBSVIEW** | Status Page dedicada (FastAPI + React) | 🔜 Futuro |
+### ✅ Concluído
+
+| Versão | Entrega |
+|--------|---------|
+| **V001–V008** | Arquitetura base UCP, plugins MercadoLivre/Shopify/VTEX/DummyJSON, fluxo Search→Cart→Checkout→Order |
+| **V009–V013** | IPaymentPort (Mock + Stripe + Efi/Pix), ILlmPort (Intent Router PT-BR), MCP Server, Price Watcher |
+| **V014–V019** | CI/CD completo, Smoke Tests Newman, Observabilidade OTel → Datadog, Stryker mutation 84%+ |
+| **V020–V023** | QA Hub — Stress Tests K6, SonarCloud, OWASP Top 10, PCI DSS, Mutação, Gráficos, Rotas |
+| **V024** | QA Hub — Status Page (padrão indústria), Testes Integrados (workflow dedicado + polling real-time + 7 suites), Runbook de Recuperação, PAT server-side, Coverage 100% |
+
+### 🔜 Próximas Versões
+
+| Fase | Descrição | Versão |
+|------|-----------|--------|
+| **QA Hub — Trend** | Gráfico evolução de Coverage + Mutation Score ao longo dos runs | V025 |
+| **QA Hub — Dep Scanner** | `dotnet list package --vulnerable` + CVEs no hub | V025 |
+| **QA Hub — Quality Score** | Número único 0–100 combinando todas as métricas | V025 |
+| **K3s + Helm + Argo CD** | Migração Docker Compose → Kubernetes leve na VPS com GitOps | V025–V026 |
+| **Canal Web — Demo** | Next.js 15 + Tailwind + shadcn/ui — interface conversacional com raciocínio visível | Futuro |
+| **AIOps com Ollama** | Detecção de anomalias, RCA automático (Prometheus + Loki + Jaeger) | Futuro |
+| **StressForge** | Gerador agnóstico de stress tests a partir de Swagger/OpenAPI | Futuro |
+| **StatusForge** | Gerador de status pages self-hosted no padrão Atlassian/Instatus | Futuro |
+| **Canal WhatsApp** | Evolution API self-hosted na VPS — compra por mensagem | Futuro |
+| **Extensão Chrome** | Price Watcher, Universal Cart e Intent Bar nativos no browser | Futuro |
+| **Canal Teams** | Bot Framework SDK | Futuro |
 
 </details>
 
