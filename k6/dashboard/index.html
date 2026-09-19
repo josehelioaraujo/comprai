@@ -1763,36 +1763,30 @@ window.addEventListener('DOMContentLoaded', function() {
     const body = document.getElementById('runbook-body');
     const sub  = document.getElementById('runbook-sub');
     if (!body || !components) return;
-
     const broken = components.filter(c => c.status !== 'operational');
     if (!broken.length) return;
-
-    sub.textContent = broken.length + ' componente(s) com problema detectado(s)';
-
+    sub.textContent = broken.length + ' componente(s) com problema';
     body.innerHTML = broken.map(c => {
-      const hint = COMP_HINTS[c.id];
+      const hint    = COMP_HINTS[c.id];
       if (!hint) return '';
-      const hintText = hint.fail || '';
-      const actions  = hint.actions || [];
-      const stepsHtml = actions.map((a, i) =>
-        `<div class="runbook-step">
-          <span class="runbook-step-num">${i+1}</span>
-          <span class="runbook-step-cmd">${a}</span>
-          <button class="runbook-step-copy" onclick="runbookCopyStep(this, ${JSON.stringify(a)})">&#128203;</button>
-        </div>`
+      const actions = hint.actions || [];
+      const steps   = actions.map((a, i) =>
+        '<div class="runbook-step">' +
+          '<span class="runbook-step-num">' + (i+1) + '.</span>' +
+          '<span class="runbook-step-cmd">' + a + '</span>' +
+          '<button class="runbook-step-copy" onclick="runbookCopyStep(this,' + JSON.stringify(a) + ')">&#128203;</button>' +
+        '</div>'
       ).join('');
-
-      return `<div class="runbook-comp-section">
-        <div class="runbook-comp-header">
-          <span>${c.name}</span>
-          <span>${Math.round(c.latencyMs ?? 0)}ms</span>
-          <span class="runbook-comp-badge ${c.status}">${c.status === 'major_outage' ? 'Outage' : 'Degraded'}</span>
-        </div>
-        ${hintText ? `<div class="runbook-hint">&#128680; ${hintText}</div>` : ''}
-        <div class="runbook-steps">${stepsHtml}</div>
-      </div>`;
+      const badge = c.status === 'major_outage' ? 'Outage' : 'Degraded';
+      return '<div class="runbook-comp-section">' +
+        '<div class="runbook-comp-header">' +
+          '<span>' + c.name + '</span>' +
+          '<span class="runbook-comp-badge ' + c.status + '">' + badge + '</span>' +
+        '</div>' +
+        (hint.fail ? '<div class="runbook-hint">' + hint.fail + '</div>' : '') +
+        '<div class="runbook-steps">' + steps + '</div>' +
+      '</div>';
     }).join('');
-
     document.getElementById('runbook-overlay').classList.add('open');
     document.body.style.overflow = 'hidden';
   }
@@ -2476,115 +2470,95 @@ tr:hover td { background: rgba(255,255,255,.02); }
     }
 
   
-    /* ===== RUNBOOK MODAL ===== */
+    /* ===== RUNBOOK MODAL — minimalista ===== */
     .runbook-overlay {
-      position:fixed; inset:0; background:rgba(0,0,0,.6);
-      backdrop-filter:blur(4px); z-index:10000;
+      position:fixed; inset:0; background:rgba(0,0,0,.55);
+      backdrop-filter:blur(3px); z-index:10000;
       display:flex; align-items:center; justify-content:center;
-      opacity:0; pointer-events:none; transition:opacity .2s;
+      opacity:0; pointer-events:none; transition:opacity .18s;
     }
     .runbook-overlay.open { opacity:1; pointer-events:all; }
-
     .runbook-modal {
       background:#0d1117; border:1px solid #1e2d3d;
-      border-radius:12px; width:560px; max-width:94vw;
-      max-height:88vh; display:flex; flex-direction:column;
-      box-shadow:0 24px 64px rgba(0,0,0,.8);
-      transform:translateY(12px) scale(.97);
-      transition:transform .2s;
+      border-radius:10px; width:520px; max-width:94vw; max-height:82vh;
+      display:flex; flex-direction:column;
+      box-shadow:0 20px 50px rgba(0,0,0,.75);
+      transform:translateY(10px); transition:transform .18s;
     }
-    .runbook-overlay.open .runbook-modal { transform:translateY(0) scale(1); }
+    .runbook-overlay.open .runbook-modal { transform:translateY(0); }
 
     .runbook-modal-header {
-      display:flex; align-items:flex-start; justify-content:space-between;
-      padding:20px 20px 14px; border-bottom:1px solid #1e2d3d; flex-shrink:0;
+      display:flex; align-items:center; justify-content:space-between;
+      padding:14px 16px 12px; border-bottom:1px solid #1a2332; flex-shrink:0;
     }
-    .runbook-modal-title { font-size:15px; font-weight:700; color:#e2e8f0; }
-    .runbook-modal-sub   { font-size:11px; color:#475569; margin-top:3px; }
+    .runbook-modal-title { font-size:13px; font-weight:700; color:#e2e8f0; }
+    .runbook-modal-sub   { font-size:10px; color:#475569; margin-top:2px; }
     .runbook-modal-close {
-      background:none; border:none; color:#475569; font-size:18px;
-      cursor:pointer; padding:2px 6px; border-radius:6px; line-height:1;
-      flex-shrink:0; margin-left:12px;
+      background:none; border:none; color:#475569; font-size:16px;
+      cursor:pointer; padding:2px 6px; border-radius:5px; line-height:1;
     }
-    .runbook-modal-close:hover { background:#1e293b; color:#e2e8f0; }
+    .runbook-modal-close:hover { color:#94a3b8; }
 
-    .runbook-modal-body { overflow-y:auto; padding:16px 20px; flex:1; display:flex; flex-direction:column; gap:14px; }
-
-    .runbook-comp-section {
-      border:1px solid #1e2d3d; border-radius:8px; overflow:hidden;
+    .runbook-modal-body {
+      overflow-y:auto; padding:12px 16px;
+      flex:1; display:flex; flex-direction:column; gap:10px;
     }
+
+    /* Componente com problema */
+    .runbook-comp-section { border-bottom:1px solid #1a2332; padding-bottom:10px; }
+    .runbook-comp-section:last-child { border-bottom:none; padding-bottom:0; }
+
     .runbook-comp-header {
-      display:flex; align-items:center; gap:10px;
-      padding:10px 14px; background:#161c2a;
-      font-size:12px; font-weight:600; color:#94a3b8;
+      display:flex; align-items:center; gap:8px;
+      font-size:11px; font-weight:700; color:#cbd5e1; margin-bottom:4px;
     }
     .runbook-comp-badge {
-      font-size:10px; font-weight:700; padding:2px 7px;
-      border-radius:10px; margin-left:auto;
+      font-size:9px; font-weight:700; padding:1px 6px;
+      border-radius:8px; margin-left:auto;
     }
-    .runbook-comp-badge.major_outage { background:rgba(239,68,68,.15);  color:#ef4444; }
+    .runbook-comp-badge.major_outage { background:rgba(239,68,68,.15); color:#ef4444; }
     .runbook-comp-badge.degraded     { background:rgba(234,179,8,.15);  color:#eab308; }
 
     .runbook-hint {
-      font-size:11.5px; color:#94a3b8; padding:8px 14px;
-      border-bottom:1px solid #1e2d3d; line-height:1.6;
-      border-left:2px solid #3b82f6; margin:10px 14px 0;
-      border-radius:0 4px 4px 0; background:rgba(59,130,246,.05);
+      font-size:11px; color:#64748b; margin-bottom:6px; line-height:1.5;
     }
 
-    .runbook-steps { padding:10px 14px 12px; display:flex; flex-direction:column; gap:6px; }
-    .runbook-step {
-      display:flex; align-items:flex-start; gap:8px;
-    }
+    /* Steps compactos */
+    .runbook-steps { display:flex; flex-direction:column; gap:3px; }
+    .runbook-step  { display:flex; align-items:center; gap:6px; }
     .runbook-step-num {
-      flex-shrink:0; width:18px; height:18px; border-radius:50%;
-      background:#1e293b; border:1px solid #334155;
-      font-size:9px; font-weight:700; color:#64748b;
-      display:flex; align-items:center; justify-content:center;
-      margin-top:1px;
+      flex-shrink:0; font-size:9px; font-weight:700;
+      color:#334155; width:12px; text-align:right;
     }
     .runbook-step-cmd {
-      flex:1; font-family:monospace; font-size:11px;
-      color:#cbd5e1; background:#0a0f18; padding:5px 10px;
-      border-radius:6px; border:1px solid #1e293b;
-      line-height:1.5; word-break:break-all;
+      flex:1; font-family:monospace; font-size:10.5px;
+      color:#94a3b8; line-height:1.4; word-break:break-all;
     }
     .runbook-step-copy {
-      flex-shrink:0; background:none; border:1px solid #1e293b;
-      color:#475569; border-radius:6px; padding:3px 8px;
-      font-size:10px; cursor:pointer; transition:all .15s;
-      margin-top:1px;
+      flex-shrink:0; background:none; border:none;
+      color:#334155; font-size:11px; cursor:pointer;
+      padding:1px 4px; transition:color .12s; border-radius:3px;
     }
-    .runbook-step-copy:hover  { border-color:#3b82f6; color:#60a5fa; }
-    .runbook-step-copy.copied { border-color:#22c55e; color:#22c55e; }
+    .runbook-step-copy:hover  { color:#60a5fa; }
+    .runbook-step-copy.copied { color:#22c55e; }
 
     .runbook-modal-footer {
-      padding:12px 20px; border-top:1px solid #1e2d3d;
-      display:flex; align-items:center; justify-content:space-between;
-      flex-shrink:0;
+      padding:10px 16px; border-top:1px solid #1a2332;
+      display:flex; align-items:center; justify-content:space-between; flex-shrink:0;
     }
     .runbook-copy-all {
-      display:flex; align-items:center; gap:6px;
-      background:none; border:1px solid #334155; color:#94a3b8;
-      border-radius:8px; padding:7px 14px; font-size:12px;
-      cursor:pointer; transition:all .2s;
+      background:none; border:1px solid #1e293b; color:#64748b;
+      border-radius:6px; padding:5px 12px; font-size:11px;
+      cursor:pointer; transition:all .15s;
     }
-    .runbook-copy-all:hover { border-color:#3b82f6; color:#60a5fa; }
+    .runbook-copy-all:hover  { border-color:#3b82f6; color:#60a5fa; }
     .runbook-copy-all.copied { border-color:#22c55e; color:#22c55e; }
     .runbook-close-btn {
       background:#1e293b; border:1px solid #334155; color:#e2e8f0;
-      border-radius:8px; padding:7px 20px; font-size:12px;
-      cursor:pointer; font-weight:600; transition:all .15s;
+      border-radius:6px; padding:5px 16px; font-size:11px;
+      cursor:pointer; font-weight:600;
     }
-    .runbook-close-btn:hover { background:#2d3f55; }
-
-    /* Botão discreto "Ver runbook" no componente */
-    .runbook-trigger {
-      background:none; border:none; color:#3b82f6; font-size:10px;
-      cursor:pointer; padding:0 4px; opacity:.7; transition:opacity .15s;
-      text-decoration:underline; text-underline-offset:2px;
-    }
-    .runbook-trigger:hover { opacity:1; }
+    .runbook-close-btn:hover { background:#263447; }
 
   </style>
 </head>
