@@ -1531,8 +1531,7 @@ window.addEventListener('DOMContentLoaded', function() {
       card.className = 'it-suite-card';
       card.innerHTML =
         `<div class="it-suite-header" onclick="this.nextElementSibling.classList.toggle('open')">
-          <span class="it-suite-icon">${meta.icon}</span>
-          <span class="it-suite-name">${meta.label}</span>
+          <span class="it-suite-name">${meta.icon}&nbsp;${meta.label}</span>
           <span class="it-suite-meta">${dur}</span>
           <span class="it-suite-badge ${status}">${itBadgeLabel(status)}</span>
         </div>
