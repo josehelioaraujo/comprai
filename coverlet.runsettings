@@ -20,7 +20,8 @@
           <Include>
             [UcpAgent.Domain]*,
             [UcpAgent.Application]*,
-            [UcpAgent.SharedKernel]*
+            [UcpAgent.SharedKernel]*,
+            [UcpAgent.Api]UcpAgent.Api.Health.*
           </Include>
           <ExcludeByFile>**/Program.cs,**/Migrations/**,**/Enums/**</ExcludeByFile>
           <ExcludeByAttribute>GeneratedCodeAttribute,CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
