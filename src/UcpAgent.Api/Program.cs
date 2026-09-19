@@ -1,3 +1,4 @@
+using UcpAgent.Api.Health;
 using UcpAgent.Api.Resilience;
 using UcpAgent.Api.RateLimit;
 using UcpAgent.Api.Adapters;
@@ -199,6 +200,8 @@ builder.Services.AddHttpClient<DummyJsonPlugin>()
 builder.Services.AddSingleton<IProductCatalogPort, DummyJsonPlugin>();
 
 builder.Services.AddCatalogRateLimiter(builder.Configuration);
+
+builder.Services.AddStatusPageHealthChecks(builder.Configuration);
 
 var app = builder.Build();
 
@@ -505,6 +508,8 @@ app.MapGet("/k6", async (HttpContext ctx, CancellationToken ct) =>
     await ctx.Response.WriteAsync("Dashboard K6 não encontrado em wwwroot/k6/index.html", ct);
 })
 .WithTags("K6").WithName("K6Dashboard");
+
+app.MapHealthStatusEndpoint();
 
 app.Run();
 
