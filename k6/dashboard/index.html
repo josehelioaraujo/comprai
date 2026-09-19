@@ -1394,6 +1394,8 @@ window.addEventListener('DOMContentLoaded', function() {
   }
 
   function itRenderJobsPanel(jobs) {
+    // Inicializar estado colapsado por job (por nome)
+    if (!window.itJobCollapsed) window.itJobCollapsed = {};
     const panel = document.getElementById('it-jobs-panel');
     if (!panel) return;
     panel.style.display = 'flex';
@@ -1435,14 +1437,30 @@ window.addEventListener('DOMContentLoaded', function() {
         ? Math.round((new Date(job.completed_at || Date.now()) - new Date(job.started_at)) / 1000) + 's'
         : '';
 
-      return `<div class="it-job-row">
-        <div class="it-job-header">
-          <span>${icon}</span>
+      const jobKey = job.name.replace(/\s/g,'_');
+      // Default: expandido apenas o job em execução ou com falha
+      if (window.itJobCollapsed[jobKey] === undefined) {
+        window.itJobCollapsed[jobKey] = (sts !== 'in_progress' && sts !== 'failure' && job.conclusion !== 'failure');
+      }
+      const collapsed = window.itJobCollapsed[jobKey];
+      const hasSteps  = steps.length > 0;
+
+      return `<div class="it-job-row" id="it-job-${jobKey}">
+        <div class="it-job-header" style="cursor:${hasSteps ? 'pointer' : 'default'}"
+             onclick="${hasSteps ? `itToggleJob('${jobKey}')` : ''}">
+          <span style="font-size:14px">${icon}</span>
           <span class="it-job-name">${job.name}</span>
           <span class="it-job-elapsed">${elapsed}</span>
           <span class="it-job-status ${sts === 'completed' ? (job.conclusion ?? 'success') : sts}">${label}</span>
+          ${hasSteps ? `<span id="it-chev-${jobKey}" style="font-size:10px;color:var(--text-muted);margin-left:4px;transition:transform .2s;display:inline-block;transform:rotate(${collapsed?'-90':'0'}deg)">▼</span>` : ''}
         </div>
-        ${stepsHtml}
+        ${hasSteps ? `<div id="it-steps-${jobKey}" class="it-steps-list" style="${collapsed ? 'display:none' : ''}">${steps.map(s => {
+            const sc   = s.conclusion ?? s.status ?? 'queued';
+            const dotC = sc === 'success' ? 'completed' : sc === 'failure' ? 'failed' : sc === 'in_progress' ? 'in_progress' : 'queued';
+            const dur  = s.started_at && s.completed_at
+              ? (Math.round((new Date(s.completed_at) - new Date(s.started_at)) / 1000)) + 's' : '';
+            return '<div class="it-step-row"><span class="it-step-dot ' + dotC + '"></span><span class="it-step-name">' + s.name + '</span><span class="it-step-dur">' + dur + '</span></div>';
+          }).join('')}</div>` : ''}
       </div>`;
     }).join('');
   }
@@ -1592,6 +1610,16 @@ window.addEventListener('DOMContentLoaded', function() {
     }
   };
 
+
+  function itToggleJob(key) {
+    const steps = document.getElementById('it-steps-' + key);
+    const chev  = document.getElementById('it-chev-' + key);
+    if (!steps) return;
+    const isHidden = steps.style.display === 'none';
+    steps.style.display = isHidden ? '' : 'none';
+    if (chev) chev.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(-90deg)';
+    window.itJobCollapsed[key] = !isHidden;
+  }
 </script>
 
     </div>
@@ -2180,7 +2208,9 @@ tr:hover td { background: rgba(255,255,255,.02); }
     }
     .it-job-header {
       display:flex; align-items:center; gap:8px; font-size:12px;
+      transition:background .15s; border-radius:6px; padding:2px 4px; margin:-2px -4px;
     }
+    .it-job-header[onclick]:hover { background:rgba(255,255,255,.04); }
     .it-job-name { flex:1; font-weight:600; color:var(--text-primary); }
     .it-job-elapsed { font-size:10px; color:var(--text-muted); }
     .it-job-status { font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px; }
