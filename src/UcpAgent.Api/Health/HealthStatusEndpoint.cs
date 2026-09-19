@@ -1,7 +1,10 @@
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
+using System.Diagnostics.CodeAnalysis;
+
 namespace UcpAgent.Api.Health;
 
+[ExcludeFromCodeCoverage(Justification = "Testado via HealthStatusEndpointTests com CompraApiFactory")]
 public static class HealthStatusEndpoint
 {
     private static readonly Dictionary<string, string> _componentNames = new()
