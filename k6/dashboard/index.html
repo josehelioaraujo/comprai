@@ -5,1124 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QA Hub</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<style>
-:root {
-  --bg: #0B0F19; --surface: #161C2A; --surface2: #1E2538;
-  --border: #242F41; --accent: #7c3aed; --accent2: #06b6d4;
-  --text: #e2e8f0; --muted: #64748b;
-  --pass: #10b981; --fail: #ef4444;
-  --sidebar-w: 220px; --sidebar-collapsed-w: 52px;
-}
-[data-theme="light"] {
-  --bg: #f1f5f9; --surface: #ffffff; --surface2: #f8fafc;
-  --border: #e2e8f0; --text: #0f172a; --muted: #64748b;
-}
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; display: flex; flex-direction: column; transition: background .2s, color .2s; }
-
-/* ── App shell ── */
-.app-shell { display: flex; flex: 1; min-height: 0; }
-
-/* ── Sidebar ── */
-.sidebar {
-  width: var(--sidebar-w);
-  background: var(--surface);
-  border-right: 1px solid var(--border);
-  display: flex; flex-direction: column;
-  transition: width .25s cubic-bezier(.4,0,.2,1);
-  flex-shrink: 0;
-  position: sticky; top: 0; height: 100vh; overflow: visible;
-}
-.sidebar > *:not(.sidebar-expand-btn) { overflow: hidden; }
-/* garante que o conteudo interno nao vaze */
-.sidebar-header, .sidebar-nav, .sidebar-footer { overflow: hidden; white-space: nowrap; }
-.sidebar.collapsed { width: var(--sidebar-collapsed-w); }
-
-.sidebar-header {
-  display: flex; align-items: center; gap: 10px;
-  padding: 16px 14px; border-bottom: 1px solid var(--border);
-  min-height: 56px; overflow: hidden; white-space: nowrap;
-}
-.sidebar.collapsed .sidebar-header { padding: 0; min-height: 0; border-bottom: none; }
-.sidebar-logo-text { font-size: 13px; font-weight: 700; color: var(--text); opacity: 1; transition: opacity .15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
-.sidebar.collapsed .sidebar-logo-text { opacity: 0; pointer-events: none; }
-
-.sidebar-toggle {
-  margin-left: auto; background: none; border: none; color: var(--muted);
-  cursor: pointer; font-size: 16px; flex-shrink: 0; padding: 4px;
-  border-radius: 6px; transition: background .15s, color .15s; line-height: 1;
-}
-.sidebar-toggle:hover { background: var(--surface2); color: var(--text); }
-.sidebar.collapsed .sidebar-toggle-collapse { display: none; }
-/* Botao expand — aparece so quando colapsado, fixo sobre a sidebar */
-.sidebar-expand-btn {
-  display: none; position: absolute; top: 12px; left: 10px;
-  width: 28px; height: 28px; border-radius: 50%;
-  background: var(--surface2); border: 1px solid var(--border);
-  color: var(--muted); cursor: pointer; font-size: 14px; line-height: 1;
-  align-items: center; justify-content: center;
-  transition: background .15s, color .15s, opacity .15s;
-  z-index: 200; box-shadow: 0 2px 8px rgba(0,0,0,.3);
-}
-.sidebar-expand-btn:hover { background: var(--accent2); color: #fff; border-color: var(--accent2); }
-.sidebar.collapsed .sidebar-expand-btn { display: flex; }
-
-.sidebar-nav { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 8px 0; }
-.sidebar-nav::-webkit-scrollbar { width: 4px; }
-.sidebar-nav::-webkit-scrollbar-track { background: transparent; }
-.sidebar-nav::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-
-.nav-label {
-  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
-  color: var(--muted); padding: 10px 14px 4px; white-space: nowrap;
-  opacity: 1; transition: opacity .15s;
-  display: flex; align-items: center; justify-content: space-between;
-  cursor: pointer; user-select: none; border-radius: 6px;
-}
-.nav-label:hover { color: var(--text); background: var(--surface2); }
-.nav-label .nav-group-chevron {
-  font-size: 9px; transition: transform .2s; flex-shrink: 0; margin-right: 2px;
-}
-.nav-group.collapsed .nav-group-chevron { transform: rotate(-90deg); }
-.nav-group-items {
-  overflow: hidden;
-  max-height: 500px;
-  transition: max-height .25s ease, opacity .2s ease;
-  opacity: 1;
-}
-.nav-group.collapsed .nav-group-items { max-height: 0; opacity: 0; }
-.sidebar.collapsed .nav-label { opacity: 0; }
-.sidebar.collapsed .nav-group-chevron { display: none; }
-
-.nav-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 9px 14px; cursor: pointer;
-  color: var(--muted); font-size: 13px; font-weight: 500;
-  border-left: 3px solid transparent;
-  transition: background .15s, color .15s, border-color .15s;
-  white-space: nowrap; overflow: hidden;
-  user-select: none;
-}
-.nav-item:hover { background: var(--surface2); color: var(--text); }
-.nav-item.active { color: var(--accent2); border-left-color: var(--accent2); background: rgba(6,182,212,.06); }
-.nav-icon { font-size: 15px; flex-shrink: 0; width: 20px; text-align: center; }
-.nav-text { opacity: 1; transition: opacity .15s; display: flex; align-items: center; gap: 6px; }
-.sidebar.collapsed .nav-text { opacity: 0; pointer-events: none; }
-.nav-soon { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; background: rgba(124,58,237,.2); color: #a78bfa; padding: 1px 5px; border-radius: 4px; flex-shrink: 0; }
-.nav-item-soon { opacity: .5; cursor: default; }
-.nav-item-soon:hover { background: none; color: var(--muted); }
-
-/* ── Sidebar footer ── */
-.sidebar-footer {
-  border-top: 1px solid var(--border);
-  padding: 4px 0;
-  overflow: hidden;
-}
-.sb-theme-item, .sb-ver-item {
-  border-left: 3px solid transparent;
-}
-
-/* ── Version modal ── */
-.ver-modal-overlay {
-  display: none; position: fixed; inset: 0;
-  background: rgba(0,0,0,.55); z-index: 1000;
-  align-items: flex-end; justify-content: flex-start;
-}
-.about-modal-overlay {
-  display: none; position: fixed; inset: 0;
-  background: rgba(0,0,0,.4); z-index: 1000;
-  align-items: flex-start; justify-content: flex-start;
-}
-.about-modal-overlay.open { display: flex; }
-.ver-modal-overlay.open { display: flex; }
-.ver-modal {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 12px; padding: 16px 20px; margin: 0 0 16px 16px;
-  min-width: 260px; max-width: 320px;
-  box-shadow: 0 8px 32px rgba(0,0,0,.4);
-  animation: slideUp .2s ease;
-}
-@keyframes slideUp { from { transform: translateY(12px); opacity:0; } to { transform: translateY(0); opacity:1; } }
-.ver-modal-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
-.ver-modal-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; padding: 0; line-height: 1; }
-.ver-modal-close:hover { color: var(--text); }
-.ver-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
-.ver-row:last-child { border-bottom: none; }
-.ver-label { color: var(--muted); }
-.ver-value { color: var(--text); font-family: monospace; font-size: 11px; }
-
-/* ── Main content area ── */
-.main-area { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow-y: auto; }
-
-/* ── Topbar ── */
-.topbar {
-  background: var(--surface); border-bottom: 1px solid var(--border);
-  padding: 0 24px; display: flex; align-items: center; gap: 16px;
-  height: 56px; flex-shrink: 0; position: sticky; top: 0; z-index: 50;
-}
-.topbar-meta { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
-.topbar-divider { width: 1px; height: 20px; background: var(--border); }
-.topbar-version { font-family: monospace; font-size: 11px; opacity: .6; }
-
-.run-controls { margin-left: auto; display: none; align-items: center; gap: 8px; }
-.run-controls select {
-  background: var(--surface2); border: 1px solid var(--border); color: var(--text);
-  padding: 6px 11px; border-radius: 7px; font-size: 12px; cursor: pointer; outline: none;
-}
-.run-controls select:focus { border-color: var(--accent); }
-.btn-run {
-  background: var(--accent); color: #fff; border: none; border-radius: 7px;
-  padding: 6px 16px; font-size: 12px; font-weight: 600; cursor: pointer;
-  display: flex; align-items: center; gap: 6px; transition: opacity .15s;
-}
-.btn-run:hover { opacity: .85; }
-.btn-run:disabled { opacity: .45; cursor: not-allowed; }
-
-/* ── Run Status Panel ── */
-#runPanel {
-  background: transparent;
-  max-height: 0; overflow: hidden;
-  transition: max-height .4s cubic-bezier(.4,0,.2,1);
-}
-#runPanel.open { max-height: 600px; }
-.run-panel-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
-.run-panel-title { font-size: 14px; font-weight: 700; color: var(--text); }
-.run-panel-close { margin-left: auto; background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer; line-height: 1; }
-.run-panel-close:hover { color: var(--text); }
-.jobs-grid { display: flex; flex-wrap: wrap; gap: 12px; }
-.job-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; min-width: 200px; flex: 1; max-width: 320px; }
-.job-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
-.job-status-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-.dot-pending   { background: var(--muted); }
-.dot-running   { background: #fbbf24; animation: pulse 1s infinite; }
-.dot-success   { background: var(--pass); }
-.dot-failure   { background: var(--fail); }
-.dot-skipped   { background: var(--muted); opacity: .5; }
-@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.4; } }
-.step-list { display: flex; flex-direction: column; gap: 5px; max-height: 0; overflow: hidden; transition: max-height .35s ease; }
-.step-row { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); }
-.step-icon { font-size: 13px; flex-shrink: 0; width: 16px; text-align: center; }
-.run-info { font-size: 12px; color: var(--muted); margin-top: 10px; }
-.run-info a { color: var(--accent2); text-decoration: none; }
-.run-info a:hover { text-decoration: underline; }
-#runStatusMsg { font-size: 13px; color: var(--muted); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-
-/* ── Page content ── */
-.page-content { padding: 24px; max-width: 1400px; width: 100%; margin: 0 auto; }
-
-/* ── Collapsible Sections ── */
-.section-block { margin-top: 24px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
-.section-header {
-  display: flex; align-items: center; gap: 10px;
-  padding: 13px 18px;
-  background: var(--surface); cursor: pointer;
-  user-select: none; transition: background .15s;
-}
-.section-header:hover { background: var(--surface2); }
-.section-title-text { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; flex: 1; }
-.section-count { font-size: 11px; color: var(--accent2); background: rgba(6,182,212,.1); padding: 2px 8px; border-radius: 10px; }
-.section-chevron { color: var(--muted); font-size: 13px; transition: transform .25s; }
-.section-header.collapsed .section-chevron { transform: rotate(-90deg); }
-.section-content { overflow: hidden; transition: max-height .3s cubic-bezier(.4,0,.2,1); max-height: 4000px; }
-.section-content.collapsed { max-height: 0; }
-.section-inner { padding: 0 0 8px; }
-
-/* ── Route Groups ── */
-.route-group { border-top: 1px solid var(--border); }
-.route-group:first-child { border-top: none; }
-.route-group-header {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 16px; cursor: pointer; user-select: none;
-  background: rgba(255,255,255,.01); transition: background .15s;
-}
-.route-group-header:hover { background: rgba(255,255,255,.03); }
-.route-group-chevron { color: var(--muted); font-size: 12px; transition: transform .2s; }
-.route-group-header.collapsed .route-group-chevron { transform: rotate(-90deg); }
-.route-group-content { overflow: hidden; max-height: 1200px; transition: max-height .25s ease; }
-.route-group-content.collapsed { max-height: 0; }
-
-/* ── Tables ── */
-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-th { background: rgba(255,255,255,.03); padding: 9px 16px; text-align: left; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
-td { padding: 10px 16px; border-top: 1px solid var(--border); }
-tr:hover td { background: rgba(255,255,255,.02); }
-
-/* ── Badges ── */
-.badge-pass { background: rgba(16,185,129,.15); color: var(--pass); padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-.badge-fail { background: rgba(239,68,68,.15); color: var(--fail); padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-.type-badge { display: inline-block; padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
-.type-smoke  { background: rgba(6,182,212,.15);  color: #06b6d4; }
-.type-load   { background: rgba(124,58,237,.15);  color: #a78bfa; }
-.type-stress { background: rgba(245,158,11,.15);  color: #fbbf24; }
-.type-spike  { background: rgba(239,68,68,.15);   color: #f87171; }
-.type-soak   { background: rgba(16,185,129,.15);  color: #34d399; }
-
-/* ── Scenario Tabs ── */
-.scenario-tabs { display: flex; gap: 6px; flex-wrap: wrap; border-bottom: 2px solid var(--border); padding: 12px 16px 0; background: rgba(255,255,255,.01); }
-.scenario-tab { padding: 9px 16px; background: none; border: none; border-bottom: 3px solid transparent; color: var(--muted); cursor: pointer; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; transition: color .15s; margin-bottom: -2px; }
-.scenario-tab:hover { color: var(--text); }
-.scenario-tab.active { color: var(--accent2); border-bottom-color: var(--accent2); }
-
-/* ── KPI Cards ── */
-.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px,1fr)); gap: 12px; padding: 16px; }
-.kpi-hint {
-  position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
-  background: #0a0e18; color: #c9d1d9; border: 1px solid var(--border);
-  border-radius: 8px; padding: 8px 12px; font-size: 11px; line-height: 1.5;
-  width: 210px; pointer-events: none; opacity: 0; transition: opacity .2s;
-  z-index: 100; text-align: center;
-}
-.kpi-hint::after {
-  content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
-  border: 5px solid transparent; border-top-color: var(--border);
-}
-.kpi-card:hover .kpi-hint { opacity: 1; }
-/* ── Info hint para headers de secao ── */
-.info-hint-wrap { position: relative; display: inline-flex; align-items: center; margin-left: 8px; }
-.info-hint-btn {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 18px; height: 18px; border-radius: 50%;
-  background: var(--surface); border: 1px solid var(--border);
-  color: var(--muted); font-size: 11px; cursor: default;
-  font-weight: 700; line-height: 1; user-select: none;
-  transition: border-color .2s, color .2s;
-}
-.info-hint-btn:hover { border-color: var(--accent); color: var(--accent); }
-.info-hint-box {
-  position: fixed;
-  background: var(--surface); color: var(--text); border: 1px solid var(--accent);
-  border-radius: 10px; padding: 10px 14px; font-size: 12px; line-height: 1.6;
-  width: 260px; pointer-events: none; opacity: 0; transition: opacity .15s;
-  z-index: 9999; text-align: left; font-weight: 400;
-  box-shadow: 0 8px 24px rgba(0,0,0,.5);
-}
-.info-hint-wrap:hover .info-hint-box { opacity: 1; }
-.kpi-card { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
-.kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
-.kpi-value { font-size: 22px; font-weight: 700; color: var(--text); }
-.kpi-unit  { font-size: 12px; color: var(--muted); margin-left: 2px; }
-
-/* ── Charts ── */
-.charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 16px; padding: 16px; }
-.chart-card { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
-.chart-hint-icon { position: relative; cursor: default; font-size: 11px; opacity: .45; margin-left: 6px; vertical-align: middle; }
-.chart-hint-icon:hover { opacity: 1; }
-.chart-hint { position: absolute; top: calc(100% + 6px); left: 0; background: #0a0e18; color: #c9d1d9; border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 11px; line-height: 1.6; width: 280px; pointer-events: none; opacity: 0; transition: opacity .2s; z-index: 200; text-align: left; white-space: normal; text-transform: none; letter-spacing: 0; font-weight: 400; }
-.chart-hint::after { content: ''; position: absolute; bottom: 100%; left: 20px; border: 5px solid transparent; border-bottom-color: var(--border); }
-.chart-title { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 14px; font-weight: 600; }
-.chart-wrap { position: relative; height: 220px; }
-.chart-wrap-tall { position: relative; height: 280px; }
-
-/* ── Routes ── */
-.route-method { display: inline-block; padding: 2px 7px; border-radius: 6px; font-size: 11px; font-weight: 700; font-family: monospace; }
-.method-GET    { background: rgba(16,185,129,.15); color: #34d399; }
-.method-POST   { background: rgba(124,58,237,.15); color: #a78bfa; }
-.method-PUT    { background: rgba(245,158,11,.15); color: #fbbf24; }
-.method-PATCH  { background: rgba(6,182,212,.15);  color: #06b6d4; }
-.method-DELETE { background: rgba(239,68,68,.15);  color: #f87171; }
-.empty-state { padding: 36px; text-align: center; color: var(--muted); font-size: 14px; line-height: 1.7; }
-
-.loading { padding: 48px; text-align: center; color: var(--muted); font-size: 15px; }
-#scenarioPanel { min-height: 80px; }
-
-    /* ---- Status Page ---- */
-    .status-component-card { background:var(--card-bg); border:1px solid var(--border); border-radius:10px; padding:14px 16px; display:flex; flex-direction:column; gap:6px; }
-    .status-component-top { display:flex; justify-content:space-between; align-items:center; }
-    .status-component-name { font-size:13px; font-weight:600; color:var(--text-primary); }
-    .status-component-group { font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.05em; }
-    .status-badge { font-size:11px; font-weight:600; padding:3px 8px; border-radius:20px; white-space:nowrap; }
-    .status-badge.operational   { background:rgba(34,197,94,.15);  color:#22c55e; }
-    .status-badge.degraded      { background:rgba(234,179,8,.15);   color:#eab308; }
-    .status-badge.partial_outage{ background:rgba(249,115,22,.15);  color:#f97316; }
-    .status-badge.major_outage  { background:rgba(239,68,68,.15);   color:#ef4444; }
-    .status-global-banner-op  { background:rgba(34,197,94,.08);  border-color:rgba(34,197,94,.25)!important;  color:#22c55e; }
-    .status-global-banner-deg { background:rgba(234,179,8,.08);   border-color:rgba(234,179,8,.25)!important;  color:#eab308; }
-    .status-global-banner-po  { background:rgba(249,115,22,.08);  border-color:rgba(249,115,22,.25)!important; color:#f97316; }
-    .status-global-banner-maj { background:rgba(239,68,68,.08);   border-color:rgba(239,68,68,.25)!important;  color:#ef4444; }
-    .uptime-row { display:flex; flex-direction:column; gap:4px; }
-    .uptime-row-header { display:flex; justify-content:space-between; font-size:12px; color:var(--text-secondary); }
-    .uptime-bar-track { display:flex; gap:2px; }
-    .uptime-tick { flex:1; height:20px; border-radius:3px; }
-    .uptime-tick.ok       { background:#22c55e; }
-    .uptime-tick.degraded { background:#eab308; }
-    .uptime-tick.down     { background:#ef4444; }
-    .uptime-tick.unknown  { background:var(--border); }
-
-  
-    /* ===== STATUS PILL + DRAWER ===== */
-    .status-pill {
-      display: flex; align-items: center; gap: 8px;
-      padding: 5px 14px; border-radius: 20px; cursor: pointer;
-      font-size: 12px; font-weight: 600; border: 1px solid;
-      transition: all .2s; user-select: none; white-space: nowrap;
-    }
-    .status-pill:hover { filter: brightness(1.15); }
-    .status-pill .pill-dot {
-      width: 8px; height: 8px; border-radius: 50%;
-      animation: pulse-dot 2s infinite;
-    }
-    .status-pill.op  { background:rgba(34,197,94,.12);  border-color:rgba(34,197,94,.3);  color:#22c55e; }
-    .status-pill.deg { background:rgba(234,179,8,.12);  border-color:rgba(234,179,8,.3);  color:#eab308; }
-    .status-pill.po  { background:rgba(249,115,22,.12); border-color:rgba(249,115,22,.3); color:#f97316; }
-    .status-pill.maj { background:rgba(239,68,68,.12);  border-color:rgba(239,68,68,.3);  color:#ef4444; }
-    .status-pill.op  .pill-dot { background:#22c55e; }
-    .status-pill.deg .pill-dot { background:#eab308; }
-    .status-pill.po  .pill-dot { background:#f97316; }
-    .status-pill.maj .pill-dot { background:#ef4444; }
-    @keyframes pulse-dot {
-      0%,100%{opacity:1;transform:scale(1)}
-      50%{opacity:.5;transform:scale(1.3)}
-    }
-    .pill-countdown { font-size:10px; opacity:.7; font-weight:400; }
-    .pill-spinner { width:12px; height:12px; border:2px solid currentColor;
-      border-top-color:transparent; border-radius:50%; animation:spin .7s linear infinite; }
-    @keyframes spin { to{transform:rotate(360deg)} }
-
-    /* Drawer */
-    .status-drawer-overlay {
-      position:fixed; inset:0; background:rgba(0,0,0,.45);
-      z-index:1000; opacity:0; pointer-events:none; transition:opacity .25s;
-    }
-    .status-drawer-overlay.open { opacity:1; pointer-events:all; }
-    .status-drawer {
-      position:fixed; top:0; right:-480px; width:460px; max-width:95vw;
-      height:100vh; background:#0f1520; border-left:1px solid #242f41;
-      z-index:1001; display:flex; flex-direction:column;
-      transition:right .28s cubic-bezier(.4,0,.2,1);
-      font-family:inherit;
-    }
-    .status-drawer.open { right:0; }
-    .drawer-header {
-      display:flex; align-items:center; justify-content:space-between;
-      padding:18px 20px; border-bottom:1px solid #242f41; flex-shrink:0;
-    }
-    .drawer-title { font-size:15px; font-weight:700; color:#e2e8f0; }
-    .drawer-subtitle { font-size:11px; color:#64748b; margin-top:2px; }
-    .drawer-close {
-      background:none; border:none; color:#64748b; font-size:20px;
-      cursor:pointer; padding:4px 8px; border-radius:6px; line-height:1;
-      transition:all .15s;
-    }
-    .drawer-close:hover { background:#1e293b; color:#e2e8f0; }
-    .drawer-body { flex:1; overflow-y:auto; padding:16px 20px; display:flex; flex-direction:column; gap:16px; }
-
-    /* Drawer — banner global */
-    .drawer-global-banner {
-      display:flex; align-items:center; gap:10px;
-      padding:12px 16px; border-radius:8px; border:1px solid;
-      font-size:13px; font-weight:600;
-    }
-    .drawer-global-banner.op  { background:rgba(34,197,94,.08);  border-color:rgba(34,197,94,.2);  color:#22c55e; }
-    .drawer-global-banner.deg { background:rgba(234,179,8,.08);  border-color:rgba(234,179,8,.2);  color:#eab308; }
-    .drawer-global-banner.po  { background:rgba(249,115,22,.08); border-color:rgba(249,115,22,.2); color:#f97316; }
-    .drawer-global-banner.maj { background:rgba(239,68,68,.08);  border-color:rgba(239,68,68,.2);  color:#ef4444; }
-
-    /* Drawer — seções drilldown */
-    .drawer-section { border:1px solid #242f41; border-radius:8px; overflow:hidden; }
-    .drawer-section-header {
-      display:flex; align-items:center; justify-content:space-between;
-      padding:10px 14px; background:#161c2a; cursor:pointer;
-      font-size:12px; font-weight:600; color:#94a3b8;
-      text-transform:uppercase; letter-spacing:.06em;
-      user-select:none; transition:background .15s;
-    }
-    .drawer-section-header:hover { background:#1e293b; }
-    .drawer-section-chevron { transition:transform .2s; font-size:10px; }
-    .drawer-section-chevron.open { transform:rotate(180deg); }
-    .drawer-section-body { overflow:hidden; transition:max-height .25s ease; }
-
-    /* Drawer — component row */
-    .drawer-comp-row {
-      display:flex; flex-direction:column;
-      border-top:1px solid #1e293b;
-    }
-    .drawer-comp-main {
-      display:flex; align-items:center; padding:10px 14px; gap:10px;
-      cursor:pointer; transition:background .15s;
-    }
-    .drawer-comp-main:hover { background:#1a2235; }
-    .drawer-comp-name { flex:1; font-size:13px; color:#cbd5e1; font-weight:500; }
-    .drawer-comp-latency { font-size:11px; color:#475569; margin-right:8px; }
-    .drawer-comp-badge {
-      font-size:10px; font-weight:700; padding:2px 8px;
-      border-radius:12px; white-space:nowrap;
-    }
-    .drawer-comp-badge.op  { background:rgba(34,197,94,.15);  color:#22c55e; }
-    .drawer-comp-badge.deg { background:rgba(234,179,8,.15);  color:#eab308; }
-    .drawer-comp-badge.po  { background:rgba(249,115,22,.15); color:#f97316; }
-    .drawer-comp-badge.maj { background:rgba(239,68,68,.15);  color:#ef4444; }
-    .drawer-comp-expand { font-size:10px; color:#475569; transition:transform .2s; }
-    .drawer-comp-expand.open { transform:rotate(180deg); }
-    .drawer-comp-detail {
-      padding:0 14px; max-height:0; overflow:hidden;
-      transition:max-height .2s ease, padding .2s;
-      font-size:11px; color:#64748b; font-family:monospace;
-      border-top:0 solid #1e293b;
-    }
-    .drawer-comp-detail.open {
-      max-height:120px; padding:8px 14px 10px;
-      border-top:1px solid #1e293b;
-    }
-
-    /* Uptime mini-bar no drawer */
-    .drawer-uptime { display:flex; flex-direction:column; gap:8px; }
-    .drawer-uptime-row { display:flex; flex-direction:column; gap:3px; }
-    .drawer-uptime-label { display:flex; justify-content:space-between; font-size:11px; color:#64748b; }
-    .drawer-uptime-bar { display:flex; gap:1.5px; }
-    .drawer-uptime-tick { flex:1; height:16px; border-radius:2px; }
-    .drawer-uptime-tick.ok       { background:#22c55e; }
-    .drawer-uptime-tick.degraded { background:#eab308; }
-    .drawer-uptime-tick.down     { background:#ef4444; }
-    .drawer-uptime-tick.unknown  { background:#1e293b; }
-
-    /* Progress bar no pill */
-    .pill-progress {
-      position:absolute; bottom:0; left:0; height:2px;
-      background:currentColor; opacity:.4;
-      transition:width 1s linear; border-radius:0 0 20px 20px;
-    }
-
-  
-    #btn-collapse-all { position:relative; }
-    #btn-collapse-all[title]:hover::after {
-      content: attr(title);
-      position:absolute; bottom:-24px; left:50%; transform:translateX(-50%);
-      background:#1e293b; color:#94a3b8; font-size:10px; padding:2px 6px;
-      border-radius:4px; white-space:nowrap; pointer-events:none; z-index:10;
-    }
-</style>
-</head>
-<body>
-
-<!-- About modal -->
-<div class="about-modal-overlay" id="aboutModal" onclick="closeAboutModal(event)">
-  <div class="ver-modal" style="max-width:360px;margin:60px 0 0 12px;max-height:calc(100vh - 80px);overflow-y:auto">
-    <div class="ver-modal-title">
-      <span>&#128202; QA Hub</span>
-      <button class="ver-modal-close" onclick="closeAboutModalDirect()">&#10005;</button>
-    </div>
-    <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6">
-      Painel centralizado de qualidade e seguranca para aplicacoes .NET — stress tests K6, mutation tests Stryker.NET, SonarCloud e checklists OWASP &amp; PCI DSS.
-    </p>
-    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px">Funcionalidades</div>
-    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">
-      <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px">
-        <span style="color:var(--accent2);flex-shrink:0">&#128293;</span>
-        <span><strong style="color:var(--text)">Stress Tests K6</strong> — smoke, load, stress, spike e soak com resultados em tempo real</span>
-      </div>
-      <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px">
-        <span style="color:var(--accent2);flex-shrink:0">&#129522;</span>
-        <span><strong style="color:var(--text)">Mutation Tests</strong> — Stryker.NET analisa a eficacia dos testes unitarios</span>
-      </div>
-      <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px">
-        <span style="color:var(--accent2);flex-shrink:0">&#9728;</span>
-        <span><strong style="color:var(--text)">SonarCloud</strong> — quality gate, coverage 100%, bugs, smells e ratings A/B/C/D/E</span>
-      </div>
-      <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px">
-        <span style="color:var(--accent2);flex-shrink:0">&#127760;</span>
-        <span><strong style="color:var(--text)">OWASP Top 10</strong> — checklist das 10 vulnerabilidades web mais criticas</span>
-      </div>
-      <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px">
-        <span style="color:var(--accent2);flex-shrink:0">&#128179;</span>
-        <span><strong style="color:var(--text)">PCI DSS</strong> — controles de seguranca para processamento de pagamentos</span>
-      </div>
-      <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px">
-        <span style="color:var(--accent2);flex-shrink:0">&#128295;</span>
-        <span><strong style="color:var(--text)">Pipeline</strong> — disparo e acompanhamento de testes via GitHub Actions</span>
-      </div>
-    </div>
-    <div style="border-top:1px solid var(--border);padding-top:12px;display:flex;align-items:center;justify-content:space-between">
-      <div style="position:relative;display:inline-block" id="about-ver-wrap">
-        <span id="about-ver-trigger" style="font-size:11px;color:var(--muted);cursor:default;border-bottom:1px dashed var(--border);padding-bottom:1px"
-          onmouseenter="document.getElementById('about-ver-pop').style.display='block'"
-          onmouseleave="document.getElementById('about-ver-pop').style.display='none'">
-          Versionamento
-        </span>
-        <div id="about-ver-pop" style="display:none;position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;width:240px;font-size:12px;box-shadow:0 8px 24px rgba(0,0,0,.4)">
-          <div style="display:grid;grid-template-columns:auto 1fr;gap:5px 12px" id="about-ver-grid">
-            <span style="color:var(--muted)">Run</span><span id="about-ver-run" style="color:var(--text)">—</span>
-            <span style="color:var(--muted)">SHA</span><span id="about-ver-sha" style="color:var(--text);font-family:monospace">—</span>
-            <span style="color:var(--muted)">Atualizado</span><span id="about-ver-ts" style="color:var(--text)">—</span>
-            <span style="color:var(--muted)">Tipo</span><span id="about-ver-type" style="color:var(--text)">—</span>
-          </div>
-        </div>
-      </div>
-      <a href="https://github.com/josehelioaraujo/comprai" target="_blank"
-         style="font-size:11px;color:var(--accent2);text-decoration:none">GitHub &#8599;</a>
-    </div>
-  </div>
-</div>
-
-<!-- Version modal -->
-<div class="ver-modal-overlay" id="verModal" onclick="closeVerModal(event)">
-  <div class="ver-modal">
-    <div class="ver-modal-title">
-      <span>&#128204; Versionamento</span>
-      <button class="ver-modal-close" onclick="closeVerModalDirect()">&#10005;</button>
-    </div>
-    <div id="verModalBody">
-      <div class="ver-row"><span class="ver-label">Run</span><span class="ver-value" id="vm-run">—</span></div>
-      <div class="ver-row"><span class="ver-label">SHA</span><span class="ver-value" id="vm-sha">—</span></div>
-      <div class="ver-row"><span class="ver-label">Timestamp</span><span class="ver-value" id="vm-ts">—</span></div>
-      <div class="ver-row"><span class="ver-label">Testes</span><span class="ver-value" id="vm-tests">—</span></div>
-      <div class="ver-row"><span class="ver-label">Atualizado</span><span class="ver-value" id="vm-updated">—</span></div>
-    </div>
-  </div>
-</div>
-
-<!-- App shell -->
-<div class="app-shell">
-<nav class="sidebar" id="sidebar">
-  <div class="sidebar-header">
-    <span class="sidebar-logo-text" onclick="openAboutModal()" style="cursor:pointer" title="Sobre o QA Hub">QA Hub</span>
-    <div style="display:flex;align-items:center;gap:4px">
-      <button id="btn-collapse-all" onclick="collapseAllGroups()" title="Recolher tudo" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:13px;padding:3px 5px;border-radius:4px;line-height:1;transition:all .15s" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">&#8644;</button>
-      <button class="sidebar-toggle sidebar-toggle-collapse" onclick="toggleSidebar()" title="Recolher sidebar">&#8249;</button>
-    </div>
-  </div>
-  <!-- Botao expandir: visivel so quando colapsado -->
-  <button class="sidebar-expand-btn" id="sidebarExpandBtn" onclick="toggleSidebar()" title="Expandir sidebar">&#8250;</button>
-  <div class="sidebar-nav">
-    <div class="nav-group" id="group-testes" class="collapsed">
-      <div class="nav-label" onclick="toggleNavGroup('group-testes')">
-        <span class="nav-text">Testes</span><span class="nav-group-chevron">&#9660;</span>
-      </div>
-      <div class="nav-group-items">
-        <div class="nav-item" id="nav-stress" onclick="showSection('stressBlock', this)" title="Stress Test K6">
-          <span class="nav-icon">&#128293;</span><span class="nav-text">Stress Test</span>
-        </div>
-        <div class="nav-item nav-item-soon" title="Em breve">
-          <span class="nav-icon">&#128260;</span><span class="nav-text">Testes Integrados<span class="nav-soon">Em breve</span></span>
-        </div>
-        <div class="nav-item" id="nav-mutacao" onclick="showSection('mutacaoBlock', this)" title="Testes de Mutacao">
-          <span class="nav-icon">&#129522;</span><span class="nav-text">Mutacao</span>
-        </div>
-      </div>
-    </div>
-    <div class="nav-group" id="group-qualidade" class="collapsed">
-      <div class="nav-label" onclick="toggleNavGroup('group-qualidade')">
-        <span class="nav-text">Qualidade</span><span class="nav-group-chevron">&#9660;</span>
-      </div>
-      <div class="nav-group-items">
-        <div class="nav-item" id="nav-sonar" onclick="showSection('sonarBlock', this)" title="SonarCloud Quality Gate">
-          <span class="nav-icon">&#9728;</span><span class="nav-text">SonarCloud</span>
-        </div>
-
-      </div>
-    </div>
-    <div class="nav-group" id="group-seguranca" class="collapsed">
-      <div class="nav-label" onclick="toggleNavGroup('group-seguranca')">
-        <span class="nav-text">Seguranca</span><span class="nav-group-chevron">&#9660;</span>
-      </div>
-      <div class="nav-group-items">
-        <div class="nav-item" id="nav-owasp" onclick="showSection('owaspBlock', this)" title="OWASP Top 10">
-          <span class="nav-icon">&#127760;</span><span class="nav-text">OWASP Top 10</span>
-        </div>
-        <div class="nav-item" id="nav-pci" onclick="showSection('pciBlock', this)" title="PCI DSS">
-          <span class="nav-icon">&#128179;</span><span class="nav-text">PCI DSS</span>
-        </div>
-      </div>
-    </div>
-    <div class="nav-group" id="group-k6" class="collapsed">
-      <div class="nav-label" onclick="toggleNavGroup('group-k6')">
-        <span class="nav-text">Analise K6</span><span class="nav-group-chevron">&#9660;</span>
-      </div>
-      <div class="nav-group-items">
-        <div class="nav-item" id="nav-detalhes" onclick="showSection('detailsBlock', this)" title="Detalhes por Tipo">
-          <span class="nav-icon">&#128269;</span><span class="nav-text">Detalhes</span>
-        </div>
-        <div class="nav-item" id="nav-resumo" onclick="showSection('resumoBlock', this)" title="Resumo de Resultados">
-          <span class="nav-icon">&#128202;</span><span class="nav-text">Resumo</span>
-        </div>
-        <div class="nav-item" id="nav-timeline" onclick="showSection('timelineBlock', this)" title="Timeline de Latencia">
-          <span class="nav-icon">&#128200;</span><span class="nav-text">Timeline</span>
-        </div>
-        <div class="nav-item" id="nav-graficos" onclick="showSection('chartsBlock', this)" title="Graficos de Performance">
-          <span class="nav-icon">&#128201;</span><span class="nav-text">Graficos</span>
-        </div>
-        <div class="nav-item" id="nav-rotas" onclick="showSection('routesBlock', this)" title="Rotas Chamadas">
-          <span class="nav-icon">&#127760;</span><span class="nav-text">Rotas</span>
-        </div>
-        <div class="nav-item" id="nav-config" onclick="showSection('configBlock', this)" title="Configuracao dos Testes">
-          <span class="nav-icon">&#9881;</span><span class="nav-text">Configuracao</span>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="sidebar-footer">
-    <div class="nav-item sb-theme-item" onclick="toggleTheme()" id="themeBtn" title="Alternar tema claro/escuro">
-      <span class="nav-icon" id="themeIcon">&#9790;</span>
-    </div>
-
-  </div>
-</nav>
-
-<!-- Main area -->
-<div class="main-area">
-  <header class="topbar">
-    <div class="topbar-meta">
-      <span id="hdr-count" style="display:none"></span>
-      <span id="hdr-updated" style="display:none"></span>
-    </div>
-    <!-- run-controls movido para sidebar -->
-    <div id="runControls" style="display:none"></div>
-    <div style="display:flex;align-items:center;gap:10px;margin-left:auto;padding-right:4px">
-      <button id="status-pill" class="status-pill op" onclick="toggleStatusDrawer()" title="Status do Sistema" style="position:relative">
-        <span class="pill-dot"></span>
-        <span id="pill-label">Carregando...</span>
-        <span id="pill-countdown" class="pill-countdown"></span>
-        <span id="pill-spinner" class="pill-spinner" style="display:none"></span>
-      </button>
-    </div>
-  </header>
-
-
-
-  <div class="page-content">
-    <div id="loadingMsg" class="loading">&#9203; Carregando resultados dos testes...</div>
-    <div id="welcomeState" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;color:var(--muted);text-align:center;padding:40px">
-  <div style="font-size:3rem;margin-bottom:16px">&#128202;</div>
-  <div style="font-size:1.2rem;font-weight:600;color:var(--text);margin-bottom:8px">QA Hub</div>
-  <div style="font-size:0.9rem;max-width:340px;line-height:1.7">Selecione uma opcao no menu lateral para visualizar os dados de qualidade e seguranca.</div>
-</div>
-<div id="dashContent" style="display:none">
-
-      <!-- FIXO: Detalhes por Tipo -->
-      <div class="section-block" id="detailsBlock" style="display:none">
-        <div class="section-header" onclick="toggleSection(this)">
-          <span class="section-title-text">&#128293; Stress Test &#8212; Tipos de Teste
-            <span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative">
-              <span class="info-hint-btn">i</span>
-              <span class="info-hint-box" style="position:fixed;width:300px;z-index:9999;line-height:1.8">
-                <strong style="color:var(--text)">Smoke</strong> — carga minima (3 VUs/40s). Valida que a API responde corretamente antes de qualquer teste maior.<br>
-                <strong style="color:var(--text)">Load</strong> — carga normal esperada em producao (ate 100 VUs/5min). Mede comportamento sob uso real.<br>
-                <strong style="color:var(--text)">Stress</strong> — carga acima do limite (ate 400 VUs/10min). Encontra o ponto de ruptura da API.<br>
-                <strong style="color:var(--text)">Spike</strong> — pico abrupto de trafego (0→200 VUs em 10s). Simula Black Friday ou viral.<br>
-                <strong style="color:var(--text)">Soak</strong> — carga sustentada por longo periodo (50 VUs/4min+). Detecta memory leaks e degradacao gradual.
-              </span>
-            </span>
-          </span>
-          <span class="section-count" id="detail-count"></span>
-          <span class="section-chevron">&#9660;</span>
-        </div>
-        <div class="section-content">
-          <div class="section-inner">
-            <div class="scenario-tabs" id="scenarioTabs"></div>
-            <div id="scenarioPanel"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Stress Test K6 -->
-      <div class="section-block" id="stressBlock" style="display:none">
-        <div class="section-header" onclick="toggleSection(this)">
-          <span class="section-title-text">&#128293; Stress Test — K6</span>
-          <span class="section-count" id="stress-count"></span>
-          <span class="section-chevron">&#9660;</span>
-        </div>
-        <div class="section-content">
-          <div class="section-inner">
-            <div style="padding:16px 20px 8px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-              <select id="testTypeSelect" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 12px;border-radius:8px;font-size:13px;cursor:pointer;outline:none;min-width:140px;">
-                <option value="smoke">Smoke</option>
-                <option value="load">Load</option>
-                <option value="stress">Stress</option>
-                <option value="spike">Spike</option>
-                <option value="soak">Soak</option>
-                <option value="all">Todos</option>
-              </select>
-              <button class="btn-run" id="btnRun" onclick="triggerTest()" style="display:flex;">&#9654;&nbsp; Executar Teste</button>
-              <span style="font-size:12px;color:var(--muted);margin-left:auto;" id="stress-last-run"></span>
-            </div>
-            <div style="padding:0 20px 16px;">
-              <div id="stress-info" style="font-size:12px;color:var(--muted);">Selecione um tipo de teste e clique em Executar para disparar o pipeline via GitHub Actions.</div>
-            </div>
-
-            <!-- Pipeline em Execucao — aparece logo apos clicar em Executar -->
-            <div id="runPanel" style="border-top:1px solid var(--border);margin:0;padding:0;max-height:0;overflow:hidden;transition:max-height .4s cubic-bezier(.4,0,.2,1),padding .4s">
-              <div style="padding:16px 20px">
-                <div class="run-panel-header">
-                  <div class="run-panel-title">&#128295; Pipeline em Execucao</div>
-                  <button class="run-panel-close" onclick="closeRunPanel()">&#10005;</button>
-                </div>
-                <div id="runStatusMsg"></div>
-                <div class="jobs-grid" id="jobsGrid"></div>
-                <div class="run-info" id="runInfo"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Resumo -->
-      <div class="section-block" id="resumoBlock" style="display:none">
-        <div class="section-header" onclick="toggleSection(this)">
-          <span class="section-title-text">&#128202; Resumo de Resultados</span>
-          <span class="section-count" id="res-count"></span>
-          <span class="section-chevron">&#9660;</span>
-        </div>
-        <div class="section-content">
-          <div class="section-inner">
-            <table>
-              <thead><tr><th>Tipo</th><th>Cenario</th><th>p50 (ms)</th><th>p95 (ms)</th><th>p99 (ms)</th><th>Req/s</th><th>Total</th><th>Erro %</th><th>Status</th></tr></thead>
-              <tbody id="resultsTableBody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- Timeline -->
-      <div class="section-block" id="timelineBlock" style="display:none">
-        <div class="section-header" onclick="toggleSection(this, 'timeline')">
-          <span class="section-title-text">&#128200; Timeline de Latencia</span>
-          <span class="section-count" id="timeline-count"></span>
-          <span class="section-chevron">&#9660;</span>
-        </div>
-        <div class="section-content">
-          <div class="section-inner">
-            <div style="padding: 16px;">
-              <div class="chart-card">
-                <div class="chart-title">Evolucao de Latencia por Tipo de Teste (ms) — p50 / p95 / p99</div>
-                <div class="chart-wrap-tall"><canvas id="chartTimeline"></canvas></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Configuracao -->
-      <div class="section-block" id="configBlock" style="display:none">
-        <div class="section-header" onclick="toggleSection(this)">
-          <span class="section-title-text">&#9881; Configuracao dos Testes</span>
-          <span class="section-count" id="cfg-count"></span>
-          <span class="section-chevron">&#9660;</span>
-        </div>
-        <div class="section-content">
-          <div class="section-inner">
-            <table>
-              <thead><tr><th>Tipo</th><th>URL Alvo</th><th>VUs</th><th>Duracao</th><th>Status</th></tr></thead>
-              <tbody id="configTableBody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- Graficos -->
-      <div class="section-block" id="chartsBlock" style="display:none">
-        <div class="section-header" onclick="toggleSection(this, 'charts')">
-          <span class="section-title-text">&#128201; Graficos de Performance</span>
-          <span class="section-count" id="charts-count"></span>
-          <span class="section-chevron">&#9660;</span>
-        </div>
-        <div class="section-content">
-          <div class="section-inner">
-            <div class="charts-grid">
-              <div class="chart-card">
-                <div class="chart-title">Throughput por Tipo (req/s)<span class="chart-hint-icon">&#9432;<span class="chart-hint">Requisicoes processadas por segundo por cenario. Smoke: linha de base minima. Load: valida capacidade sob carga normal. Stress: identifica o ponto de saturacao. Spike: mede recuperacao a picos subitos. Soak: detecta degradacao gradual ao longo do tempo.</span></span></div>
-                <div class="chart-wrap"><canvas id="chartRps"></canvas></div>
-              </div>
-              <div class="chart-card">
-                <div class="chart-title">Taxa de Erro por Tipo (%)<span class="chart-hint-icon">&#9432;<span class="chart-hint">% de requisicoes com falha (HTTP 5xx, timeout ou rejeicao). Smoke/Load: 0% e o ideal. Stress: ate 1% e aceitavel sob carga extrema. Spike: erros transitorios sao esperados no pico. Soak: erros crescentes indicam vazamento de recursos.</span></span></div>
-                <div class="chart-wrap"><canvas id="chartErrors"></canvas></div>
-              </div>
-              <div class="chart-card">
-                <div class="chart-title">Total de Requisicoes por Tipo<span class="chart-hint-icon">&#9432;<span class="chart-hint">Volume total de chamadas HTTP em cada cenario. Reflete duracao, VUs e taxa de iteracao. Stress e Soak naturalmente acumulam maior volume. Compare entre execucoes do mesmo tipo para detectar regressao de capacidade.</span></span></div>
-                <div class="chart-wrap"><canvas id="chartTotal"></canvas></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Rotas -->
-      <div class="section-block" id="routesBlock" style="display:none">
-        <div class="section-header" onclick="toggleSection(this)">
-          <span class="section-title-text">&#127760; Rotas Chamadas</span>
-          <span class="section-count" id="routes-count"></span>
-          <span class="section-chevron">&#9660;</span>
-        </div>
-        <div class="section-content">
-          <div class="section-inner" id="routesContent"></div>
-        </div>
-      </div>
-
-      <!-- ===== MUTACAO BLOCK ===== -->
-    <div class="section-block" id="mutacaoBlock" style="display:none">
-      <div class="section-header" onclick="toggleSection(this)">
-        <span class="section-title-text">&#129522; Testes de Mutacao (Stryker.NET)
-          <span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative">
-            <span class="info-hint-btn">i</span>
-            <span class="info-hint-box" style="position:fixed;width:260px;z-index:9999">O Stryker.NET gera pequenas alteracoes no codigo (mutantes) e verifica se os testes unitarios as detectam. Mutante morto = teste eficaz. Mutation Score = % de mutantes eliminados.</span>
-          </span>
-        </span>
-        <span class="section-toggle">&#9660;</span>
-      </div>
-      <div class="section-content">
-
-        <!-- KPI cards em row -->
-        <div class="kpi-grid" id="mut-kpi-row" style="display:none;padding:16px 16px 8px">
-          <div class="kpi-card">
-            <div class="kpi-hint">% de mutantes eliminados pelos testes. Quanto mais proximo de 100%, mais eficazes sao seus testes na deteccao de bugs reais.</div>
-            <div class="kpi-label">Mutation Score</div>
-            <div class="kpi-value" id="mut-score">--</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-hint">Total de variacoes de codigo geradas pelo Stryker. Cada mutante representa uma possivel falha que seus testes deveriam detectar.</div>
-            <div class="kpi-label">Mutantes Gerados</div>
-            <div class="kpi-value" id="mut-total">--</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-hint">Mutantes que seus testes detectaram — o teste falhou quando o codigo foi alterado, provando que valida a logica corretamente.</div>
-            <div class="kpi-label">Eliminados</div>
-            <div class="kpi-value" style="color:#22c55e" id="mut-killed">--</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-hint">Mutantes que seus testes nao detectaram — o codigo foi alterado mas o teste continuou passando. Indica logica nao validada.</div>
-            <div class="kpi-label">Sobreviventes</div>
-            <div class="kpi-value" style="color:#ef4444" id="mut-survived">--</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-hint">Mutantes em codigo nao executado pelos testes. Partes do codigo nao alcancadas pelos testes unitarios existentes.</div>
-            <div class="kpi-label">Sem Cobertura</div>
-            <div class="kpi-value" style="color:#f59e0b" id="mut-nocov">--</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-hint">Numero da execucao do workflow Mutation Tests no GitHub Actions que gerou estes resultados.</div>
-            <div class="kpi-label">Run</div>
-            <div class="kpi-value" id="mut-run">--</div>
-          </div>
-        </div>
-
-        <!-- Badge + barra de progresso -->
-        <div id="mut-badge-area" style="margin:0 16px 12px;display:none">
-          <span id="mut-badge" style="padding:6px 18px;border-radius:20px;font-weight:700;font-size:1rem"></span>
-          <span id="mut-timestamp" style="margin-left:12px;color:var(--muted);font-size:0.82rem"></span>
-        </div>
-        <div id="mut-progress-area" style="margin:0 16px 16px;display:none">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-            <span style="font-size:0.82rem;color:var(--muted);display:flex;align-items:center;gap:6px">
-              Score de Mutacao
-              <span class="info-hint-wrap" style="position:relative">
-                <span class="info-hint-btn">i</span>
-                <span class="info-hint-box" style="position:fixed;width:260px;z-index:9999">Verde (>=70%): APROVADO. Amarelo (50-69%): ATENCAO. Vermelho (<50%): REPROVADO. Meta recomendada: 80%+. Score 100% significa que todos os mutantes foram detectados pelos testes.</span>
-              </span>
-            </span>
-            <span style="font-size:0.82rem;color:var(--muted)">Meta: 80%</span>
-          </div>
-          <div style="background:var(--border);border-radius:8px;height:14px;overflow:hidden">
-            <div id="mut-progress-bar" style="height:100%;border-radius:8px;transition:width .6s;width:0%"></div>
-          </div>
-          <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:0.78rem;color:var(--muted)">
-            <span>0%</span><span>50%</span><span>80%</span><span>100%</span>
-          </div>
-        </div>
-
-        <!-- Subssecao colapsavel: Score por Arquivo -->
-        <div id="mut-files-area" style="display:none">
-          <div class="section-header" onclick="toggleSection(this)">
-            <span class="section-title-text">&#128196; Score por Arquivo
-              <span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative">
-                <span class="info-hint-btn">i</span>
-                <span class="info-hint-box" style="position:fixed;width:260px;z-index:9999">Arquivos ordenados pelo score (menor primeiro). Foque nos arquivos com score abaixo de 70% — eles possuem logica nao validada pelos testes. Score 100% = todos os mutantes foram detectados.</span>
-              </span>
-            </span>
-            <span class="section-chevron">&#9660;</span>
-          </div>
-          <div class="section-content">
-            <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
-              <thead>
-                <tr style="color:var(--muted);text-align:left;border-bottom:1px solid var(--border)">
-                  <th style="padding:6px 8px">Arquivo</th>
-                  <th style="padding:6px 8px;text-align:center">Score</th>
-                  <th style="padding:6px 8px;text-align:center">Total</th>
-                  <th style="padding:6px 8px;text-align:center">Killed</th>
-                  <th style="padding:6px 8px;text-align:center">Survived</th>
-                  <th style="padding:6px 8px;text-align:center">No Cov</th>
-                </tr>
-              </thead>
-              <tbody id="mut-files-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Painel Sobre colapsavel -->
-        <div id="mut-about-area" style="display:none;margin:0 16px 8px">
-          <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">
-            <div class="section-header" onclick="toggleSection(this)" style="padding:10px 16px">
-              <span class="section-title-text">&#128218; Sobre os Testes de Mutacao</span>
-              <span class="section-chevron">&#9660;</span>
-            </div>
-            <div class="section-content">
-              <div style="padding:16px;font-size:13px;color:var(--muted);line-height:1.7">
-                <p style="margin-bottom:10px"><strong style="color:var(--text)">O que sao testes de mutacao?</strong><br>
-                O Stryker.NET modifica automaticamente o codigo-fonte (cria "mutantes") e verifica se os testes unitarios detectam cada alteracao. Se o teste falhar, o mutante foi eliminado — seus testes sao eficazes. Se o teste passar, o mutante sobreviveu — ha logica nao validada.</p>
-                <p style="margin-bottom:10px"><strong style="color:var(--text)">Como interpretar o score?</strong><br>
-                <span style="color:#22c55e">&#9632; Verde (70%+)</span> — Aprovado. Testes detectam a maioria das falhas.<br>
-                <span style="color:#f59e0b">&#9632; Amarelo (50-69%)</span> — Atencao. Ha lacunas significativas.<br>
-                <span style="color:#ef4444">&#9632; Vermelho (&lt;50%)</span> — Reprovado. Testes cobrem mas nao validam a logica.</p>
-                <p style="margin-bottom:10px"><strong style="color:var(--text)">Projetos analisados</strong><br>
-                UcpAgent.Application — handlers MediatR (Search, Cart, Checkout, Order, Payment)<br>
-                Executado via workflow <code style="background:var(--surface2);padding:1px 5px;border-radius:4px">Mutation Tests (Stryker.NET)</code> no GitHub Actions.</p>
-                <p><strong style="color:var(--text)">Como melhorar o score?</strong><br>
-                Foque nos arquivos com score abaixo de 70% na tabela abaixo. Adicione assertions que validem os valores retornados, nao apenas que o metodo foi chamado.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Empty/erro state -->
-        <div id="mut-empty" style="text-align:center;padding:40px;color:var(--muted)">
-          <div style="font-size:2rem;margin-bottom:8px">&#129522;</div>
-          <div>Carregando dados de mutacao...</div>
-        </div>
-
-      </div>
-    </div>
-
-    <div class="section-block" id="sonarBlock" style="display:none">
-      <div class="section-header" onclick="toggleSection(this)">
-        <span class="section-title-text">&#9728; SonarCloud · Quality Gate
-          <span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative">
-            <span class="info-hint-btn">i</span>
-            <span class="info-hint-box" style="position:fixed;width:260px;z-index:9999">Metricas de qualidade de codigo coletadas pelo SonarCloud a cada execucao do CI/CD. Coverage = cobertura de linhas pelos testes. Code Smells = problemas de manutencao. Bugs = erros detectados por analise estatica.</span>
-          </span>
-        </span>
-        <span class="section-toggle">&#9660;</span>
-      </div>
-      <div class="section-content">
-
-        <!-- Quality Gate badge -->
-        <div id="sonar-gate-area" style="display:none;padding:16px 16px 4px;display:none">
-          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-            <span id="sonar-gate-badge" style="padding:6px 20px;border-radius:20px;font-weight:700;font-size:1rem;letter-spacing:.02em"></span>
-            <span id="sonar-run" style="color:var(--muted);font-size:0.82rem"></span>
-            <span id="sonar-timestamp" style="color:var(--muted);font-size:0.82rem"></span>
-          </div>
-        </div>
-
-        <!-- KPI cards -->
-        <div class="kpi-grid" id="sonar-kpi-row" style="display:none;padding:12px 16px 8px">
-          <div class="kpi-card">
-            <div class="kpi-hint">Porcentagem de linhas de codigo cobertas pelos testes unitarios. Meta: 90%+.</div>
-            <div class="kpi-label">Coverage</div>
-            <div class="kpi-value" id="sonar-coverage">--</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-hint">Problemas de manutencao detectados — codigo confuso, duplicado ou dificil de entender. Zero e o ideal.</div>
-            <div class="kpi-label">Code Smells</div>
-            <div class="kpi-value" id="sonar-smells">--</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-hint">Erros detectados por analise estatica que podem causar falhas em producao.</div>
-            <div class="kpi-label">Bugs</div>
-            <div class="kpi-value" id="sonar-bugs">--</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-hint">Vulnerabilidades de seguranca detectadas no codigo-fonte.</div>
-            <div class="kpi-label">Vulnerabilidades</div>
-            <div class="kpi-value" id="sonar-vuln">--</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-hint">Percentual de codigo duplicado. Meta: abaixo de 3%.</div>
-            <div class="kpi-label">Duplicacoes</div>
-            <div class="kpi-value" id="sonar-dupl">--</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-hint">Total de linhas de codigo analisadas (excluindo comentarios e linhas em branco).</div>
-            <div class="kpi-label">Linhas (ncloc)</div>
-            <div class="kpi-value" id="sonar-ncloc">--</div>
-          </div>
-        </div>
-
-        <!-- Ratings row -->
-        <div id="sonar-ratings-area" style="display:none;padding:0 16px 16px">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px">Ratings</div>
-          <div style="display:flex;gap:12px;flex-wrap:wrap">
-            <div class="sonar-rating-card" style="border:1px solid var(--border);border-radius:10px;padding:10px 18px;text-align:center;min-width:90px;position:relative;cursor:default">
-              <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Security</div>
-              <div id="sonar-sec-rating" style="font-size:1.6rem;font-weight:700">—</div>
-              <div class="sonar-rating-popover" style="display:none;position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;width:220px;font-size:12px;line-height:1.6;box-shadow:0 8px 24px rgba(0,0,0,.4);text-align:left">
-                <div style="font-weight:700;color:var(--text);margin-bottom:6px">🔒 Security Rating</div>
-                <div style="color:var(--muted)"><span style="color:#22c55e;font-weight:700">A</span> — Nenhuma vulnerabilidade</div>
-                <div style="color:var(--muted)"><span style="color:#84cc16;font-weight:700">B</span> — 1 minor</div>
-                <div style="color:var(--muted)"><span style="color:#f59e0b;font-weight:700">C</span> — 1 major</div>
-                <div style="color:var(--muted)"><span style="color:#f97316;font-weight:700">D</span> — 1 critical</div>
-                <div style="color:var(--muted)"><span style="color:#ef4444;font-weight:700">E</span> — 1 blocker</div>
-              </div>
-            </div>
-            <div class="sonar-rating-card" style="border:1px solid var(--border);border-radius:10px;padding:10px 18px;text-align:center;min-width:90px;position:relative;cursor:default">
-              <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Reliability</div>
-              <div id="sonar-rel-rating" style="font-size:1.6rem;font-weight:700">—</div>
-              <div class="sonar-rating-popover" style="display:none;position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;width:220px;font-size:12px;line-height:1.6;box-shadow:0 8px 24px rgba(0,0,0,.4);text-align:left">
-                <div style="font-weight:700;color:var(--text);margin-bottom:6px">🛡️ Reliability Rating</div>
-                <div style="color:var(--muted)"><span style="color:#22c55e;font-weight:700">A</span> — Nenhum bug</div>
-                <div style="color:var(--muted)"><span style="color:#84cc16;font-weight:700">B</span> — 1 minor bug</div>
-                <div style="color:var(--muted)"><span style="color:#f59e0b;font-weight:700">C</span> — 1 major bug</div>
-                <div style="color:var(--muted)"><span style="color:#f97316;font-weight:700">D</span> — 1 critical bug</div>
-                <div style="color:var(--muted)"><span style="color:#ef4444;font-weight:700">E</span> — 1 blocker bug</div>
-              </div>
-            </div>
-            <div class="sonar-rating-card" style="border:1px solid var(--border);border-radius:10px;padding:10px 18px;text-align:center;min-width:90px;position:relative;cursor:default">
-              <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Maintainability</div>
-              <div id="sonar-maint-rating" style="font-size:1.6rem;font-weight:700">—</div>
-              <div class="sonar-rating-popover" style="display:none;position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;width:220px;font-size:12px;line-height:1.6;box-shadow:0 8px 24px rgba(0,0,0,.4);text-align:left">
-                <div style="font-weight:700;color:var(--text);margin-bottom:6px">🔧 Maintainability Rating</div>
-                <div style="color:var(--muted)"><span style="color:#22c55e;font-weight:700">A</span> — &lt; 5% technical debt ratio</div>
-                <div style="color:var(--muted)"><span style="color:#84cc16;font-weight:700">B</span> — 6–10%</div>
-                <div style="color:var(--muted)"><span style="color:#f59e0b;font-weight:700">C</span> — 11–20%</div>
-                <div style="color:var(--muted)"><span style="color:#f97316;font-weight:700">D</span> — 21–50%</div>
-                <div style="color:var(--muted)"><span style="color:#ef4444;font-weight:700">E</span> — &gt; 50%</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Empty/erro state -->
-        <div id="sonar-empty" style="text-align:center;padding:40px;color:var(--muted)">
-          <div style="font-size:2rem;margin-bottom:8px">&#9728;</div>
-          <div>Carregando dados do SonarCloud...</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="section-block" id="owaspBlock" style="display:none">
-      <div class="section-header" onclick="toggleSection(this)">
-        <span class="section-title-text">&#127760; OWASP Top 10 — 2021
-          <span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative">
-            <span class="info-hint-btn">i</span>
-            <span class="info-hint-box" style="position:fixed;width:280px;z-index:9999">Lista das 10 vulnerabilidades mais criticas em aplicacoes web, publicada pela Open Web Application Security Project. E o padrao de referencia global para desenvolvimento seguro. Cada item representa uma categoria de risco com exemplos, impacto e como mitigar.</span>
-          </span>
-        </span>
-        <span class="section-count" id="owasp-score"></span>
-        <span class="section-chevron">&#9660;</span>
-      </div>
-      <div class="section-content">
-        <div style="padding:12px 16px 16px">
-          <div id="owasp-list"></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="section-block" id="pciBlock" style="display:none">
-      <div class="section-header" onclick="toggleSection(this)">
-        <span class="section-title-text">&#128179; PCI DSS v4.0 — Controles Relevantes
-          <span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative">
-            <span class="info-hint-btn">i</span>
-            <span class="info-hint-box" style="position:fixed;width:280px;z-index:9999">Payment Card Industry Data Security Standard — padrao obrigatorio para toda aplicacao que processa, armazena ou transmite dados de cartao. Criado pelas bandeiras Visa, Mastercard, Amex, Discover e JCB. Nao conformidade pode resultar em multas e perda da capacidade de processar pagamentos.</span>
-          </span>
-        </span>
-        <span class="section-count" id="pci-score"></span>
-        <span class="section-chevron">&#9660;</span>
-      </div>
-      <div class="section-content">
-        <div style="padding:12px 16px 16px">
-          <div id="pci-list"></div>
-        </div>
-      </div>
-    </div>
-
-
-
 
   <!-- ===== STATUS DRAWER ===== -->
   <div id="status-drawer-overlay" class="status-drawer-overlay" onclick="closeStatusDrawer()"></div>
@@ -2210,7 +1092,7 @@ window.addEventListener('DOMContentLoaded', function() {
     const meta = PILL_META[indicator] ?? PILL_META.major_outage;
     const pill = document.getElementById('status-pill');
     pill.className = 'status-pill ' + meta.cls;
-    document.getElementById('pill-label').textContent = meta.label;
+    pill.title = meta.label;  // tooltip mostra o label completo
   }
 
   function updatePillError() {
@@ -2369,6 +1251,12 @@ window.addEventListener('DOMContentLoaded', function() {
 
   // Iniciar polling ao carregar
   window.addEventListener('load', () => {
+    // Colapsar todos os grupos por default
+    ['group-testes','group-qualidade','group-seguranca','group-k6'].forEach(function(id) {
+      var g = document.getElementById(id);
+      if (g) g.classList.add('collapsed');
+    });
+    updateCollapseBtn();
     fetchStatusData();
   });
 </script>
@@ -2380,3 +1268,1123 @@ window.addEventListener('DOMContentLoaded', function() {
 
 </body>
 </html>
+
+<style>
+:root {
+  --bg: #0B0F19; --surface: #161C2A; --surface2: #1E2538;
+  --border: #242F41; --accent: #7c3aed; --accent2: #06b6d4;
+  --text: #e2e8f0; --muted: #64748b;
+  --pass: #10b981; --fail: #ef4444;
+  --sidebar-w: 220px; --sidebar-collapsed-w: 52px;
+}
+[data-theme="light"] {
+  --bg: #f1f5f9; --surface: #ffffff; --surface2: #f8fafc;
+  --border: #e2e8f0; --text: #0f172a; --muted: #64748b;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; display: flex; flex-direction: column; transition: background .2s, color .2s; }
+
+/* ── App shell ── */
+.app-shell { display: flex; flex: 1; min-height: 0; }
+
+/* ── Sidebar ── */
+.sidebar {
+  width: var(--sidebar-w);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  transition: width .25s cubic-bezier(.4,0,.2,1);
+  flex-shrink: 0;
+  position: sticky; top: 0; height: 100vh; overflow: visible;
+}
+.sidebar > *:not(.sidebar-expand-btn) { overflow: hidden; }
+/* garante que o conteudo interno nao vaze */
+.sidebar-header, .sidebar-nav, .sidebar-footer { overflow: hidden; white-space: nowrap; }
+.sidebar.collapsed { width: var(--sidebar-collapsed-w); }
+
+.sidebar-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 16px 14px; border-bottom: 1px solid var(--border);
+  min-height: 56px; overflow: hidden; white-space: nowrap;
+}
+.sidebar.collapsed .sidebar-header { padding: 0; min-height: 0; border-bottom: none; }
+.sidebar-logo-text { font-size: 13px; font-weight: 700; color: var(--text); opacity: 1; transition: opacity .15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+.sidebar.collapsed .sidebar-logo-text { opacity: 0; pointer-events: none; }
+
+.sidebar-toggle {
+  margin-left: auto; background: none; border: none; color: var(--muted);
+  cursor: pointer; font-size: 16px; flex-shrink: 0; padding: 4px;
+  border-radius: 6px; transition: background .15s, color .15s; line-height: 1;
+}
+.sidebar-toggle:hover { background: var(--surface2); color: var(--text); }
+.sidebar.collapsed .sidebar-toggle-collapse { display: none; }
+/* Botao expand — aparece so quando colapsado, fixo sobre a sidebar */
+.sidebar-expand-btn {
+  display: none; position: absolute; top: 12px; left: 10px;
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--muted); cursor: pointer; font-size: 14px; line-height: 1;
+  align-items: center; justify-content: center;
+  transition: background .15s, color .15s, opacity .15s;
+  z-index: 200; box-shadow: 0 2px 8px rgba(0,0,0,.3);
+}
+.sidebar-expand-btn:hover { background: var(--accent2); color: #fff; border-color: var(--accent2); }
+.sidebar.collapsed .sidebar-expand-btn { display: flex; }
+
+.sidebar-nav { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 8px 0; }
+.sidebar-nav::-webkit-scrollbar { width: 4px; }
+.sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+.sidebar-nav::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.nav-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--muted); padding: 10px 14px 4px; white-space: nowrap;
+  opacity: 1; transition: opacity .15s;
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer; user-select: none; border-radius: 6px;
+}
+.nav-label:hover { color: var(--text); background: var(--surface2); }
+.nav-label .nav-group-chevron {
+  font-size: 9px; transition: transform .2s; flex-shrink: 0; margin-right: 2px;
+}
+.nav-group.collapsed .nav-group-chevron { transform: rotate(-90deg); }
+.nav-group-items {
+  overflow: hidden;
+  max-height: 500px;
+  transition: max-height .25s ease, opacity .2s ease;
+  opacity: 1;
+}
+.nav-group.collapsed .nav-group-items { max-height: 0; opacity: 0; }
+.sidebar.collapsed .nav-label { opacity: 0; }
+.sidebar.collapsed .nav-group-chevron { display: none; }
+
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 14px; cursor: pointer;
+  color: var(--muted); font-size: 13px; font-weight: 500;
+  border-left: 3px solid transparent;
+  transition: background .15s, color .15s, border-color .15s;
+  white-space: nowrap; overflow: hidden;
+  user-select: none;
+}
+.nav-item:hover { background: var(--surface2); color: var(--text); }
+.nav-item.active { color: var(--accent2); border-left-color: var(--accent2); background: rgba(6,182,212,.06); }
+.nav-icon { font-size: 15px; flex-shrink: 0; width: 20px; text-align: center; }
+.nav-text { opacity: 1; transition: opacity .15s; display: flex; align-items: center; gap: 6px; }
+.sidebar.collapsed .nav-text { opacity: 0; pointer-events: none; }
+.nav-soon { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; background: rgba(124,58,237,.2); color: #a78bfa; padding: 1px 5px; border-radius: 4px; flex-shrink: 0; }
+.nav-item-soon { opacity: .5; cursor: default; }
+.nav-item-soon:hover { background: none; color: var(--muted); }
+
+/* ── Sidebar footer ── */
+.sidebar-footer {
+  border-top: 1px solid var(--border);
+  padding: 4px 0;
+  overflow: hidden;
+}
+.sb-theme-item, .sb-ver-item {
+  border-left: 3px solid transparent;
+}
+
+/* ── Version modal ── */
+.ver-modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.55); z-index: 1000;
+  align-items: flex-end; justify-content: flex-start;
+}
+.about-modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.4); z-index: 1000;
+  align-items: flex-start; justify-content: flex-start;
+}
+.about-modal-overlay.open { display: flex; }
+.ver-modal-overlay.open { display: flex; }
+.ver-modal {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px 20px; margin: 0 0 16px 16px;
+  min-width: 260px; max-width: 320px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.4);
+  animation: slideUp .2s ease;
+}
+@keyframes slideUp { from { transform: translateY(12px); opacity:0; } to { transform: translateY(0); opacity:1; } }
+.ver-modal-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+.ver-modal-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; padding: 0; line-height: 1; }
+.ver-modal-close:hover { color: var(--text); }
+.ver-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+.ver-row:last-child { border-bottom: none; }
+.ver-label { color: var(--muted); }
+.ver-value { color: var(--text); font-family: monospace; font-size: 11px; }
+
+/* ── Main content area ── */
+.main-area { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow-y: auto; }
+
+/* ── Topbar ── */
+.topbar {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 0 24px; display: flex; align-items: center; gap: 16px;
+  height: 56px; flex-shrink: 0; position: sticky; top: 0; z-index: 50;
+}
+.topbar-meta { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.topbar-divider { width: 1px; height: 20px; background: var(--border); }
+.topbar-version { font-family: monospace; font-size: 11px; opacity: .6; }
+
+.run-controls { margin-left: auto; display: none; align-items: center; gap: 8px; }
+.run-controls select {
+  background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+  padding: 6px 11px; border-radius: 7px; font-size: 12px; cursor: pointer; outline: none;
+}
+.run-controls select:focus { border-color: var(--accent); }
+.btn-run {
+  background: var(--accent); color: #fff; border: none; border-radius: 7px;
+  padding: 6px 16px; font-size: 12px; font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; gap: 6px; transition: opacity .15s;
+}
+.btn-run:hover { opacity: .85; }
+.btn-run:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ── Run Status Panel ── */
+#runPanel {
+  background: transparent;
+  max-height: 0; overflow: hidden;
+  transition: max-height .4s cubic-bezier(.4,0,.2,1);
+}
+#runPanel.open { max-height: 600px; }
+.run-panel-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.run-panel-title { font-size: 14px; font-weight: 700; color: var(--text); }
+.run-panel-close { margin-left: auto; background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer; line-height: 1; }
+.run-panel-close:hover { color: var(--text); }
+.jobs-grid { display: flex; flex-wrap: wrap; gap: 12px; }
+.job-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; min-width: 200px; flex: 1; max-width: 320px; }
+.job-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+.job-status-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.dot-pending   { background: var(--muted); }
+.dot-running   { background: #fbbf24; animation: pulse 1s infinite; }
+.dot-success   { background: var(--pass); }
+.dot-failure   { background: var(--fail); }
+.dot-skipped   { background: var(--muted); opacity: .5; }
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.4; } }
+.step-list { display: flex; flex-direction: column; gap: 5px; max-height: 0; overflow: hidden; transition: max-height .35s ease; }
+.step-row { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); }
+.step-icon { font-size: 13px; flex-shrink: 0; width: 16px; text-align: center; }
+.run-info { font-size: 12px; color: var(--muted); margin-top: 10px; }
+.run-info a { color: var(--accent2); text-decoration: none; }
+.run-info a:hover { text-decoration: underline; }
+#runStatusMsg { font-size: 13px; color: var(--muted); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+
+/* ── Page content ── */
+.page-content { padding: 24px; max-width: 1400px; width: 100%; margin: 0 auto; }
+
+/* ── Collapsible Sections ── */
+.section-block { margin-top: 24px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.section-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 13px 18px;
+  background: var(--surface); cursor: pointer;
+  user-select: none; transition: background .15s;
+}
+.section-header:hover { background: var(--surface2); }
+.section-title-text { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; flex: 1; }
+.section-count { font-size: 11px; color: var(--accent2); background: rgba(6,182,212,.1); padding: 2px 8px; border-radius: 10px; }
+.section-chevron { color: var(--muted); font-size: 13px; transition: transform .25s; }
+.section-header.collapsed .section-chevron { transform: rotate(-90deg); }
+.section-content { overflow: hidden; transition: max-height .3s cubic-bezier(.4,0,.2,1); max-height: 4000px; }
+.section-content.collapsed { max-height: 0; }
+.section-inner { padding: 0 0 8px; }
+
+/* ── Route Groups ── */
+.route-group { border-top: 1px solid var(--border); }
+.route-group:first-child { border-top: none; }
+.route-group-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; cursor: pointer; user-select: none;
+  background: rgba(255,255,255,.01); transition: background .15s;
+}
+.route-group-header:hover { background: rgba(255,255,255,.03); }
+.route-group-chevron { color: var(--muted); font-size: 12px; transition: transform .2s; }
+.route-group-header.collapsed .route-group-chevron { transform: rotate(-90deg); }
+.route-group-content { overflow: hidden; max-height: 1200px; transition: max-height .25s ease; }
+.route-group-content.collapsed { max-height: 0; }
+
+/* ── Tables ── */
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { background: rgba(255,255,255,.03); padding: 9px 16px; text-align: left; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+td { padding: 10px 16px; border-top: 1px solid var(--border); }
+tr:hover td { background: rgba(255,255,255,.02); }
+
+/* ── Badges ── */
+.badge-pass { background: rgba(16,185,129,.15); color: var(--pass); padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.badge-fail { background: rgba(239,68,68,.15); color: var(--fail); padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.type-badge { display: inline-block; padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+.type-smoke  { background: rgba(6,182,212,.15);  color: #06b6d4; }
+.type-load   { background: rgba(124,58,237,.15);  color: #a78bfa; }
+.type-stress { background: rgba(245,158,11,.15);  color: #fbbf24; }
+.type-spike  { background: rgba(239,68,68,.15);   color: #f87171; }
+.type-soak   { background: rgba(16,185,129,.15);  color: #34d399; }
+
+/* ── Scenario Tabs ── */
+.scenario-tabs { display: flex; gap: 6px; flex-wrap: wrap; border-bottom: 2px solid var(--border); padding: 12px 16px 0; background: rgba(255,255,255,.01); }
+.scenario-tab { padding: 9px 16px; background: none; border: none; border-bottom: 3px solid transparent; color: var(--muted); cursor: pointer; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; transition: color .15s; margin-bottom: -2px; }
+.scenario-tab:hover { color: var(--text); }
+.scenario-tab.active { color: var(--accent2); border-bottom-color: var(--accent2); }
+
+/* ── KPI Cards ── */
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px,1fr)); gap: 12px; padding: 16px; }
+.kpi-hint {
+  position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+  background: #0a0e18; color: #c9d1d9; border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 12px; font-size: 11px; line-height: 1.5;
+  width: 210px; pointer-events: none; opacity: 0; transition: opacity .2s;
+  z-index: 100; text-align: center;
+}
+.kpi-hint::after {
+  content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+  border: 5px solid transparent; border-top-color: var(--border);
+}
+.kpi-card:hover .kpi-hint { opacity: 1; }
+/* ── Info hint para headers de secao ── */
+.info-hint-wrap { position: relative; display: inline-flex; align-items: center; margin-left: 8px; }
+.info-hint-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--muted); font-size: 11px; cursor: default;
+  font-weight: 700; line-height: 1; user-select: none;
+  transition: border-color .2s, color .2s;
+}
+.info-hint-btn:hover { border-color: var(--accent); color: var(--accent); }
+.info-hint-box {
+  position: fixed;
+  background: var(--surface); color: var(--text); border: 1px solid var(--accent);
+  border-radius: 10px; padding: 10px 14px; font-size: 12px; line-height: 1.6;
+  width: 260px; pointer-events: none; opacity: 0; transition: opacity .15s;
+  z-index: 9999; text-align: left; font-weight: 400;
+  box-shadow: 0 8px 24px rgba(0,0,0,.5);
+}
+.info-hint-wrap:hover .info-hint-box { opacity: 1; }
+.kpi-card { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+.kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+.kpi-value { font-size: 22px; font-weight: 700; color: var(--text); }
+.kpi-unit  { font-size: 12px; color: var(--muted); margin-left: 2px; }
+
+/* ── Charts ── */
+.charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 16px; padding: 16px; }
+.chart-card { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+.chart-hint-icon { position: relative; cursor: default; font-size: 11px; opacity: .45; margin-left: 6px; vertical-align: middle; }
+.chart-hint-icon:hover { opacity: 1; }
+.chart-hint { position: absolute; top: calc(100% + 6px); left: 0; background: #0a0e18; color: #c9d1d9; border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 11px; line-height: 1.6; width: 280px; pointer-events: none; opacity: 0; transition: opacity .2s; z-index: 200; text-align: left; white-space: normal; text-transform: none; letter-spacing: 0; font-weight: 400; }
+.chart-hint::after { content: ''; position: absolute; bottom: 100%; left: 20px; border: 5px solid transparent; border-bottom-color: var(--border); }
+.chart-title { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 14px; font-weight: 600; }
+.chart-wrap { position: relative; height: 220px; }
+.chart-wrap-tall { position: relative; height: 280px; }
+
+/* ── Routes ── */
+.route-method { display: inline-block; padding: 2px 7px; border-radius: 6px; font-size: 11px; font-weight: 700; font-family: monospace; }
+.method-GET    { background: rgba(16,185,129,.15); color: #34d399; }
+.method-POST   { background: rgba(124,58,237,.15); color: #a78bfa; }
+.method-PUT    { background: rgba(245,158,11,.15); color: #fbbf24; }
+.method-PATCH  { background: rgba(6,182,212,.15);  color: #06b6d4; }
+.method-DELETE { background: rgba(239,68,68,.15);  color: #f87171; }
+.empty-state { padding: 36px; text-align: center; color: var(--muted); font-size: 14px; line-height: 1.7; }
+
+.loading { padding: 48px; text-align: center; color: var(--muted); font-size: 15px; }
+#scenarioPanel { min-height: 80px; }
+
+    /* ---- Status Page ---- */
+    .status-component-card { background:var(--card-bg); border:1px solid var(--border); border-radius:10px; padding:14px 16px; display:flex; flex-direction:column; gap:6px; }
+    .status-component-top { display:flex; justify-content:space-between; align-items:center; }
+    .status-component-name { font-size:13px; font-weight:600; color:var(--text-primary); }
+    .status-component-group { font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.05em; }
+    .status-badge { font-size:11px; font-weight:600; padding:3px 8px; border-radius:20px; white-space:nowrap; }
+    .status-badge.operational   { background:rgba(34,197,94,.15);  color:#22c55e; }
+    .status-badge.degraded      { background:rgba(234,179,8,.15);   color:#eab308; }
+    .status-badge.partial_outage{ background:rgba(249,115,22,.15);  color:#f97316; }
+    .status-badge.major_outage  { background:rgba(239,68,68,.15);   color:#ef4444; }
+    .status-global-banner-op  { background:rgba(34,197,94,.08);  border-color:rgba(34,197,94,.25)!important;  color:#22c55e; }
+    .status-global-banner-deg { background:rgba(234,179,8,.08);   border-color:rgba(234,179,8,.25)!important;  color:#eab308; }
+    .status-global-banner-po  { background:rgba(249,115,22,.08);  border-color:rgba(249,115,22,.25)!important; color:#f97316; }
+    .status-global-banner-maj { background:rgba(239,68,68,.08);   border-color:rgba(239,68,68,.25)!important;  color:#ef4444; }
+    .uptime-row { display:flex; flex-direction:column; gap:4px; }
+    .uptime-row-header { display:flex; justify-content:space-between; font-size:12px; color:var(--text-secondary); }
+    .uptime-bar-track { display:flex; gap:2px; }
+    .uptime-tick { flex:1; height:20px; border-radius:3px; }
+    .uptime-tick.ok       { background:#22c55e; }
+    .uptime-tick.degraded { background:#eab308; }
+    .uptime-tick.down     { background:#ef4444; }
+    .uptime-tick.unknown  { background:var(--border); }
+
+  
+    /* ===== STATUS PILL + DRAWER ===== */
+    .status-pill {
+      display: flex; align-items: center; gap: 8px;
+      padding: 5px 14px; border-radius: 20px; cursor: pointer;
+      font-size: 12px; font-weight: 600; border: 1px solid;
+      transition: all .2s; user-select: none; white-space: nowrap;
+    }
+    .status-pill:hover { filter: brightness(1.15); }
+    .status-pill .pill-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      animation: pulse-dot 2s infinite;
+    }
+    .status-pill.op  { background:rgba(34,197,94,.12);  border-color:rgba(34,197,94,.3);  color:#22c55e; }
+    .status-pill.deg { background:rgba(234,179,8,.12);  border-color:rgba(234,179,8,.3);  color:#eab308; }
+    .status-pill.po  { background:rgba(249,115,22,.12); border-color:rgba(249,115,22,.3); color:#f97316; }
+    .status-pill.maj { background:rgba(239,68,68,.12);  border-color:rgba(239,68,68,.3);  color:#ef4444; }
+    .status-pill.op  .pill-dot { background:#22c55e; }
+    .status-pill.deg .pill-dot { background:#eab308; }
+    .status-pill.po  .pill-dot { background:#f97316; }
+    .status-pill.maj .pill-dot { background:#ef4444; }
+    @keyframes pulse-dot {
+      0%,100%{opacity:1;transform:scale(1)}
+      50%{opacity:.5;transform:scale(1.3)}
+    }
+    .pill-countdown { font-size:10px; opacity:.7; font-weight:400; }
+    .pill-spinner { width:12px; height:12px; border:2px solid currentColor;
+      border-top-color:transparent; border-radius:50%; animation:spin .7s linear infinite; }
+    @keyframes spin { to{transform:rotate(360deg)} }
+
+    /* Drawer */
+    .status-drawer-overlay {
+      position:fixed; inset:0; background:rgba(0,0,0,.45);
+      z-index:1000; opacity:0; pointer-events:none; transition:opacity .25s;
+    }
+    .status-drawer-overlay.open { opacity:1; pointer-events:all; }
+    .status-drawer {
+      position:fixed; top:0; right:-480px; width:460px; max-width:95vw;
+      height:100vh; background:#0f1520; border-left:1px solid #242f41;
+      z-index:1001; display:flex; flex-direction:column;
+      transition:right .28s cubic-bezier(.4,0,.2,1);
+      font-family:inherit;
+    }
+    .status-drawer.open { right:0; }
+    .drawer-header {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:18px 20px; border-bottom:1px solid #242f41; flex-shrink:0;
+    }
+    .drawer-title { font-size:15px; font-weight:700; color:#e2e8f0; }
+    .drawer-subtitle { font-size:11px; color:#64748b; margin-top:2px; }
+    .drawer-close {
+      background:none; border:none; color:#64748b; font-size:20px;
+      cursor:pointer; padding:4px 8px; border-radius:6px; line-height:1;
+      transition:all .15s;
+    }
+    .drawer-close:hover { background:#1e293b; color:#e2e8f0; }
+    .drawer-body { flex:1; overflow-y:auto; padding:16px 20px; display:flex; flex-direction:column; gap:16px; }
+
+    /* Drawer — banner global */
+    .drawer-global-banner {
+      display:flex; align-items:center; gap:10px;
+      padding:12px 16px; border-radius:8px; border:1px solid;
+      font-size:13px; font-weight:600;
+    }
+    .drawer-global-banner.op  { background:rgba(34,197,94,.08);  border-color:rgba(34,197,94,.2);  color:#22c55e; }
+    .drawer-global-banner.deg { background:rgba(234,179,8,.08);  border-color:rgba(234,179,8,.2);  color:#eab308; }
+    .drawer-global-banner.po  { background:rgba(249,115,22,.08); border-color:rgba(249,115,22,.2); color:#f97316; }
+    .drawer-global-banner.maj { background:rgba(239,68,68,.08);  border-color:rgba(239,68,68,.2);  color:#ef4444; }
+
+    /* Drawer — seções drilldown */
+    .drawer-section { border:1px solid #242f41; border-radius:8px; overflow:hidden; }
+    .drawer-section-header {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:10px 14px; background:#161c2a; cursor:pointer;
+      font-size:12px; font-weight:600; color:#94a3b8;
+      text-transform:uppercase; letter-spacing:.06em;
+      user-select:none; transition:background .15s;
+    }
+    .drawer-section-header:hover { background:#1e293b; }
+    .drawer-section-chevron { transition:transform .2s; font-size:10px; }
+    .drawer-section-chevron.open { transform:rotate(180deg); }
+    .drawer-section-body { overflow:hidden; transition:max-height .25s ease; }
+
+    /* Drawer — component row */
+    .drawer-comp-row {
+      display:flex; flex-direction:column;
+      border-top:1px solid #1e293b;
+    }
+    .drawer-comp-main {
+      display:flex; align-items:center; padding:10px 14px; gap:10px;
+      cursor:pointer; transition:background .15s;
+    }
+    .drawer-comp-main:hover { background:#1a2235; }
+    .drawer-comp-name { flex:1; font-size:13px; color:#cbd5e1; font-weight:500; }
+    .drawer-comp-latency { font-size:11px; color:#475569; margin-right:8px; }
+    .drawer-comp-badge {
+      font-size:10px; font-weight:700; padding:2px 8px;
+      border-radius:12px; white-space:nowrap;
+    }
+    .drawer-comp-badge.op  { background:rgba(34,197,94,.15);  color:#22c55e; }
+    .drawer-comp-badge.deg { background:rgba(234,179,8,.15);  color:#eab308; }
+    .drawer-comp-badge.po  { background:rgba(249,115,22,.15); color:#f97316; }
+    .drawer-comp-badge.maj { background:rgba(239,68,68,.15);  color:#ef4444; }
+    .drawer-comp-expand { font-size:10px; color:#475569; transition:transform .2s; }
+    .drawer-comp-expand.open { transform:rotate(180deg); }
+    .drawer-comp-detail {
+      padding:0 14px; max-height:0; overflow:hidden;
+      transition:max-height .2s ease, padding .2s;
+      font-size:11px; color:#64748b; font-family:monospace;
+      border-top:0 solid #1e293b;
+    }
+    .drawer-comp-detail.open {
+      max-height:120px; padding:8px 14px 10px;
+      border-top:1px solid #1e293b;
+    }
+
+    /* Uptime mini-bar no drawer */
+    .drawer-uptime { display:flex; flex-direction:column; gap:8px; }
+    .drawer-uptime-row { display:flex; flex-direction:column; gap:3px; }
+    .drawer-uptime-label { display:flex; justify-content:space-between; font-size:11px; color:#64748b; }
+    .drawer-uptime-bar { display:flex; gap:1.5px; }
+    .drawer-uptime-tick { flex:1; height:16px; border-radius:2px; }
+    .drawer-uptime-tick.ok       { background:#22c55e; }
+    .drawer-uptime-tick.degraded { background:#eab308; }
+    .drawer-uptime-tick.down     { background:#ef4444; }
+    .drawer-uptime-tick.unknown  { background:#1e293b; }
+
+    /* Progress bar no pill */
+    .pill-progress {
+      position:absolute; bottom:0; left:0; height:2px;
+      background:currentColor; opacity:.4;
+      transition:width 1s linear; border-radius:0 0 20px 20px;
+    }
+
+  
+    #btn-collapse-all { position:relative; }
+    #btn-collapse-all[title]:hover::after {
+      content: attr(title);
+      position:absolute; bottom:-24px; left:50%; transform:translateX(-50%);
+      background:#1e293b; color:#94a3b8; font-size:10px; padding:2px 6px;
+      border-radius:4px; white-space:nowrap; pointer-events:none; z-index:10;
+    }
+</style>
+</head>
+<body>
+
+<!-- About modal -->
+<div class="about-modal-overlay" id="aboutModal" onclick="closeAboutModal(event)">
+  <div class="ver-modal" style="max-width:360px;margin:60px 0 0 12px;max-height:calc(100vh - 80px);overflow-y:auto">
+    <div class="ver-modal-title">
+      <span>&#128202; QA Hub</span>
+      <button class="ver-modal-close" onclick="closeAboutModalDirect()">&#10005;</button>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6">
+      Painel centralizado de qualidade e seguranca para aplicacoes .NET — stress tests K6, mutation tests Stryker.NET, SonarCloud e checklists OWASP &amp; PCI DSS.
+    </p>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px">Funcionalidades</div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">
+      <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px">
+        <span style="color:var(--accent2);flex-shrink:0">&#128293;</span>
+        <span><strong style="color:var(--text)">Stress Tests K6</strong> — smoke, load, stress, spike e soak com resultados em tempo real</span>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px">
+        <span style="color:var(--accent2);flex-shrink:0">&#129522;</span>
+        <span><strong style="color:var(--text)">Mutation Tests</strong> — Stryker.NET analisa a eficacia dos testes unitarios</span>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px">
+        <span style="color:var(--accent2);flex-shrink:0">&#9728;</span>
+        <span><strong style="color:var(--text)">SonarCloud</strong> — quality gate, coverage 100%, bugs, smells e ratings A/B/C/D/E</span>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px">
+        <span style="color:var(--accent2);flex-shrink:0">&#127760;</span>
+        <span><strong style="color:var(--text)">OWASP Top 10</strong> — checklist das 10 vulnerabilidades web mais criticas</span>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px">
+        <span style="color:var(--accent2);flex-shrink:0">&#128179;</span>
+        <span><strong style="color:var(--text)">PCI DSS</strong> — controles de seguranca para processamento de pagamentos</span>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px">
+        <span style="color:var(--accent2);flex-shrink:0">&#128295;</span>
+        <span><strong style="color:var(--text)">Pipeline</strong> — disparo e acompanhamento de testes via GitHub Actions</span>
+      </div>
+    </div>
+    <div style="border-top:1px solid var(--border);padding-top:12px;display:flex;align-items:center;justify-content:space-between">
+      <div style="position:relative;display:inline-block" id="about-ver-wrap">
+        <span id="about-ver-trigger" style="font-size:11px;color:var(--muted);cursor:default;border-bottom:1px dashed var(--border);padding-bottom:1px"
+          onmouseenter="document.getElementById('about-ver-pop').style.display='block'"
+          onmouseleave="document.getElementById('about-ver-pop').style.display='none'">
+          Versionamento
+        </span>
+        <div id="about-ver-pop" style="display:none;position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;width:240px;font-size:12px;box-shadow:0 8px 24px rgba(0,0,0,.4)">
+          <div style="display:grid;grid-template-columns:auto 1fr;gap:5px 12px" id="about-ver-grid">
+            <span style="color:var(--muted)">Run</span><span id="about-ver-run" style="color:var(--text)">—</span>
+            <span style="color:var(--muted)">SHA</span><span id="about-ver-sha" style="color:var(--text);font-family:monospace">—</span>
+            <span style="color:var(--muted)">Atualizado</span><span id="about-ver-ts" style="color:var(--text)">—</span>
+            <span style="color:var(--muted)">Tipo</span><span id="about-ver-type" style="color:var(--text)">—</span>
+          </div>
+        </div>
+      </div>
+      <a href="https://github.com/josehelioaraujo/comprai" target="_blank"
+         style="font-size:11px;color:var(--accent2);text-decoration:none">GitHub &#8599;</a>
+    </div>
+  </div>
+</div>
+
+<!-- Version modal -->
+<div class="ver-modal-overlay" id="verModal" onclick="closeVerModal(event)">
+  <div class="ver-modal">
+    <div class="ver-modal-title">
+      <span>&#128204; Versionamento</span>
+      <button class="ver-modal-close" onclick="closeVerModalDirect()">&#10005;</button>
+    </div>
+    <div id="verModalBody">
+      <div class="ver-row"><span class="ver-label">Run</span><span class="ver-value" id="vm-run">—</span></div>
+      <div class="ver-row"><span class="ver-label">SHA</span><span class="ver-value" id="vm-sha">—</span></div>
+      <div class="ver-row"><span class="ver-label">Timestamp</span><span class="ver-value" id="vm-ts">—</span></div>
+      <div class="ver-row"><span class="ver-label">Testes</span><span class="ver-value" id="vm-tests">—</span></div>
+      <div class="ver-row"><span class="ver-label">Atualizado</span><span class="ver-value" id="vm-updated">—</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- App shell -->
+<div class="app-shell">
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <span class="sidebar-logo-text" onclick="openAboutModal()" style="cursor:pointer" title="Sobre o QA Hub">QA Hub</span>
+    <div style="display:flex;align-items:center;gap:4px">
+      <button id="btn-collapse-all" onclick="collapseAllGroups()" title="Recolher tudo" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:13px;padding:3px 5px;border-radius:4px;line-height:1;transition:all .15s" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">&#8644;</button>
+      <button class="sidebar-toggle sidebar-toggle-collapse" onclick="toggleSidebar()" title="Recolher sidebar">&#8249;</button>
+    </div>
+  </div>
+  <!-- Botao expandir: visivel so quando colapsado -->
+  <button class="sidebar-expand-btn" id="sidebarExpandBtn" onclick="toggleSidebar()" title="Expandir sidebar">&#8250;</button>
+  <div class="sidebar-nav">
+    <div class="nav-group" id="group-testes">
+      <div class="nav-label" onclick="toggleNavGroup('group-testes')">
+        <span class="nav-text">Testes</span><span class="nav-group-chevron">&#9660;</span>
+      </div>
+      <div class="nav-group-items">
+        <div class="nav-item" id="nav-stress" onclick="showSection('stressBlock', this)" title="Stress Test K6">
+          <span class="nav-icon">&#128293;</span><span class="nav-text">Stress Test</span>
+        </div>
+        <div class="nav-item nav-item-soon" title="Em breve">
+          <span class="nav-icon">&#128260;</span><span class="nav-text">Testes Integrados<span class="nav-soon">Em breve</span></span>
+        </div>
+        <div class="nav-item" id="nav-mutacao" onclick="showSection('mutacaoBlock', this)" title="Testes de Mutacao">
+          <span class="nav-icon">&#129522;</span><span class="nav-text">Mutacao</span>
+        </div>
+      </div>
+    </div>
+    <div class="nav-group" id="group-qualidade">
+      <div class="nav-label" onclick="toggleNavGroup('group-qualidade')">
+        <span class="nav-text">Qualidade</span><span class="nav-group-chevron">&#9660;</span>
+      </div>
+      <div class="nav-group-items">
+        <div class="nav-item" id="nav-sonar" onclick="showSection('sonarBlock', this)" title="SonarCloud Quality Gate">
+          <span class="nav-icon">&#9728;</span><span class="nav-text">SonarCloud</span>
+        </div>
+
+      </div>
+    </div>
+    <div class="nav-group" id="group-seguranca">
+      <div class="nav-label" onclick="toggleNavGroup('group-seguranca')">
+        <span class="nav-text">Seguranca</span><span class="nav-group-chevron">&#9660;</span>
+      </div>
+      <div class="nav-group-items">
+        <div class="nav-item" id="nav-owasp" onclick="showSection('owaspBlock', this)" title="OWASP Top 10">
+          <span class="nav-icon">&#127760;</span><span class="nav-text">OWASP Top 10</span>
+        </div>
+        <div class="nav-item" id="nav-pci" onclick="showSection('pciBlock', this)" title="PCI DSS">
+          <span class="nav-icon">&#128179;</span><span class="nav-text">PCI DSS</span>
+        </div>
+      </div>
+    </div>
+    <div class="nav-group" id="group-k6">
+      <div class="nav-label" onclick="toggleNavGroup('group-k6')">
+        <span class="nav-text">Analise K6</span><span class="nav-group-chevron">&#9660;</span>
+      </div>
+      <div class="nav-group-items">
+        <div class="nav-item" id="nav-detalhes" onclick="showSection('detailsBlock', this)" title="Detalhes por Tipo">
+          <span class="nav-icon">&#128269;</span><span class="nav-text">Detalhes</span>
+        </div>
+        <div class="nav-item" id="nav-resumo" onclick="showSection('resumoBlock', this)" title="Resumo de Resultados">
+          <span class="nav-icon">&#128202;</span><span class="nav-text">Resumo</span>
+        </div>
+        <div class="nav-item" id="nav-timeline" onclick="showSection('timelineBlock', this)" title="Timeline de Latencia">
+          <span class="nav-icon">&#128200;</span><span class="nav-text">Timeline</span>
+        </div>
+        <div class="nav-item" id="nav-graficos" onclick="showSection('chartsBlock', this)" title="Graficos de Performance">
+          <span class="nav-icon">&#128201;</span><span class="nav-text">Graficos</span>
+        </div>
+        <div class="nav-item" id="nav-rotas" onclick="showSection('routesBlock', this)" title="Rotas Chamadas">
+          <span class="nav-icon">&#127760;</span><span class="nav-text">Rotas</span>
+        </div>
+        <div class="nav-item" id="nav-config" onclick="showSection('configBlock', this)" title="Configuracao dos Testes">
+          <span class="nav-icon">&#9881;</span><span class="nav-text">Configuracao</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    <div class="nav-item sb-theme-item" onclick="toggleTheme()" id="themeBtn" title="Alternar tema claro/escuro">
+      <span class="nav-icon" id="themeIcon">&#9790;</span>
+    </div>
+
+  </div>
+</nav>
+
+<!-- Main area -->
+<div class="main-area">
+  <header class="topbar">
+    <div class="topbar-meta">
+      <span id="hdr-count" style="display:none"></span>
+      <span id="hdr-updated" style="display:none"></span>
+    </div>
+    <!-- run-controls movido para sidebar -->
+    <div id="runControls" style="display:none"></div>
+    <div style="display:flex;align-items:center;gap:10px;margin-left:auto;padding-right:4px">
+      <button id="status-pill" class="status-pill op" onclick="toggleStatusDrawer()" title="Status do Sistema" style="position:relative;gap:6px">
+        <span class="pill-dot"></span>
+        <span style="font-size:12px;font-weight:600">Status</span>
+        <span id="pill-countdown" class="pill-countdown" style="font-size:10px;opacity:.6"></span>
+        <span id="pill-spinner" class="pill-spinner" style="display:none"></span>
+      </button>
+    </div>
+  </header>
+
+
+
+  <div class="page-content">
+    <div id="loadingMsg" class="loading">&#9203; Carregando resultados dos testes...</div>
+    <div id="welcomeState" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;color:var(--muted);text-align:center;padding:40px">
+  <div style="font-size:3rem;margin-bottom:16px">&#128202;</div>
+  <div style="font-size:1.2rem;font-weight:600;color:var(--text);margin-bottom:8px">QA Hub</div>
+  <div style="font-size:0.9rem;max-width:340px;line-height:1.7">Selecione uma opcao no menu lateral para visualizar os dados de qualidade e seguranca.</div>
+</div>
+<div id="dashContent" style="display:none">
+
+      <!-- FIXO: Detalhes por Tipo -->
+      <div class="section-block" id="detailsBlock" style="display:none">
+        <div class="section-header" onclick="toggleSection(this)">
+          <span class="section-title-text">&#128293; Stress Test &#8212; Tipos de Teste
+            <span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative">
+              <span class="info-hint-btn">i</span>
+              <span class="info-hint-box" style="position:fixed;width:300px;z-index:9999;line-height:1.8">
+                <strong style="color:var(--text)">Smoke</strong> — carga minima (3 VUs/40s). Valida que a API responde corretamente antes de qualquer teste maior.<br>
+                <strong style="color:var(--text)">Load</strong> — carga normal esperada em producao (ate 100 VUs/5min). Mede comportamento sob uso real.<br>
+                <strong style="color:var(--text)">Stress</strong> — carga acima do limite (ate 400 VUs/10min). Encontra o ponto de ruptura da API.<br>
+                <strong style="color:var(--text)">Spike</strong> — pico abrupto de trafego (0→200 VUs em 10s). Simula Black Friday ou viral.<br>
+                <strong style="color:var(--text)">Soak</strong> — carga sustentada por longo periodo (50 VUs/4min+). Detecta memory leaks e degradacao gradual.
+              </span>
+            </span>
+          </span>
+          <span class="section-count" id="detail-count"></span>
+          <span class="section-chevron">&#9660;</span>
+        </div>
+        <div class="section-content">
+          <div class="section-inner">
+            <div class="scenario-tabs" id="scenarioTabs"></div>
+            <div id="scenarioPanel"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stress Test K6 -->
+      <div class="section-block" id="stressBlock" style="display:none">
+        <div class="section-header" onclick="toggleSection(this)">
+          <span class="section-title-text">&#128293; Stress Test — K6</span>
+          <span class="section-count" id="stress-count"></span>
+          <span class="section-chevron">&#9660;</span>
+        </div>
+        <div class="section-content">
+          <div class="section-inner">
+            <div style="padding:16px 20px 8px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+              <select id="testTypeSelect" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 12px;border-radius:8px;font-size:13px;cursor:pointer;outline:none;min-width:140px;">
+                <option value="smoke">Smoke</option>
+                <option value="load">Load</option>
+                <option value="stress">Stress</option>
+                <option value="spike">Spike</option>
+                <option value="soak">Soak</option>
+                <option value="all">Todos</option>
+              </select>
+              <button class="btn-run" id="btnRun" onclick="triggerTest()" style="display:flex;">&#9654;&nbsp; Executar Teste</button>
+              <span style="font-size:12px;color:var(--muted);margin-left:auto;" id="stress-last-run"></span>
+            </div>
+            <div style="padding:0 20px 16px;">
+              <div id="stress-info" style="font-size:12px;color:var(--muted);">Selecione um tipo de teste e clique em Executar para disparar o pipeline via GitHub Actions.</div>
+            </div>
+
+            <!-- Pipeline em Execucao — aparece logo apos clicar em Executar -->
+            <div id="runPanel" style="border-top:1px solid var(--border);margin:0;padding:0;max-height:0;overflow:hidden;transition:max-height .4s cubic-bezier(.4,0,.2,1),padding .4s">
+              <div style="padding:16px 20px">
+                <div class="run-panel-header">
+                  <div class="run-panel-title">&#128295; Pipeline em Execucao</div>
+                  <button class="run-panel-close" onclick="closeRunPanel()">&#10005;</button>
+                </div>
+                <div id="runStatusMsg"></div>
+                <div class="jobs-grid" id="jobsGrid"></div>
+                <div class="run-info" id="runInfo"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resumo -->
+      <div class="section-block" id="resumoBlock" style="display:none">
+        <div class="section-header" onclick="toggleSection(this)">
+          <span class="section-title-text">&#128202; Resumo de Resultados</span>
+          <span class="section-count" id="res-count"></span>
+          <span class="section-chevron">&#9660;</span>
+        </div>
+        <div class="section-content">
+          <div class="section-inner">
+            <table>
+              <thead><tr><th>Tipo</th><th>Cenario</th><th>p50 (ms)</th><th>p95 (ms)</th><th>p99 (ms)</th><th>Req/s</th><th>Total</th><th>Erro %</th><th>Status</th></tr></thead>
+              <tbody id="resultsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Timeline -->
+      <div class="section-block" id="timelineBlock" style="display:none">
+        <div class="section-header" onclick="toggleSection(this, 'timeline')">
+          <span class="section-title-text">&#128200; Timeline de Latencia</span>
+          <span class="section-count" id="timeline-count"></span>
+          <span class="section-chevron">&#9660;</span>
+        </div>
+        <div class="section-content">
+          <div class="section-inner">
+            <div style="padding: 16px;">
+              <div class="chart-card">
+                <div class="chart-title">Evolucao de Latencia por Tipo de Teste (ms) — p50 / p95 / p99</div>
+                <div class="chart-wrap-tall"><canvas id="chartTimeline"></canvas></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Configuracao -->
+      <div class="section-block" id="configBlock" style="display:none">
+        <div class="section-header" onclick="toggleSection(this)">
+          <span class="section-title-text">&#9881; Configuracao dos Testes</span>
+          <span class="section-count" id="cfg-count"></span>
+          <span class="section-chevron">&#9660;</span>
+        </div>
+        <div class="section-content">
+          <div class="section-inner">
+            <table>
+              <thead><tr><th>Tipo</th><th>URL Alvo</th><th>VUs</th><th>Duracao</th><th>Status</th></tr></thead>
+              <tbody id="configTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Graficos -->
+      <div class="section-block" id="chartsBlock" style="display:none">
+        <div class="section-header" onclick="toggleSection(this, 'charts')">
+          <span class="section-title-text">&#128201; Graficos de Performance</span>
+          <span class="section-count" id="charts-count"></span>
+          <span class="section-chevron">&#9660;</span>
+        </div>
+        <div class="section-content">
+          <div class="section-inner">
+            <div class="charts-grid">
+              <div class="chart-card">
+                <div class="chart-title">Throughput por Tipo (req/s)<span class="chart-hint-icon">&#9432;<span class="chart-hint">Requisicoes processadas por segundo por cenario. Smoke: linha de base minima. Load: valida capacidade sob carga normal. Stress: identifica o ponto de saturacao. Spike: mede recuperacao a picos subitos. Soak: detecta degradacao gradual ao longo do tempo.</span></span></div>
+                <div class="chart-wrap"><canvas id="chartRps"></canvas></div>
+              </div>
+              <div class="chart-card">
+                <div class="chart-title">Taxa de Erro por Tipo (%)<span class="chart-hint-icon">&#9432;<span class="chart-hint">% de requisicoes com falha (HTTP 5xx, timeout ou rejeicao). Smoke/Load: 0% e o ideal. Stress: ate 1% e aceitavel sob carga extrema. Spike: erros transitorios sao esperados no pico. Soak: erros crescentes indicam vazamento de recursos.</span></span></div>
+                <div class="chart-wrap"><canvas id="chartErrors"></canvas></div>
+              </div>
+              <div class="chart-card">
+                <div class="chart-title">Total de Requisicoes por Tipo<span class="chart-hint-icon">&#9432;<span class="chart-hint">Volume total de chamadas HTTP em cada cenario. Reflete duracao, VUs e taxa de iteracao. Stress e Soak naturalmente acumulam maior volume. Compare entre execucoes do mesmo tipo para detectar regressao de capacidade.</span></span></div>
+                <div class="chart-wrap"><canvas id="chartTotal"></canvas></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rotas -->
+      <div class="section-block" id="routesBlock" style="display:none">
+        <div class="section-header" onclick="toggleSection(this)">
+          <span class="section-title-text">&#127760; Rotas Chamadas</span>
+          <span class="section-count" id="routes-count"></span>
+          <span class="section-chevron">&#9660;</span>
+        </div>
+        <div class="section-content">
+          <div class="section-inner" id="routesContent"></div>
+        </div>
+      </div>
+
+      <!-- ===== MUTACAO BLOCK ===== -->
+    <div class="section-block" id="mutacaoBlock" style="display:none">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title-text">&#129522; Testes de Mutacao (Stryker.NET)
+          <span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative">
+            <span class="info-hint-btn">i</span>
+            <span class="info-hint-box" style="position:fixed;width:260px;z-index:9999">O Stryker.NET gera pequenas alteracoes no codigo (mutantes) e verifica se os testes unitarios as detectam. Mutante morto = teste eficaz. Mutation Score = % de mutantes eliminados.</span>
+          </span>
+        </span>
+        <span class="section-toggle">&#9660;</span>
+      </div>
+      <div class="section-content">
+
+        <!-- KPI cards em row -->
+        <div class="kpi-grid" id="mut-kpi-row" style="display:none;padding:16px 16px 8px">
+          <div class="kpi-card">
+            <div class="kpi-hint">% de mutantes eliminados pelos testes. Quanto mais proximo de 100%, mais eficazes sao seus testes na deteccao de bugs reais.</div>
+            <div class="kpi-label">Mutation Score</div>
+            <div class="kpi-value" id="mut-score">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-hint">Total de variacoes de codigo geradas pelo Stryker. Cada mutante representa uma possivel falha que seus testes deveriam detectar.</div>
+            <div class="kpi-label">Mutantes Gerados</div>
+            <div class="kpi-value" id="mut-total">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-hint">Mutantes que seus testes detectaram — o teste falhou quando o codigo foi alterado, provando que valida a logica corretamente.</div>
+            <div class="kpi-label">Eliminados</div>
+            <div class="kpi-value" style="color:#22c55e" id="mut-killed">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-hint">Mutantes que seus testes nao detectaram — o codigo foi alterado mas o teste continuou passando. Indica logica nao validada.</div>
+            <div class="kpi-label">Sobreviventes</div>
+            <div class="kpi-value" style="color:#ef4444" id="mut-survived">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-hint">Mutantes em codigo nao executado pelos testes. Partes do codigo nao alcancadas pelos testes unitarios existentes.</div>
+            <div class="kpi-label">Sem Cobertura</div>
+            <div class="kpi-value" style="color:#f59e0b" id="mut-nocov">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-hint">Numero da execucao do workflow Mutation Tests no GitHub Actions que gerou estes resultados.</div>
+            <div class="kpi-label">Run</div>
+            <div class="kpi-value" id="mut-run">--</div>
+          </div>
+        </div>
+
+        <!-- Badge + barra de progresso -->
+        <div id="mut-badge-area" style="margin:0 16px 12px;display:none">
+          <span id="mut-badge" style="padding:6px 18px;border-radius:20px;font-weight:700;font-size:1rem"></span>
+          <span id="mut-timestamp" style="margin-left:12px;color:var(--muted);font-size:0.82rem"></span>
+        </div>
+        <div id="mut-progress-area" style="margin:0 16px 16px;display:none">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <span style="font-size:0.82rem;color:var(--muted);display:flex;align-items:center;gap:6px">
+              Score de Mutacao
+              <span class="info-hint-wrap" style="position:relative">
+                <span class="info-hint-btn">i</span>
+                <span class="info-hint-box" style="position:fixed;width:260px;z-index:9999">Verde (>=70%): APROVADO. Amarelo (50-69%): ATENCAO. Vermelho (<50%): REPROVADO. Meta recomendada: 80%+. Score 100% significa que todos os mutantes foram detectados pelos testes.</span>
+              </span>
+            </span>
+            <span style="font-size:0.82rem;color:var(--muted)">Meta: 80%</span>
+          </div>
+          <div style="background:var(--border);border-radius:8px;height:14px;overflow:hidden">
+            <div id="mut-progress-bar" style="height:100%;border-radius:8px;transition:width .6s;width:0%"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:0.78rem;color:var(--muted)">
+            <span>0%</span><span>50%</span><span>80%</span><span>100%</span>
+          </div>
+        </div>
+
+        <!-- Subssecao colapsavel: Score por Arquivo -->
+        <div id="mut-files-area" style="display:none">
+          <div class="section-header" onclick="toggleSection(this)">
+            <span class="section-title-text">&#128196; Score por Arquivo
+              <span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative">
+                <span class="info-hint-btn">i</span>
+                <span class="info-hint-box" style="position:fixed;width:260px;z-index:9999">Arquivos ordenados pelo score (menor primeiro). Foque nos arquivos com score abaixo de 70% — eles possuem logica nao validada pelos testes. Score 100% = todos os mutantes foram detectados.</span>
+              </span>
+            </span>
+            <span class="section-chevron">&#9660;</span>
+          </div>
+          <div class="section-content">
+            <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+              <thead>
+                <tr style="color:var(--muted);text-align:left;border-bottom:1px solid var(--border)">
+                  <th style="padding:6px 8px">Arquivo</th>
+                  <th style="padding:6px 8px;text-align:center">Score</th>
+                  <th style="padding:6px 8px;text-align:center">Total</th>
+                  <th style="padding:6px 8px;text-align:center">Killed</th>
+                  <th style="padding:6px 8px;text-align:center">Survived</th>
+                  <th style="padding:6px 8px;text-align:center">No Cov</th>
+                </tr>
+              </thead>
+              <tbody id="mut-files-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Painel Sobre colapsavel -->
+        <div id="mut-about-area" style="display:none;margin:0 16px 8px">
+          <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">
+            <div class="section-header" onclick="toggleSection(this)" style="padding:10px 16px">
+              <span class="section-title-text">&#128218; Sobre os Testes de Mutacao</span>
+              <span class="section-chevron">&#9660;</span>
+            </div>
+            <div class="section-content">
+              <div style="padding:16px;font-size:13px;color:var(--muted);line-height:1.7">
+                <p style="margin-bottom:10px"><strong style="color:var(--text)">O que sao testes de mutacao?</strong><br>
+                O Stryker.NET modifica automaticamente o codigo-fonte (cria "mutantes") e verifica se os testes unitarios detectam cada alteracao. Se o teste falhar, o mutante foi eliminado — seus testes sao eficazes. Se o teste passar, o mutante sobreviveu — ha logica nao validada.</p>
+                <p style="margin-bottom:10px"><strong style="color:var(--text)">Como interpretar o score?</strong><br>
+                <span style="color:#22c55e">&#9632; Verde (70%+)</span> — Aprovado. Testes detectam a maioria das falhas.<br>
+                <span style="color:#f59e0b">&#9632; Amarelo (50-69%)</span> — Atencao. Ha lacunas significativas.<br>
+                <span style="color:#ef4444">&#9632; Vermelho (&lt;50%)</span> — Reprovado. Testes cobrem mas nao validam a logica.</p>
+                <p style="margin-bottom:10px"><strong style="color:var(--text)">Projetos analisados</strong><br>
+                UcpAgent.Application — handlers MediatR (Search, Cart, Checkout, Order, Payment)<br>
+                Executado via workflow <code style="background:var(--surface2);padding:1px 5px;border-radius:4px">Mutation Tests (Stryker.NET)</code> no GitHub Actions.</p>
+                <p><strong style="color:var(--text)">Como melhorar o score?</strong><br>
+                Foque nos arquivos com score abaixo de 70% na tabela abaixo. Adicione assertions que validem os valores retornados, nao apenas que o metodo foi chamado.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty/erro state -->
+        <div id="mut-empty" style="text-align:center;padding:40px;color:var(--muted)">
+          <div style="font-size:2rem;margin-bottom:8px">&#129522;</div>
+          <div>Carregando dados de mutacao...</div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="section-block" id="sonarBlock" style="display:none">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title-text">&#9728; SonarCloud · Quality Gate
+          <span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative">
+            <span class="info-hint-btn">i</span>
+            <span class="info-hint-box" style="position:fixed;width:260px;z-index:9999">Metricas de qualidade de codigo coletadas pelo SonarCloud a cada execucao do CI/CD. Coverage = cobertura de linhas pelos testes. Code Smells = problemas de manutencao. Bugs = erros detectados por analise estatica.</span>
+          </span>
+        </span>
+        <span class="section-toggle">&#9660;</span>
+      </div>
+      <div class="section-content">
+
+        <!-- Quality Gate badge -->
+        <div id="sonar-gate-area" style="display:none;padding:16px 16px 4px;display:none">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <span id="sonar-gate-badge" style="padding:6px 20px;border-radius:20px;font-weight:700;font-size:1rem;letter-spacing:.02em"></span>
+            <span id="sonar-run" style="color:var(--muted);font-size:0.82rem"></span>
+            <span id="sonar-timestamp" style="color:var(--muted);font-size:0.82rem"></span>
+          </div>
+        </div>
+
+        <!-- KPI cards -->
+        <div class="kpi-grid" id="sonar-kpi-row" style="display:none;padding:12px 16px 8px">
+          <div class="kpi-card">
+            <div class="kpi-hint">Porcentagem de linhas de codigo cobertas pelos testes unitarios. Meta: 90%+.</div>
+            <div class="kpi-label">Coverage</div>
+            <div class="kpi-value" id="sonar-coverage">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-hint">Problemas de manutencao detectados — codigo confuso, duplicado ou dificil de entender. Zero e o ideal.</div>
+            <div class="kpi-label">Code Smells</div>
+            <div class="kpi-value" id="sonar-smells">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-hint">Erros detectados por analise estatica que podem causar falhas em producao.</div>
+            <div class="kpi-label">Bugs</div>
+            <div class="kpi-value" id="sonar-bugs">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-hint">Vulnerabilidades de seguranca detectadas no codigo-fonte.</div>
+            <div class="kpi-label">Vulnerabilidades</div>
+            <div class="kpi-value" id="sonar-vuln">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-hint">Percentual de codigo duplicado. Meta: abaixo de 3%.</div>
+            <div class="kpi-label">Duplicacoes</div>
+            <div class="kpi-value" id="sonar-dupl">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-hint">Total de linhas de codigo analisadas (excluindo comentarios e linhas em branco).</div>
+            <div class="kpi-label">Linhas (ncloc)</div>
+            <div class="kpi-value" id="sonar-ncloc">--</div>
+          </div>
+        </div>
+
+        <!-- Ratings row -->
+        <div id="sonar-ratings-area" style="display:none;padding:0 16px 16px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px">Ratings</div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap">
+            <div class="sonar-rating-card" style="border:1px solid var(--border);border-radius:10px;padding:10px 18px;text-align:center;min-width:90px;position:relative;cursor:default">
+              <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Security</div>
+              <div id="sonar-sec-rating" style="font-size:1.6rem;font-weight:700">—</div>
+              <div class="sonar-rating-popover" style="display:none;position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;width:220px;font-size:12px;line-height:1.6;box-shadow:0 8px 24px rgba(0,0,0,.4);text-align:left">
+                <div style="font-weight:700;color:var(--text);margin-bottom:6px">🔒 Security Rating</div>
+                <div style="color:var(--muted)"><span style="color:#22c55e;font-weight:700">A</span> — Nenhuma vulnerabilidade</div>
+                <div style="color:var(--muted)"><span style="color:#84cc16;font-weight:700">B</span> — 1 minor</div>
+                <div style="color:var(--muted)"><span style="color:#f59e0b;font-weight:700">C</span> — 1 major</div>
+                <div style="color:var(--muted)"><span style="color:#f97316;font-weight:700">D</span> — 1 critical</div>
+                <div style="color:var(--muted)"><span style="color:#ef4444;font-weight:700">E</span> — 1 blocker</div>
+              </div>
+            </div>
+            <div class="sonar-rating-card" style="border:1px solid var(--border);border-radius:10px;padding:10px 18px;text-align:center;min-width:90px;position:relative;cursor:default">
+              <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Reliability</div>
+              <div id="sonar-rel-rating" style="font-size:1.6rem;font-weight:700">—</div>
+              <div class="sonar-rating-popover" style="display:none;position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;width:220px;font-size:12px;line-height:1.6;box-shadow:0 8px 24px rgba(0,0,0,.4);text-align:left">
+                <div style="font-weight:700;color:var(--text);margin-bottom:6px">🛡️ Reliability Rating</div>
+                <div style="color:var(--muted)"><span style="color:#22c55e;font-weight:700">A</span> — Nenhum bug</div>
+                <div style="color:var(--muted)"><span style="color:#84cc16;font-weight:700">B</span> — 1 minor bug</div>
+                <div style="color:var(--muted)"><span style="color:#f59e0b;font-weight:700">C</span> — 1 major bug</div>
+                <div style="color:var(--muted)"><span style="color:#f97316;font-weight:700">D</span> — 1 critical bug</div>
+                <div style="color:var(--muted)"><span style="color:#ef4444;font-weight:700">E</span> — 1 blocker bug</div>
+              </div>
+            </div>
+            <div class="sonar-rating-card" style="border:1px solid var(--border);border-radius:10px;padding:10px 18px;text-align:center;min-width:90px;position:relative;cursor:default">
+              <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Maintainability</div>
+              <div id="sonar-maint-rating" style="font-size:1.6rem;font-weight:700">—</div>
+              <div class="sonar-rating-popover" style="display:none;position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;width:220px;font-size:12px;line-height:1.6;box-shadow:0 8px 24px rgba(0,0,0,.4);text-align:left">
+                <div style="font-weight:700;color:var(--text);margin-bottom:6px">🔧 Maintainability Rating</div>
+                <div style="color:var(--muted)"><span style="color:#22c55e;font-weight:700">A</span> — &lt; 5% technical debt ratio</div>
+                <div style="color:var(--muted)"><span style="color:#84cc16;font-weight:700">B</span> — 6–10%</div>
+                <div style="color:var(--muted)"><span style="color:#f59e0b;font-weight:700">C</span> — 11–20%</div>
+                <div style="color:var(--muted)"><span style="color:#f97316;font-weight:700">D</span> — 21–50%</div>
+                <div style="color:var(--muted)"><span style="color:#ef4444;font-weight:700">E</span> — &gt; 50%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty/erro state -->
+        <div id="sonar-empty" style="text-align:center;padding:40px;color:var(--muted)">
+          <div style="font-size:2rem;margin-bottom:8px">&#9728;</div>
+          <div>Carregando dados do SonarCloud...</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-block" id="owaspBlock" style="display:none">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title-text">&#127760; OWASP Top 10 — 2021
+          <span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative">
+            <span class="info-hint-btn">i</span>
+            <span class="info-hint-box" style="position:fixed;width:280px;z-index:9999">Lista das 10 vulnerabilidades mais criticas em aplicacoes web, publicada pela Open Web Application Security Project. E o padrao de referencia global para desenvolvimento seguro. Cada item representa uma categoria de risco com exemplos, impacto e como mitigar.</span>
+          </span>
+        </span>
+        <span class="section-count" id="owasp-score"></span>
+        <span class="section-chevron">&#9660;</span>
+      </div>
+      <div class="section-content">
+        <div style="padding:12px 16px 16px">
+          <div id="owasp-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-block" id="pciBlock" style="display:none">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title-text">&#128179; PCI DSS v4.0 — Controles Relevantes
+          <span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative">
+            <span class="info-hint-btn">i</span>
+            <span class="info-hint-box" style="position:fixed;width:280px;z-index:9999">Payment Card Industry Data Security Standard — padrao obrigatorio para toda aplicacao que processa, armazena ou transmite dados de cartao. Criado pelas bandeiras Visa, Mastercard, Amex, Discover e JCB. Nao conformidade pode resultar em multas e perda da capacidade de processar pagamentos.</span>
+          </span>
+        </span>
+        <span class="section-count" id="pci-score"></span>
+        <span class="section-chevron">&#9660;</span>
+      </div>
+      <div class="section-content">
+        <div style="padding:12px 16px 16px">
+          <div id="pci-list"></div>
+        </div>
+      </div>
+    </div>
+
+
+
+
