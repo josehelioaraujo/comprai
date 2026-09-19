@@ -1351,40 +1351,100 @@ window.addEventListener('DOMContentLoaded', function() {
     clearTimeout(itPollTimer);
     if (!itRunId) return;
     try {
-      const rRes = await fetch(
-        `https://api.github.com/repos/${IT_REPO}/actions/runs/${itRunId}`,
-        { headers:{ Authorization:`Bearer ${pat}`, 'X-GitHub-Api-Version':'2022-11-28' } }
-      );
-      const run = await rRes.json();
-
-      const jRes = await fetch(
-        `https://api.github.com/repos/${IT_REPO}/actions/runs/${itRunId}/jobs`,
-        { headers:{ Authorization:`Bearer ${pat}`, 'X-GitHub-Api-Version':'2022-11-28' } }
-      );
+      const [rRes, jRes] = await Promise.all([
+        fetch(`https://api.github.com/repos/${IT_REPO}/actions/runs/${itRunId}`,
+          { headers:{ Authorization:`Bearer ${pat}`, 'X-GitHub-Api-Version':'2022-11-28' } }),
+        fetch(`https://api.github.com/repos/${IT_REPO}/actions/runs/${itRunId}/jobs`,
+          { headers:{ Authorization:`Bearer ${pat}`, 'X-GitHub-Api-Version':'2022-11-28' } })
+      ]);
+      const run   = await rRes.json();
       const jData = await jRes.json();
       const jobs  = jData.jobs ?? [];
       const itJob = jobs.find(j => j.name && j.name.includes('Integra'));
 
-      // Progresso baseado nos jobs concluídos
+      // Renderizar painel de jobs em tempo real
+      itRenderJobsPanel(jobs);
+
       const done  = jobs.filter(j => j.status === 'completed').length;
       const total = Math.max(jobs.length, 1);
       itSetProgress(35 + Math.round((done / total) * 55));
+
+      // Status text: step atual do job de integração
+      if (itJob && itJob.status === 'in_progress') {
+        const active = (itJob.steps ?? []).find(s => s.status === 'in_progress');
+        itSetStatus('running', '⏳', active ? active.name : itJob.name);
+      } else {
+        const activeJob = jobs.find(j => j.status === 'in_progress');
+        itSetStatus('running', '⏳', activeJob ? activeJob.name : 'Executando...');
+      }
 
       if (run.status === 'completed') {
         itSetProgress(100);
         itStopElapsed();
         const ok = run.conclusion === 'success';
         itSetStatus(ok ? 'success' : 'failure', ok ? '✅' : '❌',
-          ok ? 'Todos os testes passaram' : `Falhou — ${run.conclusion}`);
+          ok ? 'Todos os testes passaram' : 'Falhou — ' + run.conclusion);
         itResetBtn('Executar Novamente');
         await itLoadResults(pat, run, itJob);
         itAddHistory(run, ok);
       } else {
-        const step = itJob ? (itJob.steps ?? []).find(s => s.status === 'in_progress') : null;
-        itSetStatus('running', '⏳', step ? step.name : 'Executando...');
         itPollTimer = setTimeout(() => itPollStatus(pat), 5000);
       }
     } catch(e) { itPollTimer = setTimeout(() => itPollStatus(pat), 8000); }
+  }
+
+  function itRenderJobsPanel(jobs) {
+    const panel = document.getElementById('it-jobs-panel');
+    if (!panel) return;
+    panel.style.display = 'flex';
+
+    const JOB_ICONS = {
+      'build':'🔨', 'unit':'🧪', 'integra':'🔗', 'sonar':'☁',
+      'deploy':'🚀', 'smoke':'💨', 'mutation':'🧬', 'dashboard':'📊'
+    };
+
+    panel.innerHTML = jobs.map(job => {
+      const key    = Object.keys(JOB_ICONS).find(k => job.name.toLowerCase().includes(k)) ?? '';
+      const icon   = JOB_ICONS[key] ?? '⚙';
+      const sts    = job.conclusion ?? job.status ?? 'queued';
+      const label  = { queued:'Na fila', in_progress:'Executando', completed:'Concluído',
+                       success:'Passou', failure:'Falhou', skipped:'Pulado', cancelled:'Cancelado' }[sts] ?? sts;
+
+      // Steps — mostrar apenas os relevantes (não setup/checkout)
+      const SKIP_STEPS = ['set up job','complete job','checkout','post '];
+      const steps = (job.steps ?? [])
+        .filter(s => !SKIP_STEPS.some(skip => s.name.toLowerCase().startsWith(skip)))
+        .slice(0, 6);
+
+      const stepsHtml = steps.length ? `
+        <div class="it-steps-list">
+          ${steps.map(s => {
+            const sc   = s.conclusion ?? s.status ?? 'queued';
+            const dotC = sc === 'success' ? 'completed' : sc === 'failure' ? 'failed' : sc === 'in_progress' ? 'in_progress' : 'queued';
+            const dur  = s.started_at && s.completed_at
+              ? Math.round((new Date(s.completed_at) - new Date(s.started_at))) / 1000 + 's' : '';
+            return `<div class="it-step-row">
+              <span class="it-step-dot ${dotC}"></span>
+              <span class="it-step-name">${s.name}</span>
+              <span class="it-step-dur">${dur}</span>
+            </div>`;
+          }).join('')}
+        </div>` : '';
+
+      const elapsed = job.started_at
+        ? Math.round((new Date(job.completed_at || Date.now()) - new Date(job.started_at)) / 1000) + 's'
+        : '';
+
+      return `<div class="it-job-row">
+        <div class="it-job-header">
+          <span>${icon}</span>
+          <span class="it-job-name">${job.name}</span>
+          <span class="it-job-elapsed">${elapsed}</span>
+          <span class="it-job-status ${sts === 'completed' ? (job.conclusion ?? 'success') : sts}">${label}</span>
+        </div>
+        ${stepsHtml}
+      </div>`;
+    }).join('');
   }
 
   async function itLoadResults(pat, run, itJob) {
@@ -1525,7 +1585,7 @@ window.addEventListener('DOMContentLoaded', function() {
   window.showSection = function(id, el) {
     if (typeof _origShowSectionIT === 'function') _origShowSectionIT(id, el);
     if (id === 'integrationBlock') {
-      fetch('/var/www/html/k6/results/gh-config.json')
+      fetch('/api/k6/gh-config')
         .then(r => r.ok ? r.json() : null)
         .then(cfg => { if (cfg && cfg.token) itPat = cfg.token; })
         .catch(() => {});
@@ -2110,6 +2170,39 @@ tr:hover td { background: rgba(255,255,255,.02); }
       font-size:11px; color:#3b82f6; text-decoration:none;
     }
     .it-run-link:hover { text-decoration:underline; }
+
+  
+    /* ===== IT JOBS PANEL ===== */
+    .it-job-row {
+      display:flex; flex-direction:column; gap:4px;
+      padding:10px 14px; background:var(--card-bg);
+      border:1px solid var(--border); border-radius:8px;
+    }
+    .it-job-header {
+      display:flex; align-items:center; gap:8px; font-size:12px;
+    }
+    .it-job-name { flex:1; font-weight:600; color:var(--text-primary); }
+    .it-job-elapsed { font-size:10px; color:var(--text-muted); }
+    .it-job-status { font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px; }
+    .it-job-status.queued    { background:rgba(100,116,139,.15); color:#94a3b8; }
+    .it-job-status.running   { background:rgba(59,130,246,.15);  color:#60a5fa; }
+    .it-job-status.success   { background:rgba(34,197,94,.15);   color:#22c55e; }
+    .it-job-status.failure   { background:rgba(239,68,68,.15);   color:#ef4444; }
+    .it-job-status.skipped   { background:rgba(234,179,8,.15);   color:#eab308; }
+    .it-job-status.cancelled { background:rgba(100,116,139,.15); color:#94a3b8; }
+
+    .it-steps-list { display:flex; flex-direction:column; gap:2px; padding-left:8px; }
+    .it-step-row {
+      display:flex; align-items:center; gap:6px;
+      font-size:11px; color:var(--text-muted); padding:2px 0;
+    }
+    .it-step-dot { width:5px; height:5px; border-radius:50%; flex-shrink:0; }
+    .it-step-dot.queued    { background:#475569; }
+    .it-step-dot.in_progress { background:#3b82f6; animation:pulse-dot 1s infinite; }
+    .it-step-dot.completed { background:#22c55e; }
+    .it-step-dot.failed    { background:#ef4444; }
+    .it-step-name { flex:1; }
+    .it-step-dur  { font-size:10px; color:var(--text-muted); }
 
   </style>
 </head>
@@ -2765,6 +2858,9 @@ tr:hover td { background: rgba(255,255,255,.02); }
       <div id="it-progress-wrap" style="display:none;margin-bottom:12px">
         <div class="it-progress-track"><div class="it-progress-fill" id="it-progress-fill"></div></div>
       </div>
+
+      <!-- Jobs/steps em tempo real -->
+      <div id="it-jobs-panel" style="display:none;margin-bottom:16px;display:flex;flex-direction:column;gap:6px"></div>
 
       <!-- Cenários aparecem SOMENTE após execução -->
       <div id="it-results" style="display:none">
