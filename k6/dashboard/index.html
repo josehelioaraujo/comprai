@@ -1238,7 +1238,10 @@ window.addEventListener('DOMContentLoaded', function() {
         '<div class="drawer-comp-main" onclick="toggleCompDetail(\'' + c.id + '\')">' +
           '<span class="drawer-comp-name">' + c.name + '</span>' +
           '<span class="drawer-comp-latency">⏱ ' + latency + '</span>' +
-          '<span class="drawer-comp-badge ' + cls + '">' + labelStatus(c.status) + '</span>' +
+          '<div class="status-badge-wrap">' +
+            '<span class="drawer-comp-badge ' + cls + '">' + labelStatus(c.status) + '</span>' +
+            buildRemediationTooltip(c.id, c.status) +
+          '</div>' +
           (hintText || descText ? '<span class="drawer-comp-expand" id="dce-' + c.id + '">&#9660;</span>' : '') +
         '</div>' +
         (hintText || descText ?
