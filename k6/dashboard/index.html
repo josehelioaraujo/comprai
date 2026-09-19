@@ -1209,7 +1209,17 @@ window.addEventListener('DOMContentLoaded', function() {
     renderUptimeDrawer(comps);
   }
 
-  function renderCompGroup(group, comps, allComps) {
+  function buildRemediationTooltip(compId, status) {
+    const hint = COMP_HINTS[compId];
+    if (!hint || !hint.actions || status === 'operational') return '';
+    const actions = hint.actions.map((a, i) =>
+      '<div class="remediation-action"><span class="remediation-action-num">' + (i+1) + '.</span>' +
+      '<span class="remediation-action-cmd">' + a + '</span></div>'
+    ).join('');
+    return '<div class="remediation-tooltip"><div class="remediation-tooltip-title">&#128295; Como resolver</div>' + actions + '</div>';
+  }
+
+    function renderCompGroup(group, comps, allComps) {
     const container = document.getElementById('drawer-comps-' + group);
     // Atualizar dot do header da seção
     const dot = document.getElementById('dot-' + group);
