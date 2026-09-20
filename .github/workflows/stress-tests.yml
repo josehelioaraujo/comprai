@@ -640,8 +640,22 @@ jobs:
           import datetime
           sha = os.environ.get('GIT_SHA','')[:7]
           ts  = datetime.datetime.utcnow().isoformat() + 'Z'
-          Path('k6/results/index.json').write_text(json.dumps({'run': os.environ.get('RUN_NUMBER',''), 'sha': sha, 'timestamp': ts, 'tests': tests}, indent=2))
-          print('index.json:', tests)
+          # Detectar threshold failures em cada resultado
+          threshold_failures = []
+          for t_info in tests:
+              try:
+                  data = json.loads(Path(f'k6/results/{t_info["file"]}').read_text())
+                  meta = data.get('meta', {})
+                  scenarios = data.get('scenarios', [])
+                  for sc in scenarios:
+                      for th in sc.get('thresholds', []):
+                          if not th.get('ok', True):
+                              threshold_failures.append({'test': t_info['type'], 'metric': th.get('metric',''), 'threshold': th.get('threshold','')})
+              except: pass
+          conclusion = 'failure' if threshold_failures else 'success'
+          index = {'run': os.environ.get('RUN_NUMBER',''), 'sha': sha, 'timestamp': ts, 'tests': tests, 'conclusion': conclusion, 'threshold_failures': threshold_failures}
+          Path('k6/results/index.json').write_text(json.dumps(index, indent=2))
+          print('index.json:', tests, '| conclusion:', conclusion, '| threshold_failures:', len(threshold_failures))
           PYEOF
         env:
           RUN_NUMBER: ${{ github.run_number }}
@@ -732,3 +746,4 @@ jobs:
           echo "## Dashboard K6 - Run #${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "[Abrir Dashboard](https://comprai.2.25.122.11.nip.io/k6/dashboard/)" >> $GITHUB_STEP_SUMMARY
+

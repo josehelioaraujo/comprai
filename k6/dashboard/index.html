@@ -356,7 +356,7 @@ async function loadAll(silent) {
     var idxResp = await fetch(API_BASE + '/k6/results/index.json?t=' + Date.now());
     if (!idxResp.ok) throw new Error('index.json nao encontrado');
     var idx = await idxResp.json();
-    verInfo = { run: idx.run, sha: idx.sha, timestamp: idx.timestamp };
+    verInfo = { run: idx.run, sha: idx.sha, timestamp: idx.timestamp, conclusion: idx.conclusion, threshold_failures: idx.threshold_failures || [] };
 
     // hdr-version removido da topbar — info disponivel no modal de versionamento
 
@@ -395,6 +395,24 @@ function render() {
   var total = allData.length;
   document.getElementById('hdr-count').textContent = total + ' teste' + (total !== 1 ? 's' : '') + ' carregado' + (total !== 1 ? 's' : '');
   document.getElementById('hdr-updated').textContent = 'Atualizado: ' + new Date().toLocaleString('pt-BR');
+
+  // Banner de falha de threshold
+  var banner = document.getElementById('threshold-failure-banner');
+  if (banner) {
+    var failures = (verInfo && verInfo.threshold_failures) ? verInfo.threshold_failures : [];
+    var conclusion = verInfo && verInfo.conclusion;
+    if (conclusion === 'failure' && failures.length > 0) {
+      var msgs = failures.map(function(f){ return '<code>' + (f.metric||'') + '</code> [' + (f.test||'') + ']' + (f.threshold ? ': ' + f.threshold : ''); });
+      banner.innerHTML = '<span style="font-size:14px;margin-right:8px">⚠️</span><div><strong>Threshold violado</strong> — o teste concluiu mas algumas métricas ultrapassaram o limite:<br><span style="font-size:11px;opacity:.85">' + msgs.join(' &nbsp;·&nbsp; ') + '</span></div>';
+      banner.style.display = 'flex';
+    } else if (conclusion === 'failure') {
+      banner.innerHTML = '<span style="font-size:14px;margin-right:8px">❌</span><strong>Pipeline falhou</strong> — verifique os logs no GitHub Actions.';
+      banner.style.display = 'flex';
+    } else {
+      banner.style.display = 'none';
+    }
+  }
+
   renderResults(); renderConfig(); renderTimeline(); renderCharts(); renderRoutes(); renderTabs();
   // stress section info
   var sc = document.getElementById('stress-count');
@@ -3089,6 +3107,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
   <div style="font-size:1.2rem;font-weight:600;color:var(--text);margin-bottom:8px">Dev Quality Hub</div>
   <div style="font-size:0.9rem;max-width:340px;line-height:1.7">Selecione uma opcao no menu lateral para visualizar os dados de qualidade e seguranca.</div>
 </div>
+<div id="threshold-failure-banner" style="display:none;margin:12px 16px 0;padding:12px 16px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);border-radius:8px;color:#fca5a5;font-size:12px;align-items:flex-start;gap:8px;line-height:1.5"></div>
 <div id="dashContent" style="display:none">
 
       <!-- FIXO: Detalhes por Tipo -->
@@ -3750,6 +3769,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
 
     </div>
+
 
 
 
