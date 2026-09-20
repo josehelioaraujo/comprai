@@ -60,7 +60,7 @@ jobs:
 
           for line in raw.splitlines():
               # "Project 'UcpAgent.Api' has the following vulnerable packages"
-              pm = re.match(r"Project '(.+?)' has the following vulnerable", line)
+              pm = re.match(r"Project [`'](.+?)[`'] has the following vulnerable", line)
               if pm:
                   # Extrai só o nome do projeto (sem caminho)
                   proj_raw = pm.group(1)
@@ -144,5 +144,6 @@ jobs:
           name: vulnerability-report
           path: vulnerabilities.json
           if-no-files-found: ignore
+
 
 
