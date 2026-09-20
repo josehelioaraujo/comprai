@@ -68,9 +68,10 @@ jobs:
                   current_framework = fm.group(1)
                   continue
 
-              # "> PackageName  Requested  Resolved  Severity  AdvisoryURL"
+              # Top-level:  "> Pkg  Requested  Resolved  Severity  URL" (5 cols)
+              # Transitivo: "> Pkg          Resolved  Severity  URL"   (4 cols)
               lm = re.match(
-                  r'\s*>\s+(\S+)\s+(\S+)\s+(\S+)\s+(Critical|High|Moderate|Low|critical|high|moderate|low)\s+(\S+)',
+                  r'\s*>\s+(\S+)\s+(?:(\S+)\s+)?(\S+)\s+(Critical|High|Moderate|Low|critical|high|moderate|low)\s+(\S+)',
                   line
               )
               if lm:
@@ -78,7 +79,7 @@ jobs:
                       "project":   current_project or "unknown",
                       "framework": current_framework or "",
                       "package":   lm.group(1),
-                      "requested": lm.group(2),
+                      "requested": lm.group(2) or lm.group(3),
                       "resolved":  lm.group(3),
                       "severity":  lm.group(4).capitalize(),
                       "advisory":  lm.group(5)
@@ -137,3 +138,4 @@ jobs:
           name: vulnerability-report
           path: vulnerabilities.json
           if-no-files-found: ignore
+
