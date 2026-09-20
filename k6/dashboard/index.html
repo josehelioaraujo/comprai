@@ -1941,17 +1941,26 @@ async function loadDepData() {
       var tbody = document.getElementById('dep-tbody');
       if (tbody) {
         tbody.innerHTML = '';
-        (d.packages || []).forEach(function(p) {
+        (d.packages || []).forEach(function(p, idx) {
           var tr = document.createElement('tr');
           var aid = p.advisory ? p.advisory.split('/').pop() : '';
+          var isTransitive = !p.requested || p.requested === p.resolved;
+          var tipoBadge = isTransitive
+            ? '<span style="font-size:10px;background:rgba(234,179,8,.15);color:#eab308;padding:1px 6px;border-radius:8px;font-weight:600">Transitivo</span>'
+            : '<span style="font-size:10px;background:rgba(34,197,94,.15);color:#22c55e;padding:1px 6px;border-radius:8px;font-weight:600">Direto</span>';
+          var infoTip = isTransitive
+            ? 'Pacote transitivo: n\u00e3o est\u00e1 no seu .csproj diretamente. Atualize o pacote pai ou adicione uma refer\u00eancia direta com a vers\u00e3o segura.'
+            : 'Pacote direto: atualize a vers\u00e3o no seu .csproj para a vers\u00e3o mais recente sem CVE.';
+          var fixCmd = 'dotnet add package ' + depE(p.package) + ' --version &lt;vers\u00e3o segura&gt;';
           tr.innerHTML =
-            '<td style="color:var(--text);font-weight:500">'         + depE(p.package) + '</td>' +
+            '<td style="color:var(--text);font-weight:500">' + depE(p.package) + '<br><span style="margin-top:3px;display:inline-block">' + tipoBadge + '</span></td>' +
             '<td style="color:var(--muted);font-family:monospace">'  + depE(p.resolved || p.requested || '') + '</td>' +
             '<td style="text-align:center"><span class="dep-sev-pill ' + depE(p.severity) + '">' + depE(p.severity) + '</span></td>' +
             '<td style="color:var(--muted);font-size:11px">'         + depE(depP(p.project||'')) + '</td>' +
             '<td style="text-align:center">' + (p.advisory
               ? '<a href="'+depE(p.advisory)+'" target="_blank" style="color:var(--accent2);font-size:11px;text-decoration:none">GHSA-'+depE(aid.substring(0,8))+' &#8599;</a>'
-              : '<span style="color:var(--muted)">—</span>') + '</td>';
+              : '<span style="color:var(--muted)">&#8212;</span>') + '</td>' +
+            '<td style="text-align:center"><span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative"><span class="info-hint-btn" title="Como corrigir">i</span><span class="info-hint-box" style="position:fixed;width:280px;z-index:9999;line-height:1.7;text-align:left"><strong style="color:var(--text);display:block;margin-bottom:4px">' + depE(p.package) + '</strong><span style="font-size:11px">' + infoTip + '</span><hr style="border:none;border-top:1px solid rgba(255,255,255,.1);margin:6px 0"><code style="font-size:10px;color:#94a3b8">' + fixCmd + '</code></span></span></td>';
           tbody.appendChild(tr);
         });
       }
@@ -3346,7 +3355,17 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <span class="section-title-text" style="flex:1">&#128274; Segurança de Dependências — CVEs NuGet
           <span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative">
             <span class="info-hint-btn">i</span>
-            <span class="info-hint-box" style="position:fixed;width:280px;z-index:9999">Scan automático de vulnerabilidades em pacotes NuGet usando dotnet list package --vulnerable. Dados coletados pelo GitHub Actions e publicados após cada push na main.</span>
+            <span class="info-hint-box" style="position:fixed;width:320px;z-index:9999;line-height:1.7">
+              <strong style="color:var(--text);display:block;margin-bottom:6px">O que são CVEs?</strong>
+              CVE (Common Vulnerabilities and Exposures) são vulnerabilidades conhecidas em pacotes de software. Um pacote vulnerável pode ser explorado por atacantes para comprometer a aplicação.
+              <hr style="border:none;border-top:1px solid rgba(255,255,255,.1);margin:8px 0">
+              <strong style="color:var(--text);display:block;margin-bottom:4px">Como resolver</strong>
+              <span style="color:#22c55e">▸</span> <strong>Direto:</strong> atualize a versão no <code>.csproj</code><br>
+              <span style="color:#f59e0b">▸</span> <strong>Transitivo:</strong> atualize o pacote pai ou force a versão segura no <code>.csproj</code><br>
+              <hr style="border:none;border-top:1px solid rgba(255,255,255,.1);margin:8px 0">
+              <code style="font-size:10px;color:#94a3b8">dotnet list package --vulnerable --include-transitive</code><br>
+              <code style="font-size:10px;color:#94a3b8">dotnet outdated</code>
+            </span>
           </span>
         </span>
         <span class="section-count" id="dep-score"></span>
@@ -3402,6 +3421,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
                     <th style="padding:8px 12px;text-align:center;color:var(--muted);font-weight:600">Severidade</th>
                     <th style="padding:8px 12px;text-align:left;color:var(--muted);font-weight:600">Projeto</th>
                     <th style="padding:8px 12px;text-align:center;color:var(--muted);font-weight:600">Advisory</th>
+                    <th style="padding:8px 12px;text-align:center;color:var(--muted);font-weight:600">Info</th>
                   </tr>
                 </thead>
                 <tbody id="dep-tbody"></tbody>
@@ -3489,6 +3509,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
 
     </div>
+
 
 
 
