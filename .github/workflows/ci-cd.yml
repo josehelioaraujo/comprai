@@ -364,8 +364,8 @@ jobs:
             git remote set-url origin https://x-access-token:${GH_PAT}@github.com/josehelioaraujo/comprai.git
             git fetch origin && git reset --hard origin/main
 
-            USAR_BANCO="${{ github.event.inputs.usar_banco || 'false' }}"
-            sed -i "s/UsarRedis=.*/UsarRedis=${USAR_BANCO}/" .env
+            # Redis sempre habilitado
+            sed -i "s/UsarRedis=.*/UsarRedis=true/" .env
             sed -i "s/BUILD_VERSION=.*/BUILD_VERSION=${{ env.BUILD_VERSION }}/" .env
 
             # Injetar/atualizar DD_API_KEY no .env
@@ -385,6 +385,16 @@ jobs:
             grep -q '^ML_CLIENT_SECRET=' .env \
               && sed -i "s|^ML_CLIENT_SECRET=.*|ML_CLIENT_SECRET=${ML_CLIENT_SECRET}|" .env \
               || echo "ML_CLIENT_SECRET=${ML_CLIENT_SECRET}" >> .env
+
+            # Garantir Redis connection string correta
+            grep -q '^ConnectionStrings__Redis=' .env \
+              && sed -i "s|^ConnectionStrings__Redis=.*|ConnectionStrings__Redis=comprai-redis:6379,connectTimeout=2000,syncTimeout=2000,abortConnect=false|" .env \
+              || echo "ConnectionStrings__Redis=comprai-redis:6379,connectTimeout=2000,syncTimeout=2000,abortConnect=false" >> .env
+
+            # Garantir Redis connection string correta
+            grep -q '^ConnectionStrings__Redis=' .env \
+              && sed -i "s|^ConnectionStrings__Redis=.*|ConnectionStrings__Redis=comprai-redis:6379,connectTimeout=2000,syncTimeout=2000,abortConnect=false|" .env \
+              || echo "ConnectionStrings__Redis=comprai-redis:6379,connectTimeout=2000,syncTimeout=2000,abortConnect=false" >> .env
 
             # Garantir OTEL_ENDPOINT aponta para dd-agent (Datadog)
             grep -q '^OTEL_ENDPOINT=' .env \
@@ -415,7 +425,7 @@ jobs:
             docker compose -f deploy/docker-compose.yml --env-file .env down --remove-orphans --volumes || true
             docker rm -f comprai-api comprai-redis comprai-mcp comprai-dd-agent || true
             docker compose -f deploy/docker-compose.yml --env-file .env build --no-cache
-            docker compose -f deploy/docker-compose.yml --env-file .env --profile datadog up -d --force-recreate
+            docker compose -f deploy/docker-compose.yml --env-file .env --profile datadog --profile kafka --profile rabbitmq up -d --force-recreate
             sleep 20
             curl -f http://localhost:${{ env.API_PORT }}/health/live || exit 1
 
@@ -490,6 +500,7 @@ jobs:
           name: smoke-test-report
           path: ./newman-report/smoke-report.html
           if-no-files-found: ignore
+
 
 
 
