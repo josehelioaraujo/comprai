@@ -336,6 +336,75 @@ jobs:
             sonar-metrics.json root@2.25.122.11:/var/www/html/k6/results/sonar/latest.json
           echo "SonarCloud metrics publicados"
 
+      - name: Append history.json — Evolução
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          RUN_NUMBER: ${{ github.run_number }}
+          RUN_SHA: ${{ github.sha }}
+        run: |
+          python3 << 'PYEOF'
+          import json, os, subprocess
+          from datetime import datetime, timezone
+
+          # Extrair métricas do sonar-metrics.json
+          try:
+              sm = json.load(open('sonar-metrics.json'))
+              measures = {m['metric']: m.get('value','0') for m in sm.get('component',{}).get('measures',[])}
+          except Exception as e:
+              print(f"⚠ sonar-metrics.json não disponível: {e}")
+              measures = {}
+
+          entry = {
+              "run":       int(os.environ.get("RUN_NUMBER", 0)),
+              "sha":       os.environ.get("RUN_SHA", "")[:7],
+              "date":      datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+              "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "source":    "sonar",
+              "coverage":  float(measures.get("coverage", 0)),
+              "bugs":      int(measures.get("bugs", 0)),
+              "smells":    int(measures.get("code_smells", 0)),
+              "duplication": float(measures.get("duplicated_lines_density", 0))
+          }
+          json.dump(entry, open('history-entry.json','w'))
+          print(f"✅ history entry: run#{entry['run']} coverage={entry['coverage']}% bugs={entry['bugs']} smells={entry['smells']}")
+          PYEOF
+
+          # Append na VPS via SSH
+          mkdir -p ~/.ssh
+          echo "$VPS_SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H 2.25.122.11 >> ~/.ssh/known_hosts 2>/dev/null
+
+          # Enviar entry para VPS e fazer append no history.json
+          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
+            history-entry.json root@2.25.122.11:/tmp/history-entry-sonar.json
+
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no root@2.25.122.11 << 'SSHEOF'
+          python3 << 'PYEOF2'
+          import json, os
+          from pathlib import Path
+
+          HISTORY = Path("/var/www/html/k6/results/history.json")
+          ENTRY   = Path("/tmp/history-entry-sonar.json")
+
+          history = json.loads(HISTORY.read_text()) if HISTORY.exists() else []
+          entry   = json.loads(ENTRY.read_text())
+
+          # Atualizar ou inserir por run+source
+          existing = next((i for i,e in enumerate(history) if e.get("run") == entry["run"] and e.get("source") == entry["source"]), None)
+          if existing is not None:
+              history[existing].update(entry)
+          else:
+              history.append(entry)
+
+          # Manter últimos 50 runs
+          history = sorted(history, key=lambda x: x.get("run", 0))[-50:]
+          HISTORY.parent.mkdir(parents=True, exist_ok=True)
+          HISTORY.write_text(json.dumps(history, indent=2))
+          print(f"✅ history.json atualizado: {len(history)} entradas")
+          PYEOF2
+          SSHEOF
+
   # ── 4. DEPLOY VPS ───────────────────────────────────────────────────────────
   deploy:
     name: 🚀 Deploy VPS Hostinger
@@ -500,6 +569,7 @@ jobs:
           name: smoke-test-report
           path: ./newman-report/smoke-report.html
           if-no-files-found: ignore
+
 
 
 

@@ -137,6 +137,78 @@ jobs:
 
           echo "✅ vulnerabilities.json publicado na VPS"
 
+
+      - name: Append history.json — Evolução (CVEs)
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          RUN_NUMBER: ${{ github.run_number }}
+          RUN_SHA: ${{ github.sha }}
+        run: |
+          python3 << 'PYEOF'
+          import json, os
+          from datetime import datetime, timezone
+
+          try:
+              data = json.load(open('vulnerabilities.json'))
+              total = data.get('total', 0)
+              counts = data.get('counts', {})
+          except Exception as e:
+              print(f"⚠ vulnerabilities.json não disponível: {e}")
+              total = 0
+              counts = {}
+
+          entry = {
+              "run":       int(os.environ.get("RUN_NUMBER", 0)),
+              "sha":       os.environ.get("RUN_SHA", "")[:7],
+              "date":      datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+              "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "source":    "deps",
+              "cves":      total,
+              "cves_critical": counts.get("Critical", 0),
+              "cves_high":     counts.get("High", 0),
+              "cves_moderate": counts.get("Moderate", 0),
+              "cves_low":      counts.get("Low", 0)
+          }
+          json.dump(entry, open('history-entry-deps.json','w'))
+          print(f"✅ history entry CVEs: run#{entry['run']} total={total}")
+          PYEOF
+
+          mkdir -p ~/.ssh
+          echo "$VPS_SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
+            history-entry-deps.json root@${{ env.VPS_HOST }}:/tmp/history-entry-deps.json
+
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no root@${{ env.VPS_HOST }} << 'SSHEOF'
+          python3 << 'PYEOF2'
+          import json
+          from pathlib import Path
+
+          HISTORY = Path("/var/www/html/k6/results/history.json")
+          ENTRY   = Path("/tmp/history-entry-deps.json")
+
+          history = json.loads(HISTORY.read_text()) if HISTORY.exists() else []
+          entry   = json.loads(ENTRY.read_text())
+
+          existing = next((i for i,e in enumerate(history) if e.get("run") == entry["run"] and e.get("source") == entry["source"]), None)
+          if existing is not None:
+              history[existing].update(entry)
+          else:
+              run_entry = next((i for i,e in enumerate(history) if e.get("run") == entry["run"]), None)
+              if run_entry is not None:
+                  history[run_entry].update({"cves": entry["cves"], "cves_critical": entry["cves_critical"], "cves_high": entry["cves_high"], "cves_moderate": entry["cves_moderate"], "cves_low": entry["cves_low"]})
+              else:
+                  history.append(entry)
+
+          history = sorted(history, key=lambda x: x.get("run", 0))[-50:]
+          HISTORY.parent.mkdir(parents=True, exist_ok=True)
+          HISTORY.write_text(json.dumps(history, indent=2))
+          print(f"✅ history.json: {len(history)} entradas")
+          PYEOF2
+          SSHEOF
+
       - name: Upload artifact
         if: always()
         uses: actions/upload-artifact@v4
@@ -144,6 +216,7 @@ jobs:
           name: vulnerability-report
           path: vulnerabilities.json
           if-no-files-found: ignore
+
 
 
 

@@ -70,7 +70,7 @@ let runReloadPending = false;
 let verInfo = {};
 
 // IDs das secoes navegaveis (exceto detalhes que e fixo)
-const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','mutacaoBlock','sonarBlock','owaspBlock','pciBlock','depBlock'];
+const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','mutacaoBlock','sonarBlock','owaspBlock','pciBlock','depBlock','evolucaoBlock'];
 let activeSection = null; // null = nenhuma extra visivel
 
 const TYPE_ORDER = ['smoke','load','stress','spike','soak'];
@@ -992,6 +992,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       if (id === 'owaspBlock') { buildSecList(OWASP_ITEMS, 'owasp-list'); var ow=countStatus(OWASP_ITEMS); var owEl=document.getElementById('owasp-score'); if(owEl) owEl.textContent=ow.ok+'/'+ow.total+' OK'; }
       if (id === 'pciBlock')   { buildSecList(PCI_ITEMS,   'pci-list');   var pc=countStatus(PCI_ITEMS);   var pcEl=document.getElementById('pci-score');   if(pcEl) pcEl.textContent=pc.ok+'/'+pc.total+' OK'; }
       if (id === 'depBlock')   { loadDepData(); }
+      if (id === 'evolucaoBlock') { loadEvolucaoData(); }
     };
   })();
 
@@ -1978,6 +1979,180 @@ async function loadDepData() {
 function depE(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function depP(p) { return p.replace(/^.*[\/\\]/, '').replace(/\.csproj$/, ''); }
 </script>
+
+// ── Evolução das Métricas ────────────────────────────────────
+var evolChart = null;
+var evolData  = [];
+var evolActiveMetrics = ['coverage','mutation','cves'];
+
+var EVOL_METRICS = {
+  coverage: { label: 'Coverage (%)',    color: '#6366f1', yAxis: 'pct' },
+  mutation: { label: 'Mutation (%)',    color: '#22c55e', yAxis: 'pct' },
+  cves:     { label: 'CVEs',            color: '#ef4444', yAxis: 'count' },
+  bugs:     { label: 'Bugs',            color: '#f97316', yAxis: 'count' },
+  smells:   { label: 'Code Smells',     color: '#eab308', yAxis: 'count' },
+};
+
+function evolToggleMetric(btn) {
+  var metric = btn.getAttribute('data-metric');
+  if (btn.classList.contains('active')) {
+    if (evolActiveMetrics.length <= 1) return; // manter ao menos 1
+    btn.classList.remove('active');
+    evolActiveMetrics = evolActiveMetrics.filter(function(m){ return m !== metric; });
+  } else {
+    btn.classList.add('active');
+    evolActiveMetrics.push(metric);
+  }
+  evolRenderChart();
+}
+
+async function loadEvolucaoData() {
+  var empty     = document.getElementById('evol-empty');
+  var chartWrap = document.getElementById('evol-chart-wrap');
+  var tableWrap = document.getElementById('evol-table-wrap');
+  var scoreEl   = document.getElementById('evol-score');
+
+  try {
+    var res = await fetch('/k6/results/history.json?t=' + Date.now());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var data = await res.json();
+    if (!data || data.length === 0) throw new Error('vazio');
+
+    evolData = data;
+
+    if (empty)     empty.style.display     = 'none';
+    if (chartWrap) chartWrap.style.display = '';
+    if (tableWrap) tableWrap.style.display = '';
+
+    // Score no header — último run
+    var last = data[data.length - 1];
+    if (scoreEl) {
+      scoreEl.textContent  = data.length + ' run' + (data.length > 1 ? 's' : '');
+      scoreEl.style.cssText = 'background:rgba(99,102,241,.15);color:#a5b4fc;font-size:11px;padding:2px 8px;border-radius:10px';
+    }
+
+    evolRenderChart();
+    evolRenderTable(data);
+
+  } catch(e) {
+    if (empty) empty.style.display = '';
+    if (chartWrap) chartWrap.style.display = 'none';
+    if (tableWrap) tableWrap.style.display = 'none';
+    console.warn('evolData:', e);
+  }
+}
+
+function evolRenderChart() {
+  if (!evolData.length) return;
+  var ctx = document.getElementById('evol-chart');
+  if (!ctx) return;
+
+  // Agrupar por run — pegar o valor mais recente por run
+  var byRun = {};
+  evolData.forEach(function(e) {
+    var r = e.run;
+    if (!byRun[r]) byRun[r] = Object.assign({}, e);
+    else Object.assign(byRun[r], e);
+  });
+  var runs = Object.keys(byRun).map(Number).sort(function(a,b){return a-b;});
+  var labels = runs.map(function(r){ return '#' + r + (byRun[r].sha ? ' · ' + byRun[r].sha : ''); });
+
+  var datasets = evolActiveMetrics.map(function(metric) {
+    var cfg = EVOL_METRICS[metric];
+    return {
+      label: cfg.label,
+      data:  runs.map(function(r){ return byRun[r][metric] != null ? byRun[r][metric] : null; }),
+      borderColor: cfg.color,
+      backgroundColor: cfg.color + '22',
+      pointBackgroundColor: cfg.color,
+      pointRadius: 5,
+      pointHoverRadius: 7,
+      tension: 0.3,
+      fill: false,
+      spanGaps: true,
+      yAxisID: cfg.yAxis
+    };
+  });
+
+  if (evolChart) { evolChart.destroy(); evolChart = null; }
+
+  evolChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels: labels, datasets: datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: 'var(--text)', font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) {
+              var v = ctx.parsed.y;
+              var suf = ctx.dataset.yAxisID === 'pct' ? '%' : '';
+              return ' ' + ctx.dataset.label + ': ' + (v != null ? v + suf : '—');
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: 'var(--muted)', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.05)' } },
+        pct: {
+          type: 'linear', position: 'left',
+          min: 0, max: 100,
+          ticks: { color: 'var(--muted)', font: { size: 10 }, callback: function(v){ return v + '%'; } },
+          grid: { color: 'rgba(255,255,255,.05)' }
+        },
+        count: {
+          type: 'linear', position: 'right',
+          min: 0,
+          ticks: { color: 'var(--muted)', font: { size: 10 }, stepSize: 1 },
+          grid: { drawOnChartArea: false }
+        }
+      }
+    }
+  });
+}
+
+function evolRenderTable(data) {
+  var tbody = document.getElementById('evol-tbody');
+  if (!tbody) return;
+
+  // Agrupar por run
+  var byRun = {};
+  data.forEach(function(e) {
+    var r = e.run;
+    if (!byRun[r]) byRun[r] = Object.assign({}, e);
+    else Object.assign(byRun[r], e);
+  });
+
+  var runs = Object.keys(byRun).map(Number).sort(function(a,b){return b-a;}); // mais recente primeiro
+  tbody.innerHTML = '';
+  runs.slice(0, 15).forEach(function(r) {
+    var e = byRun[r];
+    var tr = document.createElement('tr');
+    tr.style.cssText = 'border-bottom:1px solid var(--border)';
+
+    function cell(v, suf, good) {
+      if (v == null) return '<span style="color:var(--muted)">—</span>';
+      var color = '';
+      if (good === 'high' && v >= 90) color = '#22c55e';
+      else if (good === 'low' && v === 0) color = '#22c55e';
+      return '<span style="font-weight:600;color:' + (color||'var(--text)') + '">' + v + (suf||'') + '</span>';
+    }
+
+    tr.innerHTML =
+      '<td style="padding:8px 12px;font-family:monospace;color:var(--muted)">#' + r + ' <span style="font-size:10px">' + (e.sha||'') + '</span></td>' +
+      '<td style="padding:8px 12px;color:var(--muted);font-size:11px">' + (e.date||'') + '</td>' +
+      '<td style="padding:8px 12px;text-align:center">' + cell(e.coverage, '%', 'high') + '</td>' +
+      '<td style="padding:8px 12px;text-align:center">' + cell(e.mutation, '%', 'high') + '</td>' +
+      '<td style="padding:8px 12px;text-align:center">' + cell(e.cves, '',   'low')  + '</td>' +
+      '<td style="padding:8px 12px;text-align:center">' + cell(e.bugs, '',   'low')  + '</td>' +
+      '<td style="padding:8px 12px;text-align:center">' + cell(e.smells, '',  'low') + '</td>';
+    tbody.appendChild(tr);
+  });
+}
+
 </body>
 </html>
 
@@ -2820,6 +2995,9 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <div class="nav-item" id="nav-mutacao" onclick="showSection('mutacaoBlock', this)" title="Testes de Mutacao">
           <span class="nav-icon">&#129522;</span><span class="nav-text">Mutacao</span>
         </div>
+        <div class="nav-item" id="nav-evolucao" onclick="showSection('evolucaoBlock', this)" title="Evolucao das metricas ao longo dos runs">
+          <span class="nav-icon">&#128200;</span><span class="nav-text">Evolucao</span>
+        </div>
       </div>
     </div>
     <div class="nav-group" id="group-qualidade">
@@ -3350,6 +3528,69 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
 
 
+
+    <div class="section-block" id="evolucaoBlock" style="display:none">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title-text">&#128200; Evolução das Métricas
+          <span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative">
+            <span class="info-hint-btn">i</span>
+            <span class="info-hint-box" style="position:fixed;width:300px;z-index:9999;line-height:1.7">
+              Histórico de qualidade ao longo dos runs do CI/CD.<br>
+              Cada ponto representa um run — passe o mouse para ver detalhes.<br>
+              <hr style="border:none;border-top:1px solid rgba(255,255,255,.1);margin:6px 0">
+              Dados coletados de: SonarCloud, Stryker.NET e Dependency Scan.
+            </span>
+          </span>
+        </span>
+        <span class="section-count" id="evol-score"></span>
+        <span class="section-chevron">&#9660;</span>
+      </div>
+      <div class="section-content">
+        <div style="padding:16px">
+
+          <!-- Seletor de métricas -->
+          <div id="evol-filters" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+            <button class="evol-filter-btn active" data-metric="coverage"  onclick="evolToggleMetric(this)">📊 Coverage</button>
+            <button class="evol-filter-btn active" data-metric="mutation"  onclick="evolToggleMetric(this)">🧬 Mutation</button>
+            <button class="evol-filter-btn active" data-metric="cves"      onclick="evolToggleMetric(this)">🔒 CVEs</button>
+            <button class="evol-filter-btn"        data-metric="bugs"      onclick="evolToggleMetric(this)">🐛 Bugs</button>
+            <button class="evol-filter-btn"        data-metric="smells"    onclick="evolToggleMetric(this)">💨 Code Smells</button>
+          </div>
+
+          <!-- Gráfico -->
+          <div id="evol-chart-wrap" style="display:none;position:relative;height:280px;margin-bottom:12px">
+            <canvas id="evol-chart"></canvas>
+          </div>
+
+          <!-- Empty state -->
+          <div id="evol-empty" style="text-align:center;padding:40px 0;color:var(--muted)">
+            <div style="font-size:36px;margin-bottom:8px">📈</div>
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px">Histórico ainda vazio</div>
+            <div style="font-size:12px">Execute a esteira CI/CD para começar a acumular dados.</div>
+          </div>
+
+          <!-- Tabela resumo últimos runs -->
+          <div id="evol-table-wrap" style="display:none;overflow-x:auto;border-radius:6px;border:1px solid var(--border);margin-top:16px">
+            <table style="width:100%;border-collapse:collapse;font-size:12px">
+              <thead>
+                <tr style="background:var(--surface2);border-bottom:1px solid var(--border)">
+                  <th style="padding:8px 12px;text-align:left;color:var(--muted);font-weight:600">Run</th>
+                  <th style="padding:8px 12px;text-align:left;color:var(--muted);font-weight:600">Data</th>
+                  <th style="padding:8px 12px;text-align:center;color:var(--muted);font-weight:600">Coverage</th>
+                  <th style="padding:8px 12px;text-align:center;color:var(--muted);font-weight:600">Mutation</th>
+                  <th style="padding:8px 12px;text-align:center;color:var(--muted);font-weight:600">CVEs</th>
+                  <th style="padding:8px 12px;text-align:center;color:var(--muted);font-weight:600">Bugs</th>
+                  <th style="padding:8px 12px;text-align:center;color:var(--muted);font-weight:600">Smells</th>
+                </tr>
+              </thead>
+              <tbody id="evol-tbody"></tbody>
+            </table>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
     <div class="section-block" id="depBlock" style="display:none">
       <div class="section-header" style="display:flex;align-items:center;gap:8px" onclick="toggleSection(this)">
         <span class="section-title-text" style="flex:1">&#128274; Segurança de Dependências — CVEs NuGet
@@ -3509,6 +3750,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
 
     </div>
+
 
 
 

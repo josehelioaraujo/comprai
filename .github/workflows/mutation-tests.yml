@@ -181,6 +181,80 @@ jobs:
           strip_components: 1
           overwrite: true
 
+
+      - name: Append history.json — Evolução (Mutation)
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          RUN_NUMBER: ${{ github.run_number }}
+          RUN_SHA: ${{ github.sha }}
+        run: |
+          python3 << 'PYEOF'
+          import json, os
+          from datetime import datetime, timezone
+
+          try:
+              data = json.load(open('mutation-output/latest.json'))
+              score = data.get('score', 0)
+              killed = data.get('killed', 0)
+              survived = data.get('survived', 0)
+              total = data.get('total', 0)
+          except Exception as e:
+              print(f"⚠ mutation latest.json não disponível: {e}")
+              score = killed = survived = total = 0
+
+          entry = {
+              "run":       int(os.environ.get("RUN_NUMBER", 0)),
+              "sha":       os.environ.get("RUN_SHA", "")[:7],
+              "date":      datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+              "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "source":    "mutation",
+              "mutation":  score,
+              "killed":    killed,
+              "survived":  survived,
+              "total_mutants": total
+          }
+          json.dump(entry, open('history-entry-mut.json','w'))
+          print(f"✅ history entry mutation: run#{entry['run']} score={score}%")
+          PYEOF
+
+          mkdir -p ~/.ssh
+          echo "$VPS_SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H 2.25.122.11 >> ~/.ssh/known_hosts 2>/dev/null
+
+          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
+            history-entry-mut.json root@2.25.122.11:/tmp/history-entry-mutation.json
+
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no root@2.25.122.11 << 'SSHEOF'
+          python3 << 'PYEOF2'
+          import json
+          from pathlib import Path
+
+          HISTORY = Path("/var/www/html/k6/results/history.json")
+          ENTRY   = Path("/tmp/history-entry-mutation.json")
+
+          history = json.loads(HISTORY.read_text()) if HISTORY.exists() else []
+          entry   = json.loads(ENTRY.read_text())
+
+          # Merge na entrada do mesmo run (source=sonar pode já existir)
+          existing = next((i for i,e in enumerate(history) if e.get("run") == entry["run"] and e.get("source") == entry["source"]), None)
+          if existing is not None:
+              history[existing].update(entry)
+          else:
+              # Tentar mergear num run existente sem mutation
+              run_entry = next((i for i,e in enumerate(history) if e.get("run") == entry["run"]), None)
+              if run_entry is not None:
+                  history[run_entry].update({"mutation": entry["mutation"], "killed": entry["killed"], "survived": entry["survived"], "total_mutants": entry["total_mutants"]})
+              else:
+                  history.append(entry)
+
+          history = sorted(history, key=lambda x: x.get("run", 0))[-50:]
+          HISTORY.parent.mkdir(parents=True, exist_ok=True)
+          HISTORY.write_text(json.dumps(history, indent=2))
+          print(f"✅ history.json: {len(history)} entradas")
+          PYEOF2
+          SSHEOF
+
       - name: Job Summary
         if: always()
         run: |
