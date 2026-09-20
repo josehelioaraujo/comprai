@@ -2138,30 +2138,57 @@ function evolRenderChart() {
       maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { labels: { color: 'var(--text)', font: { size: 11 } } },
+        legend: {
+          position: 'top',
+          align: 'end',
+          labels: {
+            color: '#94a3b8',
+            font: { size: 11, weight: '600' },
+            boxWidth: 12,
+            boxHeight: 12,
+            borderRadius: 3,
+            padding: 16,
+            usePointStyle: true,
+            pointStyle: 'circle'
+          }
+        },
         tooltip: {
+          backgroundColor: 'rgba(15,23,42,.95)',
+          borderColor: 'rgba(255,255,255,.08)',
+          borderWidth: 1,
+          titleColor: '#e2e8f0',
+          bodyColor: '#94a3b8',
+          padding: 12,
           callbacks: {
+            title: function(items) { return 'Run ' + items[0].label; },
             label: function(ctx) {
               var v = ctx.parsed.y;
+              if (v == null) return null;
               var suf = ctx.dataset.yAxisID === 'pct' ? '%' : '';
-              return ' ' + ctx.dataset.label + ': ' + (v != null ? v + suf : '—');
+              return '  ' + ctx.dataset.label + ': ' + v + suf;
             }
           }
         }
       },
       scales: {
-        x: { ticks: { color: 'var(--muted)', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.05)' } },
+        x: {
+          ticks: { color: '#475569', font: { size: 10 }, maxRotation: 0 },
+          grid: { color: 'rgba(255,255,255,.04)' },
+          border: { color: 'rgba(255,255,255,.06)' }
+        },
         pct: {
           type: 'linear', position: 'left',
           min: 0, max: 100,
-          ticks: { color: 'var(--muted)', font: { size: 10 }, callback: function(v){ return v + '%'; } },
-          grid: { color: 'rgba(255,255,255,.05)' }
+          ticks: { color: '#475569', font: { size: 10 }, callback: function(v){ return v + '%'; }, stepSize: 25 },
+          grid: { color: 'rgba(255,255,255,.04)' },
+          border: { color: 'rgba(255,255,255,.06)' }
         },
         count: {
           type: 'linear', position: 'right',
           min: 0,
-          ticks: { color: 'var(--muted)', font: { size: 10 }, stepSize: 1 },
-          grid: { drawOnChartArea: false }
+          ticks: { color: '#475569', font: { size: 10 }, stepSize: 1 },
+          grid: { drawOnChartArea: false },
+          border: { color: 'rgba(255,255,255,.06)' }
         }
       }
     }
@@ -3125,10 +3152,10 @@ tr:hover td { background: rgba(255,255,255,.02); }
     <!-- run-controls movido para sidebar -->
     <div id="runControls" style="display:none"></div>
     <!-- Painel de controle global de workflows -->
-    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-      <button id="gb-cicd-btn"     class="gb-wf-btn" onclick="gbDispatch('ci-cd.yml','gb-cicd-btn')"     title="Roda CI/CD completo: build, testes, sonar, deploy">&#9654; CI/CD</button>
-      <button id="gb-mutation-btn" class="gb-wf-btn" onclick="gbDispatch('mutation-tests.yml','gb-mutation-btn')" title="Roda testes de mutação (Stryker.NET)">🧬 Mutação</button>
-      <button id="gb-scan-btn"     class="gb-wf-btn" onclick="gbDispatch('dependency-scan.yml','gb-scan-btn')"    title="Roda scan de vulnerabilidades NuGet">🔒 CVEs</button>
+    <div style="display:flex;align-items:center;gap:4px">
+      <button id="gb-cicd-btn"     class="gb-wf-btn gb-wf-topbar" onclick="gbDispatch('ci-cd.yml','gb-cicd-btn','evol-cicd-btn')"                title="CI/CD completo">&#9654; CI/CD</button>
+      <button id="gb-mutation-btn" class="gb-wf-btn gb-wf-topbar" onclick="gbDispatch('mutation-tests.yml','gb-mutation-btn','evol-mutation-btn')" title="Mutação">&#129514; Mutação</button>
+      <button id="gb-scan-btn"     class="gb-wf-btn gb-wf-topbar" onclick="gbDispatch('dependency-scan.yml','gb-scan-btn','evol-scan-btn')"       title="Scan CVEs">&#128274; CVEs</button>
     </div>
     <div style="display:flex;align-items:center;gap:10px;margin-left:auto;padding-right:4px">
       <button id="status-pill" class="status-pill op" onclick="toggleStatusDrawer()" title="Status do Sistema" style="position:relative;gap:6px">
@@ -3610,12 +3637,12 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <div style="padding:16px">
 
           <!-- Painel de disparo de workflows -->
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px;padding:12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">
-            <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Executar:</span>
-            <button id="evol-cicd-btn"     class="gb-wf-btn" onclick="gbDispatch('ci-cd.yml','evol-cicd-btn','gb-cicd-btn')"     title="Roda CI/CD completo">&#9654; CI/CD</button>
-            <button id="evol-mutation-btn" class="gb-wf-btn" onclick="gbDispatch('mutation-tests.yml','evol-mutation-btn','gb-mutation-btn')" title="Roda testes de mutação">🧬 Mutação</button>
-            <button id="evol-scan-btn"     class="gb-wf-btn" onclick="gbDispatch('dependency-scan.yml','evol-scan-btn','gb-scan-btn')"     title="Roda scan de CVEs">🔒 CVEs</button>
-            <button onclick="loadEvolucaoData()" style="margin-left:auto;background:none;border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:3px 10px;font-size:11px;cursor:pointer">&#8635; Atualizar</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:20px">
+            <span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Disparar:</span>
+            <button id="evol-cicd-btn"     class="gb-wf-btn" onclick="gbDispatch('ci-cd.yml','evol-cicd-btn','gb-cicd-btn')"                title="CI/CD completo — build, testes, sonar, deploy">&#9654; CI/CD</button>
+            <button id="evol-mutation-btn" class="gb-wf-btn" onclick="gbDispatch('mutation-tests.yml','evol-mutation-btn','gb-mutation-btn')" title="Testes de mutação (Stryker.NET)">&#129514; Mutação</button>
+            <button id="evol-scan-btn"     class="gb-wf-btn" onclick="gbDispatch('dependency-scan.yml','evol-scan-btn','gb-scan-btn')"       title="Scan de vulnerabilidades NuGet">&#128274; CVEs</button>
+            <button onclick="loadEvolucaoData()" style="margin-left:auto;background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;padding:4px 8px;border-radius:4px;transition:color .15s" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">&#8635; Atualizar</button>
           </div>
 
           <!-- Seletor de métricas -->
@@ -3820,6 +3847,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
 
     </div>
+
 
 
 
