@@ -38,6 +38,12 @@ jobs:
           dotnet list comprai.sln package --vulnerable --include-transitive 2>&1 | tee /tmp/vuln-raw.txt
           echo "scan_done=true" >> $GITHUB_OUTPUT
 
+      - name: Debug — output bruto do scan
+        run: |
+          echo "=== CONTEUDO BRUTO DO SCAN ==="
+          cat /tmp/vuln-raw.txt
+          echo "=== FIM ==="
+
       - name: Gerar vulnerabilities.json
         env:
           RUN_NUMBER: ${{ github.run_number }}
@@ -138,4 +144,5 @@ jobs:
           name: vulnerability-report
           path: vulnerabilities.json
           if-no-files-found: ignore
+
 
