@@ -10,7 +10,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:5020
-      Redis__ConnectionString: "comprai-redis:6379"
+      ConnectionStrings__Redis: "comprai-redis:6379,connectTimeout=2000,syncTimeout=2000,abortConnect=false"
       RabbitMQ__Host: comprai-rabbitmq
       Kafka__BootstrapServers: comprai-kafka:9094
       Features__UsarRedis:    ${USAR_REDIS:-true}
@@ -271,6 +271,7 @@ volumes:
 networks:
   comprai-network:
     driver: bridge
+
 
 
 
