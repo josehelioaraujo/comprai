@@ -19,7 +19,7 @@ jobs:
   dependency-scan:
     name: 🔍 Vulnerability Scan
     runs-on: ubuntu-latest
-    continue-on-error: true   # não bloqueia o pipeline principal
+    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4
@@ -50,22 +50,34 @@ jobs:
           raw = open('/tmp/vuln-raw.txt').read()
           packages = []
           current_project = None
+          current_framework = None
 
           for line in raw.splitlines():
+              # "Project 'UcpAgent.Api' has the following vulnerable packages"
               pm = re.match(r"Project '(.+?)' has the following vulnerable", line)
               if pm:
-                  current_project = pm.group(1)
+                  # Extrai só o nome do projeto (sem caminho)
+                  proj_raw = pm.group(1)
+                  current_project = re.sub(r'^.*[/\\]', '', proj_raw).replace('.csproj', '')
+                  current_framework = None
                   continue
 
-              # linha do pacote: "> PackageName  Requested  Resolved  Severity  Advisory URL"
+              # "[net10.0]:" ou "[net8.0]:"
+              fm = re.match(r'\s+\[(net[\d.]+)\]', line)
+              if fm:
+                  current_framework = fm.group(1)
+                  continue
+
+              # "> PackageName  Requested  Resolved  Severity  AdvisoryURL"
               lm = re.match(
                   r'\s*>\s+(\S+)\s+(\S+)\s+(\S+)\s+(Critical|High|Moderate|Low|critical|high|moderate|low)\s+(\S+)',
                   line
               )
               if lm:
                   packages.append({
-                      "project":  current_project or "unknown",
-                      "package":  lm.group(1),
+                      "project":   current_project or "unknown",
+                      "framework": current_framework or "",
+                      "package":   lm.group(1),
                       "requested": lm.group(2),
                       "resolved":  lm.group(3),
                       "severity":  lm.group(4).capitalize(),
@@ -92,9 +104,12 @@ jobs:
           }
 
           json.dump(result, open('vulnerabilities.json', 'w'), indent=2)
-          print(f"✅ {total} vulnerabilidades encontradas — status: {status}")
+          print(f"✅ {total} vulnerabilidades — status: {status}")
           for k, v in counts.items():
               if v: print(f"   {k}: {v}")
+          # Preview dos pacotes encontrados
+          for p in packages:
+              print(f"   [{p['severity']}] {p['package']} {p['resolved']} — {p['project']}")
           PYEOF
 
       - name: Publicar na VPS
