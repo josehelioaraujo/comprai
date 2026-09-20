@@ -13,7 +13,7 @@ public static class HealthCheckExtensions
     {
         services.AddHealthChecks()
             .AddCheck("redis",        RedisCheck(config),       tags: ["infra"])
-            .AddCheck("ollama",       OllamaCheck(),            tags: ["ai"])
+            .AddCheck("ollama",       OllamaCheck(config),      tags: ["ai"])
             .AddCheck("rabbitmq",     RabbitMqCheck(config),    tags: ["messaging"])
             .AddCheck("kafka",        KafkaCheck(config),       tags: ["messaging"])
             .AddCheck("datadog-otel", DatadogCheck(),           tags: ["observability"]);
@@ -36,12 +36,13 @@ public static class HealthCheckExtensions
     };
 
     [ExcludeFromCodeCoverage(Justification = "Requer Ollama em execução")]
-    private static Func<HealthCheckResult> OllamaCheck() => () =>
+    private static Func<HealthCheckResult> OllamaCheck(IConfiguration config) => () =>
     {
         try
         {
+            var baseUrl = config["Ollama__BaseUrl"] ?? config["Ollama:BaseUrl"] ?? "http://localhost:11434";
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
-            var res = http.GetAsync("http://localhost:11434/api/tags").GetAwaiter().GetResult();
+            var res = http.GetAsync($"{baseUrl.TrimEnd('/')}/api/tags").GetAwaiter().GetResult();
             return res.IsSuccessStatusCode
                 ? HealthCheckResult.Healthy()
                 : HealthCheckResult.Degraded($"HTTP {(int)res.StatusCode}");
@@ -80,3 +81,4 @@ public static class HealthCheckExtensions
         catch { return HealthCheckResult.Degraded($"{name} não disponível"); }
     }
 }
+
