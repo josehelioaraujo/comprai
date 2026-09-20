@@ -313,8 +313,16 @@ jobs:
             "https://sonarcloud.io/api/measures/component?component=josehelioaraujo_comprai&metricKeys=$METRICS" \
             -o sonar-raw.json
 
-          # Injetar run, sha e timestamp via jq
-          jq --argjson run "$RUN_NUMBER" --arg sha "$SHORT_SHA" --arg ts "$TIMESTAMP" \
+          # Validar se o curl retornou JSON válido
+          if ! jq empty sonar-raw.json 2>/dev/null; then
+            echo "❌ SonarCloud retornou resposta inválida:"
+            cat sonar-raw.json
+            exit 1
+          fi
+
+          # Injetar run (como número), sha e timestamp
+          RUN_INT=$(echo "$RUN_NUMBER" | tr -d '[:space:]')
+          jq --argjson run "${RUN_INT}" --arg sha "$SHORT_SHA" --arg ts "$TIMESTAMP" \
             '. + {run: $run, sha: $sha, timestamp: $ts}' sonar-raw.json > sonar-metrics.json
 
           # Copiar para VPS
@@ -482,6 +490,7 @@ jobs:
           name: smoke-test-report
           path: ./newman-report/smoke-report.html
           if-no-files-found: ignore
+
 
 
 
