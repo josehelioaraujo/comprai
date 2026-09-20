@@ -1998,6 +1998,42 @@ function depE(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;
 function depP(p) { return p.replace(/^.*[\/\\]/, '').replace(/\.csproj$/, ''); }
 </script>
 <script>
+// ── Global Workflow Dispatcher ───────────────────────────────
+async function gbDispatch(workflow, ...btnIds) {
+  // Desabilitar todos os botões com esses IDs
+  var btns = btnIds.map(function(id){ return document.getElementById(id); }).filter(Boolean);
+  btns.forEach(function(b){ b.disabled = true; b.dataset.orig = b.innerHTML; b.innerHTML = '<span class="btn-spinner"></span> Executando...'; });
+
+  try {
+    if (!ghCfg) await loadGhConfig();
+    if (!ghCfg) throw new Error('gh-config não carregado');
+
+    var res = await fetch('/api/github/dispatch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ repo: ghCfg.repo, workflow: workflow, ref: 'main' })
+    });
+    if (!res.ok) {
+      var err = await res.json().catch(function(){ return {}; });
+      throw new Error(err.detail || 'Dispatch falhou: ' + res.status);
+    }
+
+    btns.forEach(function(b){ b.innerHTML = '<span class="btn-spinner"></span> Aguardando...'; });
+
+    // Após 90s tenta recarregar o histórico
+    setTimeout(function() {
+      btns.forEach(function(b){ b.disabled = false; b.innerHTML = b.dataset.orig || b.innerHTML; });
+      loadEvolucaoData();
+    }, 90000);
+
+  } catch(e) {
+    btns.forEach(function(b){ b.disabled = false; b.innerHTML = b.dataset.orig || b.innerHTML; });
+    alert('❌ ' + e.message);
+    console.warn('gbDispatch:', e);
+  }
+}
+
+
 // ── Evolução das Métricas ────────────────────────────────────
 var evolChart = null;
 var evolData  = [];
@@ -3088,6 +3124,12 @@ tr:hover td { background: rgba(255,255,255,.02); }
     </div>
     <!-- run-controls movido para sidebar -->
     <div id="runControls" style="display:none"></div>
+    <!-- Painel de controle global de workflows -->
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+      <button id="gb-cicd-btn"     class="gb-wf-btn" onclick="gbDispatch('ci-cd.yml','gb-cicd-btn')"     title="Roda CI/CD completo: build, testes, sonar, deploy">&#9654; CI/CD</button>
+      <button id="gb-mutation-btn" class="gb-wf-btn" onclick="gbDispatch('mutation-tests.yml','gb-mutation-btn')" title="Roda testes de mutação (Stryker.NET)">🧬 Mutação</button>
+      <button id="gb-scan-btn"     class="gb-wf-btn" onclick="gbDispatch('dependency-scan.yml','gb-scan-btn')"    title="Roda scan de vulnerabilidades NuGet">🔒 CVEs</button>
+    </div>
     <div style="display:flex;align-items:center;gap:10px;margin-left:auto;padding-right:4px">
       <button id="status-pill" class="status-pill op" onclick="toggleStatusDrawer()" title="Status do Sistema" style="position:relative;gap:6px">
         <span class="pill-dot"></span>
@@ -3567,6 +3609,15 @@ tr:hover td { background: rgba(255,255,255,.02); }
       <div class="section-content">
         <div style="padding:16px">
 
+          <!-- Painel de disparo de workflows -->
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px;padding:12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">
+            <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Executar:</span>
+            <button id="evol-cicd-btn"     class="gb-wf-btn" onclick="gbDispatch('ci-cd.yml','evol-cicd-btn','gb-cicd-btn')"     title="Roda CI/CD completo">&#9654; CI/CD</button>
+            <button id="evol-mutation-btn" class="gb-wf-btn" onclick="gbDispatch('mutation-tests.yml','evol-mutation-btn','gb-mutation-btn')" title="Roda testes de mutação">🧬 Mutação</button>
+            <button id="evol-scan-btn"     class="gb-wf-btn" onclick="gbDispatch('dependency-scan.yml','evol-scan-btn','gb-scan-btn')"     title="Roda scan de CVEs">🔒 CVEs</button>
+            <button onclick="loadEvolucaoData()" style="margin-left:auto;background:none;border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:3px 10px;font-size:11px;cursor:pointer">&#8635; Atualizar</button>
+          </div>
+
           <!-- Seletor de métricas -->
           <div id="evol-filters" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
             <button class="evol-filter-btn active" data-metric="coverage"  onclick="evolToggleMetric(this)">📊 Coverage</button>
@@ -3769,6 +3820,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
 
     </div>
+
 
 
 
