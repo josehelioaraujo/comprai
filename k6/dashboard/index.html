@@ -4,118 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QA Hub</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js">
-// ── Dependency Scanner ────────────────────────────────────────
-async function loadDepData() {
-  var empty   = document.getElementById('dep-empty');
-  var allclear= document.getElementById('dep-allclear');
-  var kpiRow  = document.getElementById('dep-kpi-row');
-  var statusBar = document.getElementById('dep-status-bar');
-  var tableWrap = document.getElementById('dep-table-wrap');
-
-  if (empty) empty.style.display = '';
-  if (allclear) allclear.style.display = 'none';
-  if (kpiRow) kpiRow.style.display = 'none';
-  if (statusBar) { statusBar.style.display = 'none'; statusBar.removeAttribute('style'); statusBar.style.display = 'none'; }
-  if (tableWrap) tableWrap.style.display = 'none';
-
-  try {
-    var res = await fetch('/k6/results/vulnerabilities/latest.json?t=' + Date.now());
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    var d = await res.json();
-
-    // KPIs
-    var sevs = ['Critical','High','Moderate','Low'];
-    sevs.forEach(function(s) {
-      var el = document.getElementById('dep-num-' + s.toLowerCase());
-      if (el) el.textContent = (d.counts && d.counts[s]) ? d.counts[s] : '0';
-      var card = document.getElementById('dep-kpi-' + s.toLowerCase());
-      if (card) {
-        card.style.opacity = (d.counts && d.counts[s] && d.counts[s] > 0) ? '1' : '.4';
-      }
-    });
-    if (kpiRow) kpiRow.style.display = '';
-
-    // Badge status
-    var badge = document.getElementById('dep-gate-badge');
-    if (badge) {
-      var statusMap = {
-        ok:       { text: '✔ SEM VULNERABILIDADES', cls: 'dep-badge-ok' },
-        warning:  { text: '⚠ ATENÇÃO',             cls: 'dep-badge-warning' },
-        critical: { text: '✖ CRÍTICO',              cls: 'dep-badge-critical' }
-      };
-      var s = statusMap[d.status] || statusMap['warning'];
-      badge.textContent  = s.text;
-      badge.className    = s.cls;
-      badge.style.cssText = 'font-size:11px;font-weight:700;padding:3px 10px;border-radius:4px;letter-spacing:.04em';
-    }
-
-    // Meta
-    var ts = document.getElementById('dep-timestamp');
-    if (ts && d.timestamp) ts.textContent = 'Scan: ' + new Date(d.timestamp).toLocaleString('pt-BR');
-    var rn = document.getElementById('dep-run');
-    if (rn && d.run) rn.textContent = 'Run #' + d.run + (d.sha ? ' · ' + d.sha : '');
-
-    if (statusBar) { statusBar.removeAttribute('style'); }
-
-    // Score no header
-    var sc = document.getElementById('dep-score');
-    if (sc) {
-      if (d.total === 0) {
-        sc.textContent = '✔ Limpo';
-        sc.style.cssText = 'background:rgba(34,197,94,.15);color:#22c55e;font-size:11px;padding:2px 8px;border-radius:10px';
-      } else {
-        sc.textContent = d.total + ' issue' + (d.total > 1 ? 's' : '');
-        sc.style.cssText = 'background:rgba(239,68,68,.15);color:#ef4444;font-size:11px;padding:2px 8px;border-radius:10px';
-      }
-    }
-
-    if (d.total === 0) {
-      if (empty) empty.style.display = 'none';
-      if (allclear) allclear.style.display = '';
-    } else {
-      // Tabela
-      var tbody = document.getElementById('dep-tbody');
-      if (tbody) {
-        tbody.innerHTML = '';
-        (d.packages || []).forEach(function(p) {
-          var tr = document.createElement('tr');
-          var advisoryId = p.advisory ? p.advisory.split('/').pop() : '';
-          tr.innerHTML =
-            '<td style="color:var(--text);font-weight:500">' + escHtml(p.package) + '</td>' +
-            '<td style="color:var(--muted);font-family:monospace">' + escHtml(p.resolved || p.requested || '') + '</td>' +
-            '<td style="text-align:center"><span class="dep-sev-pill ' + escHtml(p.severity) + '">' + escHtml(p.severity) + '</span></td>' +
-            '<td style="color:var(--muted);font-size:11px">' + escHtml(shortProject(p.project || '')) + '</td>' +
-            '<td style="text-align:center">' +
-              (p.advisory
-                ? '<a href="' + escHtml(p.advisory) + '" target="_blank" style="color:var(--accent2);font-size:11px;text-decoration:none" title="' + escHtml(p.advisory) + '">GHSA-' + escHtml(advisoryId.substring(0,8)) + ' &#8599;</a>'
-                : '<span style="color:var(--muted)">—</span>') +
-            '</td>';
-          tbody.appendChild(tr);
-        });
-      }
-      if (empty) empty.style.display = 'none';
-      if (tableWrap) tableWrap.style.display = '';
-    }
-
-  } catch(e) {
-    if (empty) {
-      empty.innerHTML = '<div style="font-size:32px;margin-bottom:8px">🔒</div><div style="font-size:13px">Scan ainda não executado.<br>Execute o workflow <strong>Dependency Scan</strong> no GitHub Actions.</div>';
-      empty.style.display = '';
-    }
-    console.warn('depData:', e);
-  }
-}
-
-function escHtml(s) {
-  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function shortProject(p) {
-  return p.replace(/^.*[/\\]/, '').replace(/\.csproj$/, '');
-}
-
-</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
   <!-- ===== STATUS DRAWER ===== -->
   <div id="status-drawer-overlay" class="status-drawer-overlay" onclick="closeStatusDrawer()"></div>
@@ -775,7 +664,103 @@ window.addEventListener('DOMContentLoaded', function() {
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() { initInfoHints(); initKpiHints(); });
+    
+// ── Dependency Scanner ────────────────────────────────────────
+async function loadDepData() {
+  var empty    = document.getElementById('dep-empty');
+  var allclear = document.getElementById('dep-allclear');
+  var kpiRow   = document.getElementById('dep-kpi-row');
+  var statusBar= document.getElementById('dep-status-bar');
+  var tableWrap= document.getElementById('dep-table-wrap');
+
+  if (empty) empty.style.display = '';
+  if (allclear) allclear.style.display = 'none';
+  if (kpiRow) kpiRow.style.display = 'none';
+  if (statusBar) statusBar.style.display = 'none';
+  if (tableWrap) tableWrap.style.display = 'none';
+
+  try {
+    var res = await fetch('/k6/results/vulnerabilities/latest.json?t=' + Date.now());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var d = await res.json();
+
+    var sevs = ['Critical','High','Moderate','Low'];
+    sevs.forEach(function(s) {
+      var el = document.getElementById('dep-num-' + s.toLowerCase());
+      if (el) el.textContent = (d.counts && d.counts[s]) ? d.counts[s] : '0';
+      var card = document.getElementById('dep-kpi-' + s.toLowerCase());
+      if (card) card.style.opacity = (d.counts && d.counts[s] && d.counts[s] > 0) ? '1' : '.4';
+    });
+    if (kpiRow) kpiRow.style.display = '';
+
+    var badge = document.getElementById('dep-gate-badge');
+    if (badge) {
+      var statusMap = {
+        ok:       { text: '✔ SEM VULNERABILIDADES', cls: 'dep-badge-ok' },
+        warning:  { text: '⚠ ATENÇÃO',             cls: 'dep-badge-warning' },
+        critical: { text: '✖ CRÍTICO',              cls: 'dep-badge-critical' }
+      };
+      var sm = statusMap[d.status] || statusMap['warning'];
+      badge.textContent = sm.text;
+      badge.className   = sm.cls;
+      badge.style.cssText = 'font-size:11px;font-weight:700;padding:3px 10px;border-radius:4px;letter-spacing:.04em';
+    }
+
+    var ts = document.getElementById('dep-timestamp');
+    if (ts && d.timestamp) ts.textContent = 'Scan: ' + new Date(d.timestamp).toLocaleString('pt-BR');
+    var rn = document.getElementById('dep-run');
+    if (rn && d.run) rn.textContent = 'Run #' + d.run + (d.sha ? ' · ' + d.sha : '');
+    if (statusBar) statusBar.style.display = 'flex';
+
+    var sc = document.getElementById('dep-score');
+    if (sc) {
+      if (d.total === 0) {
+        sc.textContent = '✔ Limpo';
+        sc.style.cssText = 'background:rgba(34,197,94,.15);color:#22c55e;font-size:11px;padding:2px 8px;border-radius:10px';
+      } else {
+        sc.textContent = d.total + ' issue' + (d.total > 1 ? 's' : '');
+        sc.style.cssText = 'background:rgba(239,68,68,.15);color:#ef4444;font-size:11px;padding:2px 8px;border-radius:10px';
+      }
+    }
+
+    if (d.total === 0) {
+      if (empty) empty.style.display = 'none';
+      if (allclear) allclear.style.display = '';
+    } else {
+      var tbody = document.getElementById('dep-tbody');
+      if (tbody) {
+        tbody.innerHTML = '';
+        (d.packages || []).forEach(function(p) {
+          var tr = document.createElement('tr');
+          var advisoryId = p.advisory ? p.advisory.split('/').pop() : '';
+          tr.innerHTML =
+            '<td style="color:var(--text);font-weight:500">' + depEsc(p.package) + '</td>' +
+            '<td style="color:var(--muted);font-family:monospace">' + depEsc(p.resolved || p.requested || '') + '</td>' +
+            '<td style="text-align:center"><span class="dep-sev-pill ' + depEsc(p.severity) + '">' + depEsc(p.severity) + '</span></td>' +
+            '<td style="color:var(--muted);font-size:11px">' + depEsc(depShortProj(p.project || '')) + '</td>' +
+            '<td style="text-align:center">' +
+              (p.advisory
+                ? '<a href="' + depEsc(p.advisory) + '" target="_blank" style="color:var(--accent2);font-size:11px;text-decoration:none">GHSA-' + depEsc(advisoryId.substring(0,8)) + ' &#8599;</a>'
+                : '<span style="color:var(--muted)">—</span>') +
+            '</td>';
+          tbody.appendChild(tr);
+        });
+      }
+      if (empty) empty.style.display = 'none';
+      if (tableWrap) tableWrap.style.display = '';
+    }
+  } catch(e) {
+    if (empty) {
+      empty.innerHTML = '<div style="font-size:32px;margin-bottom:8px">🔒</div><div style="font-size:13px">Scan ainda não executado.<br>Execute o workflow <strong>Dependency Scan</strong> no GitHub Actions.</div>';
+      empty.style.display = '';
+    }
+    console.warn('depData:', e);
+  }
+}
+function depEsc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function depShortProj(p) { return p.replace(/^.*[\/\\]/, '').replace(/\.csproj$/, ''); }
+
+document.addEventListener('DOMContentLoaded', function() { initInfoHints(); initKpiHints(); });
   } else {
     initInfoHints();
     initKpiHints();
@@ -3454,6 +3439,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
 
     </div>
+
 
 
 
