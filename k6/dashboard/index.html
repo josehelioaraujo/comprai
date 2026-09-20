@@ -1997,7 +1997,7 @@ async function loadDepData() {
 function depE(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function depP(p) { return p.replace(/^.*[\/\\]/, '').replace(/\.csproj$/, ''); }
 </script>
-
+<script>
 // ── Evolução das Métricas ────────────────────────────────────
 var evolChart = null;
 var evolData  = [];
@@ -2170,7 +2170,7 @@ function evolRenderTable(data) {
     tbody.appendChild(tr);
   });
 }
-
+</script>
 </body>
 </html>
 
@@ -3769,6 +3769,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
 
     </div>
+
 
 
 
