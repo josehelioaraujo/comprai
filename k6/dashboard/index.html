@@ -1996,8 +1996,6 @@ async function loadDepData() {
 }
 function depE(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function depP(p) { return p.replace(/^.*[\/\\]/, '').replace(/\.csproj$/, ''); }
-</script>
-
 // ── Evolução das Métricas ────────────────────────────────────
 var evolChart = null;
 var evolData  = [];
@@ -2171,7 +2169,7 @@ function evolRenderTable(data) {
     tbody.appendChild(tr);
   });
 }
-
+</script>
 
 <!-- ── Evol Drill Down Drawer ─────────────────────────── -->
 <div id="evol-drawer-overlay" onclick="evolCloseDrawer()" style="display:none;position:fixed;inset:0;z-index:9990;background:rgba(0,0,0,.4)"></div>
@@ -3863,6 +3861,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
 
     </div>
+
 
 
 
