@@ -1828,6 +1828,63 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
 </div>
 
 <script>
+
+// ── Dep Scan: disparar workflow ───────────────────────────────
+const DEP_REPO   = 'josehelioaraujo/comprai';
+const DEP_WF     = 'dependency-scan.yml';
+const DEP_BRANCH = 'main';
+let   depPollTimer = null;
+
+async function depRunScan() {
+  var btn = document.getElementById('dep-run-btn');
+  var sc  = document.getElementById('dep-score');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span> Executando...'; }
+  if (sc)  { sc.textContent = '⏳ Rodando...'; sc.style.cssText = 'background:rgba(234,179,8,.15);color:#eab308;font-size:11px;padding:2px 8px;border-radius:10px'; }
+
+  try {
+    var res = await fetch('/api/github/dispatch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ repo: DEP_REPO, workflow: DEP_WF, ref: DEP_BRANCH })
+    });
+    if (!res.ok) {
+      var err = await res.json().catch(function(){ return {}; });
+      throw new Error(err.detail || err.title || 'Dispatch falhou: ' + res.status);
+    }
+    // Aguarda ~60s e recarrega os dados automaticamente
+    if (sc) { sc.textContent = '⏳ Aguardando resultado...'; }
+    depPollResult(0);
+  } catch(e) {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<span>&#9654;</span> Executar Scan'; }
+    if (sc)  { sc.textContent = '❌ Erro: ' + e.message; sc.style.cssText = 'background:rgba(239,68,68,.15);color:#ef4444;font-size:11px;padding:2px 8px;border-radius:10px'; }
+    console.warn('depRunScan:', e);
+  }
+}
+
+function depPollResult(attempt) {
+  // Tenta até 12x com intervalo de 10s (2 min no total)
+  clearTimeout(depPollTimer);
+  depPollTimer = setTimeout(async function() {
+    try {
+      var res = await fetch('/k6/results/vulnerabilities/latest.json?t=' + Date.now());
+      if (!res.ok) throw new Error('not ready');
+      var d = await res.json();
+      // Checar se é um resultado novo (run recente)
+      var btn = document.getElementById('dep-run-btn');
+      if (btn) { btn.disabled = false; btn.innerHTML = '<span>&#9654;</span> Executar Scan'; }
+      loadDepData();
+    } catch(e) {
+      if (attempt < 12) {
+        depPollResult(attempt + 1);
+      } else {
+        var btn = document.getElementById('dep-run-btn');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<span>&#9654;</span> Executar Scan'; }
+        loadDepData();
+      }
+    }
+  }, 10000); // 10s entre tentativas
+}
+
 // ── Dependency Scanner (CVEs NuGet) ──────────────────────────
 async function loadDepData() {
   var empty    = document.getElementById('dep-empty');
@@ -3285,14 +3342,17 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
 
     <div class="section-block" id="depBlock" style="display:none">
-      <div class="section-header" onclick="toggleSection(this)">
-        <span class="section-title-text">&#128274; Segurança de Dependências — CVEs NuGet
+      <div class="section-header" style="display:flex;align-items:center;gap:8px" onclick="toggleSection(this)">
+        <span class="section-title-text" style="flex:1">&#128274; Segurança de Dependências — CVEs NuGet
           <span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative">
             <span class="info-hint-btn">i</span>
             <span class="info-hint-box" style="position:fixed;width:280px;z-index:9999">Scan automático de vulnerabilidades em pacotes NuGet usando dotnet list package --vulnerable. Dados coletados pelo GitHub Actions e publicados após cada push na main.</span>
           </span>
         </span>
         <span class="section-count" id="dep-score"></span>
+        <button id="dep-run-btn" onclick="event.stopPropagation();depRunScan()" class="it-run-btn" style="font-size:11px;padding:4px 10px;margin-right:6px">
+          <span>&#9654;</span> Executar Scan
+        </button>
         <span class="section-chevron">&#9660;</span>
       </div>
       <div class="section-content">
@@ -3325,7 +3385,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
             <span id="dep-gate-badge" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:4px;letter-spacing:.04em"></span>
             <span id="dep-timestamp" style="font-size:11px;color:var(--muted)"></span>
             <span id="dep-run" style="font-size:11px;color:var(--muted)"></span>
-            <button onclick="loadDepData()" style="margin-left:auto;background:none;border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer">&#8635; Atualizar</button>
+            <button onclick="loadDepData()" style="margin-left:auto;background:none;border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer">&#8635; Atualizar dados</button>
           </div>
 
           <!-- Tabela de pacotes -->
@@ -3429,6 +3489,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
 
     </div>
+
 
 
 
