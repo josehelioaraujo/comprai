@@ -266,8 +266,7 @@ async function triggerTest() {
     });
     if (resp.ok || resp.status === 204) {
       btn.textContent = '✓ Disparado!';
-      // Garantir que stressBlock está visível para mostrar o runPanel
-      showSection('stressBlock', document.getElementById('nav-stress'));
+      // Abrir runPanel sem recarregar a seção (evita limpar o painel)
       openRunPanel('Aguardando pipeline iniciar...', testType);
       try {
         var dispData = await resp.json().catch(function(){ return {}; });
@@ -4020,6 +4019,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
 
     </div>
+
 
 
 
