@@ -266,19 +266,29 @@ async function triggerTest() {
     });
     if (resp.ok || resp.status === 204) {
       btn.textContent = '✓ Disparado!';
-      // Abrir runPanel sem recarregar a seção (evita limpar o painel)
-      openRunPanel('Aguardando pipeline iniciar...', testType);
+      openRunPanel('Aguardando pipeline iniciar...');
+
+      // Tentar extrair runId da resposta
+      var runId = null;
       try {
-        var dispData = await resp.json().catch(function(){ return {}; });
-        if (dispData && dispData.runId) {
-          currentRunId = dispData.runId;
-          document.getElementById('runStatusMsg').innerHTML =
-            '<span style="animation:pulse 1s infinite;display:inline-block;width:9px;height:9px;border-radius:50%;background:#fbbf24;margin-right:4px;"></span>Run #' + dispData.runId + ' iniciado — aguardando jobs...';
-          setTimeout(function(){ pollRunById(currentRunId); }, 3000);
-        } else {
-          setTimeout(startPolling, 8000);
+        var respText = await resp.text();
+        if (respText && respText.trim().startsWith('{')) {
+          var dispData = JSON.parse(respText);
+          if (dispData && dispData.runId) runId = dispData.runId;
         }
-      } catch(e) { setTimeout(startPolling, 8000); }
+      } catch(e) { console.warn('dispatch parse:', e); }
+
+      if (runId) {
+        currentRunId = runId;
+        document.getElementById('runStatusMsg').innerHTML =
+          '<span style="animation:pulse 1s infinite;display:inline-block;width:9px;height:9px;border-radius:50%;background:#fbbf24;margin-right:4px;"></span>Run #' + runId + ' iniciado — aguardando jobs...';
+        setTimeout(function(){ pollRunById(currentRunId); }, 3000);
+      } else {
+        // Fallback: buscar o run mais recente após 10s
+        document.getElementById('runStatusMsg').innerHTML =
+          '<span style="animation:pulse 1s infinite;display:inline-block;width:9px;height:9px;border-radius:50%;background:#fbbf24;margin-right:4px;"></span>Workflow disparado — buscando run...';
+        setTimeout(function(){ pollLatestRun(ghCfg.workflow_file || 'stress-tests.yml'); }, 10000);
+      }
     } else {
       var body = await resp.text();
       btn.textContent = '✗ Erro ' + resp.status;
@@ -313,6 +323,46 @@ async function startPolling() {
 
 async function pollRun(run) {
   pollRunById(run.id);
+}
+
+async function pollLatestRun(workflow) {
+  try {
+    // Buscar run mais recente via GitHub API server-side
+    var res = await fetch('/api/github/run/latest?workflow=' + encodeURIComponent(workflow) + '&repo=' + encodeURIComponent(ghCfg.repo || 'josehelioaraujo/comprai'));
+    if (res.ok) {
+      var d = await res.json();
+      if (d && d.runId) {
+        currentRunId = d.runId;
+        document.getElementById('runStatusMsg').innerHTML =
+          '<span style="animation:pulse 1s infinite;display:inline-block;width:9px;height:9px;border-radius:50%;background:#fbbf24;margin-right:4px;"></span>Run #' + d.runId + ' encontrado — aguardando jobs...';
+        setTimeout(function(){ pollRunById(currentRunId); }, 2000);
+        return;
+      }
+    }
+  } catch(e) { console.warn('pollLatestRun:', e); }
+  // Ainda não encontrou — tenta via API direta do GitHub com PAT server-side
+  setTimeout(function(){ pollLatestRunDirect(workflow); }, 8000);
+}
+
+async function pollLatestRunDirect(workflow) {
+  try {
+    // Endpoint server-side que lista runs do workflow
+    var res = await fetch('/api/github/runs?workflow=' + encodeURIComponent(workflow));
+    if (res.ok) {
+      var d = await res.json();
+      var runs = d.workflow_runs || d.runs || [];
+      if (runs.length > 0) {
+        var latestRun = runs[0];
+        currentRunId = latestRun.id || latestRun.runId;
+        if (currentRunId) {
+          pollRunById(currentRunId);
+          return;
+        }
+      }
+    }
+  } catch(e) { console.warn('pollLatestRunDirect:', e); }
+  document.getElementById('runStatusMsg').textContent = 'Aguardando run iniciar...';
+  pollTimer = setTimeout(function(){ pollLatestRun(workflow); }, 10000);
 }
 
 async function pollRunById(runId) {
@@ -4019,6 +4069,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
 
     </div>
+
 
 
 

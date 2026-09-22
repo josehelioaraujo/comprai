@@ -646,6 +646,46 @@ app.MapGet("/api/github/run/{runId}/status", async (long runId, string? repo, IC
 .WithTags("GitHub")
 .AllowAnonymous();
 
+// ── GitHub Run Latest ─────────────────────────────────────────────────────────
+app.MapGet("/api/github/run/latest", async (string? workflow, string? repo, IConfiguration config, IHttpClientFactory factory) =>
+{
+    var ghPat = config["GitHub:Pat"]
+             ?? Environment.GetEnvironmentVariable("GH_PAT")
+             ?? string.Empty;
+
+    if (string.IsNullOrWhiteSpace(ghPat))
+        return Results.Problem("GH_PAT não configurado.", statusCode: 503);
+
+    repo     ??= "josehelioaraujo/comprai";
+    workflow ??= "stress-tests.yml";
+
+    var client   = factory.CreateClient("github");
+    var runsUrl  = $"https://api.github.com/repos/{repo}/actions/workflows/{workflow}/runs?per_page=1";
+    var runsResp = await client.GetAsync(runsUrl);
+
+    if (!runsResp.IsSuccessStatusCode)
+        return Results.Problem("Erro ao consultar runs.", statusCode: 502);
+
+    var runsJson = await runsResp.Content.ReadAsStringAsync();
+    using var doc = JsonDocument.Parse(runsJson);
+    var run = doc.RootElement.GetProperty("workflow_runs").EnumerateArray().FirstOrDefault();
+
+    if (run.ValueKind == JsonValueKind.Undefined)
+        return Results.Ok(new { runId = (long?)null });
+
+    return Results.Ok(new
+    {
+        runId      = run.GetProperty("id").GetInt64(),
+        runNumber  = run.GetProperty("run_number").GetInt32(),
+        status     = run.GetProperty("status").GetString(),
+        conclusion = run.TryGetProperty("conclusion", out var c) ? c.GetString() : null,
+        htmlUrl    = run.GetProperty("html_url").GetString()
+    });
+})
+.WithName("GitHubRunLatest")
+.WithTags("GitHub")
+.AllowAnonymous();
+
 app.Run();
 
 // ââ Request DTOs ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
@@ -658,5 +698,6 @@ record PaymentRequestDto(
 record K6AnalyzeRequest(string Summary, string Question, string? Model);
 
 record GitHubDispatchRequest(string? Repo, string? Workflow, string? Ref, Dictionary<string, string>? Inputs = null);
+
 
 
