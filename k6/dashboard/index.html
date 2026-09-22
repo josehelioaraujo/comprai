@@ -467,7 +467,13 @@ function renderRunStatus(run, jobs) {
       var color = step.status === 'completed' && step.conclusion !== 'success' ? 'var(--fail)' : step.status === 'in_progress' ? '#fbbf24' : 'inherit';
       return '<div class="step-row"><span class="step-icon">' + icon + '</span><span style="color:' + color + '">' + step.name + '</span></div>';
     }).join('');
-    return '<div class="job-card"><div class="job-title" onclick="toggleJobSteps(this)" style="cursor:pointer;user-select:none"><span class="job-status-dot ' + dotCls + '"></span>' + job.name + '<span class="job-chevron" style="margin-left:auto;font-size:11px;color:var(--muted);transition:transform .2s">&#9660;</span></div><div class="step-list" style="overflow:hidden;transition:max-height .25s ease;max-height:0">' + (steps || '<div class="step-row"><span class="step-icon">○</span>Aguardando...</div>') + '</div></div>';
+    // Auto-expandir job in_progress
+    var autoExpand = (job.status === 'in_progress');
+    var stepListStyle = autoExpand
+      ? 'overflow:hidden;transition:max-height .25s ease;max-height:500px;margin-top:8px'
+      : 'overflow:hidden;transition:max-height .25s ease;max-height:0';
+    var chevronStyle = autoExpand ? 'transform:rotate(0deg)' : 'transform:rotate(-90deg)';
+    return '<div class="job-card"><div class="job-title" onclick="toggleJobSteps(this)" style="cursor:pointer;user-select:none;display:flex;align-items:center;gap:8px"><span class="job-status-dot ' + dotCls + '"></span><span style="flex:1">' + job.name + '</span><span class="job-chevron" style="font-size:11px;color:var(--muted);transition:transform .2s;' + chevronStyle + '">&#9660;</span></div><div class="step-list" style="' + stepListStyle + '">' + (steps || '<div class="step-row"><span class="step-icon">○</span>Aguardando...</div>') + '</div></div>';
   }).join('');
 }
 
@@ -1302,6 +1308,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
   }
 
   async function fetchStatusData() {
+    if (statusPaused) return; // pausado durante stress test
     const spinner = document.getElementById('pill-spinner');
     const pillLabel = document.getElementById('pill-label');
     if (spinner) spinner.style.display = '';
@@ -4114,6 +4121,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
 
     </div>
+
 
 
 
