@@ -657,5 +657,6 @@ record PaymentRequestDto(
 
 record K6AnalyzeRequest(string Summary, string Question, string? Model);
 
-record GitHubDispatchRequest(string? Repo, string? Workflow, string? Ref);
+record GitHubDispatchRequest(string? Repo, string? Workflow, string? Ref, Dictionary<string, string>? Inputs = null);
+
 
