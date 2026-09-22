@@ -303,6 +303,23 @@ async function triggerTest() {
 
 // ── Run panel ────────────────────────────────────────────────
 function openRunPanel(msg) {
+  // Garantir que stressBlock está visível sem reinicializar
+  var sb = document.getElementById('stressBlock');
+  if (sb && sb.style.display === 'none') {
+    sb.style.display = '';
+    // Ativar nav item sem chamar showSection (evita limpar o painel)
+    document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
+    var navStress = document.getElementById('nav-stress');
+    if (navStress) navStress.classList.add('active');
+    activeSection = 'stressBlock';
+    // Esconder outras seções
+    NAV_SECTIONS.forEach(function(sid) {
+      if (sid !== 'stressBlock') {
+        var el = document.getElementById(sid);
+        if (el) el.style.display = 'none';
+      }
+    });
+  }
   document.getElementById('runPanel').classList.add('open');
   document.getElementById('runStatusMsg').innerHTML =
     '<span style="animation:pulse 1s infinite;display:inline-block;width:9px;height:9px;border-radius:50%;background:#fbbf24;margin-right:4px;"></span>' + (msg || 'Verificando...');
@@ -4069,6 +4086,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
 
     </div>
+
 
 
 
