@@ -413,6 +413,16 @@ async function pollRunById(runId) {
       html_url:   data.html_url   || data.htmlUrl   || ('https://github.com/josehelioaraujo/comprai/actions/runs/' + runId),
       created_at: data.created_at || data.createdAt || null
     };
+
+    // Se ainda queued/pending sem jobs, polling mais frequente
+    if ((runStatus === 'queued' || runStatus === 'pending') && jobs.length === 0) {
+      document.getElementById('runStatusMsg').innerHTML =
+        '<span style="animation:pulse 1s infinite;display:inline-block;width:9px;height:9px;border-radius:50%;background:#fbbf24;margin-right:4px;"></span>' +
+        'Run #' + (data.run_number || runId) + ' aguardando runner...';
+      pollTimer = setTimeout(function() { pollRunById(runId); }, 3000);
+      return;
+    }
+
     renderRunStatus(runData, jobs);
 
     if (runStatus !== 'completed') {
@@ -4136,6 +4146,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
 
     </div>
+
 
 
 
