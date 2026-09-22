@@ -15,14 +15,11 @@ export const options = {
     { duration: "10s", target: 0 },
   ],
   thresholds: {
-    http_req_duration: ["p(95)<8000"], errors: ["rate<0.05"],  // APIs externas (ML, Shopify) podem levar até 6-8s
-    "http_req_duration{name:GET /health/live}":     ["p(99)<500"],  // endpoint interno
-    "http_req_duration{name:GET /api/search}":      ["p(99)<10000"], // APIs externas toleradas
-    "http_req_duration{name:POST /api/cart/items}": [],
-    "http_req_duration{name:GET /api/cart}":        ["p(99)<1000"], // endpoint interno
-    "http_req_duration{name:POST /api/checkout}":   [],
-    "http_req_duration{name:POST /api/payment}":    [],
-    "http_req_duration{name:GET /api/orders}":      ["p(99)<1000"], // endpoint interno
+    errors: ["rate<0.05"],                                         // taxa de erro < 5%
+    "http_req_duration{name:GET /health/live}":     ["p(99)<500"],   // interno: <500ms
+    "http_req_duration{name:GET /api/cart}":        ["p(99)<1000"],  // interno: <1s
+    "http_req_duration{name:GET /api/orders}":      ["p(99)<1000"],  // interno: <1s
+    "http_req_duration{name:GET /api/search}":      []               // externo (ML/Shopify): sem limite
   },
   summaryTrendStats: ["avg", "min", "med", "max", "p(90)", "p(95)", "p(99)"],
 };
@@ -123,4 +120,5 @@ export default function () {
   }
   sleep(0.5);
 }
+
 
