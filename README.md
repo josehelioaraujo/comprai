@@ -31,7 +31,7 @@ Comprai é um ecossistema modular open-source que implementa o **Universal Comme
 - [🛡️ Resiliência e Rate Limiting](#️-resiliência-e-rate-limiting)
 - [🔁 CI/CD Pipeline](#-cicd-pipeline)
 - [🧪 Qualidade & Testes](#-qualidade--testes)
-- [📊 QA Hub](#-qa-hub)
+- [📊 Dev Quality Hub](#-dev-quality-hub)
 - [🗺️ Roadmap](#%EF%B8%8F-roadmap)
 - [📄 Licença](#-licença)
 
@@ -828,7 +828,21 @@ Painel centralizado de qualidade, observabilidade e segurança do Comprai — ac
 
 ### Status do Sistema
 
-O QA Hub inclui uma **Status Page** no padrão da indústria (Atlassian Statuspage / Instatus):
+O Dev Quality Hub é um painel centralizado de qualidade, segurança e observabilidade para aplicações .NET.
+
+### ✅ Funcionalidades disponíveis (V025)
+
+| Feature | Descrição |
+|---|---|
+| **Stress Tests K6** | Smoke, Load, Stress, Spike e Soak com resultados em tempo real e drill down por job/step |
+| **Evolução das Métricas** | Gráfico histórico de Coverage, Mutation Score, CVEs, Bugs e Smells por run |
+| **CVEs NuGet** | Scan automático com `dotnet list package --vulnerable` — KPI cards por severidade |
+| **Mutation Tests** | Stryker.NET — score 84%+ com histórico acumulado |
+| **Admin Restart** | Restart da API, Redis ou redeploy completo via workflow protegido por senha |
+| **Status Page** | Monitoramento em tempo real de todos os serviços com runbook de recuperação |
+| **Testes Integrados** | 7 suites com polling em tempo real |
+
+O Dev Quality Hub inclui uma **Status Page** no padrão da indústria (Atlassian Statuspage / Instatus):
 
 - **Status Pill** na topbar com countdown de 30s e indicador de cor (`🟢` / `🟡` / `🟠` / `🔴`)
 - **Drawer lateral** (padrão Datadog/Grafana) com 2 seções drilldown:
@@ -858,16 +872,19 @@ O QA Hub inclui uma **Status Page** no padrão da indústria (Atlassian Statuspa
 | **V009–V013** | IPaymentPort (Mock + Stripe + Efi/Pix), ILlmPort (Intent Router PT-BR), MCP Server, Price Watcher |
 | **V014–V019** | CI/CD completo, Smoke Tests Newman, Observabilidade OTel → Datadog, Stryker mutation 84%+ |
 | **V020–V023** | QA Hub — Stress Tests K6, SonarCloud, OWASP Top 10, PCI DSS, Mutação, Gráficos, Rotas |
-| **V024** | QA Hub — Status Page (padrão indústria), Testes Integrados (workflow dedicado + polling real-time + 7 suites), Runbook de Recuperação, PAT server-side, Coverage 100% |
+| **V024** | QA Hub → Dev Quality Hub — Status Page, Testes Integrados, Runbook, PAT server-side, Coverage 100% |
+| **V025** | Dev Quality Hub — Evolução das Métricas, CVEs NuGet, Admin Restart, Stress Test polling real-time, Drill down por run e por job |
 
 ### 🔜 Próximas Versões
 
 | Fase | Descrição | Versão |
 |------|-----------|--------|
-| **QA Hub — Trend** | Gráfico evolução de Coverage + Mutation Score ao longo dos runs | V025 |
-| **QA Hub — Dep Scanner** | `dotnet list package --vulnerable` + CVEs no hub | V025 |
-| **QA Hub — Quality Score** | Número único 0–100 combinando todas as métricas | V025 |
-| **K3s + Helm + Argo CD** | Migração Docker Compose → Kubernetes leve na VPS com GitOps | V025–V026 |
+| **Observabilidade no Hub** | Seção com Métricas (Prometheus), Logs (Loki), Traces (Jaeger), Erros Recentes | V026 |
+| **Diagrama Fluxo do Pedido** | Pipeline animado Search→Cart→Checkout→Payment→Stock→Delivery em tempo real | V026 |
+| **Padrão Saga** | 3 implementações chaveáveis (Wolverine, MassTransit, Nativo) via feature flag — comparativo de performance | V026 |
+| **Instrumentação OTel** | Funil UCP, erro por plugin, cache hit/miss, span do LLM, eventos Kafka/RabbitMQ | V026 |
+| **Quality Score** | Número único 0–100 combinando todas as métricas | V026 |
+| **K3s + Helm + Argo CD** | Migração Docker Compose → Kubernetes leve na VPS com GitOps | V026–V027 |
 | **Canal Web — Demo** | Next.js 15 + Tailwind + shadcn/ui — interface conversacional com raciocínio visível | Futuro |
 | **AIOps com Ollama** | Detecção de anomalias, RCA automático (Prometheus + Loki + Jaeger) | Futuro |
 | **StressForge** | Gerador agnóstico de stress tests a partir de Swagger/OpenAPI | Futuro |
@@ -886,3 +903,4 @@ MIT License — veja [LICENSE](LICENSE) para detalhes.
 **Autor:** [@josehelioaraujo](https://github.com/josehelioaraujo)
 
 Para dúvidas, issues ou contribuições, abra uma issue ou pull request no repositório.
+

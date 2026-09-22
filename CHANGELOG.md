@@ -1,3 +1,66 @@
+## [3.5.0] - 2026-09-22
+
+### Added
+
+- **Dev Quality Hub (renomeado de QA Hub)**
+  - Renomeado para Dev Quality Hub — identidade mais ampla e alinhada ao roadmap QualityForge
+
+- **Dev Quality Hub — Seção Evolução das Métricas**
+  - Gráfico Chart.js multimétrica com seletor de métricas (Coverage, Mutation, CVEs, Bugs, Smells)
+  - Tabela de runs com histórico acumulado por workflow (ci-cd, mutation, dependency-scan)
+  - `history.json` acumulado na VPS — persistência entre runs
+  - Botões Disparar CI/CD, Mutação e CVEs diretamente na seção
+  - Drill down por run — drawer lateral com detalhes: killed/survived/total, CVEs por severidade, barra de progresso
+
+- **Dev Quality Hub — CVEs NuGet**
+  - Workflow `dependency-scan.yml` com `dotnet list package --vulnerable --include-transitive`
+  - Parser Python gera `vulnerabilities.json` com counts por severidade
+  - KPI cards no hub: Critical / High / Moderate / Low
+  - Badge Direto/Transitivo por pacote + hint por linha
+  - Botão Executar Scan com polling automático
+  - CVEs resolvidos: OpenTelemetry 1.11.2→1.16.0, Microsoft.OpenApi 2.11.0 → 0 issues
+
+- **Dev Quality Hub — Admin Restart**
+  - Seção Admin no drawer de Status com 4 opções: Restart API, Redis, Todos, Redeploy completo
+  - Modal de senha no hub — validação via `ADMIN_RESTART_PASSWORD` GitHub Secret
+  - Workflow `admin-restart.yml` com SSH na VPS protegido por senha
+  - Toast de confirmação após dispatch bem-sucedido
+
+- **Dev Quality Hub — Stress Test polling**
+  - Dispatch via `/api/github/dispatch` server-side — PAT nunca exposto ao browser
+  - Endpoint `GET /api/github/run/latest` para buscar run mais recente por workflow
+  - `resp.text()` + `JSON.parse()` — mais robusto que `.json()` direto
+  - Painel "Pipeline em Execução" com jobs e steps em tempo real
+  - Job `in_progress` auto-expande steps automaticamente
+  - Chevron SVG inline no header do painel — colapsa/expande o corpo
+  - Chevron por job card — drill down individual nos steps
+  - Run `queued/pending` — polling a cada 3s sem renderizar jobs vazios
+  - Status pill pausado durante execução — zero concorrência com stress test
+
+- **Dev Quality Hub — correções estruturais**
+  - `integrationBlock` adicionado ao `NAV_SECTIONS` — não sobrepõe outras seções
+  - Scripts JS balanceados — JS Evolução dentro do script correto
+  - CSS preservado na estrutura original após </html>
+  - `window._statusPause/_statusResume` expostos globalmente para cruzar escopos JS
+  - `runPanel` usa `style.maxHeight` direto — sobrescreve inline style
+
+- **API — GitHubDispatchRequest**
+  - Campo `Inputs` adicionado ao record — repassa `test_type` e `admin_password` ao GitHub
+  - Endpoint `GET /api/github/run/latest?workflow=...` para buscar run mais recente server-side
+
+- **K6 Smoke — thresholds ajustados**
+  - `/health/live`: `p(99)<1000ms` (era 500ms — muito apertado para VPS)
+  - `/api/search`: sem limite — API externa (ML/Shopify) sem SLA garantido
+  - `/api/cart` e `/api/orders`: `p(99)<1000ms` — endpoints internos
+
+### Changed
+
+- QA Hub renomeado para **Dev Quality Hub** em toda a UI e documentação
+- Botões CI/CD/Mutação/CVEs movidos da topbar para dentro da seção Evolução
+- `OllamaCheck` lê `Ollama__BaseUrl` da config em vez de hardcoded
+- `ConnectionStrings__Redis` corrigido no `docker-compose.yml` (hardcoded, não usa .env)
+- Deploy sobe Kafka + RabbitMQ com profiles corretos; Redis sempre healthy
+
 ## [3.4.0] - 2026-09-19
 
 ### Added
