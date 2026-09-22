@@ -228,16 +228,26 @@ async function triggerTest() {
   btn.disabled = true;
   btn.textContent = '⏳ Disparando...';
   try {
-    var dispatchUrl = ghCfg.dispatch_url || '/k6/dispatch';
-    var resp = await fetch(dispatchUrl, {
+    // Sempre usar /api/github/dispatch (server-side com PAT, retorna runId)
+    var resp = await fetch('/api/github/dispatch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ref: ghCfg.ref || 'main', inputs: { test_type: testType } })
+      body: JSON.stringify({ repo: ghCfg.repo, workflow: ghCfg.workflow_file || 'stress-tests.yml', ref: ghCfg.ref || 'main', inputs: { test_type: testType } })
     });
     if (resp.ok || resp.status === 204) {
       btn.textContent = '✓ Disparado!';
       openRunPanel('Aguardando pipeline iniciar...', testType);
-      setTimeout(startPolling, 5000);
+      try {
+        var dispData = await resp.json().catch(function(){ return {}; });
+        if (dispData && dispData.runId) {
+          currentRunId = dispData.runId;
+          document.getElementById('runStatusMsg').innerHTML =
+            '<span style="animation:pulse 1s infinite;display:inline-block;width:9px;height:9px;border-radius:50%;background:#fbbf24;margin-right:4px;"></span>Run #' + dispData.runId + ' iniciado — aguardando jobs...';
+          setTimeout(function(){ pollRunById(currentRunId); }, 3000);
+        } else {
+          setTimeout(startPolling, 8000);
+        }
+      } catch(e) { setTimeout(startPolling, 8000); }
     } else {
       var body = await resp.text();
       btn.textContent = '✗ Erro ' + resp.status;
@@ -264,47 +274,41 @@ function closeRunPanel() {
 }
 
 async function startPolling() {
+  // Fallback: re-tentar dispatch para obter runId
   if (!ghCfg) return;
-  try {
-    var resp = await fetch(
-      'https://api.github.com/repos/' + ghCfg.repo + '/actions/workflows/' + ghCfg.workflow_file + '/runs?per_page=3',
-      { headers: { 'Accept': 'application/vnd.github.v3+json' } }
-    );
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    var data = await resp.json();
-    var runs = data.workflow_runs || [];
-    if (!runs.length) {
-      document.getElementById('runStatusMsg').textContent = 'Nenhuma execucao encontrada ainda...';
-      pollTimer = setTimeout(startPolling, 6000);
-      return;
-    }
-    currentRunId = runs[0].id;
-    pollRun(runs[0]);
-  } catch(e) {
-    document.getElementById('runStatusMsg').textContent = 'Erro: ' + e.message;
-    pollTimer = setTimeout(startPolling, 8000);
-  }
+  document.getElementById('runStatusMsg').textContent = 'Aguardando run iniciar...';
+  pollTimer = setTimeout(startPolling, 8000);
 }
 
 async function pollRun(run) {
-  if (!ghCfg) return;
+  pollRunById(run.id);
+}
+
+async function pollRunById(runId) {
+  if (!runId) return;
   try {
-    var runResp = await fetch('https://api.github.com/repos/' + ghCfg.repo + '/actions/runs/' + run.id, { headers: { 'Accept': 'application/vnd.github.v3+json' } });
-    if (!runResp.ok) throw new Error('HTTP ' + runResp.status);
-    var runData = await runResp.json();
-    var jobsResp = await fetch('https://api.github.com/repos/' + ghCfg.repo + '/actions/runs/' + run.id + '/jobs', { headers: { 'Accept': 'application/vnd.github.v3+json' } });
-    var jobsData = jobsResp.ok ? await jobsResp.json() : { jobs: [] };
-    renderRunStatus(runData, jobsData.jobs || []);
-    if (runData.status !== 'completed') {
-      pollTimer = setTimeout(function() { pollRun(runData); }, 6000);
+    // Usar endpoint server-side /api/github/run/{id}/status (PAT no servidor)
+    var rRes = await fetch('/api/github/run/' + runId + '/status');
+    if (!rRes.ok) throw new Error('HTTP ' + rRes.status);
+    var data = await rRes.json();
+    var jobs  = data.jobs || [];
+    var runStatus = data.status || 'in_progress';
+    var conclusion = data.conclusion || '';
+
+    // Montar objeto runData compatível com renderRunStatus
+    var runData = { id: runId, status: runStatus, conclusion: conclusion, name: data.name || 'Run #' + runId };
+    renderRunStatus(runData, jobs);
+
+    if (runStatus !== 'completed') {
+      pollTimer = setTimeout(function() { pollRunById(runId); }, 6000);
     } else {
-      var icon = runData.conclusion === 'success' ? '✅' : '❌';
-      document.getElementById('runStatusMsg').innerHTML = icon + ' Pipeline concluido: <strong>' + (runData.conclusion || '') + '</strong>';
+      var icon = conclusion === 'success' ? '✅' : '❌';
+      document.getElementById('runStatusMsg').innerHTML = icon + ' Pipeline concluido: <strong>' + (conclusion || '') + '</strong>';
       if (!runReloadPending) { runReloadPending = true; setTimeout(function() { runReloadPending = false; loadAll(true); }, 8000); }
     }
   } catch(e) {
-    document.getElementById('runStatusMsg').textContent = 'Erro: ' + e.message;
-    pollTimer = setTimeout(function() { pollRun(run); }, 8000);
+    document.getElementById('runStatusMsg').textContent = 'Aguardando jobs... (' + e.message + ')';
+    pollTimer = setTimeout(function() { pollRunById(runId); }, 8000);
   }
 }
 
