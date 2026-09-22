@@ -298,7 +298,15 @@ async function pollRunById(runId) {
     var conclusion = data.conclusion || '';
 
     // Montar objeto runData compatível com renderRunStatus
-    var runData = { id: runId, status: runStatus, conclusion: conclusion, name: data.name || 'Run #' + runId };
+    var runData = {
+      id:         runId,
+      run_number: data.run_number || runId,
+      status:     runStatus,
+      conclusion: conclusion,
+      name:       data.name || ('Run #' + (data.run_number || runId)),
+      html_url:   data.html_url   || data.htmlUrl   || ('https://github.com/josehelioaraujo/comprai/actions/runs/' + runId),
+      created_at: data.created_at || data.createdAt || null
+    };
     renderRunStatus(runData, jobs);
 
     if (runStatus !== 'completed') {
@@ -338,8 +346,11 @@ function renderRunStatus(run, jobs) {
   var statusLabel = run.status === 'completed'
     ? (run.conclusion === 'success' ? '✅ Concluido' : '❌ ' + run.conclusion)
     : '⟳ ' + (run.status || 'em andamento');
-  document.getElementById('runStatusMsg').innerHTML = statusLabel + ' &nbsp;|&nbsp; Run <strong>#' + run.run_number + '</strong>';
-  document.getElementById('runInfo').innerHTML = '<a href="' + run.html_url + '" target="_blank">Ver no GitHub ↗</a>' + (run.created_at ? ' &nbsp;·&nbsp; Iniciado: ' + new Date(run.created_at).toLocaleString('pt-BR') : '');
+  var runNum = run.run_number || run.id || '';
+  document.getElementById('runStatusMsg').innerHTML = statusLabel + ' &nbsp;|&nbsp; Run <strong>#' + runNum + '</strong>';
+  var runUrl = run.html_url || run.htmlUrl || '';
+  var runTs  = run.created_at || run.createdAt || '';
+  document.getElementById('runInfo').innerHTML = (runUrl ? '<a href="' + runUrl + '" target="_blank">Ver no GitHub ↗</a>' : '') + (runTs ? ' &nbsp;·&nbsp; Iniciado: ' + new Date(runTs).toLocaleString('pt-BR') : '');
   if (!jobs.length) { document.getElementById('jobsGrid').innerHTML = '<div style="color:var(--muted);font-size:13px;">Aguardando jobs...</div>'; return; }
   document.getElementById('jobsGrid').innerHTML = jobs.map(function(job) {
     var dotCls = jobDotClass(job.status, job.conclusion);
@@ -3872,6 +3883,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
 
     </div>
+
 
 
 
