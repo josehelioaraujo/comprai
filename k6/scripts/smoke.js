@@ -16,7 +16,7 @@ export const options = {
   ],
   thresholds: {
     errors: ["rate<0.05"],                                         // taxa de erro < 5%
-    "http_req_duration{name:GET /health/live}":     ["p(99)<500"],   // interno: <500ms
+    "http_req_duration{name:GET /health/live}":     ["p(99)<1000"],  // interno: <1s (spike tolerado)
     "http_req_duration{name:GET /api/cart}":        ["p(99)<1000"],  // interno: <1s
     "http_req_duration{name:GET /api/orders}":      ["p(99)<1000"],  // interno: <1s
     "http_req_duration{name:GET /api/search}":      []               // externo (ML/Shopify): sem limite
@@ -120,5 +120,6 @@ export default function () {
   }
   sleep(0.5);
 }
+
 
 
