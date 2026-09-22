@@ -413,7 +413,6 @@ async function pollRunById(runId) {
       html_url:   data.html_url   || data.htmlUrl   || ('https://github.com/josehelioaraujo/comprai/actions/runs/' + runId),
       created_at: data.created_at || data.createdAt || null
     };
-    console.log('[poll] runId:', runId, 'status:', runStatus, 'jobs:', jobs.length, jobs.map(function(j){ return j.name + ':' + j.status; }));
     renderRunStatus(runData, jobs);
 
     if (runStatus !== 'completed') {
@@ -474,7 +473,12 @@ function renderRunStatus(run, jobs) {
       ? 'overflow:hidden;transition:max-height .25s ease;max-height:500px;margin-top:8px'
       : 'overflow:hidden;transition:max-height .25s ease;max-height:0';
     var chevronStyle = autoExpand ? 'transform:rotate(0deg)' : 'transform:rotate(-90deg)';
-    return '<div class="job-card"><div class="job-title" onclick="toggleJobSteps(this)" style="cursor:pointer;user-select:none;display:flex;align-items:center;gap:8px"><span class="job-status-dot ' + dotCls + '"></span><span style="flex:1">' + job.name + '</span><span class="job-chevron" style="font-size:11px;color:var(--muted);transition:transform .2s;' + chevronStyle + '">&#9660;</span></div><div class="step-list" style="' + stepListStyle + '">' + (steps || '<div class="step-row"><span class="step-icon">○</span>Aguardando...</div>') + '</div></div>';
+    var hasSteps = steps && steps.length > 0;
+    var jobTitleClass = hasSteps ? 'job-title has-steps' : 'job-title';
+    var chevronBtn = hasSteps
+      ? '<span class="job-chevron" style="font-size:14px;color:#6366f1;transition:transform .2s;flex-shrink:0;' + chevronStyle + '">&#9660;</span>'
+      : '';
+    return '<div class="job-card"><div class="' + jobTitleClass + '" onclick="toggleJobSteps(this)" style="cursor:pointer;user-select:none"><span class="job-status-dot ' + dotCls + '"></span><span style="flex:1">' + job.name + '</span>' + chevronBtn + '</div><div class="step-list" style="' + stepListStyle + '">' + (steps || '') + '</div></div>';
   }).join('');
 }
 
@@ -2687,8 +2691,11 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', syste
 .run-panel-close { margin-left: auto; background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer; line-height: 1; }
 .run-panel-close:hover { color: var(--text); }
 .jobs-grid { display: flex; flex-wrap: wrap; gap: 12px; }
-.job-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; min-width: 200px; flex: 1; max-width: 320px; }
-.job-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+.job-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; min-width: 200px; flex: 1; max-width: 320px; transition: border-color .15s; }
+.job-card:hover { border-color: rgba(99,102,241,.4); }
+.job-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 0; display: flex; align-items: center; gap: 7px; padding-bottom: 8px; border-bottom: 1px solid transparent; transition: border-color .15s; }
+.job-title:hover { color: var(--text); }
+.job-title.has-steps { border-bottom-color: var(--border); margin-bottom: 8px; }
 .job-status-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 .dot-pending   { background: var(--muted); }
 .dot-running   { background: #fbbf24; animation: pulse 1s infinite; }
@@ -4125,6 +4132,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
 
     </div>
+
 
 
 
