@@ -3175,11 +3175,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
     </div>
     <!-- run-controls movido para sidebar -->
     <div id="runControls" style="display:none"></div>
-    <div style="display:flex;align-items:center;gap:4px">
-      <button id="gb-cicd-btn"     class="gb-wf-btn gb-wf-topbar" onclick="gbDispatch('ci-cd.yml','gb-cicd-btn','evol-cicd-btn')"                title="CI/CD completo">&#9654; CI/CD</button>
-      <button id="gb-mutation-btn" class="gb-wf-btn gb-wf-topbar" onclick="gbDispatch('mutation-tests.yml','gb-mutation-btn','evol-mutation-btn')" title="Mutação">&#129514; Mutação</button>
-      <button id="gb-scan-btn"     class="gb-wf-btn gb-wf-topbar" onclick="gbDispatch('dependency-scan.yml','gb-scan-btn','evol-scan-btn')"       title="Scan CVEs">&#128274; CVEs</button>
-    </div>
+
     <div style="display:flex;align-items:center;gap:10px;margin-left:auto;padding-right:4px">
       <button id="status-pill" class="status-pill op" onclick="toggleStatusDrawer()" title="Status do Sistema" style="position:relative;gap:6px">
         <span class="pill-dot"></span>
@@ -3861,6 +3857,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
 
     </div>
+
 
 
 
