@@ -542,7 +542,11 @@ app.MapPost("/api/github/dispatch", async (GitHubDispatchRequest req, IConfigura
     var url = $"https://api.github.com/repos/{repo}/actions/workflows/{workflow}/dispatches";
 
     var client = factory.CreateClient("github");
-    var body   = JsonSerializer.Serialize(new { @ref = branch });
+    // Incluir inputs se fornecidos (ex: test_type para stress-tests)
+    object dispatchPayload = req.Inputs != null && req.Inputs.Count > 0
+        ? new { @ref = branch, inputs = req.Inputs }
+        : new { @ref = branch };
+    var body   = JsonSerializer.Serialize(dispatchPayload);
     var content = new StringContent(body, System.Text.Encoding.UTF8, "application/json");
 
     var resp = await client.PostAsync(url, content);
@@ -654,3 +658,4 @@ record PaymentRequestDto(
 record K6AnalyzeRequest(string Summary, string Question, string? Model);
 
 record GitHubDispatchRequest(string? Repo, string? Workflow, string? Ref);
+
