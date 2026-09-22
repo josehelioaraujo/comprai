@@ -321,7 +321,7 @@ function openRunPanel(msg) {
     });
   }
   // Pausar polling de status durante o teste
-  if (typeof pauseStatusPolling === 'function') pauseStatusPolling('🔥 Teste rodando');
+  if (typeof window._statusPause === 'function') window._statusPause('🔥 Teste rodando');
   var rp = document.getElementById('runPanel');
   rp.style.maxHeight = '600px';
   rp.style.overflow  = 'hidden';
@@ -338,7 +338,7 @@ function closeRunPanel() {
   rp.style.padding   = '0';
   rp.classList.remove('open');
   if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
-  if (typeof resumeStatusPolling === 'function') resumeStatusPolling();
+  if (typeof window._statusResume === 'function') window._statusResume();
 }
 
 async function startPolling() {
@@ -421,7 +421,7 @@ async function pollRunById(runId) {
       var icon = conclusion === 'success' ? '✅' : '❌';
       document.getElementById('runStatusMsg').innerHTML = icon + ' Pipeline concluido: <strong>' + (conclusion || '') + '</strong>';
       // Retomar polling de status
-      if (typeof resumeStatusPolling === 'function') setTimeout(resumeStatusPolling, 3000);
+      if (typeof window._statusResume === 'function') setTimeout(window._statusResume, 3000);
       if (!runReloadPending) { runReloadPending = true; setTimeout(function() { runReloadPending = false; loadAll(true); }, 8000); }
     }
   } catch(e) {
@@ -1197,7 +1197,8 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
   let statusLastData = null;
   let statusPaused = false;
 
-  function pauseStatusPolling(reason) {
+  // Expor globalmente para uso pelo openRunPanel (escopo diferente)
+  window._statusPause = function(reason) {
     statusPaused = true;
     if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
     if (statusTimer) { clearTimeout(statusTimer); statusTimer = null; }
@@ -1205,12 +1206,14 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
     var countdown = document.getElementById('pill-countdown');
     if (pill) { pill.className = 'status-pill deg'; }
     if (countdown) countdown.textContent = reason || '🔥 Teste rodando';
-  }
-
-  function resumeStatusPolling() {
+  };
+  window._statusResume = function() {
     statusPaused = false;
     fetchStatusData();
-  }
+  };
+
+  function pauseStatusPolling(reason) { window._statusPause(reason); }
+  function resumeStatusPolling() { window._statusResume(); }
 
   const PILL_META = {
     operational:    { cls:'op',  icon:'✅', label:'All Systems Operational' },
@@ -4121,6 +4124,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
 
     </div>
+
 
 
 
