@@ -332,6 +332,21 @@ function openRunPanel(msg) {
   document.getElementById('jobsGrid').innerHTML = '';
   document.getElementById('runInfo').innerHTML = '';
 }
+function toggleRunPanelBody() {
+  var body = document.getElementById('runPanelBody');
+  var svg  = document.getElementById('run-chev-svg');
+  if (!body) return;
+  var isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : '';
+  if (svg) svg.setAttribute('d', '');
+  // Trocar SVG
+  var pathEl = svg ? svg.querySelector('path') : null;
+  if (pathEl) {
+    pathEl.setAttribute('d', isOpen ? 'M1 7L6 1L11 7' : 'M1 1L6 7L11 1');
+    pathEl.setAttribute('stroke', isOpen ? '#64748b' : '#818cf8');
+  }
+}
+
 function closeRunPanel() {
   var rp = document.getElementById('runPanel');
   rp.style.maxHeight = '0';
@@ -3532,13 +3547,18 @@ tr:hover td { background: rgba(255,255,255,.02); }
             <!-- Pipeline em Execucao — aparece logo apos clicar em Executar -->
             <div id="runPanel" style="border-top:1px solid var(--border);margin:0;padding:0">
               <div style="padding:16px 20px">
-                <div class="run-panel-header">
+                <div class="run-panel-header" style="cursor:pointer" onclick="toggleRunPanelBody()" title="Colapsar/expandir">
                   <div class="run-panel-title">&#128295; Pipeline em Execucao</div>
-                  <button class="run-panel-close" onclick="closeRunPanel()">&#10005;</button>
+                  <button id="run-panel-chevron" style="background:none;border:none;padding:4px;cursor:pointer;display:flex;align-items:center;margin-left:auto" title="Colapsar/expandir">
+                    <svg id="run-chev-svg" width="16" height="10" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L6 7L11 1" stroke="#818cf8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                  <button class="run-panel-close" onclick="event.stopPropagation();closeRunPanel()" style="margin-left:8px">&#10005;</button>
                 </div>
-                <div id="runStatusMsg"></div>
-                <div class="jobs-grid" id="jobsGrid"></div>
-                <div class="run-info" id="runInfo"></div>
+                <div id="runPanelBody">
+                  <div id="runStatusMsg"></div>
+                  <div class="jobs-grid" id="jobsGrid"></div>
+                  <div class="run-info" id="runInfo"></div>
+                </div>
               </div>
             </div>
           </div>
@@ -4146,6 +4166,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
 
     </div>
+
 
 
 
