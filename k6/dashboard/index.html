@@ -473,9 +473,11 @@ function renderRunStatus(run, jobs) {
       ? 'overflow:hidden;transition:max-height .25s ease;max-height:500px;margin-top:8px'
       : 'overflow:hidden;transition:max-height .25s ease;max-height:0';
     var chevronStyle = autoExpand ? 'transform:rotate(0deg)' : 'transform:rotate(-90deg)';
-    var hasSteps = steps && steps.length > 0;
+    var hasSteps = (job.steps && job.steps.length > 0) || (steps && steps.length > 0);
     var jobTitleClass = hasSteps ? 'job-title has-steps' : 'job-title';
-    var chevronBtn = hasSteps
+    // Mostrar chevron se tem steps OU se está in_progress (steps chegam no próximo poll)
+    var showChevron = hasSteps || job.status === 'in_progress';
+    var chevronBtn = showChevron
       ? '<span class="job-chevron" style="font-size:14px;color:#6366f1;transition:transform .2s;flex-shrink:0;' + chevronStyle + '">&#9660;</span>'
       : '';
     return '<div class="job-card"><div class="' + jobTitleClass + '" onclick="toggleJobSteps(this)" style="cursor:pointer;user-select:none"><span class="job-status-dot ' + dotCls + '"></span><span style="flex:1">' + job.name + '</span>' + chevronBtn + '</div><div class="step-list" style="' + stepListStyle + '">' + (steps || '') + '</div></div>';
@@ -4132,6 +4134,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
 
     </div>
+
 
 
 
