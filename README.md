@@ -1,4 +1,4 @@
-﻿# Comprai — Plataforma de Comércio Agêntico baseada em UCP
+# Comprai — Plataforma de Comércio Agêntico baseada em UCP
 
 [![GitHub Pages](https://img.shields.io/badge/Dashboard-GitHub%20Pages-brightgreen)](https://josehelioaraujo.github.io/comprai/)
 [![CI/CD](https://github.com/josehelioaraujo/comprai/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/josehelioaraujo/comprai/actions/workflows/ci-cd.yml)
@@ -806,11 +806,11 @@ Workflow em `.github/workflows/ci-cd.yml` com 4 jobs sequenciais:
 
 ---
 
-## 📊 QA Hub
+## 📊 Dev Quality Hub
 
 Painel centralizado de qualidade, observabilidade e segurança do Comprai — acesse em tempo real métricas de stress tests, mutação, cobertura, status dos sistemas e conformidade OWASP & PCI DSS.
 
-🌐 **[Acessar QA Hub](https://comprai.2.25.122.11.nip.io/k6/dashboard/)**
+🌐 **[Acessar Dev Quality Hub](https://comprai.2.25.122.11.nip.io/k6/dashboard/)**
 
 ### Funcionalidades
 
