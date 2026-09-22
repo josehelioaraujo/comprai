@@ -320,6 +320,8 @@ function openRunPanel(msg) {
       }
     });
   }
+  // Pausar polling de status durante o teste
+  if (typeof pauseStatusPolling === 'function') pauseStatusPolling('🔥 Teste rodando');
   document.getElementById('runPanel').classList.add('open');
   document.getElementById('runStatusMsg').innerHTML =
     '<span style="animation:pulse 1s infinite;display:inline-block;width:9px;height:9px;border-radius:50%;background:#fbbf24;margin-right:4px;"></span>' + (msg || 'Verificando...');
@@ -329,6 +331,7 @@ function openRunPanel(msg) {
 function closeRunPanel() {
   document.getElementById('runPanel').classList.remove('open');
   if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+  if (typeof resumeStatusPolling === 'function') resumeStatusPolling();
 }
 
 async function startPolling() {
@@ -410,6 +413,8 @@ async function pollRunById(runId) {
     } else {
       var icon = conclusion === 'success' ? '✅' : '❌';
       document.getElementById('runStatusMsg').innerHTML = icon + ' Pipeline concluido: <strong>' + (conclusion || '') + '</strong>';
+      // Retomar polling de status
+      if (typeof resumeStatusPolling === 'function') setTimeout(resumeStatusPolling, 3000);
       if (!runReloadPending) { runReloadPending = true; setTimeout(function() { runReloadPending = false; loadAll(true); }, 8000); }
     }
   } catch(e) {
@@ -1177,6 +1182,22 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
   let statusTimer = null;
   let countdownTimer = null;
   let statusLastData = null;
+  let statusPaused = false;
+
+  function pauseStatusPolling(reason) {
+    statusPaused = true;
+    clearInterval(countdownTimer);
+    clearTimeout(statusTimer);
+    var pill = document.getElementById('status-pill');
+    var countdown = document.getElementById('pill-countdown');
+    if (pill) { pill.className = 'status-pill deg'; }
+    if (countdown) countdown.textContent = reason || '🔥 Teste rodando';
+  }
+
+  function resumeStatusPolling() {
+    statusPaused = false;
+    fetchStatusData();
+  }
 
   const PILL_META = {
     operational:    { cls:'op',  icon:'✅', label:'All Systems Operational' },
@@ -4086,6 +4107,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
 
     </div>
+
 
 
 
