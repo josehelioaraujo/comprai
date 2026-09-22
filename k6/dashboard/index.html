@@ -413,6 +413,7 @@ async function pollRunById(runId) {
       html_url:   data.html_url   || data.htmlUrl   || ('https://github.com/josehelioaraujo/comprai/actions/runs/' + runId),
       created_at: data.created_at || data.createdAt || null
     };
+    console.log('[poll] runId:', runId, 'status:', runStatus, 'jobs:', jobs.length, jobs.map(function(j){ return j.name + ':' + j.status; }));
     renderRunStatus(runData, jobs);
 
     if (runStatus !== 'completed') {
