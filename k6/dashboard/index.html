@@ -3659,6 +3659,15 @@ tr:hover td { background: rgba(255,255,255,.02); }
       <div class="section-content">
         <div style="padding:16px">
 
+          <!-- Painel de disparo de workflows -->
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:20px">
+            <span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Disparar:</span>
+            <button id="evol-cicd-btn"     class="gb-wf-btn" onclick="gbDispatch('ci-cd.yml','evol-cicd-btn')"                title="CI/CD completo">&#9654; CI/CD</button>
+            <button id="evol-mutation-btn" class="gb-wf-btn" onclick="gbDispatch('mutation-tests.yml','evol-mutation-btn')"   title="Testes de mutação">&#129514; Mutação</button>
+            <button id="evol-scan-btn"     class="gb-wf-btn" onclick="gbDispatch('dependency-scan.yml','evol-scan-btn')"      title="Scan de CVEs">&#128274; CVEs</button>
+            <button onclick="loadEvolucaoData()" style="margin-left:auto;background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;padding:4px 8px;border-radius:4px" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">&#8635; Atualizar</button>
+          </div>
+
           <!-- Seletor de métricas -->
           <div id="evol-filters" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
             <button class="evol-filter-btn active" data-metric="coverage"  onclick="evolToggleMetric(this)">📊 Coverage</button>
@@ -3861,6 +3870,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
 
     </div>
+
 
 
 
