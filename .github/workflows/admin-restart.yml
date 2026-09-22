@@ -1,0 +1,92 @@
+name: 🔧 Admin — Restart VPS
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'O que reiniciar'
+        required: true
+        type: choice
+        options: [api, redis, all, redeploy]
+      admin_password:
+        description: 'Senha de administrador'
+        required: true
+        type: string
+
+env:
+  VPS_HOST: '2.25.122.11'
+  VPS_USER: 'root'
+
+jobs:
+  admin-restart:
+    name: 🔧 Restart — ${{ github.event.inputs.target }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validar senha admin
+        run: |
+          if [ "${{ github.event.inputs.admin_password }}" != "${{ secrets.ADMIN_RESTART_PASSWORD }}" ]; then
+            echo "❌ Senha incorreta"
+            exit 1
+          fi
+          echo "✅ Senha validada"
+
+      - name: Conectar VPS
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$VPS_SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Executar restart — ${{ github.event.inputs.target }}
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          TARGET: ${{ github.event.inputs.target }}
+        run: |
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ env.VPS_USER }}@${{ env.VPS_HOST }} << 'SSHEOF'
+          cd /home/projetos/comprai
+
+          case "$TARGET" in
+            api)
+              echo "🔄 Reiniciando comprai-api..."
+              docker compose -f deploy/docker-compose.yml --env-file .env \
+                --profile datadog --profile kafka --profile rabbitmq \
+                up -d --force-recreate comprai-api
+              sleep 10
+              curl -sf http://localhost:5020/health/live && echo "✅ API OK" || echo "❌ API não respondeu"
+              ;;
+            redis)
+              echo "🔄 Reiniciando comprai-redis..."
+              docker compose -f deploy/docker-compose.yml --env-file .env up -d --force-recreate comprai-redis
+              sleep 5
+              docker exec comprai-redis redis-cli ping && echo "✅ Redis OK"
+              ;;
+            all)
+              echo "🔄 Reiniciando todos os containers..."
+              docker compose -f deploy/docker-compose.yml --env-file .env \
+                --profile datadog --profile kafka --profile rabbitmq \
+                up -d --force-recreate
+              sleep 15
+              curl -sf http://localhost:5020/health/live && echo "✅ API OK" || echo "❌ API não respondeu"
+              ;;
+            redeploy)
+              echo "🔄 Redeploy completo..."
+              git pull origin main
+              docker compose -f deploy/docker-compose.yml --env-file .env build --no-cache comprai-api
+              docker compose -f deploy/docker-compose.yml --env-file .env \
+                --profile datadog --profile kafka --profile rabbitmq \
+                up -d --force-recreate
+              sleep 20
+              curl -sf http://localhost:5020/health/live && echo "✅ API OK" || echo "❌ API não respondeu"
+              ;;
+            *)
+              echo "❌ Target desconhecido: $TARGET"
+              exit 1
+              ;;
+          esac
+          SSHEOF
+
+      - name: Status final
+        run: echo "✅ Restart '${{ github.event.inputs.target }}' concluído"
