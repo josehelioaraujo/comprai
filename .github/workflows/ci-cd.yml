@@ -322,15 +322,15 @@ jobs:
 
           # Injetar run (como número), sha e timestamp via python3
           RUN_INT=$(echo "$RUN_NUMBER" | tr -d '[:space:]')
-          python3 -c "
-import json, sys
+          python3 - <<PYEOF
+import json
 data = json.load(open('sonar-raw.json'))
 data['run'] = int('${RUN_INT}')
 data['sha'] = '${SHORT_SHA}'
 data['timestamp'] = '${TIMESTAMP}'
 json.dump(data, open('sonar-metrics.json','w'))
 print('sonar-metrics.json gerado')
-"
+PYEOF
 
           # Copiar para VPS
           mkdir -p ~/.ssh
