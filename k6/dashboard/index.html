@@ -2682,6 +2682,8 @@ function adminTrackRun(label, runId) {
     var q = obsState.logs.q;
     if (q) rows = rows.filter(function(r){ return (r.message||'').toLowerCase().includes(q); });
     var tbody = document.getElementById('obs-log-body');
+    var wrap  = document.getElementById('obs-log-wrap');
+    console.log('[OBS-LOGS] rows:', rows.length, 'tbody:', !!tbody, 'wrap:', !!wrap, 'wrap.display:', wrap ? getComputedStyle(wrap).display : 'N/A');
     if (!tbody) return;
     if (!rows.length) {
       tbody.innerHTML = '<tr><td colspan="3" class="obs-empty">Nenhum log encontrado</td></tr>';
