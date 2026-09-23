@@ -2895,11 +2895,19 @@ function adminTrackRun(label, runId) {
           // Painel de detalhe
           var detail = document.createElement('div');
           detail.style.cssText = 'display:none;padding:6px 12px 8px 30px;background:rgba(0,0,0,0.15)';
+          var isCritical = c.critical;
+          var isRunning  = c.healthy;
           detail.innerHTML =
-            '<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">' +
+            '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">' +
               (c.ports ? '<span style="font-size:11px;color:var(--text-muted)">&#128279; ' + c.ports + '</span>' : '') +
               '<span style="font-size:11px;color:var(--text-muted)">ID: ' + c.id + '</span>' +
-              '<button class="obs-range-btn cnt-log-btn" style="padding:2px 12px;font-size:11px">&#128220; Ver Logs</button>' +
+            '</div>' +
+            '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px">' +
+              '<button class="obs-range-btn cnt-log-btn" style="padding:2px 12px;font-size:11px">&#128220; Logs</button>' +
+              '<button class="obs-range-btn cnt-restart-btn" style="padding:2px 12px;font-size:11px;color:#fbbf24">&#8635; Restart</button>' +
+              (!isRunning ? '<button class="obs-range-btn cnt-start-btn" style="padding:2px 12px;font-size:11px;color:#4ade80">&#9654; Start</button>' : '') +
+              (isRunning && !isCritical ? '<button class="obs-range-btn cnt-stop-btn" style="padding:2px 12px;font-size:11px;color:#f87171">&#9646;&#9646; Stop</button>' : '') +
+              (isRunning && isCritical  ? '<span style="font-size:10px;color:#f87171">&#128274; Stop bloqueado (crítico)</span>' : '') +
             '</div>' +
             '<div class="cnt-log-panel" style="display:none;margin-top:10px">' +
               '<div style="display:flex;justify-content:flex-end;margin-bottom:4px">' +
@@ -2954,6 +2962,28 @@ function adminTrackRun(label, runId) {
               .catch(function(err){ logContent.textContent = 'Erro: ' + err.message; });
           });
 
+          // Botões Restart / Stop / Start
+          detail.addEventListener('click', function(e) {
+            var btn = e.target;
+            var action = btn.classList.contains('cnt-restart-btn') ? 'restart'
+                       : btn.classList.contains('cnt-stop-btn')    ? 'stop'
+                       : btn.classList.contains('cnt-start-btn')   ? 'start' : null;
+            if (!action) return;
+            e.stopPropagation();
+            var needsPwd = (action === 'restart' || action === 'stop');
+            if (action === 'stop') {
+              cntConfirm('Parar ' + c.name + '?', 'Isso vai derrubar o serviço. Confirma?', function(pwd) {
+                cntDoAction(action, c.name, btn, pwd);
+              }, true);
+            } else if (action === 'restart') {
+              cntConfirm('Reiniciar ' + c.name + '?', 'O serviço ficará indisponível por alguns segundos.', function(pwd) {
+                cntDoAction(action, c.name, btn, pwd);
+              }, true);
+            } else {
+              cntDoAction(action, c.name, btn, '');
+            }
+          });
+
           detail.className = 'cnt-detail';
           wrap.appendChild(header);
           wrap.appendChild(detail);
@@ -2967,6 +2997,66 @@ function adminTrackRun(label, runId) {
       .catch(function(e){
         grid.innerHTML = '<div style="color:#ef4444;font-size:13px;padding:12px">Erro: ' + e.message + '</div>';
       });
+  }
+
+
+  // ── Containers — Modal Confirmação + Ações ────────────────
+  function cntConfirm(title, msg, onConfirm, needsPwd) {
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center';
+    var box = document.createElement('div');
+    box.style.cssText = 'background:var(--bg-card,#1e293b);border:1px solid var(--border);border-radius:10px;padding:24px;width:360px;max-width:90vw';
+    box.innerHTML =
+      '<div style="font-weight:700;font-size:15px;margin-bottom:8px;color:var(--text)">' + title + '</div>' +
+      '<div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">' + msg + '</div>' +
+      (needsPwd ?
+        '<input id="cnt-modal-pwd" type="password" placeholder="Senha admin" style="width:100%;padding:7px 10px;background:var(--bg-input,#0f172a);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box;margin-bottom:12px">' : '') +
+      '<div style="display:flex;gap:8px;justify-content:flex-end">' +
+        '<button id="cnt-modal-cancel" style="padding:6px 16px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);cursor:pointer;font-size:13px">Cancelar</button>' +
+        '<button id="cnt-modal-ok" style="padding:6px 16px;background:#dc2626;border:none;border-radius:6px;color:#fff;cursor:pointer;font-size:13px;font-weight:600">Confirmar</button>' +
+      '</div>';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    var pwdInput = box.querySelector('#cnt-modal-pwd');
+    if (pwdInput) setTimeout(function(){ pwdInput.focus(); }, 100);
+    box.querySelector('#cnt-modal-cancel').onclick = function() { document.body.removeChild(overlay); };
+    box.querySelector('#cnt-modal-ok').onclick = function() {
+      var pwd = pwdInput ? pwdInput.value : '';
+      document.body.removeChild(overlay);
+      onConfirm(pwd);
+    };
+    if (pwdInput) {
+      pwdInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') box.querySelector('#cnt-modal-ok').click();
+      });
+    }
+  }
+
+  function cntDoAction(action, name, btn, pwd) {
+    var orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '&#9203;';
+    var headers = { 'Content-Type': 'application/json' };
+    if (pwd) headers['X-Admin-Password'] = pwd;
+    fetch('/api/containers/' + encodeURIComponent(name) + '/' + action, {
+      method: 'POST', headers: headers
+    })
+    .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
+    .then(function(res) {
+      btn.innerHTML = res.ok ? '&#10003;' : '&#10005;';
+      btn.style.color = res.ok ? '#4ade80' : '#f87171';
+      setTimeout(function() {
+        btn.innerHTML = orig;
+        btn.disabled = false;
+        btn.style.color = '';
+        if (res.ok) obsLoadContainers();
+      }, 2000);
+    })
+    .catch(function(e) {
+      btn.innerHTML = '&#10005; Erro';
+      btn.disabled = false;
+      setTimeout(function() { btn.innerHTML = orig; }, 2000);
+    });
   }
 
 </script>
