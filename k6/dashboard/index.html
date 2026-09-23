@@ -4662,10 +4662,10 @@ tr:hover td { background: rgba(255,255,255,.02); }
         </div>
         <!-- KPI cards -->
         <div class="obs-kpi-grid" id="obs-met-kpis">
-          <div class="obs-kpi-card"><div class="obs-kpi-label">req/s</div><div class="obs-kpi-value" id="obs-met-rps">—</div><div class="obs-kpi-sub">últimos 5 min</div></div>
-          <div class="obs-kpi-card"><div class="obs-kpi-label">Latência p99</div><div class="obs-kpi-value" id="obs-met-p99">—</div><div class="obs-kpi-sub">ms</div></div>
-          <div class="obs-kpi-card"><div class="obs-kpi-label">Taxa de Erro</div><div class="obs-kpi-value" id="obs-met-err">—</div><div class="obs-kpi-sub">% 5xx</div></div>
-          <div class="obs-kpi-card"><div class="obs-kpi-label">Uptime</div><div class="obs-kpi-value" id="obs-met-up">—</div><div class="obs-kpi-sub">% disponibilidade</div></div>
+          <div class="obs-kpi-card" title="Requisições por segundo — média dos últimos 5 minutos coletada pelo Prometheus"><div class="obs-kpi-label">req/s</div><div class="obs-kpi-value" id="obs-met-rps">—</div><div class="obs-kpi-sub">últimos 5 min</div></div>
+          <div class="obs-kpi-card" title="Latência no percentil 99 — 99% das requisições responderam abaixo desse tempo (em ms)"><div class="obs-kpi-label">Latência p99</div><div class="obs-kpi-value" id="obs-met-p99">—</div><div class="obs-kpi-sub">ms</div></div>
+          <div class="obs-kpi-card" title="Percentual de respostas com status 5xx (erros do servidor) nos últimos 5 minutos"><div class="obs-kpi-label">Taxa de Erro</div><div class="obs-kpi-value" id="obs-met-err">—</div><div class="obs-kpi-sub">% 5xx</div></div>
+          <div class="obs-kpi-card" title="Disponibilidade da API — calculada pelo health check. 100% significa sem interrupções no período"><div class="obs-kpi-label">Uptime</div><div class="obs-kpi-value" id="obs-met-up">—</div><div class="obs-kpi-sub">% disponibilidade</div></div>
         </div>
         <!-- Gráfico -->
         <div class="obs-chart-wrap"><canvas id="obs-met-chart"></canvas></div>
