@@ -2527,6 +2527,12 @@ async function adminConfirm() {
 }
 
 function adminBanner(html, kind) {
+  if (!document.getElementById('admin-spin-css')) {
+    var st = document.createElement('style');
+    st.id = 'admin-spin-css';
+    st.textContent = '.admin-spin{display:inline-block;width:12px;height:12px;margin-right:8px;vertical-align:-2px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:admin-spin .7s linear infinite}@keyframes admin-spin{to{transform:rotate(360deg)}}';
+    document.head.appendChild(st);
+  }
   var colors = { info: '99,102,241', ok: '34,197,94', fail: '239,68,68' };
   var c = colors[kind] || colors.info;
   var el = document.getElementById('admin-run-banner');
@@ -2535,7 +2541,7 @@ function adminBanner(html, kind) {
     el.id = 'admin-run-banner';
     document.body.appendChild(el);
   }
-  el.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;max-width:340px;background:rgba(' + c + ',.15);border:1px solid rgba(' + c + ',.35);color:rgb(' + c + ');padding:12px 16px;border-radius:8px;font-size:13px;font-weight:600';
+  el.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:10002;max-width:420px;box-shadow:0 8px 30px rgba(0,0,0,.4);background:rgba(' + c + ',.15);border:1px solid rgba(' + c + ',.35);color:rgb(' + c + ');padding:12px 16px;border-radius:8px;font-size:13px;font-weight:600';
   el.innerHTML = html;
   return el;
 }
@@ -2543,7 +2549,7 @@ function adminBanner(html, kind) {
 function adminTrackRun(label, runId) {
   if (!runId) { adminBanner('&#9654; ' + label + ' disparado.', 'info'); return; }
   var link = ' <a href="https://github.com/josehelioaraujo/comprai/actions/runs/' + runId + '" target="_blank" style="color:inherit;text-decoration:underline;font-weight:400">ver run</a>';
-  adminBanner('&#9203; ' + label + ' em execu&ccedil;&atilde;o...' + link, 'info');
+  adminBanner('<span class="admin-spin"></span>Executando: ' + label + '...' + link, 'info');
   var tries = 0;
   var timer = setInterval(async function() {
     tries++;
@@ -2554,7 +2560,7 @@ function adminTrackRun(label, runId) {
       if (d.status === 'completed') {
         clearInterval(timer);
         var ok = d.conclusion === 'success';
-        var banner = adminBanner((ok ? '&#10003; ' + label + ' conclu&iacute;do.' : '&#10007; ' + label + ' falhou (' + (d.conclusion || 'erro') + ').') + link, ok ? 'ok' : 'fail');
+        var banner = adminBanner((ok ? '&#10003; Opera&ccedil;&atilde;o executada com sucesso<div style="font-weight:400;font-size:12px;margin-top:4px">' + label + '</div>' : '&#10007; Falha na opera&ccedil;&atilde;o (' + (d.conclusion || 'erro') + ')<div style="font-weight:400;font-size:12px;margin-top:4px">' + label + '</div>') + link, ok ? 'ok' : 'fail');
         setTimeout(function(){ banner.remove(); }, ok ? 8000 : 20000);
       }
     } catch(e) {}
