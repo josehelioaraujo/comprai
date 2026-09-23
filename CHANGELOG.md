@@ -1,3 +1,44 @@
+## [3.6.0] - 2026-09-23
+
+### Added
+
+- **OBSERVABILIDADE_HUB — Seção Observabilidade no Dev Quality Hub**
+  - Novo grupo "Observabilidade" no sidebar entre Qualidade e Segurança
+  - **Métricas (Prometheus)** — KPI cards: req/s, latência p99, taxa de erro 5xx e uptime 99.90%
+    - Range selector: 15 min / 1h / 6h / 24h
+    - Gráfico Chart.js dual-axis: req/s + p99 ao longo do tempo
+    - Tooltips CSS customizados com valor real e interpretação (Excelente/Bom/Crítico)
+  - **Logs (Loki)** — stream dos últimos 100 logs em tabela com timestamp, level e mensagem
+    - Filtros: Todos / Info / Warn / Error
+    - Busca por texto em tempo real
+    - Auto-refresh a cada 10s quando visível
+  - **Traces (Jaeger)** — últimas 20 operações com operação, serviço, duração, spans e status
+    - Expand de spans com barra de duração proporcional
+    - Filtro por serviço e operação
+  - **Erros Recentes (Loki)** — erros agrupados por mensagem com contador e última ocorrência
+    - Expand de stacktrace por grupo
+    - Auto-refresh a cada 30s quando visível
+  - Layout responsivo: grid 4→2 colunas, tabelas com scroll horizontal, gráfico reduz no mobile
+
+- **Backend — ObservabilityEndpoints.cs**
+  - `GET /api/observability/metrics?range=15m|1h|6h|24h` — proxy Prometheus
+  - `GET /api/observability/logs?level=...&q=...&limit=100` — proxy Loki
+  - `GET /api/observability/traces?service=...&limit=20` — proxy Jaeger
+  - `GET /api/observability/errors?limit=20` — Loki filtrado por level error/fatal
+  - HttpClient `observability` com timeout 10s, `[ExcludeFromCodeCoverage]`
+  - `appsettings.json` com seção `Observability` (PrometheusUrl, LokiUrl, JaegerUrl)
+
+- **Infra — Stack de Observabilidade na VPS**
+  - Prometheus, Loki, Jaeger, Grafana, Promtail via `--profile monitoring`
+  - `prometheus.yml`, `loki.yml` e `promtail.yml` criados na VPS
+  - Todos os containers na mesma rede `deploy_comprai-network`
+
+### Fixed
+
+- `ci-cd.yml` — substituído `jq` por `python3` no step "Publicar métricas SonarCloud na VPS" (`jq` não instalado na VPS)
+- `.gitattributes` — normalização CRLF/LF: 184 arquivos "modificados" zerados com `git add --renormalize`
+- `coverlet.runsettings` já exclui `Program.cs` — `/api/admin/restart` não precisa de testes (inline lambda)
+
 ## [3.5.0] - 2026-09-22
 
 ### Added

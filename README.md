@@ -808,56 +808,36 @@ Workflow em `.github/workflows/ci-cd.yml` com 4 jobs sequenciais:
 
 ## 📊 Dev Quality Hub
 
-Painel centralizado de qualidade, observabilidade e segurança do Comprai — acesse em tempo real métricas de stress tests, mutação, cobertura, status dos sistemas e conformidade OWASP & PCI DSS.
+O **Dev Quality Hub** é um portal operacional integrado ao pipeline CI/CD que consolida qualidade, segurança e observabilidade em uma única interface.
 
-🌐 **[Acessar Dev Quality Hub](https://comprai.2.25.122.11.nip.io/k6/dashboard/)**
+### Seções disponíveis
 
-### Funcionalidades
+| Grupo | Seção | Descrição |
+|-------|-------|-----------|
+| Testes | Stress Test | Resultados K6 com timeline e gráficos |
+| Testes | Testes Integrados | Pipeline CI/CD em tempo real |
+| Testes | Mutação | Score Stryker com killed/survived |
+| Testes | Evolução | Histórico acumulado de métricas |
+| Qualidade | SonarCloud | Quality Gate, Coverage, Bugs, Smells |
+| **Observabilidade** | **Métricas** | **KPI cards Prometheus + gráfico dual-axis** |
+| **Observabilidade** | **Logs** | **Stream Loki com filtro e busca** |
+| **Observabilidade** | **Traces** | **Operações Jaeger com expand de spans** |
+| **Observabilidade** | **Erros Recentes** | **Erros agrupados com stacktrace** |
+| Segurança | OWASP Top 10 | Checklist de controles |
+| Segurança | PCI DSS | Compliance de pagamentos |
+| Segurança | CVEs NuGet | Vulnerabilidades em pacotes |
+| Análise K6 | Detalhes / Resumo / Gráficos | Análise aprofundada dos stress tests |
 
-| Módulo | Descrição |
-|--------|-----------|
-| 🔥 **Stress Tests** | Resultados K6 por cenário (smoke/load/stress/spike/soak) com KPIs e gráficos |
-| 🧬 **Mutação** | Mutation Score do Stryker.NET com breakdown por operador |
-| ☀️ **SonarCloud** | Quality Gate, coverage, bugs, smells e ratings A/B/C/D/E |
-| 🌐 **OWASP Top 10** | Checklist das 10 vulnerabilidades web mais críticas com status real |
-| 💳 **PCI DSS** | Controles de segurança para processamento de pagamentos |
-| 📈 **Timeline & Gráficos** | Evolução de latência, throughput e taxa de erro |
-| 🌐 **Rotas** | p50/p95 e taxa de erro por endpoint chamado |
-| 🟢 **Status do Sistema** | Health check em tempo real de todos os componentes (API, Redis, Ollama, Kafka, RabbitMQ, Datadog OTel) |
-| 🔗 **Testes Integrados** | Execução via GitHub Actions com acompanhamento em tempo real dos jobs, resultado por suite e histórico de runs |
+### Stack de Observabilidade
 
-### Status do Sistema
+```
+comprai-api → OpenTelemetry → comprai-jaeger (traces)
+comprai-api → /metrics      → comprai-prometheus (métricas)  [pendente]
+containers  → comprai-promtail → comprai-loki (logs)
+```
 
-O Dev Quality Hub é um painel centralizado de qualidade, segurança e observabilidade para aplicações .NET.
+Acesse: `https://comprai.2.25.122.11.nip.io/k6/dashboard/`
 
-### ✅ Funcionalidades disponíveis (V025)
-
-| Feature | Descrição |
-|---|---|
-| **Stress Tests K6** | Smoke, Load, Stress, Spike e Soak com resultados em tempo real e drill down por job/step |
-| **Evolução das Métricas** | Gráfico histórico de Coverage, Mutation Score, CVEs, Bugs e Smells por run |
-| **CVEs NuGet** | Scan automático com `dotnet list package --vulnerable` — KPI cards por severidade |
-| **Mutation Tests** | Stryker.NET — score 84%+ com histórico acumulado |
-| **Admin Restart** | Restart da API, Redis ou redeploy completo via workflow protegido por senha |
-| **Status Page** | Monitoramento em tempo real de todos os serviços com runbook de recuperação |
-| **Testes Integrados** | 7 suites com polling em tempo real |
-
-O Dev Quality Hub inclui uma **Status Page** no padrão da indústria (Atlassian Statuspage / Instatus):
-
-- **Status Pill** na topbar com countdown de 30s e indicador de cor (`🟢` / `🟡` / `🟠` / `🔴`)
-- **Drawer lateral** (padrão Datadog/Grafana) com 2 seções drilldown:
-  - **Infraestrutura & API** — API, Redis Cache
-  - **Serviços & Observabilidade** — Ollama LLM, RabbitMQ, Kafka, Datadog OTel Collector
-- **Runbook de Recuperação** — modal com ações de remediação passo a passo por componente, botão copiar por comando e "Copiar tudo"
-- **Histórico de uptime** — barras de ticks dos últimos 30 checks em memória
-
-### Testes Integrados
-
-- Workflow dedicado `integration-tests.yml` — dispara apenas os testes de integração, sem a esteira completa
-- **7 suites reais** mapeadas: Fluxo UCP Completo, Resiliência (Polly), Rate Limiting, Shopify, Intent Router, MCP Server, ML Orders
-- Botão **▶ Executar** dispara via `/api/github/dispatch` (PAT server-side — token nunca exposto ao browser)
-- Polling a cada 5s com visualização dos jobs e steps em tempo real
-- Resultado por suite com hint contextual explicando o que cada teste valida
 
 ## 🗺️ Roadmap
 
