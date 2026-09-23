@@ -1176,6 +1176,10 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       if (id === 'pciBlock')   { buildSecList(PCI_ITEMS,   'pci-list');   var pc=countStatus(PCI_ITEMS);   var pcEl=document.getElementById('pci-score');   if(pcEl) pcEl.textContent=pc.ok+'/'+pc.total+' OK'; }
       if (id === 'depBlock')   { loadDepData(); }
       if (id === 'evolucaoBlock') { loadEvolucaoData(); }
+      if (id === 'obsMetricasBlock') { obsLoad('metricas'); }
+      if (id === 'obsLogsBlock')    { obsLoad('logs'); }
+      if (id === 'obsTracesBlock')  { obsLoad('traces'); }
+      if (id === 'obsErrosBlock')   { obsLoad('erros'); }
     };
   })();
 
@@ -1187,11 +1191,11 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
   }
 
   function collapseAllGroups() {
-    var allCollapsed = ['group-testes', 'group-qualidade', 'group-seguranca', 'group-k6'].every(function(id) {
+    var allCollapsed = ['group-testes', 'group-qualidade', 'group-observabilidade', 'group-seguranca', 'group-k6'].every(function(id) {
       var g = document.getElementById(id);
       return g && g.classList.contains('collapsed');
     });
-    ['group-testes', 'group-qualidade', 'group-seguranca', 'group-k6'].forEach(function(id) {
+    ['group-testes', 'group-qualidade', 'group-observabilidade', 'group-seguranca', 'group-k6'].forEach(function(id) {
       var g = document.getElementById(id);
       if (!g) return;
       if (allCollapsed) g.classList.remove('collapsed');
@@ -1203,7 +1207,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
   function updateCollapseBtn() {
     var btn = document.getElementById('btn-collapse-all');
     if (!btn) return;
-    var allCollapsed = ['group-testes', 'group-qualidade', 'group-seguranca', 'group-k6'].every(function(id) {
+    var allCollapsed = ['group-testes', 'group-qualidade', 'group-observabilidade', 'group-seguranca', 'group-k6'].every(function(id) {
       var g = document.getElementById(id);
       return g && g.classList.contains('collapsed');
     });
@@ -1572,7 +1576,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
   // Iniciar polling ao carregar
   window.addEventListener('load', () => {
     // Colapsar todos os grupos por default
-    ['group-testes','group-qualidade','group-seguranca','group-k6'].forEach(function(id) {
+    ['group-testes','group-qualidade','group-observabilidade','group-seguranca','group-k6'].forEach(function(id) {
       var g = document.getElementById(id);
       if (g) g.classList.add('collapsed');
     });
@@ -2567,6 +2571,254 @@ function adminTrackRun(label, runId) {
     if (tries > 60) { clearInterval(timer); adminBanner('&#9888; Sem resposta do run.' + link, 'fail'); }
   }, 4000);
 }
+
+/* ══════════════════════════════════════════════════════════════
+   OBSERVABILIDADE — Métricas, Logs, Traces, Erros
+   Proxy via /api/observability/*
+   ══════════════════════════════════════════════════════════════ */
+(function() {
+  var obsState = {
+    metricas: { range: '15m', chart: null, timer: null },
+    logs:     { level: 'all', q: '', timer: null, allRows: [] },
+    traces:   { allRows: [] },
+    erros:    { timer: null }
+  };
+
+  window.obsLoad = function(section) {
+    switch(section) {
+      case 'metricas': obsLoadMetricas(); break;
+      case 'logs':     obsLoadLogs();     break;
+      case 'traces':   obsLoadTraces();   break;
+      case 'erros':    obsLoadErros();    break;
+    }
+  };
+
+  window.obsSetRange = function(section, range, btn) {
+    obsState[section].range = range;
+    document.querySelectorAll('#obsMetricasBlock .obs-range-btn').forEach(function(b){ b.classList.remove('active'); });
+    if (btn) btn.classList.add('active');
+    obsLoadMetricas();
+  };
+
+  /* ── MÉTRICAS ──────────────────────────────────────────────── */
+  function obsLoadMetricas() {
+    setState('met', 'loading');
+    var range = obsState.metricas.range || '15m';
+    fetch('/api/observability/metrics?range=' + range)
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        setState('met', 'ok');
+        setText('obs-met-rps', d.rps != null ? d.rps.toFixed(2) : '—');
+        setText('obs-met-p99', d.p99 != null ? d.p99.toFixed(0) + ' ms' : '—');
+        setText('obs-met-err', d.errorRate != null ? d.errorRate.toFixed(1) + '%' : '—');
+        setText('obs-met-up',  d.uptime != null ? d.uptime.toFixed(1) + '%' : '—');
+        obsRenderMetChart(d.series || []);
+      })
+      .catch(function(e){
+        setState('met', 'error', 'Erro ao conectar com Prometheus: ' + e.message);
+      });
+  }
+
+  function obsRenderMetChart(series) {
+    var ctx = document.getElementById('obs-met-chart');
+    if (!ctx) return;
+    if (obsState.metricas.chart) { obsState.metricas.chart.destroy(); }
+    if (!series.length) return;
+    obsState.metricas.chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: series[0].timestamps || [],
+        datasets: [
+          { label: 'req/s',     data: series[0] && series[0].rps     || [], borderColor: '#06b6d4', backgroundColor: 'rgba(6,182,212,.08)', tension: .3, pointRadius: 0, fill: true },
+          { label: 'p99 (ms)',  data: series[0] && series[0].p99     || [], borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,.06)', tension: .3, pointRadius: 0, yAxisID: 'y2' }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { labels: { color: '#94a3b8', font: { size: 11 } } } },
+        scales: {
+          x:  { ticks: { color: '#64748b', font: { size: 10 }, maxTicksLimit: 8 }, grid: { color: 'rgba(255,255,255,.04)' } },
+          y:  { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.04)' }, title: { display: true, text: 'req/s', color: '#64748b', font: { size: 10 } } },
+          y2: { position: 'right', ticks: { color: '#64748b', font: { size: 10 } }, grid: { drawOnChartArea: false }, title: { display: true, text: 'p99 ms', color: '#64748b', font: { size: 10 } } }
+        }
+      }
+    });
+  }
+
+  /* ── LOGS ──────────────────────────────────────────────────── */
+  function obsLoadLogs() {
+    setState('log', 'loading');
+    var level = obsState.logs.level !== 'all' ? '&level=' + obsState.logs.level : '';
+    fetch('/api/observability/logs?limit=100' + level)
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        obsState.logs.allRows = d.entries || [];
+        obsRenderLogs();
+        setState('log', 'ok');
+        // Auto-refresh 10s
+        clearInterval(obsState.logs.timer);
+        obsState.logs.timer = setInterval(obsLoadLogs, 10000);
+      })
+      .catch(function(e){
+        setState('log', 'error', 'Erro ao conectar com Loki: ' + e.message);
+      });
+  }
+
+  window.obsLogFilter = function(level, btn) {
+    obsState.logs.level = level;
+    document.querySelectorAll('#obsLogsBlock .obs-filter-btn').forEach(function(b){ b.classList.remove('active'); });
+    if (btn) btn.classList.add('active');
+    obsLoadLogs();
+  };
+
+  window.obsLogSearch = function(q) {
+    obsState.logs.q = q.toLowerCase();
+    obsRenderLogs();
+  };
+
+  function obsRenderLogs() {
+    var rows = obsState.logs.allRows;
+    var q = obsState.logs.q;
+    if (q) rows = rows.filter(function(r){ return (r.message||'').toLowerCase().includes(q); });
+    var tbody = document.getElementById('obs-log-body');
+    if (!tbody) return;
+    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="3" class="obs-empty">Nenhum log encontrado</td></tr>'; return; }
+    tbody.innerHTML = rows.slice(0, 50).map(function(r) {
+      var lvl = (r.level||'info').toLowerCase();
+      var cls = 'obs-level-' + (lvl === 'warning' ? 'warn' : lvl);
+      var ts = r.timestamp ? new Date(r.timestamp).toLocaleTimeString('pt-BR') : '—';
+      return '<tr><td style="color:var(--muted);white-space:nowrap;font-size:11px">' + ts + '</td>' +
+             '<td><span class="' + cls + '" style="font-size:11px;font-weight:700;text-transform:uppercase">' + lvl + '</span></td>' +
+             '<td style="word-break:break-word;font-size:12px">' + escHtml(r.message||'') + '</td></tr>';
+    }).join('');
+    document.getElementById('obs-log-wrap').style.display = '';
+  }
+
+  /* ── TRACES ────────────────────────────────────────────────── */
+  function obsLoadTraces() {
+    setState('trc', 'loading');
+    var svc = document.getElementById('obs-trc-service');
+    var service = svc ? svc.value : 'comprai-api';
+    fetch('/api/observability/traces?service=' + encodeURIComponent(service) + '&limit=20')
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        obsState.traces.allRows = d.traces || [];
+        obsRenderTraces();
+        setState('trc', 'ok');
+      })
+      .catch(function(e){
+        setState('trc', 'error', 'Erro ao conectar com Jaeger: ' + e.message);
+      });
+  }
+
+  window.obsTracesFilter = function() {
+    obsRenderTraces();
+  };
+
+  function obsRenderTraces() {
+    var q = (document.getElementById('obs-trc-op') || {}).value || '';
+    var rows = obsState.traces.allRows;
+    if (q) rows = rows.filter(function(r){ return (r.operation||'').toLowerCase().includes(q.toLowerCase()); });
+    var tbody = document.getElementById('obs-trc-body');
+    if (!tbody) return;
+    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="5" class="obs-empty">Nenhum trace encontrado</td></tr>'; return; }
+    tbody.innerHTML = rows.map(function(r, i) {
+      var ok = !r.error;
+      var badge = ok ? 'obs-badge-ok' : 'obs-badge-error';
+      var badgeTxt = ok ? 'OK' : 'ERRO';
+      var spanRows = (r.spans||[]).map(function(s) {
+        var pct = r.duration > 0 ? Math.round(s.duration / r.duration * 100) : 0;
+        return '<div class="obs-span-item">' +
+          '<span style="font-size:11px;color:var(--muted);width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(s.operation||'') + '</span>' +
+          '<div class="obs-span-bar-wrap"><div class="obs-span-bar" style="width:' + pct + '%"></div></div>' +
+          '<span style="font-size:10px;color:var(--muted);white-space:nowrap;min-width:50px;text-align:right">' + (s.duration||0) + ' ms</span></div>';
+      }).join('');
+      return '<tr class="obs-span-row" onclick="obsToggleSpans(' + i + ')">' +
+        '<td style="font-size:12px">' + escHtml(r.operation||'') + '</td>' +
+        '<td style="font-size:11px;color:var(--muted)">' + escHtml(r.service||'') + '</td>' +
+        '<td style="font-size:12px;font-weight:600">' + (r.duration||0) + ' ms</td>' +
+        '<td style="font-size:11px;color:var(--muted)">' + (r.spans||[]).length + '</td>' +
+        '<td><span class="obs-badge ' + badge + '">' + badgeTxt + '</span></td>' +
+        '</tr>' +
+        '<tr><td colspan="5" style="padding:0"><div class="obs-spans-detail" id="obs-spans-' + i + '">' + spanRows + '</div></td></tr>';
+    }).join('');
+    document.getElementById('obs-trc-wrap').style.display = '';
+  }
+
+  window.obsToggleSpans = function(i) {
+    var el = document.getElementById('obs-spans-' + i);
+    if (el) el.classList.toggle('open');
+  };
+
+  /* ── ERROS RECENTES ────────────────────────────────────────── */
+  function obsLoadErros() {
+    setState('err', 'loading');
+    fetch('/api/observability/errors?limit=20')
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        obsRenderErros(d.errors || []);
+        setState('err', 'ok');
+        clearInterval(obsState.erros.timer);
+        obsState.erros.timer = setInterval(obsLoadErros, 30000);
+      })
+      .catch(function(e){
+        setState('err', 'error', 'Erro ao conectar com Loki: ' + e.message);
+      });
+  }
+
+  function obsRenderErros(errors) {
+    var el = document.getElementById('obs-err-list');
+    if (!el) return;
+    if (!errors.length) { el.innerHTML = '<div class="obs-empty">&#10003; Nenhum erro recente</div>'; return; }
+    el.innerHTML = errors.map(function(e, i) {
+      var last = e.lastSeen ? new Date(e.lastSeen).toLocaleString('pt-BR') : '—';
+      return '<div class="obs-error-group">' +
+        '<div class="obs-error-header" onclick="obsToggleErr(' + i + ')">' +
+          '<span class="obs-error-count">' + (e.count||1) + 'x</span>' +
+          '<span style="font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(e.message||'') + '</span>' +
+          '<span style="font-size:10px;color:var(--muted);white-space:nowrap">' + last + '</span>' +
+          '<span style="color:var(--muted);font-size:12px;margin-left:8px">&#9660;</span>' +
+        '</div>' +
+        '<div class="obs-error-body" id="obs-err-body-' + i + '">' +
+          (e.stacktrace ? '<pre class="obs-stacktrace">' + escHtml(e.stacktrace) + '</pre>' : '<span style="color:var(--muted);font-size:12px">Sem stacktrace</span>') +
+        '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  window.obsToggleErr = function(i) {
+    var el = document.getElementById('obs-err-body-' + i);
+    if (el) el.classList.toggle('open');
+  };
+
+  /* ── Helpers ─────────────────────────────────────────────── */
+  function setState(prefix, type, msg) {
+    var el = document.getElementById('obs-' + prefix + '-state');
+    if (!el) return;
+    if (type === 'loading') {
+      el.className = 'obs-loading';
+      el.innerHTML = '<div class="obs-loading-spin"></div>' + (msg || 'Carregando...');
+      el.style.display = '';
+    } else if (type === 'error') {
+      el.className = 'obs-error-state';
+      el.innerHTML = '&#9888; ' + (msg || 'Erro ao carregar dados');
+      el.style.display = '';
+    } else {
+      el.style.display = 'none';
+    }
+  }
+
+  function setText(id, val) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = val;
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+})();
+
 </script>
 </body>
 </html>
@@ -3324,6 +3576,131 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .admin-restart-btn:hover { background: rgba(99,102,241,.15); border-color: rgba(99,102,241,.4); color: #a5b4fc; }
 .admin-redeploy-btn { border-color: rgba(234,179,8,.3); color: #eab308; }
 .admin-redeploy-btn:hover { background: rgba(234,179,8,.1); border-color: rgba(234,179,8,.5); color: #fde047; }
+
+/* ── Observabilidade ──────────────────────────────────────────────── */
+.obs-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 18px;
+}
+@media (max-width: 900px) { .obs-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 480px) { .obs-kpi-grid { grid-template-columns: 1fr 1fr; gap: 8px; } }
+
+.obs-kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.obs-kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.obs-kpi-value { font-size: 22px; font-weight: 700; color: var(--text); line-height: 1.1; }
+.obs-kpi-sub   { font-size: 11px; color: var(--muted); }
+
+.obs-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.obs-range-btn {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.obs-range-btn.active, .obs-range-btn:hover {
+  background: var(--accent2);
+  color: #000;
+  border-color: var(--accent2);
+}
+.obs-search {
+  flex: 1;
+  min-width: 160px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  outline: none;
+}
+.obs-filter-btn {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.obs-filter-btn.active { border-color: var(--accent2); color: var(--accent2); }
+.obs-filter-btn:hover  { border-color: var(--accent2); color: var(--accent2); }
+
+.obs-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.obs-table th { text-align: left; padding: 6px 8px; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+.obs-table td { padding: 7px 8px; border-bottom: 1px solid rgba(255,255,255,.04); vertical-align: top; }
+.obs-table tr:hover td { background: rgba(255,255,255,.02); }
+.obs-table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); }
+
+.obs-level-info  { color: #94a3b8; }
+.obs-level-warn  { color: #f59e0b; }
+.obs-level-error { color: #f87171; }
+.obs-level-fatal { color: #ef4444; }
+
+.obs-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.obs-badge-ok    { background: rgba(34,197,94,.15); color: #22c55e; }
+.obs-badge-warn  { background: rgba(245,158,11,.15); color: #f59e0b; }
+.obs-badge-error { background: rgba(248,113,113,.15); color: #f87171; }
+
+.obs-span-row { cursor: pointer; }
+.obs-span-row:hover td { background: rgba(6,182,212,.05); }
+.obs-spans-detail { font-size: 11px; padding: 6px 12px 10px; background: rgba(0,0,0,.2); border-radius: 6px; margin-top: 4px; display: none; }
+.obs-spans-detail.open { display: block; }
+.obs-span-item { display: flex; align-items: center; gap: 6px; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,.04); }
+.obs-span-bar-wrap { flex: 1; background: var(--surface2); border-radius: 3px; height: 6px; min-width: 60px; }
+.obs-span-bar { height: 6px; border-radius: 3px; background: var(--accent2); }
+
+.obs-refresh-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10px; color: var(--muted); margin-left: auto;
+}
+.obs-refresh-dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; animation: pulse 1.5s infinite; }
+
+.obs-error-group { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; overflow: hidden; }
+.obs-error-header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; cursor: pointer; background: var(--surface); }
+.obs-error-header:hover { background: var(--surface2); }
+.obs-error-count { font-size: 10px; font-weight: 700; background: rgba(248,113,113,.15); color: #f87171; border-radius: 10px; padding: 2px 7px; }
+.obs-error-body { padding: 0 12px; max-height: 0; overflow: hidden; transition: max-height .25s ease; }
+.obs-error-body.open { max-height: 400px; padding: 10px 12px; }
+.obs-stacktrace { font-family: monospace; font-size: 11px; color: #94a3b8; white-space: pre-wrap; word-break: break-all; }
+
+.obs-chart-wrap { position: relative; height: 200px; margin-bottom: 18px; }
+@media (max-width: 600px) { .obs-chart-wrap { height: 160px; } }
+
+.obs-loading { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 40px; color: var(--muted); font-size: 13px; }
+.obs-loading-spin { width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--accent2); border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.obs-empty { text-align: center; padding: 40px; color: var(--muted); font-size: 13px; }
+.obs-error-state { text-align: center; padding: 30px; color: #f87171; font-size: 13px; }
+
 </style>
 </head>
 <body>
@@ -3445,6 +3822,25 @@ tr:hover td { background: rgba(255,255,255,.02); }
           <span class="nav-icon">&#9728;</span><span class="nav-text">SonarCloud</span>
         </div>
 
+      </div>
+    </div>
+    <div class="nav-group" id="group-observabilidade">
+      <div class="nav-label" onclick="toggleNavGroup('group-observabilidade')">
+        <span class="nav-text">&#128225; Observabilidade</span><span class="nav-group-chevron">&#9660;</span>
+      </div>
+      <div class="nav-group-items">
+        <div class="nav-item" id="nav-obs-metricas" onclick="showSection('obsMetricasBlock', this)" title="Metricas Prometheus">
+          <span class="nav-icon">&#128200;</span><span class="nav-text">Metricas</span>
+        </div>
+        <div class="nav-item" id="nav-obs-logs" onclick="showSection('obsLogsBlock', this)" title="Logs Loki">
+          <span class="nav-icon">&#128220;</span><span class="nav-text">Logs</span>
+        </div>
+        <div class="nav-item" id="nav-obs-traces" onclick="showSection('obsTracesBlock', this)" title="Traces Jaeger">
+          <span class="nav-icon">&#128269;</span><span class="nav-text">Traces</span>
+        </div>
+        <div class="nav-item" id="nav-obs-erros" onclick="showSection('obsErrosBlock', this)" title="Erros Recentes">
+          <span class="nav-icon">&#128680;</span><span class="nav-text">Erros Recentes</span>
+        </div>
       </div>
     </div>
     <div class="nav-group" id="group-seguranca">
@@ -4201,6 +4597,98 @@ tr:hover td { background: rgba(255,255,255,.02); }
         </div>
       </div>
 
+
+    <!-- ── Observabilidade: Métricas ──────────────────────────────────── -->
+    <div class="section-block" id="obsMetricasBlock" style="display:none">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title-text" style="flex:1">&#128200; Métricas — Prometheus</span>
+        <span class="obs-refresh-badge" id="obs-met-refresh"><span class="obs-refresh-dot"></span>live</span>
+      </div>
+      <div class="section-content">
+        <!-- Range selector -->
+        <div class="obs-toolbar">
+          <button class="obs-range-btn active" onclick="obsSetRange('metricas','15m',this)">15 min</button>
+          <button class="obs-range-btn" onclick="obsSetRange('metricas','1h',this)">1 h</button>
+          <button class="obs-range-btn" onclick="obsSetRange('metricas','6h',this)">6 h</button>
+          <button class="obs-range-btn" onclick="obsSetRange('metricas','24h',this)">24 h</button>
+          <button class="obs-range-btn" onclick="obsLoad('metricas')" style="margin-left:auto">&#8635; Atualizar</button>
+        </div>
+        <!-- KPI cards -->
+        <div class="obs-kpi-grid" id="obs-met-kpis">
+          <div class="obs-kpi-card"><div class="obs-kpi-label">req/s</div><div class="obs-kpi-value" id="obs-met-rps">—</div><div class="obs-kpi-sub">últimos 5 min</div></div>
+          <div class="obs-kpi-card"><div class="obs-kpi-label">Latência p99</div><div class="obs-kpi-value" id="obs-met-p99">—</div><div class="obs-kpi-sub">ms</div></div>
+          <div class="obs-kpi-card"><div class="obs-kpi-label">Taxa de Erro</div><div class="obs-kpi-value" id="obs-met-err">—</div><div class="obs-kpi-sub">% 5xx</div></div>
+          <div class="obs-kpi-card"><div class="obs-kpi-label">Uptime</div><div class="obs-kpi-value" id="obs-met-up">—</div><div class="obs-kpi-sub">% disponibilidade</div></div>
+        </div>
+        <!-- Gráfico -->
+        <div class="obs-chart-wrap"><canvas id="obs-met-chart"></canvas></div>
+        <div id="obs-met-state" class="obs-loading"><div class="obs-loading-spin"></div>Carregando métricas...</div>
+      </div>
+    </div>
+
+    <!-- ── Observabilidade: Logs ───────────────────────────────────────── -->
+    <div class="section-block" id="obsLogsBlock" style="display:none">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title-text" style="flex:1">&#128220; Logs — Loki</span>
+        <span class="obs-refresh-badge" id="obs-log-refresh"><span class="obs-refresh-dot"></span>10s</span>
+      </div>
+      <div class="section-content">
+        <div class="obs-toolbar">
+          <button class="obs-filter-btn active" onclick="obsLogFilter('all',this)">Todos</button>
+          <button class="obs-filter-btn" onclick="obsLogFilter('info',this)">Info</button>
+          <button class="obs-filter-btn" onclick="obsLogFilter('warn',this)">Warn</button>
+          <button class="obs-filter-btn" onclick="obsLogFilter('error',this)">Error</button>
+          <input class="obs-search" id="obs-log-search" placeholder="&#128269; Buscar nos logs..." oninput="obsLogSearch(this.value)">
+          <button class="obs-range-btn" onclick="obsLoad('logs')" style="margin-left:auto">&#8635; Atualizar</button>
+        </div>
+        <div id="obs-log-state" class="obs-loading"><div class="obs-loading-spin"></div>Carregando logs...</div>
+        <div class="obs-table-wrap" id="obs-log-wrap" style="display:none">
+          <table class="obs-table">
+            <thead><tr><th style="width:140px">Timestamp</th><th style="width:55px">Level</th><th>Mensagem</th></tr></thead>
+            <tbody id="obs-log-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Observabilidade: Traces ────────────────────────────────────── -->
+    <div class="section-block" id="obsTracesBlock" style="display:none">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title-text" style="flex:1">&#128269; Traces — Jaeger</span>
+      </div>
+      <div class="section-content">
+        <div class="obs-toolbar">
+          <select class="obs-search" id="obs-trc-service" onchange="obsLoad('traces')" style="max-width:180px">
+            <option value="comprai-api">comprai-api</option>
+            <option value="">Todos</option>
+          </select>
+          <input class="obs-search" id="obs-trc-op" placeholder="Filtrar operação..." oninput="obsTracesFilter()">
+          <button class="obs-range-btn" onclick="obsLoad('traces')" style="margin-left:auto">&#8635; Atualizar</button>
+        </div>
+        <div id="obs-trc-state" class="obs-loading"><div class="obs-loading-spin"></div>Carregando traces...</div>
+        <div class="obs-table-wrap" id="obs-trc-wrap" style="display:none">
+          <table class="obs-table">
+            <thead><tr><th>Operação</th><th style="width:100px">Serviço</th><th style="width:80px">Duração</th><th style="width:70px">Spans</th><th style="width:70px">Status</th></tr></thead>
+            <tbody id="obs-trc-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Observabilidade: Erros Recentes ────────────────────────────── -->
+    <div class="section-block" id="obsErrosBlock" style="display:none">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title-text" style="flex:1">&#128680; Erros Recentes</span>
+        <span class="obs-refresh-badge" id="obs-err-refresh"><span class="obs-refresh-dot"></span>30s</span>
+      </div>
+      <div class="section-content">
+        <div class="obs-toolbar">
+          <button class="obs-range-btn" onclick="obsLoad('erros')" style="margin-left:auto">&#8635; Atualizar</button>
+        </div>
+        <div id="obs-err-state" class="obs-loading"><div class="obs-loading-spin"></div>Carregando erros...</div>
+        <div id="obs-err-list"></div>
+      </div>
+    </div>
     </div>
 
 
