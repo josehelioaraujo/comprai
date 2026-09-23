@@ -1176,10 +1176,10 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       if (id === 'pciBlock')   { buildSecList(PCI_ITEMS,   'pci-list');   var pc=countStatus(PCI_ITEMS);   var pcEl=document.getElementById('pci-score');   if(pcEl) pcEl.textContent=pc.ok+'/'+pc.total+' OK'; }
       if (id === 'depBlock')   { loadDepData(); }
       if (id === 'evolucaoBlock') { loadEvolucaoData(); }
-      if (id === 'obsMetricasBlock') { setTimeout(function(){ obsLoad('metricas'); }, 300); }
-      if (id === 'obsLogsBlock')    { setTimeout(function(){ obsLoad('logs'); },     300); }
-      if (id === 'obsTracesBlock')  { setTimeout(function(){ obsLoad('traces'); },   300); }
-      if (id === 'obsErrosBlock')   { setTimeout(function(){ obsLoad('erros'); },    300); }
+      if (id === 'obsMetricasBlock') { setTimeout(function(){ obsLoad('metricas'); }, 50); }
+      if (id === 'obsLogsBlock')    { setTimeout(function(){ obsLoad('logs'); },     50); }
+      if (id === 'obsTracesBlock')  { setTimeout(function(){ obsLoad('traces'); },   50); }
+      if (id === 'obsErrosBlock')   { setTimeout(function(){ obsLoad('erros'); },    50); }
     };
   })();
 
@@ -2656,9 +2656,12 @@ function adminTrackRun(label, runId) {
         obsState.logs.allRows = d.entries || [];
         setState('log', 'ok');
         obsRenderLogs();
-        // Auto-refresh 10s
+        // Auto-refresh 10s só se bloco visível
         clearInterval(obsState.logs.timer);
-        obsState.logs.timer = setInterval(obsLoadLogs, 10000);
+        var lb = document.getElementById('obsLogsBlock');
+        if (lb && lb.style.display !== 'none') {
+          obsState.logs.timer = setInterval(obsLoadLogs, 10000);
+        }
       })
       .catch(function(e){
         setState('log', 'error', 'Erro ao conectar com Loki: ' + e.message);
@@ -2775,7 +2778,10 @@ function adminTrackRun(label, runId) {
         obsRenderErros(d.errors || []);
         setState('err', 'ok');
         clearInterval(obsState.erros.timer);
-        obsState.erros.timer = setInterval(obsLoadErros, 30000);
+        var eb = document.getElementById('obsErrosBlock');
+        if (eb && eb.style.display !== 'none') {
+          obsState.erros.timer = setInterval(obsLoadErros, 30000);
+        }
       })
       .catch(function(e){
         setState('err', 'error', 'Erro ao conectar com Loki: ' + e.message);
