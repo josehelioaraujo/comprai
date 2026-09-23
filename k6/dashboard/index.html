@@ -2612,32 +2612,26 @@ function adminTrackRun(label, runId) {
         setText('obs-met-p99', d.p99 != null ? d.p99.toFixed(0) + ' ms' : '—');
         setText('obs-met-err', d.errorRate != null ? d.errorRate.toFixed(1) + '%' : '—');
         setText('obs-met-up',  d.uptime != null ? d.uptime.toFixed(2) + '%' : '—');
-        // Tooltip dinâmico do Uptime
-        if (d.uptime != null) {
+        // Tooltips dinâmicos CSS
+        var tipUp = document.getElementById('obs-tip-up');
+        if (tipUp && d.uptime != null) {
           var downtime = ((100 - d.uptime) / 100 * 30 * 24 * 60).toFixed(0);
-          var uptimeCard = document.querySelector('[title*="disponibilidade"]');
-          if (uptimeCard) uptimeCard.title = 'Disponibilidade: ' + d.uptime.toFixed(2) + '% — equivale a ~' + downtime + ' min de indisponibilidade no mês';
+          var uptimeLabel = d.uptime >= 99.9 ? '🟢 Excelente' : d.uptime >= 99 ? '🟡 Bom' : '🔴 Crítico';
+          tipUp.textContent = uptimeLabel + ' — ' + d.uptime.toFixed(2) + '% (~' + downtime + ' min de indisponibilidade/mês)';
         }
-        // Tooltip dinâmico req/s
-        if (d.rps != null) {
-          var rpsCard = document.querySelector('[title*="Requisições por segundo"]');
-          if (rpsCard) rpsCard.title = 'Requisições por segundo: ' + d.rps.toFixed(2) + ' req/s — média dos últimos 5 minutos';
+        var tipRps = document.getElementById('obs-tip-rps');
+        if (tipRps && d.rps != null) {
+          tipRps.textContent = 'req/s: ' + d.rps.toFixed(2) + ' — média dos últimos 5 min';
         }
-        // Tooltip dinâmico p99
-        if (d.p99 != null) {
-          var p99Card = document.querySelector('[title*="percentil 99"]');
-          if (p99Card) {
-            var p99quality = d.p99 < 200 ? 'Excelente' : d.p99 < 500 ? 'Bom' : d.p99 < 1000 ? 'Aceitável' : 'Crítico';
-            p99Card.title = 'Latência p99: ' + d.p99.toFixed(0) + 'ms — ' + p99quality + ' (meta: < 200ms)';
-          }
+        var tipP99 = document.getElementById('obs-tip-p99');
+        if (tipP99 && d.p99 != null) {
+          var p99q = d.p99 < 200 ? '🟢 Excelente' : d.p99 < 500 ? '🟡 Bom' : d.p99 < 1000 ? '🟠 Aceitável' : '🔴 Crítico';
+          tipP99.textContent = p99q + ' — p99: ' + d.p99.toFixed(0) + 'ms (meta: < 200ms)';
         }
-        // Tooltip dinâmico taxa de erro
-        if (d.errorRate != null) {
-          var errCard = document.querySelector('[title*="5xx"]');
-          if (errCard) {
-            var errquality = d.errorRate < 0.1 ? 'Saudável' : d.errorRate < 1 ? 'Atenção' : 'Crítico';
-            errCard.title = 'Taxa de erro 5xx: ' + d.errorRate.toFixed(2) + '% — ' + errquality + ' (meta: < 0.1%)';
-          }
+        var tipErr = document.getElementById('obs-tip-err');
+        if (tipErr && d.errorRate != null) {
+          var errq = d.errorRate < 0.1 ? '🟢 Saudável' : d.errorRate < 1 ? '🟡 Atenção' : '🔴 Crítico';
+          tipErr.textContent = errq + ' — ' + d.errorRate.toFixed(2) + '% de erros 5xx (meta: < 0.1%)';
         }
         obsRenderMetChart(d.series || []);
       })
@@ -3770,6 +3764,31 @@ tr:hover td { background: rgba(255,255,255,.02); }
   padding: 16px;
 }
 
+
+/* ── KPI Tooltip customizado ─────────────────────────────── */
+.obs-kpi-card { position: relative; cursor: help; }
+.obs-kpi-card .obs-tooltip {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e293b;
+  color: #e2e8f0;
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+  z-index: 9999;
+  box-shadow: 0 4px 12px rgba(0,0,0,.4);
+  pointer-events: none;
+  min-width: 200px;
+  text-align: center;
+}
+.obs-kpi-card:hover .obs-tooltip { display: block; }
+
 </style>
 </head>
 <body>
@@ -4689,10 +4708,10 @@ tr:hover td { background: rgba(255,255,255,.02); }
         </div>
         <!-- KPI cards -->
         <div class="obs-kpi-grid" id="obs-met-kpis">
-          <div class="obs-kpi-card" title="Requisições por segundo — média dos últimos 5 minutos coletada pelo Prometheus"><div class="obs-kpi-label">req/s</div><div class="obs-kpi-value" id="obs-met-rps">—</div><div class="obs-kpi-sub">últimos 5 min</div></div>
-          <div class="obs-kpi-card" title="Latência no percentil 99 — 99% das requisições responderam abaixo desse tempo (em ms)"><div class="obs-kpi-label">Latência p99</div><div class="obs-kpi-value" id="obs-met-p99">—</div><div class="obs-kpi-sub">ms</div></div>
-          <div class="obs-kpi-card" title="Percentual de respostas com status 5xx (erros do servidor) nos últimos 5 minutos"><div class="obs-kpi-label">Taxa de Erro</div><div class="obs-kpi-value" id="obs-met-err">—</div><div class="obs-kpi-sub">% 5xx</div></div>
-          <div class="obs-kpi-card" title="Disponibilidade da API — calculada pelo health check. 100% significa sem interrupções no período"><div class="obs-kpi-label">Uptime</div><div class="obs-kpi-value" id="obs-met-up">—</div><div class="obs-kpi-sub">% disponibilidade</div></div>
+          <div class="obs-kpi-card" id="obs-kpi-rps"><div class="obs-tooltip" id="obs-tip-rps">Requisições por segundo — média dos últimos 5 min</div><div class="obs-kpi-label">req/s</div><div class="obs-kpi-value" id="obs-met-rps">—</div><div class="obs-kpi-sub">últimos 5 min</div></div>
+          <div class="obs-kpi-card" id="obs-kpi-p99"><div class="obs-tooltip" id="obs-tip-p99">Latência no percentil 99 — 99% das requisições respondem abaixo desse tempo</div><div class="obs-kpi-label">Latência p99</div><div class="obs-kpi-value" id="obs-met-p99">—</div><div class="obs-kpi-sub">ms</div></div>
+          <div class="obs-kpi-card" id="obs-kpi-err"><div class="obs-tooltip" id="obs-tip-err">% de respostas 5xx nos últimos 5 min — meta: &lt; 0.1%</div><div class="obs-kpi-label">Taxa de Erro</div><div class="obs-kpi-value" id="obs-met-err">—</div><div class="obs-kpi-sub">% 5xx</div></div>
+          <div class="obs-kpi-card" id="obs-kpi-up"><div class="obs-tooltip" id="obs-tip-up">Disponibilidade da API</div><div class="obs-kpi-label">Uptime</div><div class="obs-kpi-value" id="obs-met-up">—</div><div class="obs-kpi-sub">% disponibilidade</div></div>
         </div>
         <!-- Gráfico -->
         <div class="obs-chart-wrap"><canvas id="obs-met-chart"></canvas></div>
