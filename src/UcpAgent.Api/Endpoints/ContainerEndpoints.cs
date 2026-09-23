@@ -61,9 +61,10 @@ public static class ContainerEndpoints
             try
             {
                 var n = Math.Min(lines ?? 50, 200);
-                var result = await RunDockerAsync($"logs {name} --tail {n} 2>&1", ct);
+                var result = await RunDockerAsync($"logs --tail {n} {name}", ct);
 
-                var logLines = (result.ExitCode == 0 ? result.Output : result.Error)
+                var combined = string.IsNullOrEmpty(result.Output) ? result.Error : result.Output;
+                var logLines = combined
                     .Split('\n', StringSplitOptions.RemoveEmptyEntries)
                     .TakeLast(n)
                     .ToList();
