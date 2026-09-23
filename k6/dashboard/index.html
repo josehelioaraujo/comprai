@@ -3708,6 +3708,18 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .obs-empty { text-align: center; padding: 40px; color: var(--muted); font-size: 13px; }
 .obs-error-state { text-align: center; padding: 30px; color: #f87171; font-size: 13px; }
 
+
+/* ── Observabilidade: forçar section-content sempre visível ── */
+#obsMetricasBlock .section-content,
+#obsLogsBlock .section-content,
+#obsTracesBlock .section-content,
+#obsErrosBlock .section-content {
+  max-height: none !important;
+  overflow: visible !important;
+  display: block !important;
+  padding: 16px;
+}
+
 </style>
 </head>
 <body>
