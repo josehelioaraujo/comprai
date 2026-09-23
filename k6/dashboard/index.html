@@ -4646,7 +4646,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <span class="section-title-text" style="flex:1">&#128200; Métricas — Prometheus</span>
         <span class="obs-refresh-badge" id="obs-met-refresh"><span class="obs-refresh-dot"></span>live</span>
       </div>
-      <div class="section-content" id="obs-met-content">
+      <div id="obs-met-content" style="padding:16px">
         <!-- Range selector -->
         <div class="obs-toolbar">
           <button class="obs-range-btn active" onclick="obsSetRange('metricas','15m',this)">15 min</button>
@@ -4674,7 +4674,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <span class="section-title-text" style="flex:1">&#128220; Logs — Loki</span>
         <span class="obs-refresh-badge" id="obs-log-refresh"><span class="obs-refresh-dot"></span>10s</span>
       </div>
-      <div class="section-content" id="obs-log-content">
+      <div id="obs-log-content" style="padding:16px">
         <div class="obs-toolbar">
           <button class="obs-filter-btn active" onclick="obsLogFilter('all',this)">Todos</button>
           <button class="obs-filter-btn" onclick="obsLogFilter('info',this)">Info</button>
@@ -4698,7 +4698,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       <div class="section-header">
         <span class="section-title-text" style="flex:1">&#128269; Traces — Jaeger</span>
       </div>
-      <div class="section-content" id="obs-trc-content">
+      <div id="obs-trc-content" style="padding:16px">
         <div class="obs-toolbar">
           <select class="obs-search" id="obs-trc-service" onchange="obsLoad('traces')" style="max-width:180px">
             <option value="comprai-api">comprai-api</option>
@@ -4723,7 +4723,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <span class="section-title-text" style="flex:1">&#128680; Erros Recentes</span>
         <span class="obs-refresh-badge" id="obs-err-refresh"><span class="obs-refresh-dot"></span>30s</span>
       </div>
-      <div class="section-content" id="obs-err-content">
+      <div id="obs-err-content" style="padding:16px"
         <div class="obs-toolbar">
           <button class="obs-range-btn" onclick="obsLoad('erros')" style="margin-left:auto">&#8635; Atualizar</button>
         </div>
