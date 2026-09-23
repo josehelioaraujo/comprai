@@ -13,6 +13,7 @@ using MediatR;
 using UcpAgent.Application.IntentRouter;
 using UcpAgent.Infrastructure.Messaging;
 using Microsoft.Extensions.Caching.Hybrid;
+using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using StackExchange.Redis;
@@ -61,7 +62,12 @@ builder.Services.AddOpenTelemetry()
     .WithTracing(t => t
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()
-        .AddOtlpExporter());
+        .AddOtlpExporter())
+    .WithMetrics(m => m
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddRuntimeInstrumentation()
+        .AddPrometheusExporter());
 
 // Ã¢ââ¬Ã¢ââ¬ OpenAPI Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬
 builder.Services.AddOpenApi();
@@ -746,6 +752,7 @@ app.MapGet("/api/github/run/latest", async (string? workflow, string? repo, ICon
 .WithTags("GitHub")
 .AllowAnonymous();
 
+app.UseOpenTelemetryPrometheusScrapingEndpoint();
 app.Run();
 
 // ââ Request DTOs ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
