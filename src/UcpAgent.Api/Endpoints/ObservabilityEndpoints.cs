@@ -316,8 +316,9 @@ public static class ObservabilityEndpoints
                 .EnumerateArray().FirstOrDefault();
             if (result.ValueKind == JsonValueKind.Undefined) return null;
             var val = result.GetProperty("value").EnumerateArray().Skip(1).FirstOrDefault();
-            return double.TryParse(val.GetString(), System.Globalization.NumberStyles.Float,
-                System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : null;
+            if (!double.TryParse(val.GetString(), System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var d)) return null;
+        return double.IsFinite(d) ? d : null;
         }
         catch { return null; }
     }
@@ -344,8 +345,11 @@ public static class ObservabilityEndpoints
                 var pts  = point.EnumerateArray().ToList();
                 var ts   = DateTimeOffset.FromUnixTimeSeconds((long)pts[0].GetDouble()).ToLocalTime();
                 labels.Add(ts.ToString("HH:mm"));
-                values.Add(double.TryParse(pts[1].GetString(), System.Globalization.NumberStyles.Float,
-                    System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : null);
+                if (double.TryParse(pts[1].GetString(), System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out var v) && double.IsFinite(v))
+                    values.Add(v);
+                else
+                    values.Add(null);
             }
             return (labels, values);
         }
