@@ -100,7 +100,7 @@ let runReloadPending = false;
 let verInfo = {};
 
 // IDs das secoes navegaveis (exceto detalhes que e fixo)
-const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','mutacaoBlock','sonarBlock','owaspBlock','pciBlock','depBlock','evolucaoBlock','integrationBlock'];
+const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','mutacaoBlock','sonarBlock','owaspBlock','pciBlock','depBlock','evolucaoBlock','integrationBlock','obsMetricasBlock','obsLogsBlock','obsTracesBlock','obsErrosBlock'];
 let activeSection = null; // null = nenhuma extra visivel
 
 const TYPE_ORDER = ['smoke','load','stress','spike','soak'];
@@ -4646,9 +4646,10 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
     <!-- ── Observabilidade: Métricas ──────────────────────────────────── -->
     <div class="section-block" id="obsMetricasBlock" style="display:none">
-      <div class="section-header">
+      <div class="section-header" onclick="toggleSection(this)">
         <span class="section-title-text" style="flex:1">&#128200; Métricas — Prometheus</span>
         <span class="obs-refresh-badge" id="obs-met-refresh"><span class="obs-refresh-dot"></span>live</span>
+        <span class="section-chevron">&#9660;</span>
       </div>
       <div id="obs-met-content" style="padding:16px">
         <!-- Range selector -->
@@ -4674,9 +4675,10 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
     <!-- ── Observabilidade: Logs ───────────────────────────────────────── -->
     <div class="section-block" id="obsLogsBlock" style="display:none">
-      <div class="section-header">
+      <div class="section-header" onclick="toggleSection(this)">
         <span class="section-title-text" style="flex:1">&#128220; Logs — Loki</span>
         <span class="obs-refresh-badge" id="obs-log-refresh"><span class="obs-refresh-dot"></span>10s</span>
+        <span class="section-chevron">&#9660;</span>
       </div>
       <div id="obs-log-content" style="padding:16px">
         <div class="obs-toolbar">
@@ -4699,8 +4701,9 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
     <!-- ── Observabilidade: Traces ────────────────────────────────────── -->
     <div class="section-block" id="obsTracesBlock" style="display:none">
-      <div class="section-header">
+      <div class="section-header" onclick="toggleSection(this)">
         <span class="section-title-text" style="flex:1">&#128269; Traces — Jaeger</span>
+        <span class="section-chevron">&#9660;</span>
       </div>
       <div id="obs-trc-content" style="padding:16px">
         <div class="obs-toolbar">
@@ -4723,9 +4726,10 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
     <!-- ── Observabilidade: Erros Recentes ────────────────────────────── -->
     <div class="section-block" id="obsErrosBlock" style="display:none">
-      <div class="section-header">
+      <div class="section-header" onclick="toggleSection(this)">
         <span class="section-title-text" style="flex:1">&#128680; Erros Recentes</span>
         <span class="obs-refresh-badge" id="obs-err-refresh"><span class="obs-refresh-dot"></span>30s</span>
+        <span class="section-chevron">&#9660;</span>
       </div>
       <div id="obs-err-content" style="padding:16px"
         <div class="obs-toolbar">
