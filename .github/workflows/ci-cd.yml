@@ -419,13 +419,14 @@ jobs:
           DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
           BUILD_VERSION: ${{ env.BUILD_VERSION }}
           GH_PAT: ${{ secrets.GH_PAT }}
+          ADMIN_RESTART_PASSWORD: ${{ secrets.ADMIN_RESTART_PASSWORD }}
           ML_CLIENT_ID: ${{ secrets.ML_CLIENT_ID }}
           ML_CLIENT_SECRET: ${{ secrets.ML_CLIENT_SECRET }}
         with:
           host: ${{ env.VPS_HOST }}
           username: ${{ env.VPS_USER }}
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
-          envs: DATADOG_API_KEY,BUILD_VERSION,GH_PAT,ML_CLIENT_ID,ML_CLIENT_SECRET
+          envs: DATADOG_API_KEY,BUILD_VERSION,GH_PAT,ADMIN_RESTART_PASSWORD,ML_CLIENT_ID,ML_CLIENT_SECRET
           script: |
             set -e
             cd ${{ env.VPS_PATH }}
@@ -446,6 +447,11 @@ jobs:
             grep -q '^GH_PAT=' .env \
               && sed -i "s|^GH_PAT=.*|GH_PAT=${{ secrets.GH_PAT }}|" .env \
               || echo "GH_PAT=${{ secrets.GH_PAT }}" >> .env
+
+            # Injetar senha do Admin Restart no .env (validada pela API)
+            grep -q '^ADMIN_RESTART_PASSWORD=' .env \
+              && sed -i "s|^ADMIN_RESTART_PASSWORD=.*|ADMIN_RESTART_PASSWORD=${ADMIN_RESTART_PASSWORD}|" .env \
+              || echo "ADMIN_RESTART_PASSWORD=${ADMIN_RESTART_PASSWORD}" >> .env
 
             # Injetar credenciais MercadoLivre no .env
             grep -q '^ML_CLIENT_ID=' .env \

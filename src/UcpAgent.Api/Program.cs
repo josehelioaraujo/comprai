@@ -539,6 +539,10 @@ app.MapPost("/api/github/dispatch", async (GitHubDispatchRequest req, IConfigura
     var workflow = req.Workflow ?? "integration-tests.yml";
     var branch   = req.Ref      ?? "main";
 
+    // admin-restart so via /api/admin/restart (senha validada no servidor)
+    if (workflow.Equals("admin-restart.yml", StringComparison.OrdinalIgnoreCase))
+        return Results.Problem("Use /api/admin/restart.", statusCode: 403);
+
     var url = $"https://api.github.com/repos/{repo}/actions/workflows/{workflow}/dispatches";
 
     var client = factory.CreateClient("github");
@@ -581,6 +585,55 @@ app.MapPost("/api/github/dispatch", async (GitHubDispatchRequest req, IConfigura
 })
 .WithName("GitHubDispatch")
 .WithTags("GitHub")
+.AllowAnonymous();
+
+// ── Admin Restart (senha validada no servidor, sem expor ao GitHub) ─────────────
+app.MapPost("/api/admin/restart", async (AdminRestartRequest req, IConfiguration config, IHttpClientFactory factory) =>
+{
+    var expected = config["Admin:RestartPassword"]
+                ?? Environment.GetEnvironmentVariable("ADMIN_RESTART_PASSWORD")
+                ?? string.Empty;
+    if (string.IsNullOrWhiteSpace(expected))
+        return Results.Problem("ADMIN_RESTART_PASSWORD não configurado no servidor.", statusCode: 503);
+
+    var allowed = new[] { "api", "redis", "all", "redeploy" };
+    if (string.IsNullOrWhiteSpace(req.Target) || !allowed.Contains(req.Target))
+        return Results.Problem("Target inválido.", statusCode: 400);
+
+    var a = System.Text.Encoding.UTF8.GetBytes(req.Password ?? string.Empty);
+    var b = System.Text.Encoding.UTF8.GetBytes(expected);
+    if (!System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(a, b))
+    {
+        await Task.Delay(1000); // freia tentativa por forca bruta
+        return Results.Problem("Senha incorreta.", statusCode: 401);
+    }
+
+    var ghPat = config["GitHub:Pat"] ?? Environment.GetEnvironmentVariable("GH_PAT") ?? string.Empty;
+    if (string.IsNullOrWhiteSpace(ghPat))
+        return Results.Problem("GH_PAT não configurado no servidor.", statusCode: 503);
+
+    const string repo = "josehelioaraujo/comprai";
+    const string workflow = "admin-restart.yml";
+    var client = factory.CreateClient("github");
+    var body = JsonSerializer.Serialize(new { @ref = "main", inputs = new Dictionary<string, string> { ["target"] = req.Target } });
+    var resp = await client.PostAsync($"https://api.github.com/repos/{repo}/actions/workflows/{workflow}/dispatches",
+        new StringContent(body, System.Text.Encoding.UTF8, "application/json"));
+    if (!resp.IsSuccessStatusCode)
+        return Results.Problem($"GitHub API: {(int)resp.StatusCode}", statusCode: 502);
+
+    await Task.Delay(4000);
+    var runsResp = await client.GetAsync($"https://api.github.com/repos/{repo}/actions/workflows/{workflow}/runs?per_page=1&branch=main");
+    if (runsResp.IsSuccessStatusCode)
+    {
+        using var doc = JsonDocument.Parse(await runsResp.Content.ReadAsStringAsync());
+        var run = doc.RootElement.GetProperty("workflow_runs").EnumerateArray().FirstOrDefault();
+        if (run.ValueKind != JsonValueKind.Undefined)
+            return Results.Ok(new { runId = run.GetProperty("id").GetInt64(), url = run.GetProperty("html_url").GetString(), status = run.GetProperty("status").GetString() });
+    }
+    return Results.Ok(new { runId = (long?)null, url = (string?)null, status = "queued" });
+})
+.WithName("AdminRestart")
+.WithTags("Admin")
 .AllowAnonymous();
 
 // ── GitHub Run Status ──────────────────────────────────────────────────────────
@@ -696,6 +749,8 @@ record PaymentRequestDto(
     UcpAgent.SharedKernel.Ports.PaymentMethodDto Method);
 
 record K6AnalyzeRequest(string Summary, string Question, string? Model);
+
+record AdminRestartRequest(string? Target, string? Password);
 
 record GitHubDispatchRequest(string? Repo, string? Workflow, string? Ref, Dictionary<string, string>? Inputs = null);
 

@@ -8,10 +8,6 @@ on:
         required: true
         type: choice
         options: [api, redis, all, redeploy]
-      admin_password:
-        description: 'Senha de administrador'
-        required: true
-        type: string
 
 env:
   VPS_HOST: '2.25.122.11'
@@ -23,18 +19,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Validar senha admin
-        env:
-          INPUT_PASS: ${{ github.event.inputs.admin_password }}
-          ADMIN_PASS: ${{ secrets.ADMIN_RESTART_PASSWORD }}
-        run: |
-          echo "::add-mask::$INPUT_PASS"
-          if [ -z "$ADMIN_PASS" ] || [ "$INPUT_PASS" != "$ADMIN_PASS" ]; then
-            echo "❌ Senha incorreta"
-            exit 1
-          fi
-          echo "✅ Senha validada"
-
       - name: Conectar VPS
         env:
           VPS_SSH_KEY: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
