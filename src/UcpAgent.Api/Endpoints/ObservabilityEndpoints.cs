@@ -28,7 +28,7 @@ public static class ObservabilityEndpoints
             var qRps    = "rate({__name__=\"http.server.request.duration_seconds_count\"}[2m])";
             var rps     = await QueryInstant(client, baseUrl, qRps, ct);
             // p99 latência (ms)
-            var qP99    = "histogram_quantile(0.99, rate({__name__=\"http.server.request.duration_seconds_bucket\"}[2m])) * 1000";
+            var qP99    = "histogram_quantile(0.99, rate({__name__=\"http.server.request.duration_seconds_bucket\"}[5m])) * 1000";
             var p99Raw  = await QueryInstant(client, baseUrl, qP99, ct);
             // taxa de erro 5xx
             var qErr    = "rate({__name__=\"http.server.request.duration_seconds_count\",http_response_status_code=~\"5..\"}[2m]) / rate({__name__=\"http.server.request.duration_seconds_count\"}[2m]) * 100";
@@ -37,7 +37,7 @@ public static class ObservabilityEndpoints
             // série temporal para o gráfico
             var qSeries = "rate({__name__=\"http.server.request.duration_seconds_count\"}[2m])";
             var series = await QueryRange(client, baseUrl, qSeries, start, end, step, ct);
-            var qSeriesP99 = "histogram_quantile(0.99, rate({__name__=\"http.server.request.duration_seconds_bucket\"}[2m])) * 1000";
+            var qSeriesP99 = "histogram_quantile(0.99, rate({__name__=\"http.server.request.duration_seconds_bucket\"}[5m])) * 1000";
             var seriesP99 = await QueryRange(client, baseUrl, qSeriesP99, start, end, step, ct);
 
             return Results.Ok(new
