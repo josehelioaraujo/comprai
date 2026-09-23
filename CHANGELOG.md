@@ -1,3 +1,35 @@
+## [3.7.0] - 2026-09-23
+
+### Added
+
+- **Monitor de Containers — nova seção em Observabilidade**
+  - Lista compacta accordion: uma linha por container com badge 🟢 UP / 🔴 DOWN
+  - Expand ao clicar: portas, ID e botões de ação na mesma linha
+  - **Ações por container com proteção por tier:**
+    - `Start` — sem senha (baixo risco)
+    - `Restart` — senha admin + modal de confirmação
+    - `Stop` — senha admin + modal de confirmação + bloqueado para containers críticos (`redis`, `kafka`, `rabbitmq`, `loki`, `prometheus`)
+  - Logs inline expansíveis com strip de códigos ANSI e botão Copiar
+  - Auto-refresh a cada 30s
+  - Backend: `ContainerEndpoints.cs` com 5 endpoints (`/api/containers`, `/logs`, `/restart`, `/stop`, `/start`)
+  - Docker socket montado no container via `group_add: 988` (GID docker do host)
+
+- **Métricas Prometheus funcionais (req/s e p99)**
+  - `OpenTelemetry.Exporter.Prometheus.AspNetCore` adicionado — expõe `/metrics` na porta 5020
+  - `OpenTelemetry.Instrumentation.Runtime` adicionado — métricas de runtime .NET
+  - `WithMetrics()` configurado no Program.cs com ASP.NET Core + HTTP + Runtime
+  - `observability/prometheus.yml` adicionado ao repo — scrape `comprai-api:5020/metrics` a cada 15s
+  - Queries PromQL corrigidas para sintaxe `{__name__="..."}` (métricas OTel usam ponto no nome)
+  - Fix: sanitização de `+Inf` e `NaN` antes de serializar JSON
+  - Janela p99 ampliada de 2m para 5m para evitar NaN com tráfego baixo
+
+### Fixed
+
+- Queries PromQL usam `{__name__="http.server.request.duration_seconds_*"}` — necessário porque OTel exporta nomes com ponto que o PromQL não aceita sem escape
+- `docker logs` args reordenados: `--tail {n} {name}` (sem `2>&1` que não funciona em ProcessStartInfo)
+- Códigos ANSI removidos dos logs antes de retornar (`\x1B\[[0-9;]*[mKHFJsu]`)
+
+---
 ## [3.6.0] - 2026-09-23
 
 ### Added

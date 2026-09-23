@@ -823,6 +823,7 @@ O **Dev Quality Hub** é um portal operacional integrado ao pipeline CI/CD que c
 | **Observabilidade** | **Logs** | **Stream Loki com filtro e busca** |
 | **Observabilidade** | **Traces** | **Operações Jaeger com expand de spans** |
 | **Observabilidade** | **Erros Recentes** | **Erros agrupados com stacktrace** |
+| **Observabilidade** | **Containers** | **Monitor de containers com ações Start/Stop/Restart e logs inline** |
 | Segurança | OWASP Top 10 | Checklist de controles |
 | Segurança | PCI DSS | Compliance de pagamentos |
 | Segurança | CVEs NuGet | Vulnerabilidades em pacotes |
@@ -832,7 +833,7 @@ O **Dev Quality Hub** é um portal operacional integrado ao pipeline CI/CD que c
 
 ```
 comprai-api → OpenTelemetry → comprai-jaeger (traces)
-comprai-api → /metrics      → comprai-prometheus (métricas)  [pendente]
+comprai-api → /metrics      → comprai-prometheus (métricas)
 containers  → comprai-promtail → comprai-loki (logs)
 ```
 
@@ -854,17 +855,19 @@ Acesse: `https://comprai.2.25.122.11.nip.io/k6/dashboard/`
 | **V020–V023** | QA Hub — Stress Tests K6, SonarCloud, OWASP Top 10, PCI DSS, Mutação, Gráficos, Rotas |
 | **V024** | QA Hub → Dev Quality Hub — Status Page, Testes Integrados, Runbook, PAT server-side, Coverage 100% |
 | **V025** | Dev Quality Hub — Evolução das Métricas, CVEs NuGet, Admin Restart, Stress Test polling real-time, Drill down por run e por job |
+| **V026** | Dev Quality Hub — Seção Observabilidade completa: Métricas (Prometheus), Logs (Loki), Traces (Jaeger), Erros Recentes, KPI cards com tooltips |
+| **V027** | Observabilidade Hub — ObservabilityEndpoints.cs, proxy Prometheus/Loki/Jaeger, Uptime 99.90%, CHANGELOG v3.6.0 |
+| **V028** | Monitor de Containers — accordion compacto, ações Start/Stop/Restart com modal + proteção críticos, métricas req/s e p99 funcionais, logs ANSI-clean |
 
 ### 🔜 Próximas Versões
 
 | Fase | Descrição | Versão |
 |------|-----------|--------|
-| **Observabilidade no Hub** | Seção com Métricas (Prometheus), Logs (Loki), Traces (Jaeger), Erros Recentes | V026 |
-| **Diagrama Fluxo do Pedido** | Pipeline animado Search→Cart→Checkout→Payment→Stock→Delivery em tempo real | V026 |
-| **Padrão Saga** | 3 implementações chaveáveis (Wolverine, MassTransit, Nativo) via feature flag — comparativo de performance | V026 |
-| **Instrumentação OTel** | Funil UCP, erro por plugin, cache hit/miss, span do LLM, eventos Kafka/RabbitMQ | V026 |
-| **Quality Score** | Número único 0–100 combinando todas as métricas | V026 |
-| **K3s + Helm + Argo CD** | Migração Docker Compose → Kubernetes leve na VPS com GitOps | V026–V027 |
+| **Diagrama Fluxo do Pedido** | Pipeline animado Search→Cart→Checkout→Payment→Stock→Delivery em tempo real | V029 |
+| **Padrão Saga** | 3 implementações chaveáveis (Wolverine, MassTransit, Nativo) via feature flag — comparativo de performance | V029 |
+| **Instrumentação OTel** | Funil UCP, erro por plugin, cache hit/miss, span do LLM, eventos Kafka/RabbitMQ | V029 |
+| **Quality Score** | Número único 0–100 combinando todas as métricas | V029 |
+| **K3s + Helm + Argo CD** | Migração Docker Compose → Kubernetes leve na VPS com GitOps | Futuro |
 | **Canal Web — Demo** | Next.js 15 + Tailwind + shadcn/ui — interface conversacional com raciocínio visível | Futuro |
 | **AIOps com Ollama** | Detecção de anomalias, RCA automático (Prometheus + Loki + Jaeger) | Futuro |
 | **StressForge** | Gerador agnóstico de stress tests a partir de Swagger/OpenAPI | Futuro |
