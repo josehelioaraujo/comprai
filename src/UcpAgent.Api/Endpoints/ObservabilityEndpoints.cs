@@ -24,20 +24,20 @@ public static class ObservabilityEndpoints
             var client = factory.CreateClient("observability");
 
             // req/s instantâneo
-            var rps     = await QueryInstant(client, baseUrl, "rate(http_server_request_duration_seconds_count[2m])", ct);
+            var rps     = await QueryInstant(client, baseUrl, "rate(http.server.request.duration_seconds_count[2m])", ct);
             // p99 latência (ms)
             var p99Raw  = await QueryInstant(client, baseUrl,
-                "histogram_quantile(0.99, rate(http_server_request_duration_seconds_bucket[2m])) * 1000", ct);
+                "histogram_quantile(0.99, rate(http.server.request.duration_seconds_bucket[2m])) * 1000", ct);
             // taxa de erro 5xx
             var errRate = await QueryInstant(client, baseUrl,
-                "rate(http_server_request_duration_seconds_count{http_response_status_code=~\"5..\"}[2m]) / rate(http_server_request_duration_seconds_count[2m]) * 100", ct);
+                "rate(http.server.request.duration_seconds_count{http_response_status_code=~\"5..\"}[2m]) / rate(http.server.request.duration_seconds_count[2m]) * 100", ct);
 
             // série temporal para o gráfico
             var series = await QueryRange(client, baseUrl,
-                "rate(http_server_request_duration_seconds_count[2m])",
+                "rate(http.server.request.duration_seconds_count[2m])",
                 start, end, step, ct);
             var seriesP99 = await QueryRange(client, baseUrl,
-                "histogram_quantile(0.99, rate(http_server_request_duration_seconds_bucket[2m])) * 1000",
+                "histogram_quantile(0.99, rate(http.server.request.duration_seconds_bucket[2m])) * 1000",
                 start, end, step, ct);
 
             return Results.Ok(new
