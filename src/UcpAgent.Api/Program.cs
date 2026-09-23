@@ -361,6 +361,7 @@ app.MapPost("/api/payment/{orderId}", async (
 
 app.MapIntentEndpoints();
 app.MapObservabilityEndpoints();
+app.MapContainerEndpoints();
 app.MapFakeCatalogEndpoints();
 
 var pwEnabled = app.Configuration.GetValue<bool>("Features:UsarPriceWatcher");

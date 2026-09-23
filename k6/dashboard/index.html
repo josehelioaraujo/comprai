@@ -100,7 +100,7 @@ let runReloadPending = false;
 let verInfo = {};
 
 // IDs das secoes navegaveis (exceto detalhes que e fixo)
-const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','mutacaoBlock','sonarBlock','owaspBlock','pciBlock','depBlock','evolucaoBlock','integrationBlock','obsMetricasBlock','obsLogsBlock','obsTracesBlock','obsErrosBlock'];
+const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','mutacaoBlock','sonarBlock','owaspBlock','pciBlock','depBlock','evolucaoBlock','integrationBlock','obsMetricasBlock','obsLogsBlock','obsTracesBlock','obsErrosBlock','obsContainersBlock'];
 let activeSection = null; // null = nenhuma extra visivel
 
 const TYPE_ORDER = ['smoke','load','stress','spike','soak'];
@@ -1180,6 +1180,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       if (id === 'obsLogsBlock')    { requestAnimationFrame(function(){ setTimeout(function(){ obsLoad('logs'); },     100); }); }
       if (id === 'obsTracesBlock')  { requestAnimationFrame(function(){ setTimeout(function(){ obsLoad('traces'); },   100); }); }
       if (id === 'obsErrosBlock')   { requestAnimationFrame(function(){ setTimeout(function(){ obsLoad('erros'); },    100); }); }
+      if (id === 'obsContainersBlock') { requestAnimationFrame(function(){ setTimeout(function(){ obsLoadContainers(); }, 100); }); }
     };
   })();
 
@@ -2861,6 +2862,61 @@ function adminTrackRun(label, runId) {
   }
 })();
 
+
+  // ── Monitor de Containers ─────────────────────────────────
+  var obsContainersTimer = null;
+
+  function obsLoadContainers() {
+    var grid = document.getElementById('obs-containers-grid');
+    if (!grid) return;
+    fetch('/api/containers')
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        var now = new Date(d.updatedAt);
+        var el = document.getElementById('obs-cnt-time');
+        if (el) el.textContent = 'Atualizado: ' + now.toLocaleTimeString('pt-BR');
+        grid.innerHTML = '';
+        (d.containers || []).forEach(function(c){
+          var card = document.createElement('div');
+          card.style.cssText = 'background:var(--bg-card);border:1px solid ' + (c.healthy ? 'var(--success,#22c55e)' : '#ef4444') + ';border-radius:8px;padding:12px;cursor:pointer;transition:border-color .2s';
+          var badge = c.healthy
+            ? '<span style="background:#166534;color:#4ade80;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600">&#9679; UP</span>'
+            : '<span style="background:#7f1d1d;color:#f87171;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600">&#9679; DOWN</span>';
+          card.innerHTML =
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
+              '<span style="font-weight:600;font-size:13px;color:var(--text)">' + c.name + '</span>' +
+              badge +
+            '</div>' +
+            '<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">&#128190; ' + c.image + '</div>' +
+            '<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">&#128341; ' + (c.status || '—') + '</div>' +
+            (c.ports ? '<div style="font-size:10px;color:var(--text-muted);margin-bottom:8px">&#128279; ' + c.ports + '</div>' : '') +
+            '<button onclick="obsLoadContainerLogs('' + c.name + '')" style="width:100%;padding:5px;background:var(--bg-input,#1e293b);border:1px solid var(--border);border-radius:4px;color:var(--text-muted);cursor:pointer;font-size:11px">&#128220; Ver Logs</button>';
+          grid.appendChild(card);
+        });
+        if (!obsContainersTimer) {
+          obsContainersTimer = setInterval(obsLoadContainers, 30000);
+        }
+      })
+      .catch(function(e){
+        grid.innerHTML = '<div style="color:#ef4444;font-size:13px">Erro ao carregar containers: ' + e.message + '</div>';
+      });
+  }
+
+  function obsLoadContainerLogs(name) {
+    var panel = document.getElementById('obs-containers-logs');
+    var title = document.getElementById('obs-logs-title');
+    var content = document.getElementById('obs-logs-content');
+    panel.style.display = 'block';
+    title.textContent = '&#128220; Logs — ' + name;
+    content.textContent = 'Carregando...';
+    fetch('/api/containers/' + name + '/logs?lines=80')
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        content.textContent = (d.lines || []).join('\n') || '(sem logs)';
+        content.scrollTop = content.scrollHeight;
+      })
+      .catch(function(e){ content.textContent = 'Erro: ' + e.message; });
+  }
 </script>
 </body>
 </html>
@@ -3929,6 +3985,9 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <div class="nav-item" id="nav-obs-erros" onclick="showSection('obsErrosBlock', this)" title="Erros Recentes">
           <span class="nav-icon">&#128680;</span><span class="nav-text">Erros Recentes</span>
         </div>
+        <div class="nav-item" id="nav-obs-containers" onclick="showSection('obsContainersBlock', this); obsLoadContainers();" title="Monitor de Containers">
+          <span class="nav-icon">&#128260;</span><span class="nav-text">Containers</span>
+        </div>
       </div>
     </div>
     <div class="nav-group" id="group-seguranca">
@@ -4787,29 +4846,27 @@ tr:hover td { background: rgba(255,255,255,.02); }
     </div>
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  <!-- MONITOR DE CONTAINERS -->
+  <section class="content-section" id="obsContainersBlock" style="display:none">
+    <div class="section-header" onclick="toggleSection(this)">
+      <span class="section-title-text" style="flex:1">&#128260; Monitor de Containers</span>
+      <span class="obs-refresh-badge" id="obs-cnt-refresh"><span class="obs-refresh-dot"></span>30s</span>
+      <span class="section-chevron">&#9660;</span>
+    </div>
+    <div style="padding:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <span style="color:var(--text-muted);font-size:12px" id="obs-cnt-time"></span>
+        <button class="obs-range-btn" onclick="obsLoadContainers()" style="padding:4px 14px">&#8635; Atualizar</button>
+      </div>
+      <div id="obs-containers-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px">
+        <div style="color:var(--text-muted);font-size:13px">Carregando...</div>
+      </div>
+      <div id="obs-containers-logs" style="display:none;margin-top:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <span id="obs-logs-title" style="font-weight:600;font-size:14px;color:var(--text)"></span>
+          <button onclick="document.getElementById('obs-containers-logs').style.display='none'" style="background:none;border:1px solid var(--border);border-radius:4px;color:var(--text-muted);cursor:pointer;padding:2px 8px">&#10005; Fechar</button>
+        </div>
+        <pre id="obs-logs-content" style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:12px;font-size:11px;max-height:320px;overflow-y:auto;color:#a0c4a0;white-space:pre-wrap;word-break:break-all;font-family:monospace"></pre>
+      </div>
+    </div>
+  </section>
