@@ -2890,9 +2890,14 @@ function adminTrackRun(label, runId) {
             '<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">&#128190; ' + c.image + '</div>' +
             '<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">&#128341; ' + (c.status || '—') + '</div>' +
             (c.ports ? '<div style="font-size:10px;color:var(--text-muted);margin-bottom:8px">&#128279; ' + c.ports + '</div>' : '') +
-            '<button onclick="obsLoadContainerLogs('' + c.name + '')" style="width:100%;padding:5px;background:var(--bg-input,#1e293b);border:1px solid var(--border);border-radius:4px;color:var(--text-muted);cursor:pointer;font-size:11px">&#128220; Ver Logs</button>';
+            '<button class="cnt-log-btn" data-name="' + c.name + '" style="width:100%;padding:5px;background:var(--bg-input,#1e293b);border:1px solid var(--border);border-radius:4px;color:var(--text-muted);cursor:pointer;font-size:11px">&#128220; Ver Logs</button>';
           grid.appendChild(card);
         });
+        // event delegation para botões de log
+        grid.onclick = function(e) {
+          var btn = e.target.closest('.cnt-log-btn');
+          if (btn) obsLoadContainerLogs(btn.getAttribute('data-name'));
+        };
         if (!obsContainersTimer) {
           obsContainersTimer = setInterval(obsLoadContainers, 30000);
         }
