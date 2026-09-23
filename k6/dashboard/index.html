@@ -2884,7 +2884,7 @@ function adminTrackRun(label, runId) {
 
           // Linha principal
           var header = document.createElement('div');
-          header.style.cssText = 'display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;transition:background .15s';
+          header.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 12px;cursor:pointer;transition:background .15s';
           header.innerHTML =
             '<span style="font-size:9px;color:' + (c.healthy ? '#4ade80' : '#f87171') + ';flex-shrink:0">&#9679;</span>' +
             '<span style="font-weight:600;font-size:13px;color:var(--text);width:200px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + c.name + '</span>' +
@@ -2894,13 +2894,16 @@ function adminTrackRun(label, runId) {
 
           // Painel de detalhe
           var detail = document.createElement('div');
-          detail.style.cssText = 'display:none;padding:10px 14px 14px 34px;background:rgba(0,0,0,0.2)';
+          detail.style.cssText = 'display:none;padding:6px 12px 10px 30px;background:rgba(0,0,0,0.15)';
           detail.innerHTML =
             (c.ports ? '<div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">&#128279; ' + c.ports + '</div>' : '') +
             '<div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">ID: ' + c.id + '</div>' +
             '<button class="obs-range-btn cnt-log-btn" style="padding:4px 16px;font-size:11px">&#128220; Ver Logs</button>' +
             '<div class="cnt-log-panel" style="display:none;margin-top:10px">' +
-              '<pre class="cnt-log-content" style="background:#0f172a;border:1px solid var(--border);border-radius:6px;padding:10px;font-size:11px;max-height:280px;overflow-y:auto;color:#86efac;white-space:pre-wrap;word-break:break-all;font-family:monospace">Carregando...</pre>' +
+              '<div style="display:flex;justify-content:flex-end;margin-bottom:4px">' +
+                '<button class="cnt-copy-btn obs-range-btn" style="padding:2px 10px;font-size:10px">&#128203; Copiar</button>' +
+              '</div>' +
+              '<pre class="cnt-log-content" style="background:#0f172a;border:1px solid var(--border);border-radius:6px;padding:10px;font-size:11px;max-height:260px;overflow-y:auto;color:#86efac;white-space:pre-wrap;word-break:break-all;font-family:monospace">Carregando...</pre>' +
             '</div>';
 
           // Toggle accordion
@@ -2917,6 +2920,19 @@ function adminTrackRun(label, runId) {
               // Abrir este
               detail.style.display = 'block';
               header.querySelector('.cnt-chevron').innerHTML = '&#9650;';
+            }
+          });
+
+          // Botão Copiar Logs
+          detail.addEventListener('click', function(e) {
+            if (!e.target.closest('.cnt-copy-btn')) return;
+            var content = detail.querySelector('.cnt-log-content');
+            if (content && content.textContent) {
+              navigator.clipboard.writeText(content.textContent).then(function(){
+                var btn = detail.querySelector('.cnt-copy-btn');
+                btn.textContent = '✓ Copiado';
+                setTimeout(function(){ btn.innerHTML = '&#128203; Copiar'; }, 2000);
+              });
             }
           });
 
@@ -4887,7 +4903,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       <span class="obs-refresh-badge" id="obs-cnt-refresh"><span class="obs-refresh-dot"></span>30s</span>
       <span class="section-chevron">&#9660;</span>
     </div>
-    <div style="padding:16px">
+    <div class="section-content" style="padding:16px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
         <span style="color:var(--text-muted);font-size:12px" id="obs-cnt-time"></span>
         <button class="obs-range-btn" onclick="obsLoadContainers()" style="padding:4px 14px">&#8635; Atualizar</button>
