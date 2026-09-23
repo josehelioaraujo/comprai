@@ -2611,7 +2611,34 @@ function adminTrackRun(label, runId) {
         setText('obs-met-rps', d.rps != null ? d.rps.toFixed(2) : '—');
         setText('obs-met-p99', d.p99 != null ? d.p99.toFixed(0) + ' ms' : '—');
         setText('obs-met-err', d.errorRate != null ? d.errorRate.toFixed(1) + '%' : '—');
-        setText('obs-met-up',  d.uptime != null ? d.uptime.toFixed(1) + '%' : '—');
+        setText('obs-met-up',  d.uptime != null ? d.uptime.toFixed(2) + '%' : '—');
+        // Tooltip dinâmico do Uptime
+        if (d.uptime != null) {
+          var downtime = ((100 - d.uptime) / 100 * 30 * 24 * 60).toFixed(0);
+          var uptimeCard = document.querySelector('[title*="disponibilidade"]');
+          if (uptimeCard) uptimeCard.title = 'Disponibilidade: ' + d.uptime.toFixed(2) + '% — equivale a ~' + downtime + ' min de indisponibilidade no mês';
+        }
+        // Tooltip dinâmico req/s
+        if (d.rps != null) {
+          var rpsCard = document.querySelector('[title*="Requisições por segundo"]');
+          if (rpsCard) rpsCard.title = 'Requisições por segundo: ' + d.rps.toFixed(2) + ' req/s — média dos últimos 5 minutos';
+        }
+        // Tooltip dinâmico p99
+        if (d.p99 != null) {
+          var p99Card = document.querySelector('[title*="percentil 99"]');
+          if (p99Card) {
+            var p99quality = d.p99 < 200 ? 'Excelente' : d.p99 < 500 ? 'Bom' : d.p99 < 1000 ? 'Aceitável' : 'Crítico';
+            p99Card.title = 'Latência p99: ' + d.p99.toFixed(0) + 'ms — ' + p99quality + ' (meta: < 200ms)';
+          }
+        }
+        // Tooltip dinâmico taxa de erro
+        if (d.errorRate != null) {
+          var errCard = document.querySelector('[title*="5xx"]');
+          if (errCard) {
+            var errquality = d.errorRate < 0.1 ? 'Saudável' : d.errorRate < 1 ? 'Atenção' : 'Crítico';
+            errCard.title = 'Taxa de erro 5xx: ' + d.errorRate.toFixed(2) + '% — ' + errquality + ' (meta: < 0.1%)';
+          }
+        }
         obsRenderMetChart(d.series || []);
       })
       .catch(function(e){
