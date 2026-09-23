@@ -31,6 +31,8 @@ services:
     depends_on:
       comprai-redis:
         condition: service_healthy
+    group_add:
+      - "988"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /usr/bin/docker:/usr/bin/docker:ro
