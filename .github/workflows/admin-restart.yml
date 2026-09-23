@@ -24,8 +24,12 @@ jobs:
 
     steps:
       - name: Validar senha admin
+        env:
+          INPUT_PASS: ${{ github.event.inputs.admin_password }}
+          ADMIN_PASS: ${{ secrets.ADMIN_RESTART_PASSWORD }}
         run: |
-          if [ "${{ github.event.inputs.admin_password }}" != "${{ secrets.ADMIN_RESTART_PASSWORD }}" ]; then
+          echo "::add-mask::$INPUT_PASS"
+          if [ -z "$ADMIN_PASS" ] || [ "$INPUT_PASS" != "$ADMIN_PASS" ]; then
             echo "❌ Senha incorreta"
             exit 1
           fi
@@ -42,10 +46,9 @@ jobs:
 
       - name: Executar restart — ${{ github.event.inputs.target }}
         env:
-          VPS_SSH_KEY: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
           TARGET: ${{ github.event.inputs.target }}
         run: |
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ env.VPS_USER }}@${{ env.VPS_HOST }} << 'SSHEOF'
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ env.VPS_USER }}@${{ env.VPS_HOST }} "TARGET=$TARGET bash -s" << 'SSHEOF'
           cd /home/projetos/comprai
 
           case "$TARGET" in
