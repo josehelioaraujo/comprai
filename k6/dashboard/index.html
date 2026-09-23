@@ -3728,6 +3728,15 @@ tr:hover td { background: rgba(255,255,255,.02); }
   padding: 16px;
 }
 
+
+/* ── Obs section-content: nunca colapsar ─────────────────── */
+#obs-met-content, #obs-log-content, #obs-trc-content, #obs-err-content {
+  max-height: none !important;
+  overflow: visible !important;
+  display: block !important;
+  padding: 16px;
+}
+
 </style>
 </head>
 <body>
@@ -4631,7 +4640,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <span class="section-title-text" style="flex:1">&#128200; Métricas — Prometheus</span>
         <span class="obs-refresh-badge" id="obs-met-refresh"><span class="obs-refresh-dot"></span>live</span>
       </div>
-      <div class="section-content">
+      <div class="section-content" id="obs-met-content">
         <!-- Range selector -->
         <div class="obs-toolbar">
           <button class="obs-range-btn active" onclick="obsSetRange('metricas','15m',this)">15 min</button>
@@ -4659,7 +4668,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <span class="section-title-text" style="flex:1">&#128220; Logs — Loki</span>
         <span class="obs-refresh-badge" id="obs-log-refresh"><span class="obs-refresh-dot"></span>10s</span>
       </div>
-      <div class="section-content">
+      <div class="section-content" id="obs-log-content">
         <div class="obs-toolbar">
           <button class="obs-filter-btn active" onclick="obsLogFilter('all',this)">Todos</button>
           <button class="obs-filter-btn" onclick="obsLogFilter('info',this)">Info</button>
@@ -4669,7 +4678,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
           <button class="obs-range-btn" onclick="obsLoad('logs')" style="margin-left:auto">&#8635; Atualizar</button>
         </div>
         <div id="obs-log-state" class="obs-loading"><div class="obs-loading-spin"></div>Carregando logs...</div>
-        <div class="obs-table-wrap" id="obs-log-wrap">
+        <div class="obs-table-wrap" id="obs-log-wrap" style="display:none">
           <table class="obs-table">
             <thead><tr><th style="width:140px">Timestamp</th><th style="width:55px">Level</th><th>Mensagem</th></tr></thead>
             <tbody id="obs-log-body"></tbody>
@@ -4683,7 +4692,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       <div class="section-header">
         <span class="section-title-text" style="flex:1">&#128269; Traces — Jaeger</span>
       </div>
-      <div class="section-content">
+      <div class="section-content" id="obs-trc-content">
         <div class="obs-toolbar">
           <select class="obs-search" id="obs-trc-service" onchange="obsLoad('traces')" style="max-width:180px">
             <option value="comprai-api">comprai-api</option>
@@ -4693,7 +4702,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
           <button class="obs-range-btn" onclick="obsLoad('traces')" style="margin-left:auto">&#8635; Atualizar</button>
         </div>
         <div id="obs-trc-state" class="obs-loading"><div class="obs-loading-spin"></div>Carregando traces...</div>
-        <div class="obs-table-wrap" id="obs-trc-wrap">
+        <div class="obs-table-wrap" id="obs-trc-wrap" style="display:none">
           <table class="obs-table">
             <thead><tr><th>Operação</th><th style="width:100px">Serviço</th><th style="width:80px">Duração</th><th style="width:70px">Spans</th><th style="width:70px">Status</th></tr></thead>
             <tbody id="obs-trc-body"></tbody>
@@ -4708,7 +4717,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <span class="section-title-text" style="flex:1">&#128680; Erros Recentes</span>
         <span class="obs-refresh-badge" id="obs-err-refresh"><span class="obs-refresh-dot"></span>30s</span>
       </div>
-      <div class="section-content">
+      <div class="section-content" id="obs-err-content">
         <div class="obs-toolbar">
           <button class="obs-range-btn" onclick="obsLoad('erros')" style="margin-left:auto">&#8635; Atualizar</button>
         </div>
