@@ -1176,10 +1176,10 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       if (id === 'pciBlock')   { buildSecList(PCI_ITEMS,   'pci-list');   var pc=countStatus(PCI_ITEMS);   var pcEl=document.getElementById('pci-score');   if(pcEl) pcEl.textContent=pc.ok+'/'+pc.total+' OK'; }
       if (id === 'depBlock')   { loadDepData(); }
       if (id === 'evolucaoBlock') { loadEvolucaoData(); }
-      if (id === 'obsMetricasBlock') { setTimeout(function(){ obsLoad('metricas'); }, 100); }
-      if (id === 'obsLogsBlock')    { setTimeout(function(){ obsLoad('logs'); },     100); }
-      if (id === 'obsTracesBlock')  { setTimeout(function(){ obsLoad('traces'); },   100); }
-      if (id === 'obsErrosBlock')   { setTimeout(function(){ obsLoad('erros'); },    100); }
+      if (id === 'obsMetricasBlock') { setTimeout(function(){ obsLoad('metricas'); }, 300); }
+      if (id === 'obsLogsBlock')    { setTimeout(function(){ obsLoad('logs'); },     300); }
+      if (id === 'obsTracesBlock')  { setTimeout(function(){ obsLoad('traces'); },   300); }
+      if (id === 'obsErrosBlock')   { setTimeout(function(){ obsLoad('erros'); },    300); }
     };
   })();
 
@@ -2685,6 +2685,12 @@ function adminTrackRun(label, runId) {
     var wrap  = document.getElementById('obs-log-wrap');
     console.log('[OBS-LOGS] rows:', rows.length, 'tbody:', !!tbody, 'wrap:', !!wrap, 'wrap.display:', wrap ? getComputedStyle(wrap).display : 'N/A');
     if (!tbody) return;
+    // Forçar visibilidade do bloco pai
+    var block = document.getElementById('obsLogsBlock');
+    if (block) {
+      var sc = block.querySelector('.section-content');
+      if (sc) { sc.style.cssText = 'display:block!important;max-height:none!important;overflow:visible!important;padding:16px'; }
+    }
     if (!rows.length) {
       tbody.innerHTML = '<tr><td colspan="3" class="obs-empty">Nenhum log encontrado</td></tr>';
     } else {
