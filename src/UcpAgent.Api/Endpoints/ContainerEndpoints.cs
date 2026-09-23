@@ -64,8 +64,11 @@ public static class ContainerEndpoints
                 var result = await RunDockerAsync($"logs --tail {n} {name}", ct);
 
                 var combined = string.IsNullOrEmpty(result.Output) ? result.Error : result.Output;
+                // Remover códigos ANSI de cor/escape
+                var ansiRegex = new System.Text.RegularExpressions.Regex(@"\x1B\[[0-9;]*[mKHFJsu]");
                 var logLines = combined
                     .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(l => ansiRegex.Replace(l, ""))
                     .TakeLast(n)
                     .ToList();
 
