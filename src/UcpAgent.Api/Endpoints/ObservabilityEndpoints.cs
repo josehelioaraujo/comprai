@@ -23,22 +23,22 @@ public static class ObservabilityEndpoints
 
             var client = factory.CreateClient("observability");
 
+
             // req/s instantâneo
-            var rps     = await QueryInstant(client, baseUrl, "rate({__name__="http.server.request.duration_seconds_count"}[2m])", ct);
+            var qRps    = "rate({__name__=\"http.server.request.duration_seconds_count\"}[2m])";
+            var rps     = await QueryInstant(client, baseUrl, qRps, ct);
             // p99 latência (ms)
-            var p99Raw  = await QueryInstant(client, baseUrl,
-                "histogram_quantile(0.99, rate({__name__="http.server.request.duration_seconds_bucket"}[2m])) * 1000", ct);
+            var qP99    = "histogram_quantile(0.99, rate({__name__=\"http.server.request.duration_seconds_bucket\"}[2m])) * 1000";
+            var p99Raw  = await QueryInstant(client, baseUrl, qP99, ct);
             // taxa de erro 5xx
-            var errRate = await QueryInstant(client, baseUrl,
-                "rate({__name__=\"http.server.request.duration_seconds_count\",http_response_status_code=~\"5..\"}[2m]) / rate({__name__=\"http.server.request.duration_seconds_count\"}[2m]) * 100", ct);
+            var qErr    = "rate({__name__=\"http.server.request.duration_seconds_count\",http_response_status_code=~\"5..\"}[2m]) / rate({__name__=\"http.server.request.duration_seconds_count\"}[2m]) * 100";
+            var errRate = await QueryInstant(client, baseUrl, qErr, ct);
 
             // série temporal para o gráfico
-            var series = await QueryRange(client, baseUrl,
-                "rate({__name__="http.server.request.duration_seconds_count"}[2m])",
-                start, end, step, ct);
-            var seriesP99 = await QueryRange(client, baseUrl,
-                "histogram_quantile(0.99, rate({__name__="http.server.request.duration_seconds_bucket"}[2m])) * 1000",
-                start, end, step, ct);
+            var qSeries = "rate({__name__=\"http.server.request.duration_seconds_count\"}[2m])";
+            var series = await QueryRange(client, baseUrl, qSeries, start, end, step, ct);
+            var qSeriesP99 = "histogram_quantile(0.99, rate({__name__=\"http.server.request.duration_seconds_bucket\"}[2m])) * 1000";
+            var seriesP99 = await QueryRange(client, baseUrl, qSeriesP99, start, end, step, ct);
 
             return Results.Ok(new
             {
