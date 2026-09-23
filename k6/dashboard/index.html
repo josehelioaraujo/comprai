@@ -2654,8 +2654,8 @@ function adminTrackRun(label, runId) {
       .then(function(r){ return r.json(); })
       .then(function(d){
         obsState.logs.allRows = d.entries || [];
-        obsRenderLogs();
         setState('log', 'ok');
+        obsRenderLogs();
         // Auto-refresh 10s
         clearInterval(obsState.logs.timer);
         obsState.logs.timer = setInterval(obsLoadLogs, 10000);
@@ -2683,15 +2683,18 @@ function adminTrackRun(label, runId) {
     if (q) rows = rows.filter(function(r){ return (r.message||'').toLowerCase().includes(q); });
     var tbody = document.getElementById('obs-log-body');
     if (!tbody) return;
-    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="3" class="obs-empty">Nenhum log encontrado</td></tr>'; return; }
-    tbody.innerHTML = rows.slice(0, 50).map(function(r) {
-      var lvl = (r.level||'info').toLowerCase();
-      var cls = 'obs-level-' + (lvl === 'warning' ? 'warn' : lvl);
-      var ts = r.timestamp ? new Date(r.timestamp).toLocaleTimeString('pt-BR') : '—';
-      return '<tr><td style="color:var(--muted);white-space:nowrap;font-size:11px">' + ts + '</td>' +
-             '<td><span class="' + cls + '" style="font-size:11px;font-weight:700;text-transform:uppercase">' + lvl + '</span></td>' +
-             '<td style="word-break:break-word;font-size:12px">' + escHtml(r.message||'') + '</td></tr>';
-    }).join('');
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="3" class="obs-empty">Nenhum log encontrado</td></tr>';
+    } else {
+      tbody.innerHTML = rows.slice(0, 50).map(function(r) {
+        var lvl = (r.level||'info').toLowerCase();
+        var cls = 'obs-level-' + (lvl === 'warning' ? 'warn' : lvl);
+        var ts = r.timestamp ? new Date(r.timestamp).toLocaleTimeString('pt-BR') : '—';
+        return '<tr><td style="color:var(--muted);white-space:nowrap;font-size:11px">' + ts + '</td>' +
+               '<td><span class="' + cls + '" style="font-size:11px;font-weight:700;text-transform:uppercase">' + lvl + '</span></td>' +
+               '<td style="word-break:break-word;font-size:12px">' + escHtml(r.message||'') + '</td></tr>';
+      }).join('');
+    }
     document.getElementById('obs-log-wrap').style.display = '';
   }
 
@@ -2722,7 +2725,11 @@ function adminTrackRun(label, runId) {
     if (q) rows = rows.filter(function(r){ return (r.operation||'').toLowerCase().includes(q.toLowerCase()); });
     var tbody = document.getElementById('obs-trc-body');
     if (!tbody) return;
-    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="5" class="obs-empty">Nenhum trace encontrado</td></tr>'; return; }
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="obs-empty">Nenhum trace encontrado</td></tr>';
+      document.getElementById('obs-trc-wrap').style.display = '';
+      return;
+    }
     tbody.innerHTML = rows.map(function(r, i) {
       var ok = !r.error;
       var badge = ok ? 'obs-badge-ok' : 'obs-badge-error';
