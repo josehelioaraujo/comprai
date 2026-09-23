@@ -2683,13 +2683,13 @@ function adminTrackRun(label, runId) {
     if (q) rows = rows.filter(function(r){ return (r.message||'').toLowerCase().includes(q); });
     var tbody = document.getElementById('obs-log-body');
     var wrap  = document.getElementById('obs-log-wrap');
-    console.log('[OBS-LOGS] rows:', rows.length, 'tbody:', !!tbody, 'wrap:', !!wrap, 'wrap.display:', wrap ? getComputedStyle(wrap).display : 'N/A');
-    if (!tbody) return;
-    // Forçar visibilidade do bloco pai
+    if (!tbody || !wrap) return;
+    // Forçar visibilidade imediata
+    wrap.style.display = 'block';
     var block = document.getElementById('obsLogsBlock');
     if (block) {
       var sc = block.querySelector('.section-content');
-      if (sc) { sc.style.cssText = 'display:block!important;max-height:none!important;overflow:visible!important;padding:16px'; }
+      if (sc) sc.style.cssText = 'display:block!important;max-height:none!important;overflow:visible!important;padding:16px';
     }
     if (!rows.length) {
       tbody.innerHTML = '<tr><td colspan="3" class="obs-empty">Nenhum log encontrado</td></tr>';
@@ -4669,7 +4669,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
           <button class="obs-range-btn" onclick="obsLoad('logs')" style="margin-left:auto">&#8635; Atualizar</button>
         </div>
         <div id="obs-log-state" class="obs-loading"><div class="obs-loading-spin"></div>Carregando logs...</div>
-        <div class="obs-table-wrap" id="obs-log-wrap" style="display:none">
+        <div class="obs-table-wrap" id="obs-log-wrap">
           <table class="obs-table">
             <thead><tr><th style="width:140px">Timestamp</th><th style="width:55px">Level</th><th>Mensagem</th></tr></thead>
             <tbody id="obs-log-body"></tbody>
@@ -4693,7 +4693,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
           <button class="obs-range-btn" onclick="obsLoad('traces')" style="margin-left:auto">&#8635; Atualizar</button>
         </div>
         <div id="obs-trc-state" class="obs-loading"><div class="obs-loading-spin"></div>Carregando traces...</div>
-        <div class="obs-table-wrap" id="obs-trc-wrap" style="display:none">
+        <div class="obs-table-wrap" id="obs-trc-wrap">
           <table class="obs-table">
             <thead><tr><th>Operação</th><th style="width:100px">Serviço</th><th style="width:80px">Duração</th><th style="width:70px">Spans</th><th style="width:70px">Status</th></tr></thead>
             <tbody id="obs-trc-body"></tbody>
