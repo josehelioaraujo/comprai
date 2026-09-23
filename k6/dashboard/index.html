@@ -1176,10 +1176,10 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       if (id === 'pciBlock')   { buildSecList(PCI_ITEMS,   'pci-list');   var pc=countStatus(PCI_ITEMS);   var pcEl=document.getElementById('pci-score');   if(pcEl) pcEl.textContent=pc.ok+'/'+pc.total+' OK'; }
       if (id === 'depBlock')   { loadDepData(); }
       if (id === 'evolucaoBlock') { loadEvolucaoData(); }
-      if (id === 'obsMetricasBlock') { obsLoad('metricas'); }
-      if (id === 'obsLogsBlock')    { obsLoad('logs'); }
-      if (id === 'obsTracesBlock')  { obsLoad('traces'); }
-      if (id === 'obsErrosBlock')   { obsLoad('erros'); }
+      if (id === 'obsMetricasBlock') { setTimeout(function(){ obsLoad('metricas'); }, 100); }
+      if (id === 'obsLogsBlock')    { setTimeout(function(){ obsLoad('logs'); },     100); }
+      if (id === 'obsTracesBlock')  { setTimeout(function(){ obsLoad('traces'); },   100); }
+      if (id === 'obsErrosBlock')   { setTimeout(function(){ obsLoad('erros'); },    100); }
     };
   })();
 
