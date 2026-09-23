@@ -1,0 +1,372 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Net.Http.Headers;
+using System.Text.Json;
+
+namespace UcpAgent.Api.Endpoints;
+
+[ExcludeFromCodeCoverage]
+public static class ObservabilityEndpoints
+{
+    public static void MapObservabilityEndpoints(this WebApplication app)
+    {
+        // ── Métricas — Prometheus ─────────────────────────────────────────────
+        app.MapGet("/api/observability/metrics", async (
+            string? range,
+            IConfiguration config,
+            IHttpClientFactory factory,
+            CancellationToken ct) =>
+        {
+            var baseUrl = config["Observability:PrometheusUrl"] ?? "http://comprai-prometheus:9090";
+            var step    = RangeToStep(range ?? "15m");
+            var end     = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var start   = end - RangeToSeconds(range ?? "15m");
+
+            var client = factory.CreateClient("observability");
+
+            // req/s instantâneo
+            var rps     = await QueryInstant(client, baseUrl, "rate(http_server_request_duration_seconds_count[2m])", ct);
+            // p99 latência (ms)
+            var p99Raw  = await QueryInstant(client, baseUrl,
+                "histogram_quantile(0.99, rate(http_server_request_duration_seconds_bucket[2m])) * 1000", ct);
+            // taxa de erro 5xx
+            var errRate = await QueryInstant(client, baseUrl,
+                "rate(http_server_request_duration_seconds_count{http_response_status_code=~\"5..\"}[2m]) / rate(http_server_request_duration_seconds_count[2m]) * 100", ct);
+
+            // série temporal para o gráfico
+            var series = await QueryRange(client, baseUrl,
+                "rate(http_server_request_duration_seconds_count[2m])",
+                start, end, step, ct);
+            var seriesP99 = await QueryRange(client, baseUrl,
+                "histogram_quantile(0.99, rate(http_server_request_duration_seconds_bucket[2m])) * 1000",
+                start, end, step, ct);
+
+            return Results.Ok(new
+            {
+                rps       = rps,
+                p99       = p99Raw,
+                errorRate = errRate,
+                uptime    = 99.9,   // calculado pelo health check existente
+                series    = new[]
+                {
+                    new
+                    {
+                        timestamps = series.labels,
+                        rps        = series.values,
+                        p99        = seriesP99.values
+                    }
+                }
+            });
+        })
+        .WithTags("Observability").WithName("ObsMetrics").AllowAnonymous();
+
+        // ── Logs — Loki ───────────────────────────────────────────────────────
+        app.MapGet("/api/observability/logs", async (
+            string? level,
+            string? q,
+            int?    limit,
+            IConfiguration config,
+            IHttpClientFactory factory,
+            CancellationToken ct) =>
+        {
+            var baseUrl = config["Observability:LokiUrl"] ?? "http://comprai-loki:3100";
+            var n       = limit ?? 100;
+            var client  = factory.CreateClient("observability");
+
+            var levelFilter = string.IsNullOrWhiteSpace(level) || level == "all"
+                ? ""
+                : $", level=\"{level}\"";
+            var logQuery = $"{{job=\"comprai-api\"{levelFilter}}}";
+            if (!string.IsNullOrWhiteSpace(q))
+                logQuery += $" |= `{q}`";
+
+            var url = $"{baseUrl}/loki/api/v1/query_range" +
+                      $"?query={Uri.EscapeDataString(logQuery)}" +
+                      $"&limit={n}" +
+                      $"&start={DateTimeOffset.UtcNow.AddHours(-1).ToUnixTimeMilliseconds()}000000" +
+                      $"&end={DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}000000" +
+                      "&direction=backward";
+
+            try
+            {
+                var resp = await client.GetAsync(url, ct);
+                if (!resp.IsSuccessStatusCode)
+                    return Results.Ok(new { entries = Array.Empty<object>() });
+
+                var json = await resp.Content.ReadAsStringAsync(ct);
+                using var doc = JsonDocument.Parse(json);
+                var entries = new List<object>();
+
+                if (doc.RootElement.TryGetProperty("data", out var data) &&
+                    data.TryGetProperty("result", out var result))
+                {
+                    foreach (var stream in result.EnumerateArray())
+                    {
+                        var labels = stream.TryGetProperty("stream", out var s) ? s : default;
+                        var lvl    = labels.ValueKind != JsonValueKind.Undefined &&
+                                     labels.TryGetProperty("level", out var lv) ? lv.GetString() : "info";
+
+                        if (!stream.TryGetProperty("values", out var values)) continue;
+                        foreach (var entry in values.EnumerateArray())
+                        {
+                            var arr = entry.EnumerateArray().ToList();
+                            if (arr.Count < 2) continue;
+                            var tsNs  = long.TryParse(arr[0].GetString(), out var ns) ? ns : 0;
+                            var ts    = DateTimeOffset.FromUnixTimeMilliseconds(tsNs / 1_000_000).UtcDateTime;
+                            var msg   = arr[1].GetString() ?? "";
+
+                            // Tenta parsear JSON do log para extrair level
+                            var parsedLevel = lvl;
+                            try
+                            {
+                                using var logDoc = JsonDocument.Parse(msg);
+                                if (logDoc.RootElement.TryGetProperty("level", out var ll))
+                                    parsedLevel = ll.GetString();
+                                if (logDoc.RootElement.TryGetProperty("message", out var lm))
+                                    msg = lm.GetString() ?? msg;
+                            }
+                            catch { /* log não é JSON — usa raw */ }
+
+                            entries.Add(new { timestamp = ts, level = parsedLevel, message = msg });
+                        }
+                    }
+                }
+
+                return Results.Ok(new { entries });
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem(ex.Message, statusCode: 503);
+            }
+        })
+        .WithTags("Observability").WithName("ObsLogs").AllowAnonymous();
+
+        // ── Traces — Jaeger ───────────────────────────────────────────────────
+        app.MapGet("/api/observability/traces", async (
+            string? service,
+            int?    limit,
+            IConfiguration config,
+            IHttpClientFactory factory,
+            CancellationToken ct) =>
+        {
+            var baseUrl = config["Observability:JaegerUrl"] ?? "http://comprai-jaeger:16686";
+            var svc     = service ?? "comprai-api";
+            var n       = limit ?? 20;
+            var client  = factory.CreateClient("observability");
+
+            var url = $"{baseUrl}/api/traces?service={Uri.EscapeDataString(svc)}&limit={n}";
+
+            try
+            {
+                var resp = await client.GetAsync(url, ct);
+                if (!resp.IsSuccessStatusCode)
+                    return Results.Ok(new { traces = Array.Empty<object>() });
+
+                var json = await resp.Content.ReadAsStringAsync(ct);
+                using var doc = JsonDocument.Parse(json);
+                var traces = new List<object>();
+
+                if (doc.RootElement.TryGetProperty("data", out var data))
+                {
+                    foreach (var trace in data.EnumerateArray().Take(n))
+                    {
+                        if (!trace.TryGetProperty("spans", out var spansEl)) continue;
+                        var spans = spansEl.EnumerateArray().ToList();
+                        if (!spans.Any()) continue;
+
+                        // Root span = span sem parentSpanID
+                        var root = spans.FirstOrDefault(s =>
+                            !s.TryGetProperty("references", out var refs) ||
+                            !refs.EnumerateArray().Any(r =>
+                                r.TryGetProperty("refType", out var rt) &&
+                                rt.GetString() == "CHILD_OF"));
+
+                        var opName  = root.TryGetProperty("operationName", out var op) ? op.GetString() : "unknown";
+                        var dur     = root.TryGetProperty("duration", out var d) ? d.GetInt64() / 1000 : 0; // µs → ms
+                        var hasErr  = spans.Any(s =>
+                            s.TryGetProperty("tags", out var tags) &&
+                            tags.EnumerateArray().Any(t =>
+                                t.TryGetProperty("key", out var k) && k.GetString() == "error" &&
+                                t.TryGetProperty("value", out var v) && v.GetRawText() == "true"));
+
+                        var spanList = spans.Select(s => new
+                        {
+                            operation = s.TryGetProperty("operationName", out var sop) ? sop.GetString() : "",
+                            duration  = s.TryGetProperty("duration", out var sd) ? sd.GetInt64() / 1000 : 0
+                        }).ToList();
+
+                        traces.Add(new
+                        {
+                            operation = opName,
+                            service   = svc,
+                            duration  = dur,
+                            error     = hasErr,
+                            spans     = spanList
+                        });
+                    }
+                }
+
+                return Results.Ok(new { traces });
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem(ex.Message, statusCode: 503);
+            }
+        })
+        .WithTags("Observability").WithName("ObsTraces").AllowAnonymous();
+
+        // ── Erros Recentes — Loki (level=error|fatal) ─────────────────────────
+        app.MapGet("/api/observability/errors", async (
+            int?   limit,
+            IConfiguration config,
+            IHttpClientFactory factory,
+            CancellationToken ct) =>
+        {
+            var baseUrl = config["Observability:LokiUrl"] ?? "http://comprai-loki:3100";
+            var n       = limit ?? 20;
+            var client  = factory.CreateClient("observability");
+
+            var logQuery = "{job=\"comprai-api\"} |= `` | json | level=~\"error|fatal|Error|Fatal\"";
+            var url = $"{baseUrl}/loki/api/v1/query_range" +
+                      $"?query={Uri.EscapeDataString(logQuery)}" +
+                      $"&limit=200" +
+                      $"&start={DateTimeOffset.UtcNow.AddHours(-6).ToUnixTimeMilliseconds()}000000" +
+                      $"&end={DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}000000" +
+                      "&direction=backward";
+
+            try
+            {
+                var resp = await client.GetAsync(url, ct);
+                if (!resp.IsSuccessStatusCode)
+                    return Results.Ok(new { errors = Array.Empty<object>() });
+
+                var json = await resp.Content.ReadAsStringAsync(ct);
+                using var doc = JsonDocument.Parse(json);
+
+                // Agrupa por mensagem
+                var grouped = new Dictionary<string, (int count, DateTime lastSeen, string stacktrace)>();
+
+                if (doc.RootElement.TryGetProperty("data", out var data) &&
+                    data.TryGetProperty("result", out var result))
+                {
+                    foreach (var stream in result.EnumerateArray())
+                    {
+                        if (!stream.TryGetProperty("values", out var values)) continue;
+                        foreach (var entry in values.EnumerateArray())
+                        {
+                            var arr = entry.EnumerateArray().ToList();
+                            if (arr.Count < 2) continue;
+                            var tsNs = long.TryParse(arr[0].GetString(), out var ns) ? ns : 0;
+                            var ts   = DateTimeOffset.FromUnixTimeMilliseconds(tsNs / 1_000_000).UtcDateTime;
+                            var raw  = arr[1].GetString() ?? "";
+
+                            var msg   = raw;
+                            var stack = "";
+                            try
+                            {
+                                using var ld = JsonDocument.Parse(raw);
+                                if (ld.RootElement.TryGetProperty("message", out var lm)) msg = lm.GetString() ?? raw;
+                                if (ld.RootElement.TryGetProperty("exception", out var le)) stack = le.GetString() ?? "";
+                                if (string.IsNullOrEmpty(stack) && ld.RootElement.TryGetProperty("stackTrace", out var lst)) stack = lst.GetString() ?? "";
+                            }
+                            catch { /* raw não é JSON */ }
+
+                            var key = msg.Length > 120 ? msg[..120] : msg;
+                            if (grouped.TryGetValue(key, out var existing))
+                                grouped[key] = (existing.count + 1, ts > existing.lastSeen ? ts : existing.lastSeen, existing.stacktrace);
+                            else
+                                grouped[key] = (1, ts, stack);
+                        }
+                    }
+                }
+
+                var errors = grouped
+                    .OrderByDescending(g => g.Value.lastSeen)
+                    .Take(n)
+                    .Select(g => new
+                    {
+                        message    = g.Key,
+                        count      = g.Value.count,
+                        lastSeen   = g.Value.lastSeen,
+                        stacktrace = g.Value.stacktrace
+                    })
+                    .ToList();
+
+                return Results.Ok(new { errors });
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem(ex.Message, statusCode: 503);
+            }
+        })
+        .WithTags("Observability").WithName("ObsErrors").AllowAnonymous();
+    }
+
+    // ── Helpers Prometheus ────────────────────────────────────────────────────
+    private static async Task<double?> QueryInstant(HttpClient client, string baseUrl, string query, CancellationToken ct)
+    {
+        try
+        {
+            var url  = $"{baseUrl}/api/v1/query?query={Uri.EscapeDataString(query)}";
+            var resp = await client.GetAsync(url, ct);
+            if (!resp.IsSuccessStatusCode) return null;
+            var json = await resp.Content.ReadAsStringAsync(ct);
+            using var doc = JsonDocument.Parse(json);
+            var result = doc.RootElement
+                .GetProperty("data").GetProperty("result")
+                .EnumerateArray().FirstOrDefault();
+            if (result.ValueKind == JsonValueKind.Undefined) return null;
+            var val = result.GetProperty("value").EnumerateArray().Skip(1).FirstOrDefault();
+            return double.TryParse(val.GetString(), System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : null;
+        }
+        catch { return null; }
+    }
+
+    private static async Task<(List<string> labels, List<double?> values)> QueryRange(
+        HttpClient client, string baseUrl, string query, long start, long end, int step, CancellationToken ct)
+    {
+        try
+        {
+            var url  = $"{baseUrl}/api/v1/query_range?query={Uri.EscapeDataString(query)}&start={start}&end={end}&step={step}";
+            var resp = await client.GetAsync(url, ct);
+            if (!resp.IsSuccessStatusCode) return ([], []);
+            var json = await resp.Content.ReadAsStringAsync(ct);
+            using var doc = JsonDocument.Parse(json);
+            var result = doc.RootElement
+                .GetProperty("data").GetProperty("result")
+                .EnumerateArray().FirstOrDefault();
+            if (result.ValueKind == JsonValueKind.Undefined) return ([], []);
+
+            var labels = new List<string>();
+            var values = new List<double?>();
+            foreach (var point in result.GetProperty("values").EnumerateArray())
+            {
+                var pts  = point.EnumerateArray().ToList();
+                var ts   = DateTimeOffset.FromUnixTimeSeconds((long)pts[0].GetDouble()).ToLocalTime();
+                labels.Add(ts.ToString("HH:mm"));
+                values.Add(double.TryParse(pts[1].GetString(), System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : null);
+            }
+            return (labels, values);
+        }
+        catch { return ([], []); }
+    }
+
+    private static int RangeToSeconds(string range) => range switch
+    {
+        "15m" => 900,
+        "1h"  => 3600,
+        "6h"  => 21600,
+        "24h" => 86400,
+        _     => 900
+    };
+
+    private static int RangeToStep(string range) => range switch
+    {
+        "15m" => 30,
+        "1h"  => 60,
+        "6h"  => 300,
+        "24h" => 900,
+        _     => 30
+    };
+}

@@ -205,6 +205,12 @@ builder.Services.AddCatalogRateLimiter(builder.Configuration);
 builder.Services.AddStatusPageHealthChecks(builder.Configuration);
 
 
+// Observability HttpClient (interno — sem auth)
+builder.Services.AddHttpClient("observability", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+
 // GitHub HttpClient
 builder.Services.AddHttpClient("github", (sp, client) =>
 {
@@ -348,6 +354,7 @@ app.MapPost("/api/payment/{orderId}", async (
 .WithTags("Payment").WithName("ProcessPayment");
 
 app.MapIntentEndpoints();
+app.MapObservabilityEndpoints();
 app.MapFakeCatalogEndpoints();
 
 var pwEnabled = app.Configuration.GetValue<bool>("Features:UsarPriceWatcher");
