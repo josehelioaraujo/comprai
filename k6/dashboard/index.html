@@ -3133,7 +3133,7 @@ window.loadCorrelacao = async function() {
         var mColor  = METHOD_COLORS[r.method] || 'var(--muted)';
 
         return '<tr onclick="corrOpenModal(' + i + ')" style="cursor:pointer;transition:background .15s" ' +
-          'onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="this.style.background=''">' +
+          'data-cidx="' + i + '">' +
           '<td style="padding:10px 12px">' +
             '<div style="display:flex;align-items:center;gap:8px">' +
               '<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:rgba(255,255,255,.07);color:' + mColor + '">' + r.method + '</span>' +
@@ -3171,6 +3171,18 @@ window.loadCorrelacao = async function() {
 
     // Guardar rows para o modal
     window._corrRows = rows;
+
+    // Event delegation para hover nas linhas da tabela
+    if (tbody) {
+      tbody.addEventListener('mouseover', function(e) {
+        var tr = e.target.closest('tr[data-cidx]');
+        if (tr) tr.style.background = 'rgba(255,255,255,.03)';
+      });
+      tbody.addEventListener('mouseout', function(e) {
+        var tr = e.target.closest('tr[data-cidx]');
+        if (tr) tr.style.background = '';
+      });
+    }
 
     if (emptyEl) emptyEl.style.display = 'none';
     if (tableEl) tableEl.style.display = '';
