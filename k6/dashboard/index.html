@@ -2587,6 +2587,9 @@ async function loadQuality TrendData() {
 
     evolRenderChart();
     evolRenderTable(data);
+    var _byR = {}; data.forEach(function(e){ if(!_byR[e.run]) _byR[e.run]=Object.assign({},e); else Object.assign(_byR[e.run],e); });
+    var _rns = Object.keys(_byR).map(Number).sort(function(a,b){return a-b;});
+    evolRenderInsights(_byR, _rns);
 
   } catch(e) {
     if (empty) empty.style.display = '';
@@ -2638,16 +2641,46 @@ function evolRenderChart() {
       maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { labels: { color: 'var(--text)', font: { size: 11 } } },
         tooltip: {
           callbacks: {
             label: function(ctx) {
               var v = ctx.parsed.y;
               var suf = ctx.dataset.yAxisID === 'pct' ? '%' : '';
-              return ' ' + ctx.dataset.label + ': ' + (v != null ? v + suf : '—');
+              var base = ' ' + ctx.dataset.label + ': ' + (v != null ? v + suf : '—');
+              if (v != null) {
+                var prev = ctx.dataset.data[ctx.dataIndex - 1];
+                if (prev != null) {
+                  var delta = Math.round((v - prev) * 10) / 10;
+                  var arrow = delta > 0 ? ' ▲ +' : delta < 0 ? ' ▼ ' : ' ― ';
+                  var hint  = Math.abs(delta) >= 10 ? (delta > 0 ? ' big improvement!' : ' significant drop!') : Math.abs(delta) >= 5 ? (delta > 0 ? ' improving' : ' watch out') : '';
+                  base += arrow + delta + suf + hint;
+                }
+              }
+              return base;
+            },
+            afterBody: function(items) {
+              var idx  = items[0].dataIndex;
+              var runs = Object.keys(evolByRun || {}).map(Number).sort(function(a,b){return a-b;});
+              if (!runs.length || idx < 0 || idx >= runs.length) return [];
+              var r = runs[idx]; var e = (evolByRun || {})[r] || {};
+              var out = [];
+              if (e.sha)  out.push('SHA: ' + e.sha);
+              if (e.date) out.push('Date: ' + e.date);
+              var cov = e.coverage, mut = e.mutation;
+              if (cov != null && mut != null) {
+                var avg = Math.round((cov + mut) / 2);
+                var q = avg >= 80 ? '✅ Good quality' : avg >= 60 ? '⚠ Acceptable' : '❌ Needs improvement';
+                out.push(q + ' (avg ' + avg + '%)');
+              }
+              return out.length ? ['──────────'].concat(out) : [];
             }
-          }
+          },
+          backgroundColor: 'rgba(15,23,42,.95)',
+          borderColor: 'rgba(255,255,255,.1)',
+          borderWidth: 1, padding: 10, cornerRadius: 8,
+          titleColor: '#e2e8f0', bodyColor: '#94a3b8'
         }
+      },
       },
       scales: {
         x: { ticks: { color: 'var(--muted)', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.05)' } },
@@ -2666,6 +2699,51 @@ function evolRenderChart() {
       }
     }
   });
+}
+
+function evolRenderInsights(byRun, runs) {
+  var panel = document.getElementById('evol-insights');
+  if (!panel) return;
+  if (runs.length < 2) { panel.style.display = 'none'; return; }
+  var insights = [];
+  var metrics = [
+    { key: 'coverage', label: 'Coverage',      color: '#6366f1', suf: '%' },
+    { key: 'mutation', label: 'Mutation Score', color: '#8b5cf6', suf: '%' },
+    { key: 'bugs',     label: 'Bugs',           color: '#ef4444', suf: '' },
+    { key: 'smells',   label: 'Code Smells',    color: '#f59e0b', suf: '' },
+  ];
+  metrics.forEach(function(m) {
+    var bigUp = null, bigUpRun = null, bigDown = null, bigDownRun = null;
+    var best = null, bestRun = null;
+    for (var i = 1; i < runs.length; i++) {
+      var cur  = byRun[runs[i]][m.key];
+      var prev = byRun[runs[i-1]][m.key];
+      if (cur == null || prev == null) continue;
+      var delta = Math.round((cur - prev) * 10) / 10;
+      if (bigUp   === null || delta > bigUp)   { bigUp   = delta; bigUpRun   = runs[i]; }
+      if (bigDown === null || delta < bigDown)  { bigDown = delta; bigDownRun = runs[i]; }
+    }
+    runs.forEach(function(r) {
+      var v = byRun[r][m.key];
+      if (v == null) return;
+      if (best === null || v > best) { best = v; bestRun = r; }
+    });
+    if (bigUp !== null && bigUp >= 5)
+      insights.push({ icon: '▲', color: '#22c55e', text: '<b>' + m.label + '</b> subiu <b>+' + bigUp + m.suf + '</b> no run <b>#' + bigUpRun + '</b>' });
+    if (bigDown !== null && bigDown <= -5)
+      insights.push({ icon: '⚠', color: '#ef4444', text: '<b>' + m.label + '</b> caiu <b>' + bigDown + m.suf + '</b> no run <b>#' + bigDownRun + '</b> — investigar' });
+    if (best !== null && bestRun === runs[runs.length - 1])
+      insights.push({ icon: '★', color: '#f59e0b', text: '<b>' + m.label + '</b> está no <b>melhor valor histórico</b>: ' + best + m.suf });
+  });
+  if (!insights.length) { panel.style.display = 'none'; return; }
+  insights.sort(function(a, b) { return ({ '⚠': 0, '★': 1, '▲': 2 }[a.icon] || 3) - ({ '⚠': 0, '★': 1, '▲': 2 }[b.icon] || 3); });
+  panel.innerHTML =
+    '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">Notable Events</div>' +
+    insights.slice(0, 6).map(function(ins) {
+      return '<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;background:var(--surface2);border-left:3px solid ' + ins.color + ';border-radius:0 6px 6px 0;margin-bottom:6px;font-size:12px;color:var(--muted)">' +
+        '<span style="flex-shrink:0;color:' + ins.color + '">' + ins.icon + '</span><span>' + ins.text + '</span></div>';
+    }).join('');
+  panel.style.display = 'block';
 }
 
 function evolRenderTable(data) {
@@ -5949,6 +6027,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
           </div>
 
           <!-- Tabela resumo últimos runs -->
+          <div id="evol-insights" style="display:none;margin-top:16px"></div>
           <div id="evol-table-wrap" style="display:none;overflow-x:auto;border-radius:6px;border:1px solid var(--border);margin-top:16px">
             <table style="width:100%;border-collapse:collapse;font-size:12px">
               <thead>
