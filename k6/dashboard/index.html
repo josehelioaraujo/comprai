@@ -1175,7 +1175,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       if (id === 'owaspBlock') { buildSecList(OWASP_ITEMS, 'owasp-list'); var ow=countStatus(OWASP_ITEMS); var owEl=document.getElementById('owasp-score'); if(owEl) owEl.textContent=ow.ok+'/'+ow.total+' OK'; }
       if (id === 'pciBlock')   { buildSecList(PCI_ITEMS,   'pci-list');   var pc=countStatus(PCI_ITEMS);   var pcEl=document.getElementById('pci-score');   if(pcEl) pcEl.textContent=pc.ok+'/'+pc.total+' OK'; }
       if (id === 'depBlock')   { loadDepData(); }
-      if (id === 'evolucaoBlock') { loadEvolucaoData(); }
+      if (id === 'evolucaoBlock') { loadQuality TrendData(); }
       if (id === 'obsMetricasBlock') { requestAnimationFrame(function(){ setTimeout(function(){ obsLoad('metricas'); }, 100); }); }
       if (id === 'obsLogsBlock')    { requestAnimationFrame(function(){ setTimeout(function(){ obsLoad('logs'); },     100); }); }
       if (id === 'obsTracesBlock')  { requestAnimationFrame(function(){ setTimeout(function(){ obsLoad('traces'); },   100); }); }
@@ -2532,7 +2532,7 @@ async function loadDepData() {
 }
 function depE(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function depP(p) { return p.replace(/^.*[\/\\]/, '').replace(/\.csproj$/, ''); }
-// ── Evolução das Métricas ────────────────────────────────────
+// ── Quality Trend ────────────────────────────────────
 var evolChart = null;
 var evolData  = [];
 var evolActiveMetrics = ['coverage','mutation','cves'];
@@ -2560,7 +2560,7 @@ function evolToggleMetric(btn) {
   evolRenderChart();
 }
 
-async function loadEvolucaoData() {
+async function loadQuality TrendData() {
   var empty     = document.getElementById('evol-empty');
   var chartWrap = document.getElementById('evol-chart-wrap');
   var tableWrap = document.getElementById('evol-table-wrap');
@@ -2733,7 +2733,7 @@ async function gbDispatch(workflow) {
       body: JSON.stringify({ repo: ghCfg.repo, workflow: workflow, ref: 'main' })
     });
     if (!res.ok) { var e = await res.json().catch(function(){return{};}); throw new Error(e.detail||'Dispatch falhou: '+res.status); }
-    setTimeout(function(){ btns.forEach(function(b){ if(b){ b.disabled=false; b.innerHTML=b.dataset.orig||b.innerHTML; } }); loadEvolucaoData(); }, 90000);
+    setTimeout(function(){ btns.forEach(function(b){ if(b){ b.disabled=false; b.innerHTML=b.dataset.orig||b.innerHTML; } }); loadQuality TrendData(); }, 90000);
   } catch(e) {
     btns.forEach(function(b){ if(b){ b.disabled=false; b.innerHTML=b.dataset.orig||b.innerHTML; } });
     alert('❌ '+e.message);
@@ -4454,8 +4454,8 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <div class="nav-item" id="nav-sonar" onclick="showSection('sonarBlock', this)" title="SonarCloud Quality Gate">
           <span class="nav-icon">&#9728;</span><span class="nav-text">SonarCloud</span>
         </div>
-        <div class="nav-item" id="nav-trend" onclick="showSection('evolucaoBlock', this); loadEvolucaoData();" title="Trend histórico de qualidade ao longo dos runs">
-          <span class="nav-icon">&#128200;</span><span class="nav-text">Trend Histórico</span>
+        <div class="nav-item" id="nav-trend" onclick="showSection('evolucaoBlock', this); loadQuality TrendData();" title="Trend histórico de qualidade ao longo dos runs">
+          <span class="nav-icon">&#128200;</span><span class="nav-text">Quality Trend</span>
         </div>
 
       </div>
@@ -4667,7 +4667,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
           <div class="section-inner">
             <div style="padding: 16px;">
               <div class="chart-card">
-                <div class="chart-title">Evolucao de Latencia por Tipo de Teste (ms) — p50 / p95 / p99</div>
+                <div class="chart-title">Quality Trend de Latencia por Tipo de Teste (ms) — p50 / p95 / p99</div>
                 <div class="chart-wrap-tall"><canvas id="chartTimeline"></canvas></div>
               </div>
             </div>
@@ -5901,7 +5901,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
     <div class="section-block" id="evolucaoBlock" style="display:none">
       <div class="section-header" onclick="toggleSection(this)">
-        <span class="section-title-text">&#128200; Trend Histórico de Qualidade
+        <span class="section-title-text">&#128200; Quality Trend
           <span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative">
             <span class="info-hint-btn">i</span>
             <span class="info-hint-box" style="position:fixed;width:300px;z-index:9999;line-height:1.7">
@@ -5924,7 +5924,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
             <button id="evol-cicd-btn"     class="gb-wf-btn" onclick="gbDispatch('ci-cd.yml','evol-cicd-btn')"                title="CI/CD completo">&#9654; CI/CD</button>
             <button id="evol-mutation-btn" class="gb-wf-btn" onclick="gbDispatch('mutation-tests.yml','evol-mutation-btn')"   title="Testes de mutação">&#129514; Mutação</button>
             <button id="evol-scan-btn"     class="gb-wf-btn" onclick="gbDispatch('dependency-scan.yml','evol-scan-btn')"      title="Scan de CVEs">&#128274; CVEs</button>
-            <button onclick="loadEvolucaoData()" style="margin-left:auto;background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;padding:4px 8px;border-radius:4px" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">&#8635; Atualizar</button>
+            <button onclick="loadQuality TrendData()" style="margin-left:auto;background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;padding:4px 8px;border-radius:4px" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">&#8635; Atualizar</button>
           </div>
 
           <!-- Seletor de métricas -->
