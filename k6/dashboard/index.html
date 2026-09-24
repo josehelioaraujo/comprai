@@ -1342,8 +1342,10 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
     var compMap = {};
     if (data && data.components) {
       data.components.forEach(function(c){
-        compMap[c.id ? c.id.toLowerCase() : c.name.toLowerCase()] = c;
+        if (c.id)   compMap[c.id.toLowerCase()] = c;
+        if (c.name) compMap[c.name.toLowerCase()] = c;
       });
+    });
     }
     var W = Math.max(wrap.clientWidth || 700, 700), H = 540;
     var dark = document.documentElement.getAttribute('data-theme') !== 'light';
@@ -1421,7 +1423,9 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
   function _hmShowDetail(d) {
     var overlay = document.getElementById('hm-modal-overlay');
     var sc = d.status==='operational' ? '#22c55e' : d.status==='unknown' ? '#94a3b8' : d.status==='degraded' ? '#f59e0b' : '#ef4444';
-    var badgeText = d.status==='operational' ? 'Operational' : d.status==='unknown' ? 'Unknown' : d.status==='degraded' ? 'Degraded' : 'Outage';
+    var badgeText = d.status==='operational' ? 'Operational' : d.status==='unknown' ? 'Not Monitored' : d.status==='degraded' ? 'Degraded' : 'Outage';
+    var sc2 = d.status==='unknown' ? '#64748b' : sc;
+    sc = sc2;
 
     document.getElementById('hm-modal-icon').textContent = d.icon || '';
     document.getElementById('hm-modal-title').textContent = d.label;
@@ -1483,8 +1487,8 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
         var name = d.containerName || d.label.toLowerCase().replace(/[^a-z0-9]/g,'-');
         var c = containers.find(function(x){
           if (!x.name) return false;
-          var xn = x.name.toLowerCase().replace(/^[\/]/, '');
-          return xn === 'comprai-' + name || xn === name || xn.includes(name);
+          var xn = x.name.toLowerCase().replace(/^\//, '');
+          return xn === 'comprai-' + name || xn === name || xn === d.label.toLowerCase();
         });
         if (!c) {
           cWrap.innerHTML = '<span style="color:var(--text-muted);font-size:12px;grid-column:1/-1">Container não encontrado</span>';
