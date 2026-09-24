@@ -2891,7 +2891,11 @@ document.addEventListener('click', function(e) {
   var jid = hdr.dataset.jid;
   if (!jid) return;
   var steps = document.getElementById(jid);
-  if (steps) steps.style.display = steps.style.display === 'none' ? 'block' : 'none';
+  if (!steps) return;
+  var open = steps.style.display !== 'none';
+  steps.style.display = open ? 'none' : 'block';
+  var chev = hdr.querySelector('.evol-job-chevron');
+  if (chev) chev.style.transform = open ? 'rotate(0deg)' : 'rotate(90deg)';
 });
 
 function evolSetRunLabel(text) {
@@ -2978,8 +2982,10 @@ async function evolPollRun(runId, label, btns) {
           'style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 8px;border-radius:6px;background:var(--surface2);border:1px solid var(--border)">' +
             '<span style="font-size:12px">' + jIcon + '</span>' +
             '<span style="font-size:12px;font-weight:500;color:'+jColor+'">'+job.name+'</span>' +
-            '<span style="margin-left:auto;font-size:10px;color:var(--muted)">'+
-              (job.conclusion||job.status||'')+'</span>' +
+            '<span style="margin-left:auto;display:flex;align-items:center;gap:6px">'+
+              '<span style="font-size:10px;color:var(--muted)">'+(job.conclusion||job.status||'')+'</span>'+
+              (stepsHtml ? '<span class="evol-job-chevron" style="font-size:9px;color:var(--muted);transition:transform .2s;display:inline-block;transform:'+(open?'rotate(90deg)':'rotate(0deg)')+'">►</span>' : '')+
+            '</span>' +
           '</div>' +
           (stepsHtml ? '<div id="'+jobId+'" style="display:'+(open?'block':'none')+';padding:6px 0 0 8px;margin-top:4px">' + stepsHtml + '</div>' : '') +
         '</div>';
