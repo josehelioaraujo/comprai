@@ -2801,19 +2801,196 @@ function evolRenderTable(data) {
 async function gbDispatch(workflow) {
   var btnIds = Array.from(arguments).slice(1);
   var btns = btnIds.map(function(id){ return document.getElementById(id); }).filter(Boolean);
-  btns.forEach(function(b){ if(b){ b.disabled=true; b.dataset.orig=b.innerHTML; b.innerHTML='<span class="btn-spinner"></span> Aguardando...'; } });
+
+  // Label amigável por workflow
+  var WF_LABELS = {
+    'ci-cd.yml': 'CI/CD',
+    'mutation-tests.yml': 'Mutation',
+    'dependency-scan.yml': 'CVEs'
+  };
+  var wfLabel = WF_LABELS[workflow] || workflow;
+
+  btns.forEach(function(b){
+    if(b){ b.disabled=true; b.dataset.orig=b.innerHTML;
+      b.innerHTML='<span class="btn-spinner"></span> ' + wfLabel; }
+  });
+
+  (async function() {
+    try {
+      if (!ghCfg) await loadGhConfig();
+      if (!ghCfg) throw new Error('gh-config nao carregado');
+
+      // Mostra painel inline imediatamente
+      evolShowRunPanel(wfLabel, null);
+
+      var res = await fetch('/api/github/dispatch', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ repo: ghCfg.repo, workflow: workflow, ref: 'main' })
+      });
+      if (!res.ok) {
+        var e = await res.json().catch(function(){return{};});
+        throw new Error(e.detail||'Dispatch falhou: '+res.status);
+      }
+
+      // Aguarda 4s para o run aparecer na API do GitHub
+      await new Promise(function(r){ setTimeout(r, 4000); });
+
+      // Busca o run_id mais recente do workflow
+      var runId = await evolFetchLatestRunId(workflow);
+      if (runId) {
+        var runUrl = 'https://github.com/' + ghCfg.repo + '/actions/runs/' + runId;
+        var link = document.getElementById('evol-run-link');
+        if (link) { link.href = runUrl; link.style.display = 'inline'; }
+        evolPollRun(runId, wfLabel, btns);
+      } else {
+        evolSetRunLabel('⏳ Run iniciado — aguardando ID...');
+        // Tenta mais uma vez após 8s
+        setTimeout(async function() {
+          var rid = await evolFetchLatestRunId(workflow);
+          if (rid) evolPollRun(rid, wfLabel, btns);
+          else evolSetRunLabel('✅ Workflow disparado');
+        }, 8000);
+        btns.forEach(function(b){ if(b){ b.disabled=false; b.innerHTML=b.dataset.orig||b.innerHTML; } });
+      }
+    } catch(e) {
+      btns.forEach(function(b){ if(b){ b.disabled=false; b.innerHTML=b.dataset.orig||b.innerHTML; } });
+      evolHideRunPanel();
+      alert('❌ '+e.message);
+    }
+  })();
+}
+
+// ── Evol Run Panel helpers ─────────────────────────────────────
+function evolShowRunPanel(label, runId) {
+  var panel = document.getElementById('evol-run-panel');
+  var lbl   = document.getElementById('evol-run-label');
+  var jobs  = document.getElementById('evol-run-jobs');
+  var link  = document.getElementById('evol-run-link');
+  if (!panel) return;
+  if (lbl)  lbl.textContent = '▶ ' + label + ' — iniciando...';
+  if (jobs) jobs.innerHTML  = '<div style="color:var(--muted);font-size:11px;padding:6px 0">Aguardando run...</div>';
+  if (link) link.style.display = 'none';
+  panel.style.display = 'block';
+  // Scroll para o painel
+  setTimeout(function(){ panel.scrollIntoView({ behavior:'smooth', block:'nearest' }); }, 100);
+}
+
+function evolHideRunPanel() {
+  var panel = document.getElementById('evol-run-panel');
+  if (panel) panel.style.display = 'none';
+}
+
+function evolCloseRunPanel() {
+  evolHideRunPanel();
+}
+
+function evolSetRunLabel(text) {
+  var lbl = document.getElementById('evol-run-label');
+  if (lbl) lbl.textContent = text;
+}
+
+async function evolFetchLatestRunId(workflow) {
   try {
-    if (!ghCfg) await loadGhConfig();
-    if (!ghCfg) throw new Error('gh-config nao carregado');
-    var res = await fetch('/api/github/dispatch', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ repo: ghCfg.repo, workflow: workflow, ref: 'main' })
-    });
-    if (!res.ok) { var e = await res.json().catch(function(){return{};}); throw new Error(e.detail||'Dispatch falhou: '+res.status); }
-    setTimeout(function(){ btns.forEach(function(b){ if(b){ b.disabled=false; b.innerHTML=b.dataset.orig||b.innerHTML; } }); loadEvolucaoData(); }, 90000);
+    var r = await fetch('/api/github/run/latest?workflow=' + encodeURIComponent(workflow));
+    if (!r.ok) return null;
+    var d = await r.json();
+    return d.run_id || d.runId || null;
+  } catch(e) { return null; }
+}
+
+// Polling principal — jobs + steps
+var _evolPollTimer = null;
+async function evolPollRun(runId, label, btns) {
+  if (_evolPollTimer) clearTimeout(_evolPollTimer);
+
+  var spinner = document.getElementById('evol-run-spinner');
+  if (spinner) spinner.style.display = 'inline-block';
+
+  try {
+    var r = await fetch('/api/github/run/' + runId + '/status');
+    if (!r.ok) throw new Error('status ' + r.status);
+    var data = await r.json();
+
+    var conclusion = data.conclusion;   // success|failure|cancelled|null
+    var status     = data.status;       // queued|in_progress|completed
+    var jobs       = data.jobs || [];
+
+    // Label do header
+    var statusIcon = status === 'completed'
+      ? (conclusion === 'success' ? '✅' : conclusion === 'failure' ? '❌' : '⚪')
+      : '⏳';
+    evolSetRunLabel(statusIcon + ' ' + label + ' — ' + (
+      status === 'queued'      ? 'na fila...' :
+      status === 'in_progress' ? 'executando...' :
+      conclusion === 'success' ? 'concluído com sucesso' :
+      conclusion === 'failure' ? 'falhou' : conclusion || status
+    ));
+
+    // Renderizar jobs e steps
+    var jobsEl = document.getElementById('evol-run-jobs');
+    if (jobsEl && jobs.length > 0) {
+      jobsEl.innerHTML = jobs.map(function(job) {
+        var jIcon = job.conclusion === 'success' ? '✅'
+                  : job.conclusion === 'failure' ? '❌'
+                  : job.status === 'in_progress' ? '<span class="btn-spinner" style="width:10px;height:10px"></span>'
+                  : job.status === 'queued'      ? '⏸'
+                  : '⚪';
+        var jColor = job.conclusion === 'success' ? '#22c55e'
+                   : job.conclusion === 'failure'  ? '#ef4444'
+                   : job.status === 'in_progress'  ? '#6366f1'
+                   : 'var(--muted)';
+        var steps = (job.steps || []);
+        var stepsHtml = steps.length ? steps.map(function(s) {
+          var sIcon = s.conclusion === 'success'  ? '✓'
+                    : s.conclusion === 'failure'   ? '✗'
+                    : s.conclusion === 'skipped'   ? '—'
+                    : s.status    === 'in_progress'? '▶'
+                    : '·';
+          var sColor = s.conclusion === 'success'  ? '#22c55e'
+                     : s.conclusion === 'failure'   ? '#ef4444'
+                     : s.conclusion === 'skipped'   ? 'var(--muted)'
+                     : s.status    === 'in_progress'? '#6366f1'
+                     : 'var(--muted)';
+          var dur = (s.started_at && s.completed_at)
+            ? ' <span style="color:var(--muted);font-size:10px">(' + Math.round((new Date(s.completed_at)-new Date(s.started_at))/1000) + 's)</span>'
+            : '';
+          return '<div style="display:flex;align-items:center;gap:6px;padding:2px 0 2px 8px;border-left:2px solid var(--border)">' +
+            '<span style="color:'+sColor+';font-size:11px;min-width:12px">'+sIcon+'</span>' +
+            '<span style="color:var(--text-secondary);font-size:11px">'+s.name+'</span>'+dur+
+            '</div>';
+        }).join('') : '';
+
+        // Auto-expand job in_progress
+        var open = job.status === 'in_progress' || job.conclusion === 'failure';
+        var jobId = 'evol-job-' + job.id;
+        return '<div style="margin-bottom:8px">' +
+          '<div onclick="var s=document.getElementById(''+jobId+'');if(s){s.style.display=s.style.display==='none'?'block':'none'}" ' +
+          'style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 8px;border-radius:6px;background:var(--surface2);border:1px solid var(--border)">' +
+            '<span style="font-size:12px">' + (typeof jIcon === 'string' && jIcon.startsWith('<') ? jIcon : jIcon) + '</span>' +
+            '<span style="font-size:12px;font-weight:500;color:'+jColor+'">'+job.name+'</span>' +
+            '<span style="margin-left:auto;font-size:10px;color:var(--muted)">'+
+              (job.conclusion||job.status||'')+'</span>' +
+          '</div>' +
+          (stepsHtml ? '<div id="'+jobId+'" style="display:'+(open?'block':'none')+';padding:6px 0 0 8px;margin-top:4px">' + stepsHtml + '</div>' : '') +
+        '</div>';
+      }).join('');
+    } else if (jobsEl) {
+      jobsEl.innerHTML = '<div style="color:var(--muted);font-size:11px;padding:6px 0">Carregando jobs...</div>';
+    }
+
+    if (status !== 'completed') {
+      _evolPollTimer = setTimeout(function(){ evolPollRun(runId, label, btns); }, 5000);
+    } else {
+      // Concluído
+      if (spinner) spinner.style.display = 'none';
+      btns.forEach(function(b){ if(b){ b.disabled=false; b.innerHTML=b.dataset.orig||b.innerHTML; } });
+      // Atualiza dados do gráfico após conclusão
+      setTimeout(loadEvolucaoData, 2000);
+    }
   } catch(e) {
+    evolSetRunLabel('⚠️ Erro ao buscar status: ' + e.message);
+    if (spinner) spinner.style.display = 'none';
     btns.forEach(function(b){ if(b){ b.disabled=false; b.innerHTML=b.dataset.orig||b.innerHTML; } });
-    alert('❌ '+e.message);
   }
 }
 
@@ -6012,6 +6189,21 @@ tr:hover td { background: rgba(255,255,255,.02); }
             <button onclick="loadEvolucaoData()" title="Atualizar dados" style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:none;color:var(--muted);font-size:11px;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='var(--text)';this.style.color='var(--text)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
               &#8635; Refresh
             </button>
+          </div>
+
+          <!-- Painel inline execução workflow -->
+          <div id="evol-run-panel" style="display:none;margin-bottom:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface2);border-bottom:1px solid var(--border)">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span id="evol-run-spinner" style="display:inline-block;width:10px;height:10px;border:2px solid var(--border);border-top-color:#6366f1;border-radius:50%;animation:spin .7s linear infinite"></span>
+                <span id="evol-run-label" style="font-size:12px;font-weight:600;color:var(--text)">Aguardando início...</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <a id="evol-run-link" href="#" target="_blank" style="display:none;font-size:11px;color:#6366f1;text-decoration:none">↗ Ver no GitHub</a>
+                <button onclick="evolCloseRunPanel()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 2px" title="Fechar">✕</button>
+              </div>
+            </div>
+            <div id="evol-run-jobs" style="padding:10px 14px;font-size:12px;max-height:320px;overflow-y:auto"></div>
           </div>
 
           <!-- Seletor de métricas -->
