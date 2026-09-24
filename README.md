@@ -860,14 +860,15 @@ Acesse: `https://comprai.2.25.122.11.nip.io/k6/dashboard/`
 | **V028** | Monitor de Containers — accordion compacto, ações Start/Stop/Restart com modal + proteção críticos, métricas req/s e p99 funcionais, logs ANSI-clean |
 | **V029** | Promtail fix definitivo (docker_sd_configs), Health Map SVG interativo com modal de detalhes, TCP health check Prometheus/Loki/Jaeger |
 | **V030** | OpsWatch (renomeação), Health Map modal com Container Stats CPU/mem, Dependency Scanner, ícones sidebar, edges reais do compose |
+| **V030-QS** | Quality Score 0-100: gauge, 4 dimensões, drill-down com código real, botão ∑, Notable Events, Quality Trend com tooltip delta |
 
 ### 🔜 Próximas Versões
 
 | Fase | Descrição | Versão |
 |------|-----------|--------|
-| **Quality Score** | Número único 0–100 combinando Coverage + Mutation + K6 p95 + CVEs + Error Rate | V031 |
-| **Trend histórico** | Gráfico de linha com evolução de Coverage, Mutation Score e Security Rating por run | V031 |
 | **Correlação K6 × Mutation** | Cruzar endpoints com p95 alto vs handlers com mutation score baixo | V031 |
+| **Dependency Scanner** | `dotnet list package --vulnerable` — CVEs em NuGets, fecha gap OWASP A06 | V031 |
+| **Alertas ntfy.sh** | Push quando qualquer suite falha — ntfy já na VPS | V031 |
 | **DAST com OWASP ZAP** | Análise dinâmica contra API em staging — fecha gap do SonarCloud estático | Futuro |
 | **Notificação ntfy.sh** | Push quando qualquer suite falha — ntfy já na VPS | Futuro |
 | **Padrão Saga** | 3 implementações chaveáveis (Wolverine, MassTransit, Nativo) via feature flag | Futuro |

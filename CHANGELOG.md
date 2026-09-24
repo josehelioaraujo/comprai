@@ -1,3 +1,37 @@
+## [3.9.0] - 2026-09-24
+
+### Added
+
+- **Quality Score Unificado 0-100 (OpsWatch)**
+  - Gauge circular SVG animado com cor dinâmica (verde/amarelo/vermelho)
+  - 4 dimensões com peso: Coverage 25% (SonarCloud), Mutation Score 30% (Stryker), K6 Error Rate 25%, Segurança OWASP+PCI 20%
+  - Pill `⭐ XX` na topbar — clicável, abre a seção diretamente
+  - Cards de dimensão clicáveis — modal com descrição detalhada, fonte de dados e meta recomendada
+  - Classificação automática: EXCELENTE (≥80) / SATISFATÓRIO (≥60) / PRECISA MELHORAR (<60)
+
+- **Quality Score — Interatividade**
+  - Gauge clicável — modal de Análise de Qualidade com recomendações priorizadas (PRIORIDADE ALTA / MELHORAR / OK)
+  - Badges clicáveis no modal — drill-down com instruções reais de código C#, YAML e shell por dimensão
+  - Botão `∑` discreto no header — modal com fórmula completa e pesos explicados
+  - Botões Copiar (clipboard formatado) e PDF (print CSS isolado)
+  - Chevron animado no header + loading animado com subtítulo descritivo
+
+- **Quality Trend (ex-Evolução das Métricas)**
+  - Renomeado e movido para o grupo Qualidade no sidebar
+  - Tooltip enriquecido: delta ▲▼ vs run anterior com intensidade (big improvement / significant drop)
+  - `afterBody` no tooltip: SHA, data e avaliação geral de qualidade (avg coverage + mutation)
+  - Painel **Notable Events** abaixo do gráfico: subidas ≥5%, quedas ≤-5%, recordes históricos — ordenados por prioridade
+  - Botões Run redesenhados: ícone SVG ▶, hover colorido por workflow, sem emoji
+  - Pills de métrica: arredondadas com cor da série quando ativa, cinza quando inativa
+
+### Fixed
+
+- `printf` em vez de `echo` para escrita da chave SSH no CI — preserva quebras de linha PEM (2 ocorrências em `ci-cd.yml`)
+- SyntaxError `missing )` no bloco tooltip do Quality Trend — `},` duplicado removido
+- `loadEvolucaoData is not defined` — nomes de funções JS corrompidos pelo rename resolvidos
+- Rodapé inline "COMO O SCORE É CALCULADO" removido — conteúdo movido para botão `∑`
+- Acentuação corrigida nas labels: SATISFATÓRIO, "Há oportunidades", "Atenção!", etc.
+
 ## [3.8.0] - 2026-09-24
 
 ### Added
