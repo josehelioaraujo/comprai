@@ -4971,12 +4971,18 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
     <!-- ===== QUALITY SCORE ===== -->
     <div class="section-block" id="qualityScoreBlock" style="display:none">
-      <div class="section-header" onclick="toggleSection(this)">
-        <span class="section-title-text">&#127942; Quality Score Unificado
+      <div class="section-header" onclick="toggleSection(this)" style="display:flex;align-items:center;justify-content:space-between">
+        <span class="section-title-text" style="display:flex;align-items:center;gap:6px">
+          &#127942; Quality Score Unificado
           <span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative">
             <span class="info-hint-btn">i</span>
             <span class="info-hint-box" style="position:fixed;width:280px;z-index:9999">Score 0-100 calculado a partir de 4 dimensoes: Cobertura de Testes (25%), Mutation Score (30%), Taxa de Erro K6 (25%) e Seguranca OWASP+PCI (20%). Dados carregados das fontes ja disponiveis no dashboard.</span>
           </span>
+        </span>
+        <span style="display:flex;align-items:center;gap:6px" onclick="event.stopPropagation()">
+          <button id="qs-btn-copy" onclick="qsCopyScore()" title="Copiar resumo" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 9px;font-size:11px;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">&#128203; Copiar</button>
+          <button onclick="qsDownloadPDF()" title="Baixar como PDF" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 9px;font-size:11px;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">&#128196; PDF</button>
+          <span class="section-chevron" style="font-size:12px;color:var(--muted);transition:transform .25s;display:inline-block">&#9660;</span>
         </span>
       </div>
       <div class="section-content">
@@ -5008,7 +5014,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
           <!-- Dimensoes -->
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:8px">
             <!-- Coverage -->
-            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 16px">
+            <div class="qs-dim-card" onclick="qsShowCardModal('cov')" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 16px;cursor:pointer;transition:border-color .2s" onmouseover="this.style.borderColor='#6366f1'" onmouseout="this.style.borderColor='var(--border)'">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
                 <span style="font-size:12px;color:var(--muted)">&#128202; Cobertura de Testes</span>
                 <span style="font-size:10px;color:var(--muted);opacity:.7">peso 25%</span>
@@ -5020,7 +5026,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
               <div style="font-size:10px;color:var(--muted);margin-top:4px" id="qs-cov-pts">— pts</div>
             </div>
             <!-- Mutation -->
-            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 16px">
+            <div class="qs-dim-card" onclick="qsShowCardModal('mut')" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 16px;cursor:pointer;transition:border-color .2s" onmouseover="this.style.borderColor='#8b5cf6'" onmouseout="this.style.borderColor='var(--border)'">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
                 <span style="font-size:12px;color:var(--muted)">&#129680; Mutation Score</span>
                 <span style="font-size:10px;color:var(--muted);opacity:.7">peso 30%</span>
@@ -5032,7 +5038,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
               <div style="font-size:10px;color:var(--muted);margin-top:4px" id="qs-mut-pts">— pts</div>
             </div>
             <!-- K6 Error Rate -->
-            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 16px">
+            <div class="qs-dim-card" onclick="qsShowCardModal('err')" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 16px;cursor:pointer;transition:border-color .2s" onmouseover="this.style.borderColor='#06b6d4'" onmouseout="this.style.borderColor='var(--border)'">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
                 <span style="font-size:12px;color:var(--muted)">&#128293; Taxa de Erro K6</span>
                 <span style="font-size:10px;color:var(--muted);opacity:.7">peso 25%</span>
@@ -5044,7 +5050,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
               <div style="font-size:10px;color:var(--muted);margin-top:4px" id="qs-err-pts">— pts</div>
             </div>
             <!-- Seguranca -->
-            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 16px">
+            <div class="qs-dim-card" onclick="qsShowCardModal('sec')" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 16px;cursor:pointer;transition:border-color .2s" onmouseover="this.style.borderColor='#f59e0b'" onmouseout="this.style.borderColor='var(--border)'">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
                 <span style="font-size:12px;color:var(--muted)">&#128737; Segurança OWASP+PCI</span>
                 <span style="font-size:10px;color:var(--muted);opacity:.7">peso 20%</span>
@@ -5054,6 +5060,18 @@ tr:hover td { background: rgba(255,255,255,.02); }
                 <div id="qs-sec-bar" style="height:100%;border-radius:4px;background:#f59e0b;width:0%;transition:width .6s ease"></div>
               </div>
               <div style="font-size:10px;color:var(--muted);margin-top:4px" id="qs-sec-pts">— pts</div>
+            </div>
+
+            <!-- Modal descricao de card -->
+            <div id="qs-card-modal-overlay" onclick="qsCloseCardModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10000;align-items:center;justify-content:center">
+              <div onclick="event.stopPropagation()" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px 28px;max-width:380px;width:90%;position:relative">
+                <button onclick="qsCloseCardModal()" style="position:absolute;top:10px;right:12px;background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer">&#10005;</button>
+                <div id="qs-card-modal-icon" style="font-size:1.8rem;margin-bottom:8px"></div>
+                <div id="qs-card-modal-title" style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px"></div>
+                <div id="qs-card-modal-value" style="font-size:1.6rem;font-weight:800;margin-bottom:12px"></div>
+                <div id="qs-card-modal-desc" style="font-size:12px;color:var(--muted);line-height:1.8"></div>
+                <div id="qs-card-modal-meta" style="font-size:11px;color:var(--muted);margin-top:12px;opacity:.7"></div>
+              </div>
             </div>
           </div>
 
@@ -5257,6 +5275,9 @@ tr:hover td { background: rgba(255,255,255,.02); }
         if (valEl && score !== null) {
           valEl.style.color = score >= 70 ? '#22c55e' : score >= 50 ? '#f59e0b' : '#ef4444';
         }
+        // Guardar para o modal
+        var key = prefix.replace('qs-', '');
+        if (window._qsCurrentVals) window._qsCurrentVals[key] = score;
       }
 
       function updateTopbarScore(score, color) {
@@ -5291,6 +5312,136 @@ tr:hover td { background: rgba(255,255,255,.02); }
         if (typeof _origQS === 'function') _origQS(id, el);
         if (id === 'qualityScoreBlock') loadQualityScore();
       };
+
+      // --- Chevron: sincronizar com toggleSection nativo ---
+      var _origToggle = window.toggleSection;
+      window.toggleSection = function(hdr) {
+        if (typeof _origToggle === 'function') _origToggle(hdr);
+        var block = hdr && hdr.closest ? hdr.closest('#qualityScoreBlock') : null;
+        if (block) {
+          var chev = hdr.querySelector('.section-chevron');
+          var cnt  = block.querySelector('.section-content');
+          if (chev && cnt) {
+            var collapsed = cnt.style.maxHeight === '0px' || cnt.style.maxHeight === '0';
+            chev.style.transform = collapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
+          }
+        }
+      };
+
+      // --- Dados de descricao de cada dimensao ---
+      var QS_CARD_INFO = {
+        cov: {
+          icon: '&#128202;', title: 'Cobertura de Testes', color: '#6366f1',
+          desc: 'Percentual de linhas de codigo executadas pelos testes automatizados (unit + integracao). Coletado pelo SonarCloud a cada execucao do CI/CD.\n\nMeta recomendada: ≥ 80%\nFonte: SonarCloud · metrica coverage',
+          meta: 'Peso no Quality Score: 25% | 100% = 25 pts'
+        },
+        mut: {
+          icon: '&#129680;', title: 'Mutation Score', color: '#8b5cf6',
+          desc: 'Percentual de mutantes (bugs artificiais injetados pelo Stryker.NET) detectados pelos testes. Um score alto indica que os testes realmente validam o comportamento do codigo, nao apenas executam linhas.\n\nMeta recomendada: ≥ 70%\nFonte: Stryker.NET · workflow mutation-tests.yml',
+          meta: 'Peso no Quality Score: 30% | 100% = 30 pts'
+        },
+        err: {
+          icon: '&#128293;', title: 'Taxa de Erro K6', color: '#06b6d4',
+          desc: 'Confiabilidade da API medida pelos testes de stress K6. Calculada como inverso da taxa de erro HTTP: 0% de erros = 100 pts, 5%+ de erros = 0 pts.\n\nMeta recomendada: < 0.1% de erro (= 98+ pts)\nFonte: K6 · campo http_req_failed do ultimo run',
+          meta: 'Peso no Quality Score: 25% | 0% erro = 25 pts'
+        },
+        sec: {
+          icon: '&#128737;', title: 'Segurança OWASP + PCI DSS', color: '#f59e0b',
+          desc: 'Media entre os checklists OWASP Top 10 2021 e PCI DSS presentes no dashboard. Cada item marcado como OK contribui para o score.\n\nOWASP Top 10: 10 categorias de vulnerabilidades web\nPCI DSS: conformidade para processamento de pagamentos\nMeta recomendada: 100% dos itens OK',
+          meta: 'Peso no Quality Score: 20% | 100% OK = 20 pts'
+        }
+      };
+
+      // Armazenar valores atuais para o modal
+      window._qsCurrentVals = {};
+
+      window.qsShowCardModal = function(key) {
+        var info = QS_CARD_INFO[key];
+        if (!info) return;
+        var overlay = document.getElementById('qs-card-modal-overlay');
+        if (!overlay) return;
+
+        var val = (window._qsCurrentVals[key] != null)
+          ? document.getElementById('qs-' + key + '-val').textContent
+          : 'N/D';
+        var pts = document.getElementById('qs-' + key + '-pts').textContent;
+
+        document.getElementById('qs-card-modal-icon').innerHTML  = info.icon;
+        document.getElementById('qs-card-modal-title').textContent = info.title;
+        document.getElementById('qs-card-modal-value').textContent = val;
+        document.getElementById('qs-card-modal-value').style.color = info.color;
+        document.getElementById('qs-card-modal-desc').innerHTML =
+          info.desc.replace(/\n/g, '<br>');
+        document.getElementById('qs-card-modal-meta').textContent =
+          info.meta + (pts && pts !== '— pts' ? ' · Atual: ' + pts : '');
+
+        overlay.style.display = 'flex';
+      };
+
+      window.qsCloseCardModal = function() {
+        var overlay = document.getElementById('qs-card-modal-overlay');
+        if (overlay) overlay.style.display = 'none';
+      };
+
+      // --- Copiar resumo ---
+      window.qsCopyScore = function() {
+        var num   = (document.getElementById('qs-number')  || {}).textContent || '--';
+        var badge = (document.getElementById('qs-badge')   || {}).textContent || '--';
+        var cov   = (document.getElementById('qs-cov-val') || {}).textContent || 'N/D';
+        var mut   = (document.getElementById('qs-mut-val') || {}).textContent || 'N/D';
+        var err   = (document.getElementById('qs-err-val') || {}).textContent || 'N/D';
+        var sec   = (document.getElementById('qs-sec-val') || {}).textContent || 'N/D';
+        var upd   = (document.getElementById('qs-updated') || {}).textContent || '';
+
+        var text = [
+          'Quality Score Unificado — OpsWatch / Comprai',
+          '=============================================',
+          'Score Total : ' + num + ' / 100  [' + badge + ']',
+          '',
+          'Dimensoes:',
+          '  Cobertura de Testes  (25%) : ' + cov,
+          '  Mutation Score       (30%) : ' + mut,
+          '  Taxa de Erro K6      (25%) : ' + err,
+          '  Seguranca OWASP+PCI  (20%) : ' + sec,
+          '',
+          upd
+        ].join('\n');
+
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(text).then(function() {
+            var btn = document.getElementById('qs-btn-copy');
+            if (btn) { btn.textContent = '\u2713 Copiado!'; setTimeout(function(){ btn.textContent = '\ud83d\udccb Copiar'; }, 2000); }
+          });
+        }
+      };
+
+      // --- Download PDF via print ---
+      window.qsDownloadPDF = function() {
+        var style = document.createElement('style');
+        style.id = 'qs-print-style';
+        style.textContent = [
+          '@media print {',
+          '  body > *:not(.app-shell) { display:none!important; }',
+          '  .app-shell > .sidebar { display:none!important; }',
+          '  .main-area > .topbar { display:none!important; }',
+          '  .section-block { display:block!important; }',
+          '  .section-block:not(#qualityScoreBlock) { display:none!important; }',
+          '  #qualityScoreBlock { display:block!important; box-shadow:none!important; }',
+          '  #qs-card-modal-overlay { display:none!important; }',
+          '  body { background:#fff!important; color:#111!important; }',
+          '  .section-content { max-height:none!important; overflow:visible!important; }',
+          '}'
+        ].join('\n');
+        document.head.appendChild(style);
+        window.print();
+        setTimeout(function() {
+          var s = document.getElementById('qs-print-style');
+          if (s) s.remove();
+        }, 1000);
+      };
+
+      // Salvar valores para uso no modal
+      var _origRenderDimRaw = window._qsRenderDimRaw;
     })();
     </script>
 
