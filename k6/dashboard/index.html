@@ -3144,15 +3144,33 @@ window.loadCorrelacao = async function() {
               '</div>' +
             '</div>' +
           '</td>' +
-          '<td style="padding:10px 12px;text-align:center;font-size:13px;font-weight:700;color:' + p95Color + '">' + p95Txt + '</td>' +
           '<td style="padding:10px 12px;text-align:center">' +
-            '<div style="font-size:13px;font-weight:700;color:' + mutColor + '">' + mutTxt + '</div>' +
+            '<span title="' +
+              (r.p95 == null ? 'Sem dados K6 — execute um stress test incluindo esta rota'
+              : r.p95 > 1000 ? '🔴 Crítico: ' + r.p95.toFixed(0) + 'ms — 1 em cada 20 req demora mais que isso'
+              : r.p95 > 500  ? '🟡 Lento: ' + r.p95.toFixed(0) + 'ms — acima da meta de 500ms'
+              : r.p95 > 300  ? '🟠 Aceitável: ' + r.p95.toFixed(0) + 'ms — monitorar tendência'
+              : '🟢 Rápido: ' + r.p95.toFixed(0) + 'ms — meta < 300ms atingida') +
+            '" style="font-size:13px;font-weight:700;color:' + p95Color + ';cursor:help">' + p95Txt + '</span>' +
+          '</td>' +
+          '<td style="padding:10px 12px;text-align:center">' +
+            '<div title="' +
+              (r.mutScore == null ? 'Sem dados Stryker — execute mutation-tests.yml'
+              : r.mutScore < 50  ? '🔴 Crítico: ' + r.mutScore.toFixed(1) + '% — mais da metade dos bugs artificiais passaram. Alto risco de erro silencioso.'
+              : r.mutScore < 70  ? '🟡 Atenção: ' + r.mutScore.toFixed(1) + '% — ' + (r.mutInfo && r.mutInfo.survived > 0 ? r.mutInfo.survived + ' mutante(s) sobrevivente(s). Pode haver fallback não testado.' : 'Lacunas nos testes.')
+              : r.mutScore < 90  ? '🟢 Bom: ' + r.mutScore.toFixed(1) + '% — pequenas lacunas ainda existem'
+              : '🟢 Excelente: ' + r.mutScore.toFixed(1) + '% — testes validando bem a lógica') +
+            '" style="font-size:13px;font-weight:700;color:' + mutColor + ';cursor:help">' + mutTxt + '</div>' +
             (r.mutInfo && r.mutInfo.survived > 0
               ? '<div style="font-size:10px;color:var(--muted)">' + r.mutInfo.survived + ' sobrevivente' + (r.mutInfo.survived > 1 ? 's' : '') + '</div>'
               : '') +
           '</td>' +
           '<td style="padding:10px 12px;text-align:center">' +
-            '<div style="display:flex;align-items:center;justify-content:center;gap:6px">' +
+            '<div style="display:flex;align-items:center;justify-content:center;gap:6px"' +
+              ' title="Índice = (p95 normalizado × 50%) + (lacuna mutation × 50%). ' +
+              (r.riskLevel === \'high\'   ? 'ALTO: ponto cego duplo — performance ruim + testes insuficientes.'
+              : r.riskLevel === \'medium\' ? 'MÉDIO: lacunas que merecem atenção sob carga.'
+              : 'BAIXO: performance e cobertura adequados.') + '" style="cursor:help">' +
               '<div style="width:60px;height:6px;background:var(--border);border-radius:3px;overflow:hidden">' +
                 '<div style="height:100%;width:' + Math.min(100, r.riskIdx * 100) + '%;background:' + riskColor + ';border-radius:3px"></div>' +
               '</div>' +
@@ -3160,7 +3178,8 @@ window.loadCorrelacao = async function() {
             '</div>' +
           '</td>' +
           '<td style="padding:10px 12px;text-align:center">' +
-            '<span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:12px;background:' + riskColor + '22;color:' + riskColor + '">' +
+            '<span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:12px;background:' + riskColor + '22;color:' + riskColor + ';cursor:help"' +
+              ' title="' + (r.riskLevel === \'high\' ? 'Ação imediata: p95 alto + mutation baixo = risco de erro silencioso sob carga' : r.riskLevel === \'medium\' ? 'Monitorar: há lacunas que merecem atenção' : 'Nível aceitável — continue monitorando') + '">' +
               RISK_LABELS[r.riskLevel] + '</span>' +
           '</td>' +
           '<td style="padding:10px 12px;text-align:center">' +
