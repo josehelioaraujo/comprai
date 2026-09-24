@@ -3193,6 +3193,7 @@ window.loadCorrelacao = async function() {
     }
 
     // Guardar rows para o modal
+    console.log('[loadCorrelacao] rows carregados:', rows.length, rows.map(function(r){return r.path;}));
     window._corrRows = rows;
 
     // Event delegation para hover nas linhas da tabela
@@ -3313,8 +3314,10 @@ window.corrOpenModal = function(idx) {
 };
 
 window.corrToggleAll = function(thEl) {
+  console.log('[corrToggleAll] chamado, rows:', (window._corrRows||[]).length);
   var rows = window._corrRows || [];
   var chevAll = document.getElementById('corr-chev-all');
+  console.log('[corrToggleAll] chevAll:', chevAll);
   // Verificar se há algum aberto
   var anyOpen = rows.some(function(_, i) {
     var det = document.getElementById('corr-det-' + i);
@@ -3346,6 +3349,7 @@ window.corrCloseModal = function() {
 };
 
 window.corrToggleRow = function(idx) {
+  console.log('[corrToggleRow] idx:', idx, 'rows:', (window._corrRows||[]).length);
   var r = (window._corrRows || [])[idx];
   if (!r) return;
 
