@@ -1293,17 +1293,21 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
   };
 
   const HM_NODES = [
-    { id:'api',        label:'comprai-api',  icon:'\u2699\uFE0F', x:340, y:150, component:'api' },
-    { id:'redis',      label:'Redis',         icon:'\uD83D\uDDC4\uFE0F', x:160, y:290, component:'redis' },
-    { id:'prometheus', label:'Prometheus',    icon:'\uD83D\uDCCA', x:340, y:290, component:'prometheus' },
-    { id:'loki',       label:'Loki',          icon:'\uD83D\uDCDC', x:520, y:290, component:'loki' },
-    { id:'jaeger',     label:'Jaeger',        icon:'\uD83D\uDD0D', x:160, y:420, component:'jaeger' },
-    { id:'kafka',      label:'Kafka',         icon:'\uD83D\uDCE8', x:340, y:420, component:'kafka' },
-    { id:'rabbitmq',   label:'RabbitMQ',      icon:'\uD83D\uDC30', x:520, y:420, component:'rabbitmq' },
+    { id:'api',        label:'comprai-api',  icon:'\u2699\uFE0F', x:340, y:100, component:'api' },
+    { id:'redis',      label:'Redis',         icon:'\uD83D\uDDC4\uFE0F', x:120, y:260, component:'redis' },
+    { id:'kafka',      label:'Kafka',         icon:'\uD83D\uDCE8', x:340, y:260, component:'kafka' },
+    { id:'rabbitmq',   label:'RabbitMQ',      icon:'\uD83D\uDC30', x:560, y:260, component:'rabbitmq' },
+    { id:'prometheus', label:'Prometheus',    icon:'\uD83D\uDCCA', x:120, y:420, component:'prometheus' },
+    { id:'loki',       label:'Loki',          icon:'\uD83D\uDCDC', x:340, y:420, component:'loki' },
+    { id:'jaeger',     label:'Jaeger',        icon:'\uD83D\uDD0D', x:560, y:420, component:'jaeger' },
   ];
   const HM_EDGES = [
-    ['api','redis'],['api','prometheus'],['api','loki'],
-    ['api','jaeger'],['api','kafka'],['api','rabbitmq']
+    { from:'api',        to:'redis',      label:'cache' },
+    { from:'api',        to:'kafka',      label:'events' },
+    { from:'api',        to:'rabbitmq',   label:'messaging' },
+    { from:'api',        to:'jaeger',     label:'traces' },
+    { from:'prometheus', to:'api',        label:'scrape' },
+    { from:'loki',       to:'api',        label:'logs' },
   ];
   let hmTimer = null;
   let hmCountdown = 30;
@@ -1341,7 +1345,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
         compMap[c.id ? c.id.toLowerCase() : c.name.toLowerCase()] = c;
       });
     }
-    var W = Math.max(wrap.clientWidth || 700, 700), H = 520;
+    var W = Math.max(wrap.clientWidth || 700, 700), H = 540;
     var dark = document.documentElement.getAttribute('data-theme') !== 'light';
     var bgCard = dark ? '#0f1623' : '#f1f5f9';
     var bgNode = dark ? '#1e2535' : '#ffffff';
@@ -1350,14 +1354,17 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
     var sx = (W - 100) / 680;
 
     var lines = HM_EDGES.map(function(e, ei){
-      var a = HM_NODES.find(function(n){ return n.id===e[0]; });
-      var b = HM_NODES.find(function(n){ return n.id===e[1]; });
+      var a = HM_NODES.find(function(n){ return n.id===(e.from||e[0]); });
+      var b = HM_NODES.find(function(n){ return n.id===(e.to||e[1]); });
+      if (!a || !b) return '';
       var x1=Math.round(a.x*sx+50), y1=a.y, x2=Math.round(b.x*sx+50), y2=b.y;
-      var delay = (ei * 0.25).toFixed(2);
+      var delay = (ei * 0.2).toFixed(2);
+      var mx = Math.round((x1+x2)/2), my = Math.round((y1+y2)/2);
       return '<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2
         +'" stroke="'+edgeC+'" stroke-width="1.5" stroke-dasharray="8 5">'
-        +'<animate attributeName="stroke-dashoffset" from="26" to="0" dur="1.2s" begin="'+delay+'s" repeatCount="indefinite"/>'
-        +'</line>';
+        +'<animate attributeName="stroke-dashoffset" from="26" to="0" dur="1.1s" begin="'+delay+'s" repeatCount="indefinite"/>'
+        +'</line>'
+        +(e.label ? '<text x="'+mx+'" y="'+(my-5)+'" text-anchor="middle" font-size="9" fill="'+edgeC+'" font-family="sans-serif" opacity=".75">'+e.label+'</text>' : '');
     }).join('');
 
     var nodeData = [];
