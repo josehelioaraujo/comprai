@@ -4440,9 +4440,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <div class="nav-item" id="nav-mutacao" onclick="showSection('mutacaoBlock', this)" title="Testes de Mutacao">
           <span class="nav-icon">&#129522;</span><span class="nav-text">Mutacao</span>
         </div>
-        <div class="nav-item" id="nav-evolucao" onclick="showSection('evolucaoBlock', this)" title="Evolucao das metricas ao longo dos runs">
-          <span class="nav-icon">&#128200;</span><span class="nav-text">Evolucao</span>
-        </div>
+
       </div>
     </div>
     <div class="nav-group" id="group-qualidade">
@@ -4455,6 +4453,9 @@ tr:hover td { background: rgba(255,255,255,.02); }
         </div>
         <div class="nav-item" id="nav-sonar" onclick="showSection('sonarBlock', this)" title="SonarCloud Quality Gate">
           <span class="nav-icon">&#9728;</span><span class="nav-text">SonarCloud</span>
+        </div>
+        <div class="nav-item" id="nav-trend" onclick="showSection('evolucaoBlock', this); loadEvolucaoData();" title="Trend histórico de qualidade ao longo dos runs">
+          <span class="nav-icon">&#128200;</span><span class="nav-text">Trend Histórico</span>
         </div>
 
       </div>
@@ -5900,7 +5901,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
     <div class="section-block" id="evolucaoBlock" style="display:none">
       <div class="section-header" onclick="toggleSection(this)">
-        <span class="section-title-text">&#128200; Evolução das Métricas
+        <span class="section-title-text">&#128200; Trend Histórico de Qualidade
           <span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative">
             <span class="info-hint-btn">i</span>
             <span class="info-hint-box" style="position:fixed;width:300px;z-index:9999;line-height:1.7">
