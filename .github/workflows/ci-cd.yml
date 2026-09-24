@@ -327,9 +327,13 @@ jobs:
 
           # Copiar para VPS
           mkdir -p ~/.ssh
-          echo "$VPS_SSH_KEY" > ~/.ssh/id_rsa
+          printf '%s' "$VPS_SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
+          # Garantir newline final obrigatório no PEM
+          echo "" >> ~/.ssh/id_rsa
           ssh-keyscan -H 2.25.122.11 >> ~/.ssh/known_hosts 2>/dev/null
+          # Validar chave antes do scp
+          ssh-keygen -y -f ~/.ssh/id_rsa > /dev/null || { echo "❌ Chave SSH inválida"; exit 1; }
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no root@2.25.122.11 \
             "mkdir -p /var/www/html/k6/results/sonar"
           scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
@@ -371,8 +375,9 @@ jobs:
 
           # Append na VPS via SSH
           mkdir -p ~/.ssh
-          echo "$VPS_SSH_KEY" > ~/.ssh/id_rsa
+          printf '%s' "$VPS_SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
+          echo "" >> ~/.ssh/id_rsa
           ssh-keyscan -H 2.25.122.11 >> ~/.ssh/known_hosts 2>/dev/null
 
           # Enviar entry para VPS e fazer append no history.json
