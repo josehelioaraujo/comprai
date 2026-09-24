@@ -1,3 +1,55 @@
+## [3.8.0] - 2026-09-24
+
+### Added
+
+- **Health Map — Mapa de Saúde da Arquitetura (OpsWatch)**
+  - Diagrama SVG interativo com 3 camadas: API → Dependências → Observabilidade
+  - Nós: comprai-api, Redis, Kafka, RabbitMQ, Prometheus, Loki, Jaeger
+  - Edges reais do docker-compose: cache, events, messaging, traces, logs, scrape
+  - Labels nas arestas indicando tipo de interação
+  - Setas animadas com `stroke-dashoffset` e delay escalonado por aresta
+  - Badge global "All Systems Operational" consultando `/api/health/status`
+  - Dots 🟢/🔴 por nó com auto-refresh a cada 30s
+  - **Modal de detalhes por nó:**
+    - Health Check: Latência (ms), Status uptime, Último check
+    - Container (runtime): Estado, Uptime, Imagem, Portas, ID, Crítico
+    - Container Stats: CPU%, Memória, Mem%, Net I/O, Block I/O (via `/api/containers/{name}/stats`)
+    - Compose Config: Image, Ports, Profile, Restart, Depends on, Volumes, Env vars
+    - Histórico de checks (ticks coloridos)
+    - Botão 📋 copiar conteúdo da modal
+
+- **Endpoint `/api/containers/{name}/stats`**
+  - `docker stats --no-stream` por container
+  - Retorna: cpuPercent, memUsage, memPercent, netIO, blockIO
+
+- **TCP Health Check para Prometheus, Loki e Jaeger**
+  - Prometheus: `comprai-prometheus:9090`
+  - Loki: `comprai-loki:3100`
+  - Jaeger: `comprai-jaeger:16686`
+  - Dots agora refletem status real dos containers de observabilidade
+
+- **OpsWatch — renomeação do Dev Quality Hub**
+  - Nome atualizado em todo o dashboard (sidebar, título, modal About)
+  - Melhor representa o escopo atual: qualidade + segurança + observabilidade + infra
+
+- **Melhorias no sidebar**
+  - Ícones nos grupos: 🧪 Testes, ⭐ Qualidade, 📡 Observabilidade, 🛡️ Segurança, 🔥 Análise K6
+  - CVEs NuGet renomeado para **Dependency Scanner**
+
+- **Promtail fix definitivo**
+  - Migrado de `static_configs` para `docker_sd_configs` com filtro `name: comprai-api`
+  - Captura apenas logs da comprai-api — zero loop, zero 429 no Loki
+
+### Fixed
+
+- Health Map: `compMap` indexado por `c.id` e `c.name` — componente `api` encontrado corretamente
+- Health Map: indicator `operational` reconhecido (era `none`)
+- Health Map: busca de container por `comprai-<id>` sem prefixo `/`
+- Health Map: edge `loki→api` invertido para `api→loki` (sentido correto do fluxo de logs)
+- Health Map: posição Loki deslocada do eixo X do Kafka (evita linha visual sobreposta)
+- SyntaxError L1348: `});` sobrando no bloco `compMap` removido
+
+---
 ## [3.7.0] - 2026-09-23
 
 ### Added

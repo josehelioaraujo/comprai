@@ -31,7 +31,7 @@ Comprai é um ecossistema modular open-source que implementa o **Universal Comme
 - [🛡️ Resiliência e Rate Limiting](#️-resiliência-e-rate-limiting)
 - [🔁 CI/CD Pipeline](#-cicd-pipeline)
 - [🧪 Qualidade & Testes](#-qualidade--testes)
-- [📊 Dev Quality Hub](#-dev-quality-hub)
+- [📊 OpsWatch](#-dev-quality-hub)
 - [🗺️ Roadmap](#%EF%B8%8F-roadmap)
 - [📄 Licença](#-licença)
 
@@ -806,9 +806,9 @@ Workflow em `.github/workflows/ci-cd.yml` com 4 jobs sequenciais:
 
 ---
 
-## 📊 Dev Quality Hub
+## 📊 OpsWatch
 
-O **Dev Quality Hub** é um portal operacional integrado ao pipeline CI/CD que consolida qualidade, segurança e observabilidade em uma única interface.
+O **OpsWatch** é um portal operacional integrado ao pipeline CI/CD que consolida qualidade, segurança e observabilidade em uma única interface.
 
 ### Seções disponíveis
 
@@ -853,20 +853,25 @@ Acesse: `https://comprai.2.25.122.11.nip.io/k6/dashboard/`
 | **V009–V013** | IPaymentPort (Mock + Stripe + Efi/Pix), ILlmPort (Intent Router PT-BR), MCP Server, Price Watcher |
 | **V014–V019** | CI/CD completo, Smoke Tests Newman, Observabilidade OTel → Datadog, Stryker mutation 84%+ |
 | **V020–V023** | QA Hub — Stress Tests K6, SonarCloud, OWASP Top 10, PCI DSS, Mutação, Gráficos, Rotas |
-| **V024** | QA Hub → Dev Quality Hub — Status Page, Testes Integrados, Runbook, PAT server-side, Coverage 100% |
-| **V025** | Dev Quality Hub — Evolução das Métricas, CVEs NuGet, Admin Restart, Stress Test polling real-time, Drill down por run e por job |
-| **V026** | Dev Quality Hub — Seção Observabilidade completa: Métricas (Prometheus), Logs (Loki), Traces (Jaeger), Erros Recentes, KPI cards com tooltips |
+| **V024** | QA Hub → OpsWatch — Status Page, Testes Integrados, Runbook, PAT server-side, Coverage 100% |
+| **V025** | OpsWatch — Evolução das Métricas, CVEs NuGet, Admin Restart, Stress Test polling real-time, Drill down por run e por job |
+| **V026** | OpsWatch — Seção Observabilidade completa: Métricas (Prometheus), Logs (Loki), Traces (Jaeger), Erros Recentes, KPI cards com tooltips |
 | **V027** | Observabilidade Hub — ObservabilityEndpoints.cs, proxy Prometheus/Loki/Jaeger, Uptime 99.90%, CHANGELOG v3.6.0 |
 | **V028** | Monitor de Containers — accordion compacto, ações Start/Stop/Restart com modal + proteção críticos, métricas req/s e p99 funcionais, logs ANSI-clean |
+| **V029** | Promtail fix definitivo (docker_sd_configs), Health Map SVG interativo com modal de detalhes, TCP health check Prometheus/Loki/Jaeger |
+| **V030** | OpsWatch (renomeação), Health Map modal com Container Stats CPU/mem, Dependency Scanner, ícones sidebar, edges reais do compose |
 
 ### 🔜 Próximas Versões
 
 | Fase | Descrição | Versão |
 |------|-----------|--------|
-| **Diagrama Fluxo do Pedido** | Pipeline animado Search→Cart→Checkout→Payment→Stock→Delivery em tempo real | V029 |
-| **Padrão Saga** | 3 implementações chaveáveis (Wolverine, MassTransit, Nativo) via feature flag — comparativo de performance | V029 |
-| **Instrumentação OTel** | Funil UCP, erro por plugin, cache hit/miss, span do LLM, eventos Kafka/RabbitMQ | V029 |
-| **Quality Score** | Número único 0–100 combinando todas as métricas | V029 |
+| **Quality Score** | Número único 0–100 combinando Coverage + Mutation + K6 p95 + CVEs + Error Rate | V031 |
+| **Trend histórico** | Gráfico de linha com evolução de Coverage, Mutation Score e Security Rating por run | V031 |
+| **Correlação K6 × Mutation** | Cruzar endpoints com p95 alto vs handlers com mutation score baixo | V031 |
+| **DAST com OWASP ZAP** | Análise dinâmica contra API em staging — fecha gap do SonarCloud estático | Futuro |
+| **Notificação ntfy.sh** | Push quando qualquer suite falha — ntfy já na VPS | Futuro |
+| **Padrão Saga** | 3 implementações chaveáveis (Wolverine, MassTransit, Nativo) via feature flag | Futuro |
+| **Instrumentação OTel** | Funil UCP, erro por plugin, cache hit/miss, span do LLM, eventos Kafka/RabbitMQ | Futuro |
 | **K3s + Helm + Argo CD** | Migração Docker Compose → Kubernetes leve na VPS com GitOps | Futuro |
 | **Canal Web — Demo** | Next.js 15 + Tailwind + shadcn/ui — interface conversacional com raciocínio visível | Futuro |
 | **AIOps com Ollama** | Detecção de anomalias, RCA automático (Prometheus + Loki + Jaeger) | Futuro |
