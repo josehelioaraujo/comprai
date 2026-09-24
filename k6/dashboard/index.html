@@ -3340,8 +3340,8 @@ window.corrToggleAll = function(thEl) {
       var chev = document.getElementById('corr-chev-' + i);
       if (det)  { det.style.display = ''; }
       if (chev) chev.style.transform = 'rotate(90deg)';
-      // Limpar body para mostrar só a linha vazia (sem drill-down expandido)
-      if (body) body.innerHTML = '<div style="text-align:center;padding:8px;color:var(--muted);font-size:11px">Clique na linha para ver o diagnóstico detalhado ▼</div>';
+      // Body vazio — drill-down abre apenas no clique individual da linha
+      if (body) body.innerHTML = '';
     });
     if (chevAll) chevAll.style.transform = 'rotate(90deg)';
   }
@@ -7104,7 +7104,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
                       </span>
                     </th>
                     <th style="padding:9px 12px;text-align:center;color:var(--muted);font-weight:600">Risco</th>
-                    <th style="padding:9px 12px;text-align:center;color:var(--muted);font-weight:600;cursor:pointer" onclick="corrToggleAll(this)" title="Expandir / recolher todos"><span id="corr-chev-all" style="font-size:13px;color:var(--text);opacity:.8;transition:transform .25s;display:inline-block">&#9660;</span></th>
+                    <th style="padding:9px 12px;text-align:center;color:var(--muted);font-weight:600;cursor:pointer;background:var(--surface2)" onclick="corrToggleAll(this)" title="Expandir / recolher todos"><span id="corr-chev-all" style="font-size:13px;color:var(--text);opacity:.8;transition:transform .25s;display:inline-block">&#9660;</span></th>
                   </tr>
                 </thead>
                 <tbody id="corr-tbody"></tbody>
