@@ -1293,13 +1293,13 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
   };
 
   const HM_NODES = [
-    { id:'api',        label:'comprai-api',  icon:'\u2699\uFE0F', x:340, y:100, component:'api' },
-    { id:'redis',      label:'Redis',         icon:'\uD83D\uDDC4\uFE0F', x:120, y:260, component:'redis' },
-    { id:'kafka',      label:'Kafka',         icon:'\uD83D\uDCE8', x:340, y:260, component:'kafka' },
-    { id:'rabbitmq',   label:'RabbitMQ',      icon:'\uD83D\uDC30', x:560, y:260, component:'rabbitmq' },
-    { id:'prometheus', label:'Prometheus',    icon:'\uD83D\uDCCA', x:120, y:420, component:'prometheus' },
-    { id:'loki',       label:'Loki',          icon:'\uD83D\uDCDC', x:340, y:420, component:'loki' },
-    { id:'jaeger',     label:'Jaeger',        icon:'\uD83D\uDD0D', x:560, y:420, component:'jaeger' },
+    { id:'api',        label:'comprai-api',  icon:'\u2699\uFE0F',     x:340, y:100, component:'api' },
+    { id:'redis',      label:'Redis',         icon:'\uD83D\uDDC4\uFE0F', x:100, y:260, component:'redis' },
+    { id:'kafka',      label:'Kafka',         icon:'\uD83D\uDCE8',     x:340, y:260, component:'kafka' },
+    { id:'rabbitmq',   label:'RabbitMQ',      icon:'\uD83D\uDC30',     x:580, y:260, component:'rabbitmq' },
+    { id:'prometheus', label:'Prometheus',    icon:'\uD83D\uDCCA',     x:100, y:430, component:'prometheus' },
+    { id:'loki',       label:'Loki',          icon:'\uD83D\uDCDC',     x:260, y:430, component:'loki' },
+    { id:'jaeger',     label:'Jaeger',        icon:'\uD83D\uDD0D',     x:420, y:430, component:'jaeger' },
   ];
   const HM_EDGES = [
     { from:'api',        to:'redis',      label:'cache' },
