@@ -3323,27 +3323,25 @@ window.corrToggleAll = function(thEl) {
   });
 
   if (anyOpen) {
-    // Fechar todos diretamente sem chamar corrToggleRow
+    // Fechar todos os drill-downs abertos
     rows.forEach(function(_, i) {
       var det  = document.getElementById('corr-det-' + i);
       var chev = document.getElementById('corr-chev-' + i);
-      if (det)  det.style.display     = 'none';
-      if (chev) chev.style.transform  = 'rotate(0deg)';
+      if (det)  det.style.display    = 'none';
+      if (chev) chev.style.transform = 'rotate(0deg)';
     });
     if (chevAll) chevAll.style.transform = 'rotate(0deg)';
   } else {
-    // Abrir todos — preencher body se vazio
-    rows.forEach(function(r, i) {
+    // Apenas mostrar as linhas de detalhe SEM preencher o body
+    // O usuário clica na linha individual para ver o drill-down
+    rows.forEach(function(_, i) {
       var det  = document.getElementById('corr-det-' + i);
       var body = document.getElementById('corr-det-body-' + i);
       var chev = document.getElementById('corr-chev-' + i);
-      if (det)  det.style.display     = '';
-      if (chev) chev.style.transform  = 'rotate(90deg)';
-      // Preencher o detalhe se ainda vazio (sem fazer toggle)
-      if (body && body.innerHTML.trim() === '') {
-        // Chama a parte de preenchimento de corrToggleRow diretamente
-        corrFillDetail(i);
-      }
+      if (det)  { det.style.display = ''; }
+      if (chev) chev.style.transform = 'rotate(90deg)';
+      // Limpar body para mostrar só a linha vazia (sem drill-down expandido)
+      if (body) body.innerHTML = '<div style="text-align:center;padding:8px;color:var(--muted);font-size:11px">Clique na linha para ver o diagnóstico detalhado ▼</div>';
     });
     if (chevAll) chevAll.style.transform = 'rotate(90deg)';
   }
