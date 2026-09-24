@@ -5089,8 +5089,10 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
         <!-- Loading / empty -->
         <div id="qs-loading" style="text-align:center;padding:40px;color:var(--muted)">
-          <div style="font-size:2rem;margin-bottom:8px">&#9203;</div>
-          <div>Calculando Quality Score...</div>
+          <div style="font-size:2rem;margin-bottom:8px;animation:qs-spin 1.2s linear infinite;display:inline-block">&#9881;</div>
+          <div style="margin-top:8px;font-size:13px">Calculando Quality Score...</div>
+          <div style="font-size:11px;opacity:.6;margin-top:4px">Buscando dados de Coverage, Mutation, K6 e Segurança</div>
+          <style>@keyframes qs-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }</style>
         </div>
         <div id="qs-error" style="display:none;text-align:center;padding:40px;color:var(--muted)">
           <div style="font-size:2rem;margin-bottom:8px">&#128680;</div>
@@ -5204,12 +5206,12 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
           // --- Renderizar ---
           var color = finalScore >= 80 ? '#22c55e' : finalScore >= 60 ? '#f59e0b' : '#ef4444';
-          var label = finalScore >= 80 ? 'EXCELENTE' : finalScore >= 60 ? 'SATISFATORIO' : 'PRECISA MELHORAR';
+          var label = finalScore >= 80 ? 'EXCELENTE' : finalScore >= 60 ? 'SATISFATÓRIO' : 'PRECISA MELHORAR';
           var desc  = finalScore >= 80
-            ? 'Projeto com alta maturidade de qualidade. Continue monitorando regressoes.'
+            ? 'Projeto com alta maturidade de qualidade. Continue monitorando regressões.'
             : finalScore >= 60
-            ? 'Qualidade aceitavel. Ha oportunidades de melhoria em algumas dimensoes.'
-            : 'Atencao! Algumas dimensoes estao abaixo do esperado. Priorize as melhorias.';
+            ? 'Qualidade aceitável. Há oportunidades de melhoria em algumas dimensões.'
+            : 'Atenção! Algumas dimensões estão abaixo do esperado. Priorize as melhorias.';
 
           // Gauge arc: circunferencia = 2*pi*58 = 364.4
           var arc = document.getElementById('qs-gauge-arc');
