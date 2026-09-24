@@ -2884,6 +2884,16 @@ function evolCloseRunPanel() {
   evolHideRunPanel();
 }
 
+// Event delegation para toggle dos job headers (evita onclick inline com aspas)
+document.addEventListener('click', function(e) {
+  var hdr = e.target.closest('.evol-job-hdr');
+  if (!hdr) return;
+  var jid = hdr.dataset.jid;
+  if (!jid) return;
+  var steps = document.getElementById(jid);
+  if (steps) steps.style.display = steps.style.display === 'none' ? 'block' : 'none';
+});
+
 function evolSetRunLabel(text) {
   var lbl = document.getElementById('evol-run-label');
   if (lbl) lbl.textContent = text;
@@ -2964,9 +2974,9 @@ async function evolPollRun(runId, label, btns) {
         var open = job.status === 'in_progress' || job.conclusion === 'failure';
         var jobId = 'evol-job-' + job.id;
         return '<div style="margin-bottom:8px">' +
-          '<div onclick="var s=document.getElementById(''+jobId+'');if(s){s.style.display=s.style.display==='none'?'block':'none'}" ' +
+          '<div class="evol-job-hdr" data-jid="'+jobId+'" ' +
           'style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 8px;border-radius:6px;background:var(--surface2);border:1px solid var(--border)">' +
-            '<span style="font-size:12px">' + (typeof jIcon === 'string' && jIcon.startsWith('<') ? jIcon : jIcon) + '</span>' +
+            '<span style="font-size:12px">' + jIcon + '</span>' +
             '<span style="font-size:12px;font-weight:500;color:'+jColor+'">'+job.name+'</span>' +
             '<span style="margin-left:auto;font-size:10px;color:var(--muted)">'+
               (job.conclusion||job.status||'')+'</span>' +
