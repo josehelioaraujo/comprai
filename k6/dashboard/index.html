@@ -2616,9 +2616,13 @@ function evolRenderChart() {
 
   var datasets = evolActiveMetrics.map(function(metric) {
     var cfg = EVOL_METRICS[metric];
+    var vals = runs.map(function(r){ return byRun[r][metric] != null ? byRun[r][metric] : null; });
+    // Não renderizar dataset se todos os valores são null
+    var hasData = vals.some(function(v){ return v != null; });
+    if (!hasData) return null;
     return {
       label: cfg.label,
-      data:  runs.map(function(r){ return byRun[r][metric] != null ? byRun[r][metric] : null; }),
+      data:  vals,
       borderColor: cfg.color,
       backgroundColor: cfg.color + '22',
       pointBackgroundColor: cfg.color,
@@ -2629,7 +2633,7 @@ function evolRenderChart() {
       spanGaps: true,
       yAxisID: cfg.yAxis
     };
-  });
+  }).filter(Boolean);
 
   if (evolChart) { evolChart.destroy(); evolChart = null; }
 
@@ -2756,23 +2760,40 @@ function evolRenderTable(data) {
   });
   var runs = Object.keys(evolByRun).map(Number).sort(function(a,b){return b-a;});
   tbody.innerHTML = '';
-  runs.slice(0, 15).forEach(function(r) {
+
+  function cell(v, suf, good) {
+    if (v == null) return '<span style="color:var(--muted)">—</span>';
+    var color = '';
+    if (good === 'high' && v >= 90) color = '#22c55e';
+    else if (good === 'low' && v === 0) color = '#22c55e';
+    return '<span style="font-weight:600;color:'+(color||'var(--text)')+'">' + v + (suf||'') + '</span>';
+  }
+
+  runs.slice(0, 50).forEach(function(r) {
     var e = evolByRun[r];
+    var detailId = 'evol-row-detail-' + r;
+
+    // ── Linha principal ──
     var tr = document.createElement('tr');
-    tr.style.cssText = 'border-bottom:1px solid var(--border);cursor:pointer';
-    tr.title = 'Ver detalhes do run #' + r;
-    tr.onmouseover = function(){ this.style.background='var(--surface2)'; };
+    tr.style.cssText = 'border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s';
+    tr.onmouseover = function(){ this.style.background='rgba(255,255,255,.03)'; };
     tr.onmouseout  = function(){ this.style.background=''; };
-    tr.onclick = function(){ evolOpenDrawer(r); };
-    function cell(v, suf, good) {
-      if (v == null) return '<span style="color:var(--muted)">—</span>';
-      var color = '';
-      if (good === 'high' && v >= 90) color = '#22c55e';
-      else if (good === 'low' && v === 0) color = '#22c55e';
-      return '<span style="font-weight:600;color:'+(color||'var(--text)')+'">'+v+(suf||'')+'</span>';
-    }
+    tr.onclick = function() {
+      var detail = document.getElementById(detailId);
+      if (!detail) return;
+      var isOpen = detail.style.display !== 'none';
+      detail.style.display = isOpen ? 'none' : '';
+      var chev = tr.querySelector('.evol-row-chev');
+      if (chev) chev.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(90deg)';
+    };
     tr.innerHTML =
-      '<td style="padding:8px 12px;font-family:monospace;color:var(--muted)">#'+r+' <span style="font-size:10px;opacity:.7">'+(e.sha||'')+'</span></td>' +
+      '<td style="padding:8px 12px">' +
+        '<div style="display:flex;align-items:center;gap:8px">' +
+          '<span class="evol-row-chev" style="font-size:11px;color:var(--muted);transition:transform .2s;display:inline-block">&#9660;</span>' +
+          '<span style="font-family:monospace;color:var(--muted)">#' + r + '</span>' +
+          '<span style="font-size:10px;opacity:.6;color:var(--muted)">' + (e.sha||'') + '</span>' +
+        '</div>' +
+      '</td>' +
       '<td style="padding:8px 12px;color:var(--muted);font-size:11px">'+(e.date||'')+'</td>' +
       '<td style="padding:8px 12px;text-align:center">'+cell(e.coverage,'%','high')+'</td>' +
       '<td style="padding:8px 12px;text-align:center">'+cell(e.mutation,'%','high')+'</td>' +
@@ -2780,6 +2801,67 @@ function evolRenderTable(data) {
       '<td style="padding:8px 12px;text-align:center">'+cell(e.bugs,'','low')+'</td>' +
       '<td style="padding:8px 12px;text-align:center">'+cell(e.smells,'','low')+'</td>';
     tbody.appendChild(tr);
+
+    // ── Linha de detalhe (colapsada por default) ──
+    var trDetail = document.createElement('tr');
+    trDetail.id = detailId;
+    trDetail.style.display = 'none';
+
+    // Calcular deltas vs run anterior
+    var prevRun = runs[runs.indexOf(r) + 1];
+    var prev    = prevRun != null ? evolByRun[prevRun] : null;
+    function delta(cur, prv, suf, invert) {
+      if (cur == null || prv == null) return '';
+      var d = Math.round((cur - prv) * 10) / 10;
+      if (d === 0) return '<span style="color:var(--muted);font-size:10px">― sem mudança</span>';
+      var better = invert ? d < 0 : d > 0;
+      var color  = better ? '#22c55e' : '#ef4444';
+      var arrow  = d > 0 ? '▲' : '▼';
+      return '<span style="color:' + color + ';font-size:10px">' + arrow + ' ' + (d > 0 ? '+' : '') + d + (suf||'') + ' vs run anterior</span>';
+    }
+
+    // Métricas detalhadas + links
+    var metrics = [
+      { label: 'Coverage',  val: e.coverage, suf: '%', good: 'high', delta: delta(e.coverage, prev && prev.coverage, '%', false),
+        hint: 'Linhas cobertas pelos testes unitários. Meta: ≥ 90%.' },
+      { label: 'Mutation',  val: e.mutation,  suf: '%', good: 'high', delta: delta(e.mutation,  prev && prev.mutation, '%', false),
+        hint: 'Mutantes eliminados pelo Stryker.NET. Meta: ≥ 70%.' },
+      { label: 'CVEs',      val: e.cves,      suf: '',  good: 'low',  delta: delta(e.cves,      prev && prev.cves, '', true),
+        hint: 'Vulnerabilidades NuGet encontradas. Meta: 0.' },
+      { label: 'Bugs',      val: e.bugs,      suf: '',  good: 'low',  delta: delta(e.bugs,      prev && prev.bugs, '', true),
+        hint: 'Bugs detectados pelo SonarCloud.' },
+      { label: 'Smells',    val: e.smells,    suf: '',  good: 'low',  delta: delta(e.smells,    prev && prev.smells, '', true),
+        hint: 'Code smells detectados pelo SonarCloud.' },
+    ];
+
+    var metricsHtml = metrics.map(function(m) {
+      var color = m.val == null ? 'var(--muted)'
+        : m.good === 'high' ? (m.val >= 90 ? '#22c55e' : m.val >= 70 ? '#f59e0b' : '#ef4444')
+        : (m.val === 0 ? '#22c55e' : m.val <= 2 ? '#f59e0b' : '#ef4444');
+      return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;min-width:110px">' +
+        '<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px" title="' + m.hint + '">' + m.label + ' ℹ</div>' +
+        '<div style="font-size:1.3rem;font-weight:800;color:' + color + '">' + (m.val != null ? m.val + m.suf : '—') + '</div>' +
+        (m.delta ? '<div style="margin-top:3px">' + m.delta + '</div>' : '') +
+      '</div>';
+    }).join('');
+
+    var ts = e.timestamp ? new Date(e.timestamp).toLocaleString('pt-BR') : '';
+    var ghLink = e.run ? 'https://github.com/josehelioaraujo/comprai/actions/runs/' : '';
+
+    trDetail.innerHTML =
+      '<td colspan="7" style="padding:0;border-bottom:2px solid var(--border)">' +
+        '<div style="padding:12px 16px;background:rgba(0,0,0,.2)">' +
+          '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">' +
+            '<span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Run #' + r + '</span>' +
+            (ts ? '<span style="font-size:10px;color:var(--muted)">· ' + ts + '</span>' : '') +
+            (e.sha ? '<span style="font-size:10px;font-family:monospace;color:var(--muted)">· ' + e.sha + '</span>' : '') +
+            '<button onclick="event.stopPropagation();evolOpenDrawer(' + r + ')" style="margin-left:auto;background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 10px;font-size:10px;cursor:pointer">&#128202; Ver detalhes</button>' +
+          '</div>' +
+          '<div style="display:flex;gap:10px;flex-wrap:wrap">' + metricsHtml + '</div>' +
+        '</div>' +
+      '</td>';
+
+    tbody.appendChild(trDetail);
   });
 }
 </script>
