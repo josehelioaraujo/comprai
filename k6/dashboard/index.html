@@ -1282,10 +1282,15 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
     var textC  = dark ? '#e2e8f0' : '#1e293b';
     var sx = (W - 100) / 680;
 
-    var lines = HM_EDGES.map(function(e){
+    var lines = HM_EDGES.map(function(e, ei){
       var a = HM_NODES.find(function(n){ return n.id===e[0]; });
       var b = HM_NODES.find(function(n){ return n.id===e[1]; });
-      return '<line x1="'+(a.x*sx+50)+'" y1="'+a.y+'" x2="'+(b.x*sx+50)+'" y2="'+b.y+'" stroke="'+edgeC+'" stroke-width="1.5" stroke-dasharray="5 3"/>';
+      var x1=Math.round(a.x*sx+50), y1=a.y, x2=Math.round(b.x*sx+50), y2=b.y;
+      var delay = (ei * 0.25).toFixed(2);
+      return '<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2
+        +'" stroke="'+edgeC+'" stroke-width="1.5" stroke-dasharray="8 5">'
+        +'<animate attributeName="stroke-dashoffset" from="26" to="0" dur="1.2s" begin="'+delay+'s" repeatCount="indefinite"/>'
+        +'</line>';
     }).join('');
 
     var nodeData = [];
