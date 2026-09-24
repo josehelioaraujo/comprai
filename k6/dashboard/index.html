@@ -4978,6 +4978,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
             <span class="info-hint-btn">i</span>
             <span class="info-hint-box" style="position:fixed;width:280px;z-index:9999">Score 0-100 calculado a partir de 4 dimensoes: Cobertura de Testes (25%), Mutation Score (30%), Taxa de Erro K6 (25%) e Seguranca OWASP+PCI (20%). Dados carregados das fontes ja disponiveis no dashboard.</span>
           </span>
+          <span onclick="event.stopPropagation();qsShowFormulaModal()" title="Ver fórmula de cálculo" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;border:1px solid var(--border);font-size:10px;color:var(--muted);cursor:pointer;font-weight:700;transition:all .15s;font-family:monospace" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">&#8721;</span>
         </span>
         <span style="display:flex;align-items:center;gap:6px" onclick="event.stopPropagation()">
           <button id="qs-btn-copy" onclick="qsCopyScore()" title="Copiar resumo" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 9px;font-size:11px;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">&#128203; Copiar</button>
@@ -5583,6 +5584,285 @@ tr:hover td { background: rgba(255,255,255,.02); }
         document.getElementById('qs-gauge-modal-body').innerHTML = html;
         overlay.style.display = 'flex';
       };
+
+      // ── Modal Fórmula (botão ∑) ──────────────────────────────────────────
+      window.qsShowFormulaModal = function() {
+        qsOpenGenericModal(
+          '&#8721; Como o Score é Calculado',
+          '<div style="font-size:12px;color:var(--muted);line-height:2">' +
+          '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:12px;font-family:monospace;font-size:11px">' +
+            'Score = (Coverage &times; <b style="color:#6366f1">0.25</b>) + (Mutation &times; <b style="color:#8b5cf6">0.30</b>) + (K6_Reliability &times; <b style="color:#06b6d4">0.25</b>) + (Security &times; <b style="color:#f59e0b">0.20</b>)' +
+          '</div>' +
+          '<b>Coverage</b> — % de linhas cobertas pelos testes (SonarCloud)<br>' +
+          '<b>Mutation</b> — % de mutantes detectados (Stryker.NET)<br>' +
+          '<b>K6_Reliability</b> — 100 quando error_rate=0% &middot; 0 quando error_rate&ge;5%<br>' +
+          '<b>Security</b> — m&eacute;dia entre OWASP_ok/total e PCI_ok/total em %<br><br>' +
+          '<div style="font-size:11px;opacity:.7">Cada dimens&atilde;o &eacute; normalizada 0&ndash;100 antes do peso. Score final arredondado.</div>' +
+          '</div>',
+          false
+        );
+      };
+
+      // ── Modal genérico reutilizável ──────────────────────────────────────
+      window.qsOpenGenericModal = function(title, body, wide) {
+        var overlay = document.getElementById('qs-generic-modal-overlay');
+        if (!overlay) {
+          overlay = document.createElement('div');
+          overlay.id = 'qs-generic-modal-overlay';
+          overlay.onclick = function(e) { if (e.target === overlay) overlay.style.display = 'none'; };
+          overlay.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:10002;align-items:flex-start;justify-content:center;padding-top:50px;overflow-y:auto';
+          overlay.innerHTML =
+            '<div id="qs-generic-modal-box" onclick="event.stopPropagation()" style="border:1px solid var(--border);border-radius:14px;padding:24px 26px;position:relative;margin-bottom:40px">' +
+              '<button onclick="document.getElementById(\'qs-generic-modal-overlay\').style.display=\'none\'" style="position:absolute;top:12px;right:14px;background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer">&#10005;</button>' +
+              '<div id="qs-generic-modal-title" style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:16px"></div>' +
+              '<div id="qs-generic-modal-body" style="max-height:70vh;overflow-y:auto;padding-right:4px"></div>' +
+            '</div>';
+          document.body.appendChild(overlay);
+        }
+        var box = document.getElementById('qs-generic-modal-box');
+        box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px 26px;position:relative;margin-bottom:40px;max-width:' + (wide ? '620px' : '440px') + ';width:93%';
+        document.getElementById('qs-generic-modal-title').innerHTML = title;
+        document.getElementById('qs-generic-modal-body').innerHTML = body;
+        overlay.style.display = 'flex';
+      };
+
+      // ── Drill-down: instruções reais de código por dimensão ──────────────
+      var QS_DRILLDOWN = {};
+
+      QS_DRILLDOWN['mut_high'] = {
+        title: '&#129680; Mutation Score — Como Resolver',
+        steps: [
+          {
+            label: 'Identificar mutantes sobreviventes no relatório HTML',
+            desc: 'O relatório gerado pelo Stryker mostra exatamente quais linhas têm mutantes sobreviventes. Foque nos arquivos com Score &lt; 60%.',
+            code: '# Rodar Stryker localmente\ncd src/Comprai.Application\ndotnet stryker \\\n  --project Comprai.Application.csproj \\\n  --reporters html \\\n  --output ../../mutation-report\n\n# Abrir no browser\nopen ../../mutation-report/index.html\n\n# Ver artifact no CI:\n# GitHub Actions > workflow run > Artifacts > mutation-report'
+          },
+          {
+            label: 'Corrigir assertions vagas que não detectam mutantes',
+            desc: 'Mutantes típicos: Stryker troca ">" por ">=" ou inverte boolean. Se o teste não falha, o mutante sobrevive.',
+            code: '// ERRADO — assertion genérica, mutante sobrevive:\nresult.IsSuccess.Should().BeTrue();\n\n// CORRETO — assertions específicas:\nresult.IsSuccess.Should().BeTrue();\nresult.Value.Quantity.Should().Be(2);\nresult.Value.ProductId.Should().Be(expectedId);\n\n// CORRETO — testar limites exatos (mata mutantes de boundary):\n[InlineData(0)]   // limite — deve falhar\n[InlineData(-1)]  // abaixo  — deve falhar\n[InlineData(1)]   // mínimo válido\n[InlineData(100)] // máximo válido'
+          },
+          {
+            label: 'Configurar threshold de break no stryker.config.json',
+            desc: 'Com break:60 o CI falha automaticamente se o score cair abaixo de 60% — previne regressão silenciosa.',
+            code: '// stryker.config.json\n{\n  "mutation-level": "Standard",\n  "thresholds": {\n    "high": 80,\n    "low": 70,\n    "break": 60\n  },\n  "reporters": ["html", "json", "progress"]\n}'
+          }
+        ]
+      };
+
+      QS_DRILLDOWN['mut_medium'] = {
+        title: '&#129680; Mutation Score — Como Melhorar',
+        steps: [
+          {
+            label: 'Rodar Stryker localmente por projeto',
+            desc: 'Rode em um projeto por vez — é mais rápido. Priorize os handlers com menor score.',
+            code: 'cd src/Comprai.Application\ndotnet stryker \\\n  --project Comprai.Application.csproj \\\n  --reporters html progress\n\n# Filtrar piores arquivos via JSON:\ncat StrykerOutput/*/reports/mutation-report.json \\\n  | jq \'.files | to_entries | sort_by(.value.mutationScore) | .[:5]\''
+          },
+          {
+            label: 'Padrão de teste para matar mutantes de boundary',
+            desc: 'Boundary tests são a forma mais eficiente de eliminar mutantes de comparação.',
+            code: '[Theory]\n[InlineData(0)]    // limite — deve falhar\n[InlineData(-1)]   // abaixo  — deve falhar\n[InlineData(1)]    // mínimo válido\n[InlineData(999)]  // máximo válido\npublic async Task Handle_Quantity_BoundaryTests(int qty)\n{\n    var cmd = new AddToCartCommand(Guid.NewGuid(), qty);\n    var result = await _handler.Handle(cmd, CancellationToken.None);\n    if (qty <= 0)\n    {\n        result.IsFailure.Should().BeTrue();\n        result.Error.Should().Contain("quantidade");\n    }\n    else\n    {\n        result.IsSuccess.Should().BeTrue();\n    }\n}'
+          }
+        ]
+      };
+
+      QS_DRILLDOWN['cov_high'] = {
+        title: '&#128202; Cobertura de Testes — Como Resolver',
+        steps: [
+          {
+            label: 'Gerar relatório de cobertura HTML linha a linha',
+            desc: 'O relatório mostra exatamente quais linhas não foram exercitadas. Foque em handlers e domain services.',
+            code: '# Instalar reportgenerator (uma vez)\ndotnet tool install -g dotnet-reportgenerator-globaltool\n\n# Gerar cobertura\ndotnet test \\\n  /p:CollectCoverage=true \\\n  /p:CoverageFormat=opencover \\\n  /p:CoverletOutput=./coverage/\n\n# Gerar HTML\nreportgenerator \\\n  -reports:"./coverage/coverage.opencover.xml" \\\n  -targetdir:"./coverage-report" \\\n  -reporttypes:Html\n\nopen ./coverage-report/index.html'
+          },
+          {
+            label: 'Estrutura mínima por handler (caminho feliz + erro)',
+            desc: 'Um teste por caminho feliz + um por erro já cobre +80% das linhas de um handler típico.',
+            code: 'public class AddToCartHandlerTests\n{\n    private readonly AddToCartHandler _handler;\n    private readonly Mock<ICartRepository> _repo;\n\n    public AddToCartHandlerTests()\n    {\n        _repo    = new Mock<ICartRepository>();\n        _handler = new AddToCartHandler(_repo.Object);\n    }\n\n    [Fact]\n    public async Task Handle_ValidCommand_ShouldSucceed()\n    {\n        _repo.Setup(r => r.GetBySessionAsync("s1", default))\n             .ReturnsAsync(Cart.Create("s1"));\n        var result = await _handler.Handle(\n            new AddToCartCommand("s1", Guid.NewGuid(), 2), default);\n        result.IsSuccess.Should().BeTrue();\n        _repo.Verify(r => r.SaveAsync(It.IsAny<Cart>(), default), Times.Once);\n    }\n\n    [Fact]\n    public async Task Handle_CartNotFound_ShouldFail()\n    {\n        _repo.Setup(r => r.GetBySessionAsync("s1", default))\n             .ReturnsAsync((Cart?)null);\n        var result = await _handler.Handle(\n            new AddToCartCommand("s1", Guid.NewGuid(), 1), default);\n        result.IsFailure.Should().BeTrue();\n        result.Error.Should().Be(CartErrors.NotFound);\n    }\n}'
+          },
+          {
+            label: 'Threshold de coverage mínimo no CI',
+            desc: 'Build falha automaticamente se coverage cair abaixo de 80% — previne regressão.',
+            code: '# .github/workflows/tests.yml\n- name: Run tests with coverage\n  run: |\n    dotnet test \\\n      /p:CollectCoverage=true \\\n      /p:CoverageFormat=opencover \\\n      /p:Threshold=80 \\\n      /p:ThresholdType=line \\\n      /p:ThresholdStat=total \\\n      /p:CoverletOutput=./coverage/'
+          }
+        ]
+      };
+
+      QS_DRILLDOWN['cov_medium'] = {
+        title: '&#128202; Cobertura de Testes — Como Melhorar',
+        steps: [
+          {
+            label: 'Identificar arquivos com menor cobertura',
+            desc: 'Priorize arquivos abaixo de 70% — são os que mais impactam o score total.',
+            code: '# Filtrar via JSON do coverlet:\ndotnet test \\\n  /p:CollectCoverage=true \\\n  /p:CoverageFormat=json \\\n  /p:CoverletOutput=./coverage/\n\njq \'.[] | select(.summary.linecoverage < 70)\n  | {file: .name, coverage: .summary.linecoverage}\' \\\n  ./coverage/coverage.json'
+          },
+          {
+            label: 'Adicionar testes de caminho de erro',
+            desc: 'Caminhos de erro têm 0% de cobertura por padrão — são os mais fáceis de adicionar e mais valiosos.',
+            code: '[Fact]\npublic async Task Handle_ProductNotFound_ShouldFail()\n{\n    _productRepo\n        .Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), default))\n        .ReturnsAsync((Product?)null);\n\n    var result = await _handler.Handle(\n        new GetProductQuery(Guid.NewGuid()),\n        CancellationToken.None);\n\n    result.IsFailure.Should().BeTrue();\n    result.Error.Should().Be(ProductErrors.NotFound);\n}'
+          }
+        ]
+      };
+
+      QS_DRILLDOWN['err_high'] = {
+        title: '&#128293; Taxa de Erro K6 — Como Resolver',
+        steps: [
+          {
+            label: 'Diagnosticar origem dos erros',
+            desc: 'Identifique se são 5xx (bug), timeouts (infra) ou 429 (rate limit) antes de corrigir.',
+            code: '# Ver logs durante o teste K6\nkubectl logs -n comprai -l app=comprai-api \\\n  --since=30m | grep -E "ERROR|Exception|5[0-9]{2}"\n\n# Ver métricas Prometheus\ncurl http://localhost:5020/metrics \\\n  | grep http_server_request_duration\n\n# Rodar smoke com debug\nk6 run k6/scripts/smoke.js \\\n  --http-debug="full" \\\n  --out json=k6/results/debug.json'
+          },
+          {
+            label: 'Adicionar retry com backoff exponencial (Polly)',
+            desc: 'Retry resolve erros transitórios. Circuit breaker evita cascata de falhas.',
+            code: '// Program.cs\nbuilder.Services.AddHttpClient<ICatalogClient, CatalogClient>()\n    .AddPolicyHandler(HttpPolicyExtensions\n        .HandleTransientHttpError()\n        .WaitAndRetryAsync(\n            retryCount: 3,\n            sleepDurationProvider: attempt =>\n                TimeSpan.FromSeconds(Math.Pow(2, attempt))))\n    .AddPolicyHandler(HttpPolicyExtensions\n        .HandleTransientHttpError()\n        .CircuitBreakerAsync(\n            handledEventsAllowedBeforeBreaking: 5,\n            durationOfBreak: TimeSpan.FromSeconds(30)));'
+          },
+          {
+            label: 'Configurar thresholds no K6 para detectar regressão',
+            desc: 'Thresholds fazem o K6 falhar o CI — nunca deixe passar PR com erro acima de 1%.',
+            code: '// k6/scripts/load.js\nexport const options = {\n  thresholds: {\n    http_req_failed:   ["rate<0.01"],  // < 1% de erro\n    http_req_duration: ["p(95)<500"],  // p95 < 500ms\n    http_req_duration: ["p(99)<1000"], // p99 < 1s\n  },\n};'
+          }
+        ]
+      };
+
+      QS_DRILLDOWN['err_medium'] = {
+        title: '&#128293; Taxa de Erro K6 — Como Melhorar',
+        steps: [
+          {
+            label: 'Adicionar health checks nativos no ASP.NET',
+            desc: 'Health checks expõem o estado de Redis, RabbitMQ e banco — identificam causa raiz de erros sob carga.',
+            code: '// Program.cs\nbuilder.Services.AddHealthChecks()\n    .AddRedis(\n        builder.Configuration["Redis:ConnectionString"]!,\n        name: "redis", tags: ["infra"])\n    .AddRabbitMQ(\n        builder.Configuration["RabbitMQ:Uri"]!,\n        name: "rabbitmq", tags: ["infra"])\n    .AddNpgSql(\n        builder.Configuration["ConnectionStrings:Default"]!,\n        name: "postgres", tags: ["db"]);\n\napp.MapHealthChecks("/health");\napp.MapHealthChecks("/health/infra", new HealthCheckOptions {\n    Predicate = c => c.Tags.Contains("infra")\n});'
+          },
+          {
+            label: 'Analisar distribuição de erros por endpoint com grupos K6',
+            desc: 'Use grupos para ver qual endpoint específico tem mais erros.',
+            code: '// k6/scripts/load.js\nimport { group, check } from "k6";\nimport http from "k6/http";\n\nexport default function () {\n  group("cart", () => {\n    const res = http.post(`${BASE_URL}/api/cart`, payload);\n    check(res, {\n      "cart 200": r => r.status === 200,\n      "cart < 300ms": r => r.timings.duration < 300,\n    });\n  });\n\n  group("products", () => {\n    const res = http.get(`${BASE_URL}/api/products`);\n    check(res, { "products ok": r => r.status === 200 });\n  });\n}'
+          }
+        ]
+      };
+
+      QS_DRILLDOWN['sec_high'] = {
+        title: '&#128737; Segurança OWASP+PCI — Como Resolver',
+        steps: [
+          {
+            label: 'A01 — Broken Access Control: autorização por recurso',
+            desc: 'Cada endpoint que acessa recurso do usuário deve verificar ownership — nunca confie só no ID da rota.',
+            code: '// CartOwnerRequirement.cs\npublic class CartOwnerRequirement : IAuthorizationRequirement { }\n\npublic class CartOwnerHandler\n    : AuthorizationHandler<CartOwnerRequirement, Cart>\n{\n    protected override Task HandleRequirementAsync(\n        AuthorizationHandlerContext ctx,\n        CartOwnerRequirement req, Cart cart)\n    {\n        if (cart.SessionId == ctx.User.FindFirst("session")?.Value)\n            ctx.Succeed(req);\n        return Task.CompletedTask;\n    }\n}\n\n// Program.cs\nbuilder.Services.AddAuthorization(opts =>\n    opts.AddPolicy("CartOwner",\n        p => p.Requirements.Add(new CartOwnerRequirement())));\nbuilder.Services\n    .AddSingleton<IAuthorizationHandler, CartOwnerHandler>();'
+          },
+          {
+            label: 'A02 — Cryptographic Failures: HTTPS obrigatório + HSTS',
+            desc: 'Dados em trânsito sempre criptografados. NUNCA logar dados sensíveis.',
+            code: '// Program.cs\napp.UseHsts();\napp.UseHttpsRedirection();\n\n// NUNCA faça:\nlogger.LogInformation("CPF: {cpf}", user.Cpf);      // ERRADO\nlogger.LogInformation("Card: {n}", card.Number);    // ERRADO\n\n// OK:\nlogger.LogInformation("Pedido {Id} aprovado", id);  // CORRETO'
+          },
+          {
+            label: 'Security Headers + Rate Limiting (PCI DSS)',
+            desc: 'Headers de segurança resolvem vários itens do OWASP. Rate limiting é exigido pelo PCI DSS.',
+            code: '// Program.cs — Security Headers\napp.Use(async (ctx, next) => {\n    var h = ctx.Response.Headers;\n    h["X-Content-Type-Options"]  = "nosniff";\n    h["X-Frame-Options"]         = "DENY";\n    h["Referrer-Policy"]         = "no-referrer";\n    h["Content-Security-Policy"] =\n        "default-src \'self\'; script-src \'self\'; object-src \'none\'";\n    await next();\n});\n\n// Rate Limiting (ASP.NET 7+)\nbuilder.Services.AddRateLimiter(opts =>\n    opts.AddFixedWindowLimiter("api", o => {\n        o.PermitLimit = 100;\n        o.Window      = TimeSpan.FromMinutes(1);\n        o.QueueLimit  = 0;\n    }));\napp.UseRateLimiter();'
+          }
+        ]
+      };
+
+      QS_DRILLDOWN['sec_medium'] = {
+        title: '&#128737; Segurança OWASP+PCI — Como Melhorar',
+        steps: [
+          {
+            label: 'Adicionar Security Headers via middleware centralizado',
+            desc: 'Um middleware centralizado resolve vários itens do OWASP Top 10 sem alterar os controllers.',
+            code: '// Program.cs\napp.Use(async (ctx, next) => {\n    var h = ctx.Response.Headers;\n    h["X-Content-Type-Options"]  = "nosniff";\n    h["X-Frame-Options"]         = "DENY";\n    h["X-XSS-Protection"]        = "1; mode=block";\n    h["Referrer-Policy"]         = "no-referrer";\n    h["Permissions-Policy"]      = "geolocation=(), microphone=()";\n    h["Content-Security-Policy"] =\n        "default-src \'self\'; script-src \'self\'; object-src \'none\'";\n    await next();\n});\n\n// Verificar:\ncurl -I https://comprai.2.25.122.11.nip.io/health'
+          },
+          {
+            label: 'Rodar OWASP ZAP Baseline no CI (DAST)',
+            desc: 'O ZAP detecta problemas que análise estática (SonarCloud) não pega — A03 Injection, A05 Misconfiguration.',
+            code: '# .github/workflows/dast.yml\nname: DAST — OWASP ZAP\non:\n  schedule:\n    - cron: "0 2 * * 1"  # toda segunda às 2h\n  workflow_dispatch:\n\njobs:\n  zap:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: zaproxy/action-baseline@v0.10.0\n        with:\n          target: "https://comprai.2.25.122.11.nip.io"\n          rules_file_name: ".zap/rules.tsv"\n          cmd_options: "-a"\n\n# .zap/rules.tsv — ignorar falso positivo:\n# 10038\tIGNORE\t(CSP not set)'
+          }
+        ]
+      };
+
+      window.qsShowDrilldown = function(key) {
+        var info = QS_DRILLDOWN[key];
+        if (!info) return;
+        var stepsHtml = info.steps.map(function(s, i) {
+          var codeEsc = s.code
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+          return '<div style="margin-bottom:16px">' +
+            '<div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px">' +
+              '<span style="color:var(--muted);margin-right:6px">' + (i + 1) + '.</span>' + s.label +
+            '</div>' +
+            '<div style="font-size:11px;color:var(--muted);margin-bottom:6px;line-height:1.6">' + s.desc + '</div>' +
+            '<pre style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:12px 14px;font-size:10.5px;line-height:1.7;overflow-x:auto;margin:0;color:#e2e8f0;white-space:pre-wrap;word-break:break-word">' +
+              codeEsc +
+            '</pre>' +
+          '</div>';
+        }).join('<hr style="border:none;border-top:1px solid var(--border);margin:14px 0">');
+        qsOpenGenericModal(info.title, stepsHtml, true);
+      };
+
+      // ── Patch: gauge modal com badges clicáveis ──────────────────────────
+      var _origQsGaugeModal = window.qsShowGaugeModal;
+      window.qsShowGaugeModal = function() {
+        var vals  = window._qsCurrentVals || {};
+        var score = parseInt((document.getElementById('qs-number') || {}).textContent) || 0;
+        var badge = (document.getElementById('qs-badge') || {}).textContent || '--';
+        var recs  = _qsBuildRecs(vals);
+        recs.sort(function(a, b) {
+          return ({high:0, medium:1, ok:2}[a.prio] || 0) - ({high:0, medium:1, ok:2}[b.prio] || 0);
+        });
+        var scoreColor = score >= 80 ? '#22c55e' : score >= 60 ? '#f59e0b' : '#ef4444';
+        var nextScore  = Math.min(100, score + 5);
+        var recsHtml   = recs.map(function(r) {
+          var drillKey = r.prio !== 'ok' ? r.dim + '_' + r.prio : null;
+          var bStyles  = {high:'background:#ef444422;color:#ef4444;border:1px solid #ef4444', medium:'background:#f59e0b22;color:#f59e0b;border:1px solid #f59e0b', ok:'background:#22c55e22;color:#22c55e;border:1px solid #22c55e'};
+          var bLabels  = {high:'PRIORIDADE ALTA', medium:'MELHORAR', ok:'OK'};
+          var bClick   = drillKey ? 'onclick="qsShowDrilldown(\'' + drillKey + '\')" title="Ver como resolver" style="cursor:pointer;' : 'style="';
+          var bIcon    = drillKey ? ' &#128270;' : '';
+          var badgeHtml = '<span ' + bClick + bStyles[r.prio] + ';border-radius:10px;padding:2px 8px;font-size:10px;font-weight:700;display:inline-block">' + bLabels[r.prio] + bIcon + '</span>';
+          return '<div style="padding:12px 14px;background:var(--surface2);border:1px solid ' + r.color + '33;border-radius:8px;margin-bottom:8px">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">' +
+              '<span style="font-size:13px;font-weight:600;color:var(--text)">' + r.icon + ' ' + r.dimLabel + '</span>' + badgeHtml +
+            '</div>' +
+            '<div style="font-size:12px;color:var(--muted);margin-bottom:5px">' + r.detail + '</div>' +
+            '<div style="font-size:12px;color:' + r.color + ';font-weight:500">&#128073; ' + r.action + '</div>' +
+          '</div>';
+        }).join('');
+        var html =
+          '<div style="text-align:center;margin-bottom:18px">' +
+            '<div style="font-size:2.8rem;font-weight:800;color:' + scoreColor + ';line-height:1">' + score + '</div>' +
+            '<div style="font-size:12px;color:var(--muted);margin-top:2px">/ 100 &nbsp;&#183;&nbsp; ' + badge + '</div>' +
+          '</div>' +
+          '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">&#127919; Recomendações para chegar a ' + nextScore + '+</div>' +
+          recsHtml;
+        var overlay = document.getElementById('qs-gauge-modal-overlay');
+        if (overlay) {
+          document.getElementById('qs-gauge-modal-body').innerHTML = html;
+          overlay.style.display = 'flex';
+        }
+      };
+
+      function _qsBuildRecs(vals) {
+        var r = [];
+        function add(dim, dimLabel, icon, color, prio, action, detail) {
+          r.push({dim:dim, dimLabel:dimLabel, icon:icon, color:color, prio:prio, action:action, detail:detail});
+        }
+        var cov = vals['cov'], mut = vals['mut'], err = vals['err'], sec = vals['sec'];
+        if (cov == null)    add('cov','Cobertura de Testes','&#128202;','#6366f1','medium','Execute o CI/CD para gerar dados do SonarCloud.','Dados de cobertura ainda não disponíveis.');
+        else if (cov < 50)  add('cov','Cobertura de Testes','&#128202;','#ef4444','high','Adicione testes unitários nos handlers e serviços de domínio.','Coverage ' + cov.toFixed(1) + '% — crítico (meta: 80%).');
+        else if (cov < 80)  add('cov','Cobertura de Testes','&#128202;','#f59e0b','medium','Aumente a cobertura nos handlers com menor percentual.','Coverage ' + cov.toFixed(1) + '% (meta: 80%).');
+        else                add('cov','Cobertura de Testes','&#128202;','#22c55e','ok','Monitore regressões a cada PR.','Coverage ' + cov.toFixed(1) + '% — acima da meta. Excelente!');
+        if (mut == null)    add('mut','Mutation Score','&#129680;','#8b5cf6','medium','Execute o workflow mutation-tests.yml.','Dados de mutação ainda não disponíveis.');
+        else if (mut < 50)  add('mut','Mutation Score','&#129680;','#ef4444','high','Revise os testes — não estão validando o comportamento.','Mutation Score ' + mut.toFixed(1) + '% (meta: 70%).');
+        else if (mut < 70)  add('mut','Mutation Score','&#129680;','#f59e0b','medium','Foque nos handlers com sobreviventes listados na seção Mutação.','Mutation Score ' + mut.toFixed(1) + '% (meta: 70%).');
+        else                add('mut','Mutation Score','&#129680;','#22c55e','ok','Cubra os novos handlers a cada feature adicionada.','Mutation Score ' + mut.toFixed(1) + '% — acima da meta. Ótimo!');
+        if (err == null)    add('err','Taxa de Erro K6','&#128293;','#06b6d4','medium','Execute um stress test para gerar dados de confiabilidade.','Dados de erro K6 ainda não disponíveis.');
+        else if (err < 70)  add('err','Taxa de Erro K6','&#128293;','#ef4444','high','Investigue os endpoints com maior taxa de falha.','Confiabilidade ' + err.toFixed(1) + '% — taxa de erro alta.');
+        else if (err < 95)  add('err','Taxa de Erro K6','&#128293;','#f59e0b','medium','Ajuste thresholds de resiliência e rode um load test.','Confiabilidade ' + err.toFixed(1) + '% — erros esporádicos.');
+        else                add('err','Taxa de Erro K6','&#128293;','#22c55e','ok','Agende testes de spike e soak.','Confiabilidade ' + err.toFixed(1) + '% — API estável. Excelente!');
+        if (sec == null)    add('sec','Segurança OWASP+PCI','&#128737;','#f59e0b','medium','Revise os checklists OWASP e PCI DSS.','Dados de segurança não disponíveis.');
+        else if (sec < 60)  add('sec','Segurança OWASP+PCI','&#128737;','#ef4444','high','Resolva os itens NOK na seção Segurança imediatamente.','Score ' + sec.toFixed(1) + '% — controles críticos pendentes.');
+        else if (sec < 100) add('sec','Segurança OWASP+PCI','&#128737;','#f59e0b','medium','Implemente os controles restantes do OWASP e PCI.','Score ' + sec.toFixed(1) + '% dos controles OK.');
+        else                add('sec','Segurança OWASP+PCI','&#128737;','#22c55e','ok','Adicione DAST (OWASP ZAP) para validação dinâmica.','Todos os controles OWASP+PCI OK!');
+        return r;
+      }
     })();
     </script>
 
