@@ -1225,6 +1225,73 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
   };
 
   // ===== HEALTH MAP =====
+  // Dados estáticos do docker-compose.yml por node id
+  const HM_COMPOSE = {
+    'api': {
+      image: 'build (Dockerfile)',
+      ports: ['5020:5020'],
+      restart: 'unless-stopped',
+      depends: ['comprai-redis'],
+      profiles: ['(always)'],
+      volumes: ['docker.sock (ro)'],
+      envs: ['ASPNETCORE_ENVIRONMENT=Production','ASPNETCORE_URLS=http://+:5020','Features__UsarRedis','Features__UsarKafka','Features__UsarRabbitMQ','OTEL_SERVICE_NAME=comprai-api']
+    },
+    'redis': {
+      image: 'redis:7-alpine',
+      ports: ['6379:6379'],
+      restart: 'unless-stopped',
+      depends: [],
+      profiles: ['(always)'],
+      volumes: ['redis_data:/data'],
+      envs: []
+    },
+    'prometheus': {
+      image: 'prom/prometheus:latest',
+      ports: ['9091:9090'],
+      restart: 'unless-stopped',
+      depends: [],
+      profiles: ['monitoring'],
+      volumes: ['prometheus.yml (ro)','prometheus_data:/prometheus'],
+      envs: []
+    },
+    'loki': {
+      image: 'grafana/loki:latest',
+      ports: ['3101:3100'],
+      restart: 'unless-stopped',
+      depends: [],
+      profiles: ['monitoring'],
+      volumes: ['loki.yml (ro)','loki_data:/loki'],
+      envs: []
+    },
+    'jaeger': {
+      image: 'jaegertracing/all-in-one:latest',
+      ports: ['16687:16686','4319:4317','4320:4318'],
+      restart: 'unless-stopped',
+      depends: [],
+      profiles: ['monitoring'],
+      volumes: [],
+      envs: ['COLLECTOR_OTLP_ENABLED=true']
+    },
+    'kafka': {
+      image: 'apache/kafka:3.9.0',
+      ports: ['9094:9094','9095:9095'],
+      restart: 'unless-stopped',
+      depends: [],
+      profiles: ['kafka'],
+      volumes: ['kafka_data:/var/lib/kafka/data'],
+      envs: ['KAFKA_NODE_ID=1','KAFKA_PROCESS_ROLES=broker,controller','KAFKA_AUTO_CREATE_TOPICS_ENABLE=true']
+    },
+    'rabbitmq': {
+      image: 'rabbitmq:4-management-alpine',
+      ports: ['5673:5672','15673:15672'],
+      restart: 'unless-stopped',
+      depends: [],
+      profiles: ['rabbitmq'],
+      volumes: ['rabbitmq_data:/var/lib/rabbitmq'],
+      envs: ['RABBITMQ_DEFAULT_USER=guest']
+    }
+  };
+
   const HM_NODES = [
     { id:'api',        label:'comprai-api',  icon:'\u2699\uFE0F', x:340, y:150, component:'api' },
     { id:'redis',      label:'Redis',         icon:'\uD83D\uDDC4\uFE0F', x:160, y:290, component:'redis' },
@@ -1384,6 +1451,23 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
     var cWrap = document.getElementById('hm-modal-container');
     cWrap.innerHTML = '<div style="color:var(--text-muted);font-size:12px;grid-column:1/-1"><div class="obs-loading-spin" style="display:inline-block;width:12px;height:12px;margin-right:6px"></div>Buscando dados do container...</div>';
     overlay.style.display = 'flex';
+
+    // compose config
+    var compose = HM_COMPOSE[d.containerName] || null;
+    var composeEl = document.getElementById('hm-modal-compose');
+    if (compose) {
+      composeEl.innerHTML =
+        _hmCard('Image', compose.image, '#06b6d4') +
+        _hmCard('Ports', compose.ports.join(', ')||'—', '#a78bfa') +
+        _hmCard('Profile', compose.profiles.join(', ')||'—', '#f59e0b') +
+        _hmCard('Restart', compose.restart||'—', '#22c55e') +
+        (compose.depends.length ? _hmCard('Depends on', compose.depends.join(', '), '#94a3b8') : '') +
+        (compose.volumes.length ? '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;grid-column:1/-1"><div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Volumes</div><div style="font-size:12px;color:#e2e8f0">'+compose.volumes.join('<br>')+'</div></div>' : '') +
+        (compose.envs.length ? '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;grid-column:1/-1"><div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Env vars</div><div style="display:flex;flex-wrap:wrap;gap:4px">'+compose.envs.map(function(e){ return '<span style="background:#1e2535;border:1px solid #2d3a50;border-radius:4px;padding:2px 7px;font-size:11px;font-family:monospace;color:#a5b4fc">'+e+'</span>'; }).join('')+'</div></div>' : '');
+      document.getElementById('hm-modal-compose-wrap').style.display = '';
+    } else {
+      document.getElementById('hm-modal-compose-wrap').style.display = 'none';
+    }
 
     fetch('/api/containers')
       .then(function(r){ return r.json(); })
@@ -5263,6 +5347,11 @@ tr:hover td { background: rgba(255,255,255,.02); }
           <div id="hm-modal-container" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
             <div style="color:var(--text-muted);font-size:12px;grid-column:1/-1">Carregando...</div>
           </div>
+        </div>
+        <!-- compose config -->
+        <div id="hm-modal-compose-wrap" style="margin-bottom:16px">
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Compose Config</div>
+          <div id="hm-modal-compose" style="display:grid;grid-template-columns:1fr 1fr;gap:10px"></div>
         </div>
         <!-- uptime ticks -->
         <div>
