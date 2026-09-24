@@ -1482,28 +1482,29 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
 
     fetch('/api/containers')
       .then(function(r){ return r.json(); })
-      .then(function(containers){
+      .then(function(data){
+        var containers = data.containers || data;
         var name = d.containerName || d.label.toLowerCase().replace(/[^a-z0-9]/g,'-');
         var c = containers.find(function(x){
           if (!x.name) return false;
-          var xn = x.name.toLowerCase().replace(/^\//, '');
-          return xn === 'comprai-' + name || xn === name || xn === d.label.toLowerCase();
+          var xn = x.name.toLowerCase();
+          return xn === 'comprai-' + name || xn === name || xn.includes(name);
         });
         if (!c) {
           cWrap.innerHTML = '<span style="color:var(--text-muted);font-size:12px;grid-column:1/-1">Container não encontrado</span>';
           return;
         }
-        var mem = c.memoryUsage && c.memoryLimit
-          ? (c.memoryUsage/1048576).toFixed(0)+'MB / '+(c.memoryLimit/1048576).toFixed(0)+'MB'
-          : c.memoryUsage ? (c.memoryUsage/1048576).toFixed(0)+'MB' : '—';
-        var cpu = c.cpuPercent != null ? c.cpuPercent.toFixed(2)+'%' : '—';
+        var healthy = c.healthy ? 'Healthy' : 'Unhealthy';
+        var healthColor = c.healthy ? '#22c55e' : '#ef4444';
+        var imgShort = (c.image||'—').split('/').pop().split(':')[0];
+        var portsShort = (c.ports||'—').split(',')[0].trim();
         cWrap.innerHTML =
-          _hmCard('Estado', c.state||'—', c.state==='running'?'#22c55e':'#ef4444') +
-          _hmCard('CPU', cpu, '#a78bfa') +
-          _hmCard('Memória', mem, '#f59e0b') +
-          _hmCard('Imagem', (c.image||'—').split(':')[0].split('/').pop(), '#94a3b8') +
-          _hmCard('Uptime container', c.status||'—', '#06b6d4') +
-          _hmCard('Portas', (c.ports||[]).join(', ')||'—', '#64748b');
+          _hmCard('Estado', healthy, healthColor) +
+          _hmCard('Uptime', (c.status||'—').replace(/Up /,''), '#06b6d4') +
+          _hmCard('Imagem', imgShort, '#94a3b8') +
+          _hmCard('Portas', portsShort, '#a78bfa') +
+          _hmCard('ID', (c.id||'—').substring(0,12), '#64748b') +
+          _hmCard('Crítico', c.critical ? 'Sim' : 'Não', c.critical ? '#f59e0b' : '#22c55e');
       })
       .catch(function(){
         cWrap.innerHTML = '<span style="color:var(--text-muted);font-size:12px;grid-column:1/-1">Erro ao buscar container</span>';
