@@ -1307,7 +1307,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
     { from:'api',        to:'rabbitmq',   label:'messaging' },
     { from:'api',        to:'jaeger',     label:'traces' },
     { from:'prometheus', to:'api',        label:'scrape' },
-    { from:'loki',       to:'api',        label:'logs' },
+    { from:'api',        to:'loki',       label:'logs' },
   ];
   let hmTimer = null;
   let hmCountdown = 30;
