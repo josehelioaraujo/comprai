@@ -3168,7 +3168,6 @@ window.loadCorrelacao = async function() {
               : '') +
           '</td>' +
           '<td style="padding:10px 12px;text-align:center">' +
-          '<td style="padding:10px 12px;text-align:center">' +
             '<div style="display:flex;align-items:center;justify-content:center;gap:6px;cursor:help" title="' + riskTitle + '">' +
               '<div style="width:60px;height:6px;background:var(--border);border-radius:3px;overflow:hidden">' +
                 '<div style="height:100%;width:' + Math.min(100, r.riskIdx * 100) + '%;background:' + riskColor + ';border-radius:3px"></div>' +
@@ -3185,7 +3184,7 @@ window.loadCorrelacao = async function() {
           '</td>' +
         '</tr>' +
         '<tr id="corr-det-' + i + '" style="display:none">' +
-          '<td colspan="6" style="padding:0;border-bottom:2px solid var(--border)">' +
+          '<td colspan="99" style="padding:0;border-bottom:2px solid var(--border)">' +
             '<div id="corr-det-body-' + i + '" style="padding:14px 16px;background:rgba(0,0,0,.2)"></div>' +
           '</td>' +
         '</tr>';
@@ -7071,7 +7070,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
                 </span>
               </span>
             </div>
-            <div style="overflow-x:auto;border-radius:8px;border:1px solid var(--border)">
+            <div style="overflow-x:auto;border-radius:8px;border:1px solid var(--border);background:var(--surface2)">
               <table style="width:100%;border-collapse:collapse;font-size:12px">
                 <thead>
                   <tr style="background:var(--surface2);border-bottom:1px solid var(--border)">
