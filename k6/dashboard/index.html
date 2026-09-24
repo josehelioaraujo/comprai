@@ -4681,7 +4681,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
 <div class="app-shell">
 <nav class="sidebar" id="sidebar">
   <div class="sidebar-header">
-    <span class="sidebar-logo-text" onclick="openAboutModal()" style="cursor:pointer" title="Sobre o OpsWatch">OpsWatch</span>
+    <span class="sidebar-logo-text" onclick="openAboutModal()" style="cursor:pointer;display:flex;align-items:center;gap:7px" title="Sobre o OpsWatch"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M12 2L3 6v6c0 5 4 9.3 9 10.5C17 21.3 21 17 21 12V6l-9-4Z"/><polyline points="7,12 9,10 11,14 13,10 15,12" stroke="#6366f1" stroke-width="1.6" fill="none"/></svg>OpsWatch</span>
     <div style="display:flex;align-items:center;gap:4px">
       <button id="btn-collapse-all" onclick="collapseAllGroups()" title="Recolher tudo" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:13px;padding:3px 5px;border-radius:4px;line-height:1;transition:all .15s" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">&#8644;</button>
       <button class="sidebar-toggle sidebar-toggle-collapse" onclick="toggleSidebar()" title="Recolher sidebar">&#8249;</button>
