@@ -3340,31 +3340,57 @@ window.corrToggleRow = function(idx) {
   var mutColor = r.mutScore == null ? 'var(--muted)'
     : r.mutScore < 50 ? '#ef4444' : r.mutScore < 70 ? '#f59e0b' : '#22c55e';
 
-  // 3 métricas em linha
+  // Interpretar cada métrica em linguagem natural
+  var p95Interp = r.p95 == null
+    ? '⚠️ Nenhum dado K6 para este endpoint. Execute um stress test incluindo esta rota.'
+    : r.p95 > 1000
+    ? '🔴 Crítico — ' + r.p95.toFixed(0) + 'ms significa que 1 em cada 20 requisições demora mais que isso. Usuários percebem travamento.'
+    : r.p95 > 500
+    ? '🟡 Lento — ' + r.p95.toFixed(0) + 'ms está acima da meta de 500ms. Verifique cache Redis e timeout dos plugins.'
+    : r.p95 > 300
+    ? '🟠 Aceitável — ' + r.p95.toFixed(0) + 'ms ainda dentro do tolerável, mas monitorar tendência.'
+    : '🟢 Rápido — ' + r.p95.toFixed(0) + 'ms. 95% das requisições respondem abaixo desse tempo. Meta < 300ms atingida.';
+
+  var mutInterp = r.mutScore == null
+    ? '⚠️ Nenhum dado Stryker para este handler. Execute o workflow mutation-tests.yml.'
+    : r.mutScore < 50
+    ? '🔴 Crítico — ' + r.mutScore.toFixed(1) + '% indica que mais da metade dos bugs artificiais passaram despercebidos pelos testes. Alta chance de erros silenciosos em produção.'
+    : r.mutScore < 70
+    ? '🟡 Atenção — ' + (r.mutInfo && r.mutInfo.survived > 0 ? r.mutInfo.survived + ' mutante(s) sobrevivente(s). ' : '') + 'Pode haver condições de fallback ou tratamento de erro não testados.'
+    : r.mutScore < 90
+    ? '🟢 Bom — ' + r.mutScore.toFixed(1) + '% dos bugs artificiais detectados. Pequenas lacunas ainda existem.'
+    : '🟢 Excelente — ' + r.mutScore.toFixed(1) + '% de mutantes eliminados. Testes validando bem a lógica do handler.';
+
+  var riskInterp = 'Fórmula: (p95 normalizado × 0.5) + (lacuna mutation × 0.5). '
+    + (r.riskLevel === 'high'
+      ? '⚠️ Risco ALTO: a combinação de performance degradada com testes insuficientes cria ponto cego. Um erro pode ocorrer, não ser logado e o sistema parece saudável.'
+      : r.riskLevel === 'medium'
+      ? '🟡 Risco MÉDIO: há lacunas que merecem atenção. Comportamento sob carga pode ser diferente do esperado.'
+      : '🟢 Risco BAIXO: performance e cobertura de testes estão adequados para este endpoint.');
+
+  // 3 métricas em linha com hint expandido
   var metricsHtml = [
-    { label: 'p95 K6',
+    { label: 'P95 K6',
+      sublabel: 'Latência de pior caso (95%)',
       value: r.p95 != null ? r.p95.toFixed(0) + ' ms' : '—',
       color: p95Color,
-      hint: r.p95 == null ? 'Sem dados K6 para este endpoint'
-           : r.p95 > 1000 ? '🔴 Crítico — 1 em cada 20 req demora mais que isso'
-           : r.p95 > 500  ? '🟡 Lento — revisar cache e timeouts'
-           : '🟢 Dentro do esperado (meta: < 500ms)' },
+      interp: p95Interp },
     { label: 'Mutation Score',
+      sublabel: 'Lógica validada pelos testes (' + r.handler + ')',
       value: r.mutScore != null ? r.mutScore.toFixed(1) + '%' : '—',
       color: mutColor,
-      hint: r.mutScore == null ? 'Sem dados Stryker para este handler'
-           : r.mutScore < 50 ? '🔴 Crítico — muita lógica não validada pelos testes'
-           : r.mutScore < 70 ? '🟡 ' + (r.mutInfo ? r.mutInfo.survived + ' mutante(s) sobrevivente(s)' : 'Lacunas nos testes')
-           : '🟢 Testes validando bem a lógica' },
+      interp: mutInterp },
     { label: 'Índice de Risco',
+      sublabel: 'Combinação performance + cobertura',
       value: (r.riskIdx * 100).toFixed(0) + '/100',
       color: riskColor,
-      hint: 'p95 normalizado (50%) + lacuna mutation (50%). Quanto maior, maior chance de erro silencioso sob carga.' }
+      interp: riskInterp }
   ].map(function(m) {
-    return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;flex:1;min-width:120px">' +
-      '<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px" title="' + m.hint + '">' + m.label + ' <span style="opacity:.5">ℹ</span></div>' +
-      '<div style="font-size:1.3rem;font-weight:800;color:' + m.color + ';line-height:1.1">' + m.value + '</div>' +
-      '<div style="font-size:10px;color:var(--muted);margin-top:4px;line-height:1.4">' + m.hint + '</div>' +
+    return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;flex:1;min-width:140px">' +
+      '<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:1px;font-weight:700">' + m.label + '</div>' +
+      '<div style="font-size:10px;color:var(--muted);margin-bottom:6px;opacity:.7">' + m.sublabel + '</div>' +
+      '<div style="font-size:1.4rem;font-weight:800;color:' + m.color + ';line-height:1">' + m.value + '</div>' +
+      '<div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.6;padding-top:8px;border-top:1px solid var(--border)">' + m.interp + '</div>' +
     '</div>';
   }).join('');
 
@@ -6939,7 +6965,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
               <table style="width:100%;border-collapse:collapse;font-size:12px">
                 <thead>
                   <tr style="background:var(--surface2);border-bottom:1px solid var(--border)">
-                    <th style="padding:9px 12px;text-align:left;color:var(--muted);font-weight:600">Endpoint / Handler</th>
+                    <th style="padding:9px 12px;text-align:left;color:var(--muted);font-weight:600">Endpoint / Handler <span style="font-size:9px;opacity:.5" title="Clique no ▼ de cada linha para ver o diagnóstico detalhado">▼ clique para expandir</span></th>
                     <th style="padding:9px 12px;text-align:center;color:var(--muted);font-weight:600">
                       p95 K6
                       <span class="info-hint-wrap" style="position:relative;margin-left:4px">
