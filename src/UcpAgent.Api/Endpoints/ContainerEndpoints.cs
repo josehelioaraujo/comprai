@@ -118,7 +118,9 @@ public static class ContainerEndpoints
             try
             {
                 var result = await RunDockerAsync(
-                    $"stats --no-stream --format "{{{{.CPUPerc}}}}|{{{{.MemUsage}}}}|{{{{.MemPerc}}}}|{{{{.NetIO}}}}|{{{{.BlockIO}}}}" {name}", ct);
+                    "stats --no-stream --format " +
+                    ""{{.CPUPerc}}|{{.MemUsage}}|{{.MemPerc}}|{{.NetIO}}|{{.BlockIO}}" " +
+                    name, ct);
 
                 if (result.ExitCode != 0 || string.IsNullOrEmpty(result.Output))
                     return Results.Ok(new { name, available = false });
