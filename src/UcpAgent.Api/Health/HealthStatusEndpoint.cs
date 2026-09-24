@@ -15,6 +15,9 @@ public static class HealthStatusEndpoint
         ["rabbitmq"]       = "RabbitMQ",
         ["kafka"]          = "Kafka",
         ["datadog-otel"]   = "Datadog OTel Collector",
+        ["prometheus"]     = "Prometheus",
+        ["loki"]           = "Loki",
+        ["jaeger"]         = "Jaeger",
     };
 
     private static readonly Dictionary<string, string> _componentGroups = new()
@@ -25,6 +28,9 @@ public static class HealthStatusEndpoint
         ["rabbitmq"]       = "messaging",
         ["kafka"]          = "messaging",
         ["datadog-otel"]   = "observability",
+        ["prometheus"]     = "observability",
+        ["loki"]           = "observability",
+        ["jaeger"]         = "observability",
     };
 
     public static void MapHealthStatusEndpoint(this WebApplication app)

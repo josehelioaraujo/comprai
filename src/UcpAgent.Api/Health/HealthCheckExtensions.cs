@@ -16,7 +16,10 @@ public static class HealthCheckExtensions
             .AddCheck("ollama",       OllamaCheck(config),      tags: ["ai"])
             .AddCheck("rabbitmq",     RabbitMqCheck(config),    tags: ["messaging"])
             .AddCheck("kafka",        KafkaCheck(config),       tags: ["messaging"])
-            .AddCheck("datadog-otel", DatadogCheck(),           tags: ["observability"]);
+            .AddCheck("datadog-otel", DatadogCheck(),           tags: ["observability"])
+            .AddCheck("prometheus",   PrometheusCheck(),        tags: ["observability"])
+            .AddCheck("loki",         LokiCheck(),              tags: ["observability"])
+            .AddCheck("jaeger",       JaegerCheck(),            tags: ["observability"]);
 
         return services;
     }
@@ -66,6 +69,18 @@ public static class HealthCheckExtensions
     [ExcludeFromCodeCoverage(Justification = "Requer OTel Collector em execução")]
     private static Func<HealthCheckResult> DatadogCheck() => () =>
         TcpCheck("comprai-otel-collector", 4317, "OTel Collector");
+
+    [ExcludeFromCodeCoverage(Justification = "Requer Prometheus em execução")]
+    private static Func<HealthCheckResult> PrometheusCheck() => () =>
+        TcpCheck("comprai-prometheus", 9090, "Prometheus");
+
+    [ExcludeFromCodeCoverage(Justification = "Requer Loki em execução")]
+    private static Func<HealthCheckResult> LokiCheck() => () =>
+        TcpCheck("comprai-loki", 3100, "Loki");
+
+    [ExcludeFromCodeCoverage(Justification = "Requer Jaeger em execução")]
+    private static Func<HealthCheckResult> JaegerCheck() => () =>
+        TcpCheck("comprai-jaeger", 16686, "Jaeger");
 
     [ExcludeFromCodeCoverage(Justification = "Requer infra de rede em execução")]
     private static HealthCheckResult TcpCheck(string host, int port, string name)
