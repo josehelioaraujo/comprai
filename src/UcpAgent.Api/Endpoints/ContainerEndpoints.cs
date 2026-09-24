@@ -111,16 +111,14 @@ public static class ContainerEndpoints
         })
         .WithTags("Containers").WithName("StopContainer").AllowAnonymous();
 
-        // GET /api/containers/{name}/stats — CPU e memória via docker stats
+        // GET /api/containers/{name}/stats — CPU e memoria via docker stats
         app.MapGet("/api/containers/{name}/stats", async (string name, CancellationToken ct) =>
         {
-            if (!NameRegex.IsMatch(name)) return Results.BadRequest("Nome inválido");
+            if (!NameRegex.IsMatch(name)) return Results.BadRequest("Nome invalido");
             try
             {
-                var result = await RunDockerAsync(
-                    "stats --no-stream --format " +
-                    ""{{.CPUPerc}}|{{.MemUsage}}|{{.MemPerc}}|{{.NetIO}}|{{.BlockIO}}" " +
-                    name, ct);
+                var fmt = "\"{{.CPUPerc}}|{{.MemUsage}}|{{.MemPerc}}|{{.NetIO}}|{{.BlockIO}}\"";
+                var result = await RunDockerAsync($"stats --no-stream --format {fmt} {name}", ct);
 
                 if (result.ExitCode != 0 || string.IsNullOrEmpty(result.Output))
                     return Results.Ok(new { name, available = false });
@@ -130,11 +128,11 @@ public static class ContainerEndpoints
                 {
                     name,
                     available  = true,
-                    cpuPercent = parts.Length > 0 ? parts[0].Trim() : "—",
-                    memUsage   = parts.Length > 1 ? parts[1].Trim() : "—",
-                    memPercent = parts.Length > 2 ? parts[2].Trim() : "—",
-                    netIO      = parts.Length > 3 ? parts[3].Trim() : "—",
-                    blockIO    = parts.Length > 4 ? parts[4].Trim() : "—",
+                    cpuPercent = parts.Length > 0 ? parts[0].Trim() : "-",
+                    memUsage   = parts.Length > 1 ? parts[1].Trim() : "-",
+                    memPercent = parts.Length > 2 ? parts[2].Trim() : "-",
+                    netIO      = parts.Length > 3 ? parts[3].Trim() : "-",
+                    blockIO    = parts.Length > 4 ? parts[4].Trim() : "-",
                     updatedAt  = DateTime.UtcNow
                 });
             }
