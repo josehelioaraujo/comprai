@@ -3132,7 +3132,9 @@ window.loadCorrelacao = async function() {
         var riskTxt = (r.riskIdx * 100).toFixed(0);
         var mColor  = METHOD_COLORS[r.method] || 'var(--muted)';
 
-        var detRowId = 'corr-det-' + i;
+        var detRowId  = 'corr-det-' + i;
+        var riskTitle  = 'Indice = p95 norm x 50% + lacuna mut x 50%. ' + (r.riskLevel === 'high' ? 'ALTO: ponto cego duplo — performance degradada + testes insuficientes.' : r.riskLevel === 'medium' ? 'MEDIO: lacunas que merecem atencao sob carga.' : 'BAIXO: performance e cobertura OK.');
+        var badgeTitle = r.riskLevel === 'high' ? 'Acao imediata: p95 alto + mutation baixo = risco de erro silencioso sob carga' : r.riskLevel === 'medium' ? 'Monitorar: ha lacunas que merecem atencao' : 'Nivel aceitavel — continue monitorando';
         return '<tr style="cursor:pointer;transition:background .15s" data-cidx="' + i + '"' +
           ' onclick="corrToggleRow(' + i + ')">' +
           '<td style="padding:10px 12px">' +
@@ -3166,11 +3168,8 @@ window.loadCorrelacao = async function() {
               : '') +
           '</td>' +
           '<td style="padding:10px 12px;text-align:center">' +
-            '<div style="display:flex;align-items:center;justify-content:center;gap:6px"' +
-              ' title="Índice = (p95 normalizado × 50%) + (lacuna mutation × 50%). ' +
-              (r.riskLevel === \'high\'   ? 'ALTO: ponto cego duplo — performance ruim + testes insuficientes.'
-              : r.riskLevel === \'medium\' ? 'MÉDIO: lacunas que merecem atenção sob carga.'
-              : 'BAIXO: performance e cobertura adequados.') + '" style="cursor:help">' +
+          '<td style="padding:10px 12px;text-align:center">' +
+            '<div style="display:flex;align-items:center;justify-content:center;gap:6px;cursor:help" title="' + riskTitle + '">' +
               '<div style="width:60px;height:6px;background:var(--border);border-radius:3px;overflow:hidden">' +
                 '<div style="height:100%;width:' + Math.min(100, r.riskIdx * 100) + '%;background:' + riskColor + ';border-radius:3px"></div>' +
               '</div>' +
@@ -3178,12 +3177,8 @@ window.loadCorrelacao = async function() {
             '</div>' +
           '</td>' +
           '<td style="padding:10px 12px;text-align:center">' +
-            '<span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:12px;background:' + riskColor + '22;color:' + riskColor + ';cursor:help"' +
-              ' title="' + (r.riskLevel === \'high\' ? 'Ação imediata: p95 alto + mutation baixo = risco de erro silencioso sob carga' : r.riskLevel === \'medium\' ? 'Monitorar: há lacunas que merecem atenção' : 'Nível aceitável — continue monitorando') + '">' +
+            '<span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:12px;background:' + riskColor + '22;color:' + riskColor + ';cursor:help" title="' + badgeTitle + '">' +
               RISK_LABELS[r.riskLevel] + '</span>' +
-          '</td>' +
-          '<td style="padding:10px 12px;text-align:center">' +
-            '<span class="corr-row-chev" id="corr-chev-' + i + '" style="font-size:13px;color:var(--muted);transition:transform .2s;display:inline-block">&#9660;</span>' +
           '</td>' +
         '</tr>' +
         '<tr id="corr-det-' + i + '" style="display:none">' +
