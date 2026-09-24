@@ -4478,8 +4478,8 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <div class="nav-item" id="nav-pci" onclick="showSection('pciBlock', this)" title="PCI DSS">
           <span class="nav-icon">&#128179;</span><span class="nav-text">PCI DSS</span>
         </div>
-        <div class="nav-item" id="nav-dep" onclick="showSection('depBlock', this)" title="Vulnerabilidades em pacotes NuGet">
-          <span class="nav-icon">&#128274;</span><span class="nav-text">CVEs NuGet</span>
+        <div class="nav-item" id="nav-dep" onclick="showSection('depBlock', this)" title="Dependency Scanner — Vulnerabilidades NuGet">
+          <span class="nav-icon">&#128274;</span><span class="nav-text">Dependency Scanner</span>
         </div>
       </div>
     </div>
@@ -5065,7 +5065,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
     <div class="section-block" id="depBlock" style="display:none">
       <div class="section-header" style="display:flex;align-items:center;gap:8px" onclick="toggleSection(this)">
-        <span class="section-title-text" style="flex:1">&#128274; Segurança de Dependências — CVEs NuGet
+        <span class="section-title-text" style="flex:1">&#128274; Dependency Scanner — CVEs NuGet
           <span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative">
             <span class="info-hint-btn">i</span>
             <span class="info-hint-box" style="position:fixed;width:320px;z-index:9999;line-height:1.7">
