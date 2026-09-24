@@ -2984,7 +2984,7 @@ async function evolPollRun(runId, label, btns) {
             '<span style="font-size:12px;font-weight:500;color:'+jColor+'">'+job.name+'</span>' +
             '<span style="margin-left:auto;display:flex;align-items:center;gap:6px">'+
               '<span style="font-size:10px;color:var(--muted)">'+(job.conclusion||job.status||'')+'</span>'+
-              (stepsHtml ? '<span class="evol-job-chevron" style="font-size:13px;color:var(--text);opacity:.8;transition:transform .25s;display:inline-block;transform:'+(open?'rotate(90deg)':'rotate(0deg)')+'">►</span>' : '')+
+              (stepsHtml ? '<span class="evol-job-chevron" style="font-size:13px;color:var(--muted);transition:transform .25s;display:inline-block">&#9660;</span>' : '')+
             '</span>' +
           '</div>' +
           (stepsHtml ? '<div id="'+jobId+'" style="display:'+(open?'block':'none')+';padding:6px 0 0 8px;margin-top:4px">' + stepsHtml + '</div>' : '') +
