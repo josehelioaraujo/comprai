@@ -2681,7 +2681,6 @@ function evolRenderChart() {
           titleColor: '#e2e8f0', bodyColor: '#94a3b8'
         }
       },
-      },
       scales: {
         x: { ticks: { color: 'var(--muted)', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.05)' } },
         pct: {
@@ -5997,21 +5996,31 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <div style="padding:16px">
 
           <!-- Painel de disparo de workflows -->
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:20px">
-            <span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Disparar:</span>
-            <button id="evol-cicd-btn"     class="gb-wf-btn" onclick="gbDispatch('ci-cd.yml','evol-cicd-btn')"                title="CI/CD completo">&#9654; CI/CD</button>
-            <button id="evol-mutation-btn" class="gb-wf-btn" onclick="gbDispatch('mutation-tests.yml','evol-mutation-btn')"   title="Testes de mutação">&#129514; Mutação</button>
-            <button id="evol-scan-btn"     class="gb-wf-btn" onclick="gbDispatch('dependency-scan.yml','evol-scan-btn')"      title="Scan de CVEs">&#128274; CVEs</button>
-            <button onclick="loadEvolucaoData()" style="margin-left:auto;background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;padding:4px 8px;border-radius:4px" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">&#8635; Atualizar</button>
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:20px">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              <span style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-right:2px">Run</span>
+              <button id="evol-cicd-btn" class="gb-wf-btn" onclick="gbDispatch('ci-cd.yml','evol-cicd-btn')" title="Executar CI/CD completo" style="display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:11px;font-weight:500;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='#6366f1';this.style.color='#6366f1'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text)'">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><polygon points="2,1 9,5 2,9"/></svg> CI/CD
+              </button>
+              <button id="evol-mutation-btn" class="gb-wf-btn" onclick="gbDispatch('mutation-tests.yml','evol-mutation-btn')" title="Executar testes de mutação" style="display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:11px;font-weight:500;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='#8b5cf6';this.style.color='#8b5cf6'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text)'">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><polygon points="2,1 9,5 2,9"/></svg> Mutation
+              </button>
+              <button id="evol-scan-btn" class="gb-wf-btn" onclick="gbDispatch('dependency-scan.yml','evol-scan-btn')" title="Executar scan de CVEs" style="display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:11px;font-weight:500;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='#f59e0b';this.style.color='#f59e0b'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text)'">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><polygon points="2,1 9,5 2,9"/></svg> CVEs
+              </button>
+            </div>
+            <button onclick="loadEvolucaoData()" title="Atualizar dados" style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:none;color:var(--muted);font-size:11px;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='var(--text)';this.style.color='var(--text)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+              &#8635; Refresh
+            </button>
           </div>
 
           <!-- Seletor de métricas -->
-          <div id="evol-filters" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
-            <button class="evol-filter-btn active" data-metric="coverage"  onclick="evolToggleMetric(this)">📊 Coverage</button>
-            <button class="evol-filter-btn active" data-metric="mutation"  onclick="evolToggleMetric(this)">🧬 Mutation</button>
-            <button class="evol-filter-btn active" data-metric="cves"      onclick="evolToggleMetric(this)">🔒 CVEs</button>
-            <button class="evol-filter-btn"        data-metric="bugs"      onclick="evolToggleMetric(this)">🐛 Bugs</button>
-            <button class="evol-filter-btn"        data-metric="smells"    onclick="evolToggleMetric(this)">💨 Code Smells</button>
+          <div id="evol-filters" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">
+            <button class="evol-filter-btn active" data-metric="coverage" onclick="evolToggleMetric(this)" style="padding:4px 10px;border-radius:20px;border:1px solid #6366f1;background:#6366f122;color:#6366f1;font-size:11px;font-weight:500;cursor:pointer;transition:all .15s">Coverage</button>
+            <button class="evol-filter-btn active" data-metric="mutation" onclick="evolToggleMetric(this)" style="padding:4px 10px;border-radius:20px;border:1px solid #8b5cf6;background:#8b5cf622;color:#8b5cf6;font-size:11px;font-weight:500;cursor:pointer;transition:all .15s">Mutation</button>
+            <button class="evol-filter-btn active" data-metric="cves"     onclick="evolToggleMetric(this)" style="padding:4px 10px;border-radius:20px;border:1px solid #f59e0b;background:#f59e0b22;color:#f59e0b;font-size:11px;font-weight:500;cursor:pointer;transition:all .15s">CVEs</button>
+            <button class="evol-filter-btn"        data-metric="bugs"     onclick="evolToggleMetric(this)" style="padding:4px 10px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:11px;font-weight:500;cursor:pointer;transition:all .15s">Bugs</button>
+            <button class="evol-filter-btn"        data-metric="smells"   onclick="evolToggleMetric(this)" style="padding:4px 10px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:11px;font-weight:500;cursor:pointer;transition:all .15s">Code Smells</button>
           </div>
 
           <!-- Gráfico -->
