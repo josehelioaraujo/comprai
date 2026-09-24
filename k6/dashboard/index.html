@@ -100,7 +100,7 @@ let runReloadPending = false;
 let verInfo = {};
 
 // IDs das secoes navegaveis (exceto detalhes que e fixo)
-const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','mutacaoBlock','sonarBlock','owaspBlock','pciBlock','depBlock','evolucaoBlock','integrationBlock','obsMetricasBlock','obsLogsBlock','obsTracesBlock','obsErrosBlock','obsContainersBlock','healthMapBlock','qualityScoreBlock'];
+const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','mutacaoBlock','sonarBlock','owaspBlock','pciBlock','depBlock','evolucaoBlock','integrationBlock','obsMetricasBlock','obsLogsBlock','obsTracesBlock','obsErrosBlock','obsContainersBlock','healthMapBlock','qualityScoreBlock','correlacaoBlock'];
 let activeSection = null; // null = nenhuma extra visivel
 
 const TYPE_ORDER = ['smoke','load','stress','spike','soak'];
@@ -2798,7 +2798,410 @@ function evolRenderTable(data) {
 </div>
 <script>
 // ── Global Workflow Dispatcher ───────────────────────────────
-async function gbDispatch(workflow) {
+async // ══════════════════════════════════════════════════════════════
+// CORRELAÇÃO K6 × MUTATION
+// Cruza rotas K6 (p95) com handlers Stryker (mutation score)
+// ══════════════════════════════════════════════════════════════
+
+// Mapeamento endpoint → handler (baseado na arquitetura do projeto)
+var ENDPOINT_HANDLER_MAP = [
+  { method:'GET',  path:'/api/search',        handler:'SearchProductsHandler',      routeKey:'search'   },
+  { method:'POST', path:'/api/cart',           handler:'AddToCartHandler',           routeKey:'cart'     },
+  { method:'DELETE',path:'/api/cart',          handler:'RemoveFromCartCommandHandler',routeKey:'cart'    },
+  { method:'GET',  path:'/api/cart',           handler:'GetCartQueryHandler',        routeKey:'cart'     },
+  { method:'POST', path:'/api/checkout',       handler:'CheckoutHandler',            routeKey:'checkout' },
+  { method:'POST', path:'/api/payment',        handler:'ProcessPaymentHandler',      routeKey:'payment'  },
+  { method:'GET',  path:'/api/order',          handler:'GetOrderHandler',            routeKey:'order'    },
+  { method:'GET',  path:'/api/order/session',  handler:'GetOrderBySessionQueryHandler',routeKey:'order'  },
+];
+
+// Limiares de p95 (ms)
+var P95_THRESHOLDS = { ok: 300, warn: 500, critical: 1000 };
+
+// Hint de diagnóstico por combinação de risco
+var CORR_DIAG = {
+  high: function(ep, mut, p95) {
+    return 'O endpoint <strong style="color:var(--text)">' + ep + '</strong> responde em <strong style="color:#ef4444">' + p95 + 'ms (p95)</strong> ' +
+      'e o handler associado tem mutation score de <strong style="color:#ef4444">' + mut.toFixed(1) + '%</strong>.<br><br>' +
+      'Isso indica que há <strong style="color:var(--text)">condições de fallback ou tratamento de erro não testadas</strong>. ' +
+      'Sob carga, o sistema pode estar silenciando falhas: o erro ocorre, não é logado, ' +
+      'a resposta retorna vazia ou parcial — e nenhum alerta dispara. ' +
+      'O p95 alto pode ser sintoma de um fallback que demora ao tentar múltiplos plugins antes de desistir silenciosamente.';
+  },
+  medium: function(ep, mut, p95) {
+    return 'O endpoint <strong style="color:var(--text)">' + ep + '</strong> tem p95 de <strong style="color:#f59e0b">' + p95 + 'ms</strong> ' +
+      'e mutation score de <strong style="color:#f59e0b">' + mut.toFixed(1) + '%</strong>.<br><br>' +
+      'Há lacunas nos testes que podem encobrir comportamentos sob carga moderada. ' +
+      'Mutantes sobreviventes em handlers de lógica de negócio geralmente indicam ' +
+      '<strong style="color:var(--text)">assertions vagas</strong> que verificam se o método foi chamado ' +
+      'mas não validam os valores retornados ou os caminhos de erro.';
+  },
+  low: function(ep, mut, p95) {
+    return 'O endpoint <strong style="color:var(--text)">' + ep + '</strong> tem boa performance ' +
+      '(<strong style="color:#22c55e">' + p95 + 'ms p95</strong>) e os testes validam bem a lógica ' +
+      '(<strong style="color:#22c55e">' + mut.toFixed(1) + '% mutation score</strong>).<br><br>' +
+      'Continue monitorando — regressões de performance e cobertura podem aparecer a cada nova feature.';
+  },
+  no_k6: function(handler, mut) {
+    return 'O handler <strong style="color:var(--text)">' + handler + '</strong> tem mutation score de ' +
+      '<strong style="color:#f59e0b">' + mut.toFixed(1) + '%</strong> mas não há dados K6 para o endpoint associado.<br><br>' +
+      'Execute um stress test incluindo este endpoint para completar a análise de risco.';
+  }
+};
+
+// Recomendações por categoria de problema
+var CORR_RECS = {
+  p95_critical: {
+    icon: '🐌', color: '#ef4444', label: 'Performance crítica',
+    items: [
+      'Adicione logging estruturado no início e fim de cada plugin de catálogo com duração — identifique qual fonte (ML, Shopify, VTEX) está travando',
+      'Implemente timeout individual por plugin: se ML não responde em 300ms, já cai no Shopify sem aguardar',
+      'Verifique se o HybridCache está funcionando: um cache miss forçando chamada a todos os plugins explica p95 alto',
+      'Adicione métrica OTel de duração por fonte: search.duration{source="mercadolivre"} — visível no Prometheus'
+    ]
+  },
+  p95_warn: {
+    icon: '⚠️', color: '#f59e0b', label: 'Performance degradada',
+    items: [
+      'Revise os timeouts dos HttpClients dos plugins — um default de 100s pode mascarar lentidão',
+      'Verifique o Redis: cache miss consistente significa que o SetAsync condicional está descartando resultados válidos',
+      'Rode um smoke test isolado para este endpoint e compare com o p95 do load test — se a diferença for grande, é problema de concorrência'
+    ]
+  },
+  mut_low: {
+    icon: '🧬', color: '#8b5cf6', label: 'Lógica não validada — risco de erro silencioso',
+    items: [
+      'Adicione teste explícito para o caminho de fallback: simule timeout do plugin primário e verifique se o secundário é chamado E se o erro é logado',
+      'Substitua assertions genéricas (result.IsSuccess.Should().BeTrue()) por validações dos valores retornados',
+      'Teste o que acontece quando TODOS os plugins falham — a resposta atual provavelmente é vazia sem log de erro',
+      'Configure break-at no stryker.config.json para impedir que o CI/CD passe com score abaixo de 70%'
+    ]
+  },
+  mut_medium: {
+    icon: '🔬', color: '#a78bfa', label: 'Cobertura de lógica parcial',
+    items: [
+      'Identifique os mutantes sobreviventes no relatório HTML do Stryker e foque nos de comparação (> vs >=, && vs ||)',
+      'Adicione testes de boundary: valores no limite exato da condição — são os mais eficientes para eliminar mutantes',
+      'Verifique se há código de retry ou fallback sem teste dedicado'
+    ]
+  },
+  silent_error: {
+    icon: '🔕', color: '#ef4444', label: 'Risco de erro silencioso',
+    items: [
+      'Adicione log estruturado em TODOS os catch dos plugins: logger.LogError(ex, "Plugin {Source} falhou em {Duration}ms", source, elapsed)',
+      'Implemente uma métrica OTel de contador de fallback: search.fallback.count{from="ml",to="shopify"} — detecta falhas sem exception visível',
+      'Adicione assertion no teste de fallback que verifique que o ILogger recebeu a chamada de erro — não só que o resultado não é nulo'
+    ]
+  }
+};
+
+var _corrLoaded = false;
+
+window.loadCorrelacao = async function() {
+  if (_corrLoaded) return;
+
+  var emptyEl = document.getElementById('corr-empty');
+  var tableEl = document.getElementById('corr-table-wrap');
+  var kpiEl   = document.getElementById('corr-kpi-row');
+  var countEl = document.getElementById('corr-count');
+
+  if (emptyEl) { emptyEl.style.display = 'block'; emptyEl.innerHTML =
+    '<div style="font-size:2rem;margin-bottom:8px">⏳</div>' +
+    '<div style="font-size:13px">Cruzando dados K6 e Mutation...</div>'; }
+
+  try {
+    var [resK6, resMut] = await Promise.all([
+      fetch('/k6/results/index.json?t=' + Date.now()),
+      fetch('/k6/results/mutation/latest.json?t=' + Date.now())
+    ]);
+
+    // ── Mutation por arquivo/handler ────────────────────────────
+    var mutByHandler = {};
+    if (resMut.ok) {
+      var mutData = await resMut.json();
+      (mutData.files || []).forEach(function(f) {
+        // nome do arquivo pode ser "SearchProductsHandler.cs" ou caminho completo
+        var name = (f.file || f.name || '').split('/').pop().replace('.cs','');
+        mutByHandler[name] = {
+          score: parseFloat(f.score) || 0,
+          killed: f.killed || 0,
+          survived: f.survived || 0,
+          total: f.total || 0
+        };
+      });
+      // fallback: se não tiver files, usar score global
+      if (Object.keys(mutByHandler).length === 0 && mutData.score != null) {
+        ENDPOINT_HANDLER_MAP.forEach(function(m) {
+          mutByHandler[m.handler] = { score: parseFloat(mutData.score), killed: 0, survived: 0, total: 0 };
+        });
+      }
+    }
+
+    // ── K6 p95 por rota ─────────────────────────────────────────
+    var p95ByRoute = {};
+    if (resK6.ok) {
+      var k6Data = await resK6.json();
+      // Tentar extrair p95 por rota de qualquer tipo de teste disponível
+      var types = ['smoke','load','stress','spike','soak'];
+      types.forEach(function(t) {
+        var td = k6Data[t];
+        if (!td) return;
+        // routes[] no index.json
+        (td.routes || []).forEach(function(r) {
+          var key = (r.method||'GET') + ':' + (r.path||r.url||'');
+          if (!p95ByRoute[key] || (r.p95 || 0) > p95ByRoute[key].p95) {
+            p95ByRoute[key] = { p95: r.p95 || r['p(95)'] || 0, method: r.method, path: r.path || r.url };
+          }
+        });
+        // fallback: p95 global do tipo
+        if (Object.keys(p95ByRoute).length === 0 && td.http_req_duration_p95 != null) {
+          ENDPOINT_HANDLER_MAP.forEach(function(m) {
+            var key = m.method + ':' + m.path;
+            if (!p95ByRoute[key]) p95ByRoute[key] = { p95: td.http_req_duration_p95, method: m.method, path: m.path };
+          });
+        }
+      });
+    }
+
+    // ── Calcular índice de risco por endpoint ───────────────────
+    var maxP95 = 2000; // normalização: p95 >= 2000ms = score 1.0
+    var rows = [];
+
+    ENDPOINT_HANDLER_MAP.forEach(function(m) {
+      var routeKey = m.method + ':' + m.path;
+      var p95Info  = p95ByRoute[routeKey] || null;
+      var mutInfo  = mutByHandler[m.handler] || null;
+
+      // Se não tem nenhum dos dois, pular
+      if (!p95Info && !mutInfo) return;
+
+      var p95      = p95Info  ? (p95Info.p95 || 0)    : null;
+      var mutScore = mutInfo  ? (mutInfo.score || 0)   : null;
+
+      // Índice de risco: combina p95 normalizado (0-1) com lacuna mutation (0-1)
+      var p95Norm  = p95      != null ? Math.min(p95 / maxP95, 1)    : 0.3; // default moderado
+      var mutGap   = mutScore != null ? (1 - mutScore / 100)          : 0.5; // default moderado
+      var riskIdx  = p95Norm * 0.5 + mutGap * 0.5; // peso igual entre perf e qualidade
+
+      var riskLevel = riskIdx >= 0.5 ? 'high' : riskIdx >= 0.2 ? 'medium' : 'low';
+
+      rows.push({
+        method:    m.method,
+        path:      m.path,
+        handler:   m.handler,
+        p95:       p95,
+        mutScore:  mutScore,
+        mutInfo:   mutInfo,
+        riskIdx:   riskIdx,
+        riskLevel: riskLevel,
+        hasK6:     !!p95Info,
+        hasMut:    !!mutInfo
+      });
+    });
+
+    // Ordenar por índice de risco desc
+    rows.sort(function(a,b) { return b.riskIdx - a.riskIdx; });
+
+    // Deduplicar por path (pode ter GET+DELETE no mesmo path)
+    var seen = {};
+    rows = rows.filter(function(r) {
+      var key = r.path + ':' + r.handler;
+      if (seen[key]) return false;
+      seen[key] = true;
+      return true;
+    });
+
+    // ── KPI cards ───────────────────────────────────────────────
+    var nHigh   = rows.filter(function(r){ return r.riskLevel === 'high';   }).length;
+    var nMed    = rows.filter(function(r){ return r.riskLevel === 'medium'; }).length;
+    var nLow    = rows.filter(function(r){ return r.riskLevel === 'low';    }).length;
+    var worst   = rows[0];
+
+    function setT(id, v) { var e = document.getElementById(id); if(e) e.textContent = v; }
+    setT('corr-kpi-high',  nHigh);
+    setT('corr-kpi-med',   nMed);
+    setT('corr-kpi-low',   nLow);
+    setT('corr-kpi-worst', worst ? worst.path : '—');
+    if (kpiEl) kpiEl.style.display = '';
+    if (countEl) countEl.textContent = rows.length + ' endpoints';
+
+    // ── Renderizar tabela ────────────────────────────────────────
+    var RISK_COLORS = { high: '#ef4444', medium: '#f59e0b', low: '#22c55e' };
+    var RISK_LABELS = { high: '🔴 ALTO', medium: '🟡 MÉDIO', low: '🟢 BAIXO' };
+    var METHOD_COLORS = { GET:'#34d399', POST:'#a78bfa', PUT:'#fbbf24', DELETE:'#f87171', PATCH:'#06b6d4' };
+
+    var tbody = document.getElementById('corr-tbody');
+    if (tbody) {
+      tbody.innerHTML = rows.map(function(r, i) {
+        var p95Color = !r.p95 ? 'var(--muted)'
+          : r.p95 > P95_THRESHOLDS.critical ? '#ef4444'
+          : r.p95 > P95_THRESHOLDS.warn     ? '#f59e0b'
+          : r.p95 > P95_THRESHOLDS.ok       ? '#94a3b8'
+          : '#22c55e';
+
+        var mutColor = r.mutScore == null ? 'var(--muted)'
+          : r.mutScore < 50 ? '#ef4444'
+          : r.mutScore < 70 ? '#f59e0b'
+          : '#22c55e';
+
+        var riskColor = RISK_COLORS[r.riskLevel];
+        var p95Txt = r.p95 != null ? r.p95.toFixed(0) + 'ms' : '—';
+        var mutTxt = r.mutScore != null ? r.mutScore.toFixed(1) + '%' : '—';
+        var riskTxt = (r.riskIdx * 100).toFixed(0);
+        var mColor  = METHOD_COLORS[r.method] || 'var(--muted)';
+
+        return '<tr onclick="corrOpenModal(' + i + ')" style="cursor:pointer;transition:background .15s" ' +
+          'onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="this.style.background=''">' +
+          '<td style="padding:10px 12px">' +
+            '<div style="display:flex;align-items:center;gap:8px">' +
+              '<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:rgba(255,255,255,.07);color:' + mColor + '">' + r.method + '</span>' +
+              '<div>' +
+                '<div style="font-size:12px;font-weight:600;color:var(--text)">' + r.path + '</div>' +
+                '<div style="font-size:10px;color:var(--muted);margin-top:1px">' + r.handler + '</div>' +
+              '</div>' +
+            '</div>' +
+          '</td>' +
+          '<td style="padding:10px 12px;text-align:center;font-size:13px;font-weight:700;color:' + p95Color + '">' + p95Txt + '</td>' +
+          '<td style="padding:10px 12px;text-align:center">' +
+            '<div style="font-size:13px;font-weight:700;color:' + mutColor + '">' + mutTxt + '</div>' +
+            (r.mutInfo && r.mutInfo.survived > 0
+              ? '<div style="font-size:10px;color:var(--muted)">' + r.mutInfo.survived + ' sobrevivente' + (r.mutInfo.survived > 1 ? 's' : '') + '</div>'
+              : '') +
+          '</td>' +
+          '<td style="padding:10px 12px;text-align:center">' +
+            '<div style="display:flex;align-items:center;justify-content:center;gap:6px">' +
+              '<div style="width:60px;height:6px;background:var(--border);border-radius:3px;overflow:hidden">' +
+                '<div style="height:100%;width:' + Math.min(100, r.riskIdx * 100) + '%;background:' + riskColor + ';border-radius:3px"></div>' +
+              '</div>' +
+              '<span style="font-size:11px;color:' + riskColor + ';font-weight:600">' + riskTxt + '</span>' +
+            '</div>' +
+          '</td>' +
+          '<td style="padding:10px 12px;text-align:center">' +
+            '<span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:12px;background:' + riskColor + '22;color:' + riskColor + '">' +
+              RISK_LABELS[r.riskLevel] + '</span>' +
+          '</td>' +
+          '<td style="padding:10px 12px;text-align:center">' +
+            '<span style="font-size:11px;color:#6366f1;cursor:pointer">&#128269; Drill-down</span>' +
+          '</td>' +
+        '</tr>';
+      }).join('');
+    }
+
+    // Guardar rows para o modal
+    window._corrRows = rows;
+
+    if (emptyEl) emptyEl.style.display = 'none';
+    if (tableEl) tableEl.style.display = '';
+    _corrLoaded = true;
+
+  } catch(e) {
+    if (emptyEl) emptyEl.innerHTML =
+      '<div style="font-size:2rem;margin-bottom:8px">⚠️</div>' +
+      '<div style="font-size:13px;color:#ef4444">Erro ao carregar dados: ' + e.message + '</div>' +
+      '<div style="font-size:11px;color:var(--muted);margin-top:4px">Execute CI/CD e Mutation Tests para gerar os dados.</div>';
+  }
+};
+
+// ── Modal de drill-down ──────────────────────────────────────────
+window.corrOpenModal = function(idx) {
+  var r = (window._corrRows || [])[idx];
+  if (!r) return;
+
+  var overlay = document.getElementById('corr-modal-overlay');
+  var RISK_COLORS = { high: '#ef4444', medium: '#f59e0b', low: '#22c55e' };
+  var riskColor = RISK_COLORS[r.riskLevel];
+
+  // Header
+  var dot = document.getElementById('corr-modal-risk-dot');
+  if (dot) dot.style.background = riskColor;
+  var title = document.getElementById('corr-modal-title');
+  if (title) title.textContent = r.path + '  ←→  ' + r.handler;
+  var sub = document.getElementById('corr-modal-subtitle');
+  if (sub) sub.textContent = 'Índice de risco: ' + (r.riskIdx * 100).toFixed(0) + '/100 · ' +
+    (r.riskLevel === 'high' ? 'Risco alto — ação imediata recomendada'
+    : r.riskLevel === 'medium' ? 'Risco médio — monitorar e melhorar'
+    : 'Risco baixo — manter o nível');
+
+  // Métricas em 3 cards
+  var p95Color = !r.p95 ? 'var(--muted)'
+    : r.p95 > 1000 ? '#ef4444' : r.p95 > 500 ? '#f59e0b' : '#22c55e';
+  var mutColor = r.mutScore == null ? 'var(--muted)'
+    : r.mutScore < 50 ? '#ef4444' : r.mutScore < 70 ? '#f59e0b' : '#22c55e';
+
+  var metricsEl = document.getElementById('corr-modal-metrics');
+  if (metricsEl) metricsEl.innerHTML = [
+    { label: 'p95 K6', value: r.p95 != null ? r.p95.toFixed(0) + ' ms' : '—', color: p95Color,
+      hint: r.p95 > 1000 ? '🔴 Crítico — 1 em cada 20 req demora mais que isso'
+           : r.p95 > 500  ? '🟡 Lento — revisar cache e timeouts'
+           : r.p95 > 300  ? '🟠 Aceitável — mas monitorar'
+           : '🟢 Rápido — dentro do esperado' },
+    { label: 'Mutation Score', value: r.mutScore != null ? r.mutScore.toFixed(1) + '%' : '—', color: mutColor,
+      hint: r.mutScore == null ? 'Sem dados — rode o Mutation Tests'
+           : r.mutScore < 50 ? '🔴 Crítico — muita lógica não validada'
+           : r.mutScore < 70 ? '🟡 Atenção — ' + (r.mutInfo ? r.mutInfo.survived : '?') + ' mutantes sobreviventes'
+           : '🟢 Bom — testes validando bem a lógica' },
+    { label: 'Índice de Risco', value: (r.riskIdx * 100).toFixed(0) + '/100', color: riskColor,
+      hint: 'Combinação de p95 normalizado (50%) + lacuna de mutation (50%). ' +
+            'Quanto maior, maior a chance de erro silencioso sob carga.' }
+  ].map(function(m) {
+    return '<div style="padding:14px 16px;background:var(--surface2);text-align:center">' +
+      '<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">' + m.label + '</div>' +
+      '<div style="font-size:1.6rem;font-weight:800;color:' + m.color + ';line-height:1">' + m.value + '</div>' +
+      '<div style="font-size:10px;color:var(--muted);margin-top:5px;line-height:1.4">' + m.hint + '</div>' +
+    '</div>';
+  }).join('');
+
+  // Diagnóstico
+  var diagEl = document.getElementById('corr-modal-diag');
+  if (diagEl) {
+    var diagFn = !r.hasK6 ? CORR_DIAG.no_k6(r.handler, r.mutScore || 0)
+      : CORR_DIAG[r.riskLevel](r.path, r.mutScore || 0, r.p95 || 0);
+    diagEl.innerHTML = diagFn;
+  }
+
+  // Recomendações — seleciona as relevantes
+  var recsEl = document.getElementById('corr-modal-recs');
+  if (recsEl) {
+    var recs = [];
+    if (r.p95 != null && r.p95 > P95_THRESHOLDS.critical) recs.push(CORR_RECS.p95_critical);
+    else if (r.p95 != null && r.p95 > P95_THRESHOLDS.warn) recs.push(CORR_RECS.p95_warn);
+    if (r.mutScore != null && r.mutScore < 50)  recs.push(CORR_RECS.mut_low);
+    else if (r.mutScore != null && r.mutScore < 70) recs.push(CORR_RECS.mut_medium);
+    if (r.riskLevel === 'high') recs.push(CORR_RECS.silent_error);
+
+    if (!recs.length) recs.push({
+      icon: '✅', color: '#22c55e', label: 'Continue monitorando',
+      items: ['Mantenha o p95 abaixo de 300ms', 'Execute Mutation Tests a cada PR para não regredir o score']
+    });
+
+    recsEl.innerHTML = recs.map(function(rec) {
+      return '<div style="border:1px solid ' + rec.color + '33;border-radius:8px;overflow:hidden">' +
+        '<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:' + rec.color + '11">' +
+          '<span style="font-size:14px">' + rec.icon + '</span>' +
+          '<span style="font-size:12px;font-weight:700;color:' + rec.color + '">' + rec.label + '</span>' +
+        '</div>' +
+        '<div style="padding:10px 12px;display:flex;flex-direction:column;gap:6px">' +
+          rec.items.map(function(item, i) {
+            return '<div style="display:flex;gap:8px;font-size:11px;color:var(--muted);line-height:1.6">' +
+              '<span style="color:' + rec.color + ';font-weight:700;flex-shrink:0">' + (i+1) + '.</span>' +
+              '<span>' + item + '</span>' +
+            '</div>';
+          }).join('') +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  if (overlay) overlay.style.display = 'flex';
+};
+
+window.corrCloseModal = function() {
+  var overlay = document.getElementById('corr-modal-overlay');
+  if (overlay) overlay.style.display = 'none';
+};
+
+
+function gbDispatch(workflow) {
   var btnIds = Array.from(arguments).slice(1);
   var btns = btnIds.map(function(id){ return document.getElementById(id); }).filter(Boolean);
 
@@ -4727,6 +5130,9 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <div class="nav-item" id="nav-trend" onclick="showSection('evolucaoBlock', this); loadEvolucaoData();" title="Trend histórico de qualidade ao longo dos runs">
           <span class="nav-icon">&#128200;</span><span class="nav-text">Quality Trend</span>
         </div>
+        <div class="nav-item" id="nav-correlacao" onclick="showSection('correlacaoBlock', this); loadCorrelacao();" title="Correlação K6 × Mutation — risco concentrado por endpoint">
+          <span class="nav-icon">&#128280;</span><span class="nav-text">Correlação K6 × Mut</span>
+        </div>
 
       </div>
     </div>
@@ -6260,6 +6666,142 @@ tr:hover td { background: rgba(255,255,255,.02); }
               </thead>
               <tbody id="evol-tbody"></tbody>
             </table>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== CORRELAÇÃO K6 × MUTATION ===== -->
+    <div class="section-block" id="correlacaoBlock" style="display:none">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title-text">&#128280; Correlação K6 × Mutation
+          <span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative">
+            <span class="info-hint-btn">i</span>
+            <span class="info-hint-box" style="position:fixed;width:320px;z-index:9999;line-height:1.7">
+              Cruza os dados de performance K6 (p95 por endpoint) com o Mutation Score por handler.<br><br>
+              <strong style="color:var(--text)">Por que importa?</strong><br>
+              Um endpoint lento com mutation score baixo pode ter condições de fallback não testadas —
+              o erro ocorre, não é logado, e o sistema parece saudável enquanto falha silenciosamente.<br><br>
+              <strong style="color:var(--text)">Índice de Risco</strong> = p95 normalizado × (1 − mutation score)<br>
+              Quanto maior, mais atenção o endpoint merece.
+            </span>
+          </span>
+        </span>
+        <span class="section-count" id="corr-count"></span>
+        <span class="section-chevron">&#9660;</span>
+      </div>
+      <div class="section-content">
+        <div style="padding:16px">
+
+          <!-- KPI topo -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px" id="corr-kpi-row" style="display:none">
+            <div class="kpi-card" style="position:relative">
+              <div class="kpi-hint">Endpoints com risco ALTO — p95 elevado e mutation score abaixo de 70%.</div>
+              <div class="kpi-label">&#128308; Risco Alto</div>
+              <div class="kpi-value" id="corr-kpi-high" style="color:#ef4444">—</div>
+            </div>
+            <div class="kpi-card" style="position:relative">
+              <div class="kpi-hint">Endpoints com risco MÉDIO — p95 aceitável mas mutation score com lacunas.</div>
+              <div class="kpi-label">&#128993; Risco Médio</div>
+              <div class="kpi-value" id="corr-kpi-med" style="color:#f59e0b">—</div>
+            </div>
+            <div class="kpi-card" style="position:relative">
+              <div class="kpi-hint">Endpoints com risco BAIXO — performance ok e testes validando a lógica.</div>
+              <div class="kpi-label">&#128994; Risco Baixo</div>
+              <div class="kpi-value" id="corr-kpi-low" style="color:#22c55e">—</div>
+            </div>
+            <div class="kpi-card" style="position:relative">
+              <div class="kpi-hint">Pior endpoint — maior índice de risco combinado desta análise.</div>
+              <div class="kpi-label">&#127919; Maior Risco</div>
+              <div class="kpi-value" id="corr-kpi-worst" style="font-size:13px;margin-top:4px">—</div>
+            </div>
+          </div>
+
+          <!-- Tabela de endpoints -->
+          <div id="corr-table-wrap" style="display:none">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">
+              Endpoints ordenados por índice de risco
+              <span class="info-hint-wrap" style="position:relative;margin-left:6px">
+                <span class="info-hint-btn">i</span>
+                <span class="info-hint-box" style="position:fixed;width:280px;z-index:9999;line-height:1.6">
+                  Clique em qualquer linha para ver o diagnóstico detalhado com recomendações de ação para aquele endpoint específico.
+                </span>
+              </span>
+            </div>
+            <div style="overflow-x:auto;border-radius:8px;border:1px solid var(--border)">
+              <table style="width:100%;border-collapse:collapse;font-size:12px">
+                <thead>
+                  <tr style="background:var(--surface2);border-bottom:1px solid var(--border)">
+                    <th style="padding:9px 12px;text-align:left;color:var(--muted);font-weight:600">Endpoint / Handler</th>
+                    <th style="padding:9px 12px;text-align:center;color:var(--muted);font-weight:600">
+                      p95 K6
+                      <span class="info-hint-wrap" style="position:relative;margin-left:4px">
+                        <span class="info-hint-btn" style="font-size:9px">i</span>
+                        <span class="info-hint-box" style="position:fixed;width:240px;z-index:9999;line-height:1.6">
+                          Percentil 95 de latência do último run K6. 95% das requisições responderam abaixo desse tempo. Meta: &lt; 500ms.
+                        </span>
+                      </span>
+                    </th>
+                    <th style="padding:9px 12px;text-align:center;color:var(--muted);font-weight:600">
+                      Mutation
+                      <span class="info-hint-wrap" style="position:relative;margin-left:4px">
+                        <span class="info-hint-btn" style="font-size:9px">i</span>
+                        <span class="info-hint-box" style="position:fixed;width:240px;z-index:9999;line-height:1.6">
+                          % de mutantes eliminados pelo Stryker.NET neste handler. Abaixo de 70% indica lógica não validada — possíveis erros silenciosos.
+                        </span>
+                      </span>
+                    </th>
+                    <th style="padding:9px 12px;text-align:center;color:var(--muted);font-weight:600">
+                      Índice de Risco
+                      <span class="info-hint-wrap" style="position:relative;margin-left:4px">
+                        <span class="info-hint-btn" style="font-size:9px">i</span>
+                        <span class="info-hint-box" style="position:fixed;width:260px;z-index:9999;line-height:1.6">
+                          Combina p95 normalizado × (1 − mutation score). Quanto maior, maior a chance de erros invisíveis sob carga. Alto (&gt;0.5), Médio (0.2–0.5), Baixo (&lt;0.2).
+                        </span>
+                      </span>
+                    </th>
+                    <th style="padding:9px 12px;text-align:center;color:var(--muted);font-weight:600">Risco</th>
+                    <th style="padding:9px 12px;text-align:center;color:var(--muted);font-weight:600">Ação</th>
+                  </tr>
+                </thead>
+                <tbody id="corr-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Drill-down modal -->
+          <div id="corr-modal-overlay" onclick="corrCloseModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10000;align-items:flex-start;justify-content:center;padding-top:60px;overflow-y:auto">
+            <div onclick="event.stopPropagation()" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;width:min(580px,94vw);margin-bottom:40px;overflow:hidden">
+              <!-- header -->
+              <div style="display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--surface2)">
+                <span id="corr-modal-risk-dot" style="width:10px;height:10px;border-radius:50%;flex-shrink:0"></span>
+                <div style="flex:1">
+                  <div id="corr-modal-title" style="font-size:14px;font-weight:700;color:var(--text)"></div>
+                  <div id="corr-modal-subtitle" style="font-size:11px;color:var(--muted);margin-top:2px"></div>
+                </div>
+                <button onclick="corrCloseModal()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer">&#10005;</button>
+              </div>
+              <!-- métricas -->
+              <div id="corr-modal-metrics" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border)">
+                <!-- preenchido via JS -->
+              </div>
+              <!-- diagnóstico -->
+              <div style="padding:16px 20px">
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">&#128269; Diagnóstico</div>
+                <div id="corr-modal-diag" style="font-size:12px;color:var(--muted);line-height:1.8;background:var(--surface2);border-left:3px solid var(--border);padding:10px 14px;border-radius:0 6px 6px 0;margin-bottom:16px"></div>
+                <!-- recomendações -->
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">&#127919; Recomendações</div>
+                <div id="corr-modal-recs" style="display:flex;flex-direction:column;gap:8px"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Empty / loading -->
+          <div id="corr-empty" style="text-align:center;padding:48px 0;color:var(--muted)">
+            <div style="font-size:2.5rem;margin-bottom:10px">&#128280;</div>
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px">Carregando análise...</div>
+            <div style="font-size:12px">Buscando dados K6 e Mutation para cruzar.</div>
           </div>
 
         </div>
