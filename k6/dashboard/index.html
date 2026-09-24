@@ -100,7 +100,7 @@ let runReloadPending = false;
 let verInfo = {};
 
 // IDs das secoes navegaveis (exceto detalhes que e fixo)
-const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','mutacaoBlock','sonarBlock','owaspBlock','pciBlock','depBlock','evolucaoBlock','integrationBlock','obsMetricasBlock','obsLogsBlock','obsTracesBlock','obsErrosBlock','obsContainersBlock'];
+const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','mutacaoBlock','sonarBlock','owaspBlock','pciBlock','depBlock','evolucaoBlock','integrationBlock','obsMetricasBlock','obsLogsBlock','obsTracesBlock','obsErrosBlock','obsContainersBlock','healthMapBlock'];
 let activeSection = null; // null = nenhuma extra visivel
 
 const TYPE_ORDER = ['smoke','load','stress','spike','soak'];
@@ -1221,7 +1221,122 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
     if (typeof _origShowSectionSonar === 'function') _origShowSectionSonar(id, el);
     if (id === 'sonarBlock') loadSonarData();
     if (id === 'routesBlock') renderRoutes();
+    if (id === 'healthMapBlock') renderHealthMap();
   };
+
+  // ===== HEALTH MAP =====
+  const HM_NODES = [
+    { id:'api',        label:'comprai-api',  icon:'⚙️', x:340, y:150, component:'comprai-api' },
+    { id:'redis',      label:'Redis',         icon:'🗄', x:160, y:290, component:'redis' },
+    { id:'prometheus', label:'Prometheus',    icon:'📊', x:340, y:290, component:'prometheus' },
+    { id:'loki',       label:'Loki',          icon:'📜', x:520, y:290, component:'loki' },
+    { id:'jaeger',     label:'Jaeger',        icon:'🔍', x:160, y:420, component:'jaeger' },
+    { id:'kafka',      label:'Kafka',         icon:'📨', x:340, y:420, component:'kafka' },
+    { id:'rabbitmq',   label:'RabbitMQ',      icon:'🐰', x:520, y:420, component:'rabbitmq' },
+  ];
+  const HM_EDGES = [
+    ['api','redis'],['api','prometheus'],['api','loki'],
+    ['api','jaeger'],['api','kafka'],['api','rabbitmq']
+  ];
+  let hmTimer = null;
+  let hmCountdown = 30;
+  let hmCountdownInt = null;
+
+  function renderHealthMap() {
+    clearTimeout(hmTimer);
+    clearInterval(hmCountdownInt);
+    var wrap = document.getElementById('hm-svg-wrap');
+    if (wrap) wrap.innerHTML = '<div class="obs-loading"><div class="obs-loading-spin"></div>Loading...</div>';
+    fetch('/api/health/status')
+      .then(function(r){ return r.json(); })
+      .then(function(data){ _hmDraw(data); })
+      .catch(function(){ _hmDraw(null); });
+    _hmSchedule();
+  }
+
+  function _hmSchedule() {
+    hmCountdown = 30;
+    var badge = document.getElementById('hm-refresh-badge');
+    hmCountdownInt = setInterval(function(){
+      hmCountdown--;
+      if (badge) badge.innerHTML = '<span class="obs-refresh-dot"></span>' + hmCountdown + 's';
+      if (hmCountdown <= 0) clearInterval(hmCountdownInt);
+    }, 1000);
+    hmTimer = setTimeout(renderHealthMap, 30000);
+  }
+
+  function _hmDraw(data) {
+    var wrap = document.getElementById('hm-svg-wrap');
+    if (!wrap) return;
+    var compMap = {};
+    if (data && data.components) {
+      data.components.forEach(function(c){ compMap[c.name.toLowerCase()] = c; });
+    }
+    var W = Math.max(wrap.clientWidth || 700, 700), H = 520;
+    var dark = document.documentElement.getAttribute('data-theme') !== 'light';
+    var bgCard = dark ? '#0f1623' : '#f1f5f9';
+    var bgNode = dark ? '#1e2535' : '#ffffff';
+    var edgeC  = dark ? '#2d3a50' : '#cbd5e1';
+    var textC  = dark ? '#e2e8f0' : '#1e293b';
+    var sx = (W - 100) / 680;
+
+    var lines = HM_EDGES.map(function(e){
+      var a = HM_NODES.find(function(n){ return n.id===e[0]; });
+      var b = HM_NODES.find(function(n){ return n.id===e[1]; });
+      return '<line x1="'+(a.x*sx+50)+'" y1="'+a.y+'" x2="'+(b.x*sx+50)+'" y2="'+b.y
+        +'" stroke="'+edgeC+'" stroke-width="1.5" stroke-dasharray="5 3"/>';
+    }).join('');
+
+    var nodes = HM_NODES.map(function(n){
+      var comp = data ? (compMap[n.component] || compMap[n.label.toLowerCase()] || null) : null;
+      var status = comp ? comp.status : 'unknown';
+      var ok  = status === 'operational';
+      var deg = status === 'degraded_performance' || status === 'partial_outage';
+      var dotC = ok ? '#22c55e' : deg ? '#f59e0b' : '#ef4444';
+      var ringC= ok ? 'rgba(34,197,94,.2)' : deg ? 'rgba(245,158,11,.15)' : 'rgba(239,68,68,.15)';
+      var uptime = comp && comp.uptime_percentage != null ? comp.uptime_percentage.toFixed(2)+'%' : '—';
+      var cx = n.x*sx+50, cy = n.y;
+      var dLabel = n.label.replace(/'/g,"\'");
+      var dStatus = status.replace(/'/g,"\'");
+      var dDesc = comp ? (comp.description||'').replace(/'/g,"\'") : '';
+      var dUp = uptime;
+      var dUpdated = comp ? (comp.updated_at||'').replace(/'/g,"\'") : '';
+      return '<g style="cursor:pointer" onclick="_hmShowDetail({label:''+dLabel+'',status:''+dStatus+'',uptime:''+dUp+'',description:''+dDesc+'',updated:''+dUpdated+''})">'+
+        '<circle cx="'+cx+'" cy="'+cy+'" r="40" fill="'+ringC+'"/>'+
+        '<circle cx="'+cx+'" cy="'+cy+'" r="30" fill="'+bgNode+'" stroke="'+edgeC+'" stroke-width="1.5"/>'+
+        '<text x="'+cx+'" y="'+(cy-7)+'" text-anchor="middle" font-size="17" font-family="serif">'+n.icon+'</text>'+
+        '<text x="'+cx+'" y="'+(cy+9)+'" text-anchor="middle" font-size="9.5" fill="'+textC+'" font-weight="600">'+n.label+'</text>'+
+        '<circle cx="'+(cx+22)+'" cy="'+(cy-22)+'" r="7" fill="'+dotC+'" stroke="'+bgNode+'" stroke-width="2"/>'+
+      '</g>';
+    }).join('');
+
+    var overall = data && data.status ? data.status : null;
+    var overallOk = overall && overall.indicator === 'none';
+    var overallLabel = overall ? overall.description : 'Unknown';
+    var pillC = overallOk ? '#22c55e' : '#ef4444';
+
+    wrap.innerHTML =
+      '<svg width="'+W+'" height="'+H+'" xmlns="http://www.w3.org/2000/svg">'+
+      '<rect width="'+W+'" height="'+H+'" fill="'+bgCard+'" rx="12"/>'+
+      '<rect x="'+(W/2-95)+'" y="16" width="190" height="28" rx="14" fill="'+pillC+'" opacity=".15"/>'+
+      '<circle cx="'+(W/2-72)+'" cy="30" r="5" fill="'+pillC+'"/>'+
+      '<text x="'+(W/2-62)+'" y="35" font-size="12" fill="'+pillC+'" font-weight="700" font-family="sans-serif">'+overallLabel+'</text>'+
+      lines + nodes + '</svg>';
+
+    document.getElementById('hm-last-update').textContent = 'Updated: ' + new Date().toLocaleTimeString('pt-BR');
+  }
+
+  function _hmShowDetail(d) {
+    var panel = document.getElementById('hm-detail');
+    document.getElementById('hm-detail-title').textContent = d.label;
+    var sc = d.status==='operational' ? '#22c55e' : d.status==='unknown' ? '#94a3b8' : '#ef4444';
+    document.getElementById('hm-detail-body').innerHTML =
+      '<div><span style="color:var(--text-muted)">Status</span><br><span style="color:'+sc+';font-weight:700">'+d.status+'</span></div>'+
+      '<div><span style="color:var(--text-muted)">Uptime</span><br><strong>'+d.uptime+'</strong></div>'+
+      (d.description ? '<div style="grid-column:1/-1"><span style="color:var(--text-muted)">Description</span><br>'+d.description+'</div>' : '')+
+      (d.updated ? '<div style="grid-column:1/-1"><span style="color:var(--text-muted)">Last updated</span><br>'+new Date(d.updated).toLocaleString("pt-BR")+'</div>' : '');
+    panel.style.display = '';
+  }
 
 
 
@@ -4130,6 +4245,9 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <div class="nav-item" id="nav-obs-containers" onclick="showSection('obsContainersBlock', this); obsLoadContainers();" title="Monitor de Containers">
           <span class="nav-icon">&#128260;</span><span class="nav-text">Containers</span>
         </div>
+        <div class="nav-item" id="nav-health-map" onclick="showSection('healthMapBlock', this); renderHealthMap();" title="Health Map">
+          <span class="nav-icon">&#128200;</span><span class="nav-text">Health Map</span>
+        </div>
       </div>
     </div>
     <div class="nav-group" id="group-seguranca">
@@ -5009,6 +5127,31 @@ tr:hover td { background: rgba(255,255,255,.02); }
           <button onclick="document.getElementById('obs-containers-logs').style.display='none'" style="background:none;border:1px solid var(--border);border-radius:4px;color:var(--text-muted);cursor:pointer;padding:2px 8px">&#10005; Fechar</button>
         </div>
         <pre id="obs-logs-content" style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:12px;font-size:11px;max-height:320px;overflow-y:auto;color:#a0c4a0;white-space:pre-wrap;word-break:break-all;font-family:monospace"></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── HEALTH MAP ──────────────────────────────────────────── -->
+  <section class="content-section" id="healthMapBlock" style="display:none">
+    <div class="section-header" onclick="toggleSection(this)">
+      <span class="section-title-text" style="flex:1">&#128200; Health Map</span>
+      <span class="obs-refresh-badge" id="hm-refresh-badge"><span class="obs-refresh-dot"></span>30s</span>
+      <span class="section-chevron">&#9660;</span>
+    </div>
+    <div class="section-content" style="padding:16px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+        <span style="color:var(--text-muted);font-size:12px" id="hm-last-update">—</span>
+        <button class="obs-range-btn" onclick="renderHealthMap()" style="margin-left:auto">&#8635; Refresh</button>
+      </div>
+      <div id="hm-svg-wrap" style="width:100%;overflow-x:auto;min-height:320px;display:flex;align-items:center;justify-content:center">
+        <div class="obs-loading"><div class="obs-loading-spin"></div>Loading...</div>
+      </div>
+      <div id="hm-detail" style="display:none;margin-top:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <span id="hm-detail-title" style="font-weight:700;font-size:15px"></span>
+          <button onclick="document.getElementById('hm-detail').style.display='none'" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:18px">&#10005;</button>
+        </div>
+        <div id="hm-detail-body" style="display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;font-size:13px"></div>
       </div>
     </div>
   </section>
