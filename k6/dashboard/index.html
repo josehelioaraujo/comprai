@@ -549,6 +549,17 @@ async function liveMetricsTick() {
   }
 }
 
+function toggleLiveMetrics() {
+  var body = document.getElementById('live-chart-body');
+  var chev = document.getElementById('live-chev');
+  var kpis = document.getElementById('live-kpis');
+  if (!body) return;
+  var isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : '';
+  if (chev) chev.style.transform = isOpen ? 'rotate(-90deg)' : 'rotate(0deg)';
+  // KPIs ficam sempre visíveis mesmo colapsado
+}
+
 function liveMetricsStop() {
   if (_liveTimer) { clearInterval(_liveTimer); _liveTimer = null; }
   // Adicionar marcador de fim no gráfico
@@ -5865,23 +5876,27 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
                   <!-- Gráfico ao vivo durante execução -->
                   <div id="liveMetricsPanel" style="display:none;margin-top:16px;border-top:1px solid var(--border);padding-top:14px">
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                    <div onclick="toggleLiveMetrics()" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;cursor:pointer">
                       <div style="display:flex;align-items:center;gap:8px">
-                        <span style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;animation:pulse 1s infinite"></span>
+                        <span style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;animation:pulse 1s infinite" id="live-dot"></span>
                         <span style="font-size:12px;font-weight:600;color:var(--text)">Métricas ao Vivo</span>
                         <span style="font-size:10px;color:var(--muted)">Prometheus · atualiza a cada 5s</span>
                       </div>
-                      <div style="display:flex;gap:16px;font-size:11px">
-                        <span>p95: <strong id="live-p95" style="color:#6366f1">—</strong></span>
-                        <span>req/s: <strong id="live-rps" style="color:#22c55e">—</strong></span>
-                        <span>erro: <strong id="live-err" style="color:#ef4444">—</strong></span>
+                      <div style="display:flex;align-items:center;gap:16px">
+                        <div style="display:flex;gap:16px;font-size:11px" id="live-kpis">
+                          <span>p95: <strong id="live-p95" style="color:#6366f1">—</strong></span>
+                          <span>req/s: <strong id="live-rps" style="color:#22c55e">—</strong></span>
+                          <span>erro: <strong id="live-err" style="color:#ef4444">—</strong></span>
+                        </div>
+                        <span id="live-chev" style="font-size:13px;color:var(--muted);transition:transform .2s;display:inline-block">&#9660;</span>
                       </div>
                     </div>
-                    <div style="position:relative;height:140px">
-                      <canvas id="liveMetricsChart"></canvas>
+                    <div id="live-chart-body">
+                      <div style="position:relative;height:140px">
+                        <canvas id="liveMetricsChart"></canvas>
+                      </div>
+                      <div id="live-phases" style="display:flex;gap:4px;margin-top:6px;font-size:10px;color:var(--muted)"></div>
                     </div>
-                    <!-- Fases do teste -->
-                    <div id="live-phases" style="display:flex;gap:4px;margin-top:6px;font-size:10px;color:var(--muted)"></div>
                   </div>
                 </div>
               </div>
