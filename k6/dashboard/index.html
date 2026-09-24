@@ -3193,7 +3193,6 @@ window.loadCorrelacao = async function() {
     }
 
     // Guardar rows para o modal
-    console.log('[loadCorrelacao] rows carregados:', rows.length, rows.map(function(r){return r.path;}));
     window._corrRows = rows;
 
     // Event delegation para hover nas linhas da tabela
@@ -3314,33 +3313,40 @@ window.corrOpenModal = function(idx) {
 };
 
 window.corrToggleAll = function(thEl) {
-  console.log('[corrToggleAll] chamado, rows:', (window._corrRows||[]).length);
   var rows = window._corrRows || [];
   var chevAll = document.getElementById('corr-chev-all');
-  console.log('[corrToggleAll] chevAll:', chevAll);
+
   // Verificar se há algum aberto
   var anyOpen = rows.some(function(_, i) {
     var det = document.getElementById('corr-det-' + i);
     return det && det.style.display !== 'none';
   });
-  // Se há algum aberto → fechar todos; senão → abrir todos
-  rows.forEach(function(_, i) {
-    var det  = document.getElementById('corr-det-' + i);
-    var chev = document.getElementById('corr-chev-' + i);
-    if (anyOpen) {
-      if (det)  det.style.display  = 'none';
-      if (chev) chev.style.transform = 'rotate(0deg)';
-    } else {
-      if (det && det.style.display === 'none') {
-        det.style.display = '';
-        // Preencher se ainda vazio
-        var body = document.getElementById('corr-det-body-' + i);
-        if (body && body.innerHTML === '') corrToggleRow(i);
+
+  if (anyOpen) {
+    // Fechar todos diretamente sem chamar corrToggleRow
+    rows.forEach(function(_, i) {
+      var det  = document.getElementById('corr-det-' + i);
+      var chev = document.getElementById('corr-chev-' + i);
+      if (det)  det.style.display     = 'none';
+      if (chev) chev.style.transform  = 'rotate(0deg)';
+    });
+    if (chevAll) chevAll.style.transform = 'rotate(0deg)';
+  } else {
+    // Abrir todos — preencher body se vazio
+    rows.forEach(function(r, i) {
+      var det  = document.getElementById('corr-det-' + i);
+      var body = document.getElementById('corr-det-body-' + i);
+      var chev = document.getElementById('corr-chev-' + i);
+      if (det)  det.style.display     = '';
+      if (chev) chev.style.transform  = 'rotate(90deg)';
+      // Preencher o detalhe se ainda vazio (sem fazer toggle)
+      if (body && body.innerHTML.trim() === '') {
+        // Chama a parte de preenchimento de corrToggleRow diretamente
+        corrFillDetail(i);
       }
-      if (chev) chev.style.transform = 'rotate(90deg)';
-    }
-  });
-  if (chevAll) chevAll.style.transform = anyOpen ? 'rotate(0deg)' : 'rotate(90deg)';
+    });
+    if (chevAll) chevAll.style.transform = 'rotate(90deg)';
+  }
 };
 
 window.corrCloseModal = function() {
@@ -3348,8 +3354,65 @@ window.corrCloseModal = function() {
   if (overlay) overlay.style.display = 'none';
 };
 
+// Preenche o detalhe sem fazer toggle — usado pelo corrToggleAll
+window.corrFillDetail = function(idx) {
+  var detRow  = document.getElementById('corr-det-' + idx);
+  var detBody = document.getElementById('corr-det-body-' + idx);
+  if (!detBody || detBody.innerHTML.trim() !== '') return;
+  // Reusar a lógica de corrToggleRow para preencher
+  var r = (window._corrRows || [])[idx];
+  if (!r) return;
+  var RISK_COLORS = { high: '#ef4444', medium: '#f59e0b', low: '#22c55e' };
+  var riskColor = RISK_COLORS[r.riskLevel];
+  var p95Color = !r.p95 ? 'var(--muted)' : r.p95 > 1000 ? '#ef4444' : r.p95 > 500 ? '#f59e0b' : '#22c55e';
+  var mutColor = r.mutScore == null ? 'var(--muted)' : r.mutScore < 50 ? '#ef4444' : r.mutScore < 70 ? '#f59e0b' : '#22c55e';
+  var p95Interp = r.p95 == null ? '⚠️ Sem dados K6 para este endpoint.'
+    : r.p95 > 1000 ? '🔴 Crítico — ' + r.p95.toFixed(0) + 'ms: 1 em cada 20 req demora mais que isso.'
+    : r.p95 > 500  ? '🟡 Lento — ' + r.p95.toFixed(0) + 'ms acima da meta de 500ms.'
+    : '🟢 Rápido — ' + r.p95.toFixed(0) + 'ms dentro do esperado.';
+  var mutInterp = r.mutScore == null ? '⚠️ Sem dados Stryker. Execute mutation-tests.yml.'
+    : r.mutScore < 50 ? '🔴 Crítico — ' + r.mutScore.toFixed(1) + '%: alta chance de erros silenciosos.'
+    : r.mutScore < 70 ? '🟡 Atenção — ' + (r.mutInfo && r.mutInfo.survived > 0 ? r.mutInfo.survived + ' mutante(s) sobrevivente(s).' : 'Lacunas nos testes.')
+    : '🟢 Bom — testes validando bem a lógica do handler.';
+  var riskInterp = r.riskLevel === 'high' ? '⚠️ Ponto cego duplo: performance ruim + testes insuficientes.'
+    : r.riskLevel === 'medium' ? '🟡 Lacunas que merecem atenção sob carga.'
+    : '🟢 Performance e cobertura adequados.';
+  var metricsHtml = [
+    { label:'P95 K6', sublabel:'Latência pior caso (95%)', value: r.p95 != null ? r.p95.toFixed(0)+' ms':'—', color:p95Color, interp:p95Interp },
+    { label:'Mutation Score', sublabel:'Lógica validada ('+r.handler+')', value: r.mutScore != null ? r.mutScore.toFixed(1)+'%':'—', color:mutColor, interp:mutInterp },
+    { label:'Índice de Risco', sublabel:'Combinação perf + cobertura', value:(r.riskIdx*100).toFixed(0)+'/100', color:riskColor, interp:riskInterp }
+  ].map(function(m) {
+    return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;flex:1;min-width:140px">' +
+      '<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:1px;font-weight:700">'+m.label+'</div>' +
+      '<div style="font-size:10px;color:var(--muted);margin-bottom:6px;opacity:.7">'+m.sublabel+'</div>' +
+      '<div style="font-size:1.4rem;font-weight:800;color:'+m.color+';line-height:1">'+m.value+'</div>' +
+      '<div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.6;padding-top:8px;border-top:1px solid var(--border)">'+m.interp+'</div>' +
+    '</div>';
+  }).join('');
+  var diagText = r.riskLevel === 'high'
+    ? '⚠️ Risco de <strong>erro silencioso</strong>: possível fallback não testado que falha sem logar.'
+    : r.riskLevel === 'medium'
+    ? '🔬 Lacunas nos testes podem encobrir comportamentos inesperados sob carga moderada.'
+    : '✅ Performance e cobertura dentro do esperado. Continue monitorando.';
+  var recs = [];
+  if (r.p95 != null && r.p95 > 1000) recs.push('Adicione logging de duração por plugin para identificar a fonte lenta');
+  if (r.p95 != null && r.p95 > 500)  recs.push('Verifique timeouts dos HttpClients e efetividade do cache Redis');
+  if (r.mutScore != null && r.mutScore < 70) recs.push('Adicione teste para o caminho de fallback — simule timeout e verifique o log de erro');
+  if (r.mutScore != null && r.mutScore < 50) recs.push('Substitua assertions genéricas por validações dos valores retornados');
+  if (r.riskLevel === 'high') recs.push('Instrumente com OTel: contador de fallback + duração por fonte → detecta erro silencioso');
+  if (!recs.length) recs.push('Mantenha p95 < 300ms e rode Mutation Tests a cada PR');
+  var recsHtml = recs.map(function(rec,i) {
+    return '<div style="display:flex;gap:8px;font-size:11px;color:var(--muted);padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04)">' +
+      '<span style="color:'+riskColor+';font-weight:700;flex-shrink:0">'+(i+1)+'.</span><span>'+rec+'</span></div>';
+  }).join('');
+  detBody.innerHTML =
+    '<div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">'+metricsHtml+'</div>' +
+    '<div style="font-size:12px;margin-bottom:10px;padding:8px 12px;border-left:3px solid '+riskColor+';background:rgba(0,0,0,.2);border-radius:0 6px 6px 0">'+diagText+'</div>' +
+    '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px">Recomendações</div>' +
+    recsHtml;
+};
+
 window.corrToggleRow = function(idx) {
-  console.log('[corrToggleRow] idx:', idx, 'rows:', (window._corrRows||[]).length);
   var r = (window._corrRows || [])[idx];
   if (!r) return;
 
