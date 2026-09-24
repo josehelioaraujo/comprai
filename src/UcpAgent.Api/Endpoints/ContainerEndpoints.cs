@@ -111,6 +111,35 @@ public static class ContainerEndpoints
         })
         .WithTags("Containers").WithName("StopContainer").AllowAnonymous();
 
+        // GET /api/containers/{name}/stats — CPU e memória via docker stats
+        app.MapGet("/api/containers/{name}/stats", async (string name, CancellationToken ct) =>
+        {
+            if (!NameRegex.IsMatch(name)) return Results.BadRequest("Nome inválido");
+            try
+            {
+                var result = await RunDockerAsync(
+                    $"stats --no-stream --format "{{{{.CPUPerc}}}}|{{{{.MemUsage}}}}|{{{{.MemPerc}}}}|{{{{.NetIO}}}}|{{{{.BlockIO}}}}" {name}", ct);
+
+                if (result.ExitCode != 0 || string.IsNullOrEmpty(result.Output))
+                    return Results.Ok(new { name, available = false });
+
+                var parts = result.Output.Split('|');
+                return Results.Ok(new
+                {
+                    name,
+                    available  = true,
+                    cpuPercent = parts.Length > 0 ? parts[0].Trim() : "—",
+                    memUsage   = parts.Length > 1 ? parts[1].Trim() : "—",
+                    memPercent = parts.Length > 2 ? parts[2].Trim() : "—",
+                    netIO      = parts.Length > 3 ? parts[3].Trim() : "—",
+                    blockIO    = parts.Length > 4 ? parts[4].Trim() : "—",
+                    updatedAt  = DateTime.UtcNow
+                });
+            }
+            catch (Exception ex) { return Results.Problem(ex.Message, statusCode: 503); }
+        })
+        .WithTags("Containers").WithName("ContainerStats").AllowAnonymous();
+
         // POST /api/containers/{name}/start — sem senha (baixo risco)
         app.MapPost("/api/containers/{name}/start", async (string name, CancellationToken ct) =>
         {
