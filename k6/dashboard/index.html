@@ -267,6 +267,9 @@ async function triggerTest() {
     if (resp.ok || resp.status === 204) {
       btn.textContent = '✓ Disparado!';
       openRunPanel('Aguardando pipeline iniciar...');
+      // Iniciar gráfico ao vivo
+      var testType = document.getElementById('testTypeSelect') ? document.getElementById('testTypeSelect').value : 'stress';
+      liveMetricsStart(testType);
 
       // Tentar extrair runId da resposta
       var runId = null;
@@ -347,12 +350,229 @@ function toggleRunPanelBody() {
   }
 }
 
+// ══════════════════════════════════════════════════════════════
+// GRÁFICO AO VIVO — Métricas Prometheus durante o stress test
+// ══════════════════════════════════════════════════════════════
+
+var _liveChart     = null;
+var _liveTimer     = null;
+var _liveStartTime = null;
+var _liveLabels    = [];
+var _liveP95       = [];
+var _liveRps       = [];
+var _liveErr       = [];
+var _livePhases    = []; // { label, t } fases detectadas
+
+function liveMetricsStart(testType) {
+  _liveStartTime = Date.now();
+  _liveLabels    = [];
+  _liveP95       = [];
+  _liveRps       = [];
+  _liveErr       = [];
+  _livePhases    = [{ label: testType || 'teste', t: 0 }];
+
+  var panel = document.getElementById('liveMetricsPanel');
+  if (panel) panel.style.display = '';
+
+  // Inicializar Chart.js
+  var ctx = document.getElementById('liveMetricsChart');
+  if (!ctx) return;
+  if (_liveChart) { _liveChart.destroy(); _liveChart = null; }
+
+  var isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+  var gridColor = isDark ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.06)';
+  var textColor = isDark ? '#94a3b8' : '#64748b';
+
+  _liveChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: _liveLabels,
+      datasets: [
+        {
+          label: 'p95 (ms)',
+          data: _liveP95,
+          borderColor: '#6366f1',
+          backgroundColor: 'rgba(99,102,241,.08)',
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          tension: 0.3,
+          fill: true,
+          yAxisID: 'yLeft'
+        },
+        {
+          label: 'req/s',
+          data: _liveRps,
+          borderColor: '#22c55e',
+          backgroundColor: 'transparent',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0.3,
+          yAxisID: 'yRight'
+        },
+        {
+          label: 'erro %',
+          data: _liveErr,
+          borderColor: '#ef4444',
+          backgroundColor: 'transparent',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0.3,
+          yAxisID: 'yRight'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          position: 'top',
+          align: 'end',
+          labels: { color: textColor, boxWidth: 10, font: { size: 10 } }
+        },
+        tooltip: {
+          backgroundColor: 'rgba(15,20,35,.95)',
+          borderColor: 'rgba(255,255,255,.1)',
+          borderWidth: 1,
+          padding: 10,
+          callbacks: {
+            label: function(ctx) {
+              var v = ctx.parsed.y;
+              if (ctx.dataset.label === 'p95 (ms)') return ' p95: ' + (v != null ? v.toFixed(0) + 'ms' : '—');
+              if (ctx.dataset.label === 'req/s')    return ' req/s: ' + (v != null ? v.toFixed(2) : '—');
+              if (ctx.dataset.label === 'erro %')   return ' erro: ' + (v != null ? v.toFixed(1) + '%' : '—');
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: textColor, font: { size: 9 }, maxTicksLimit: 8 },
+          grid:  { color: gridColor }
+        },
+        yLeft: {
+          type: 'linear', position: 'left',
+          title: { display: true, text: 'p95 (ms)', color: '#6366f1', font: { size: 9 } },
+          ticks: { color: '#6366f1', font: { size: 9 } },
+          grid:  { color: gridColor }
+        },
+        yRight: {
+          type: 'linear', position: 'right',
+          title: { display: true, text: 'req/s | erro%', color: textColor, font: { size: 9 } },
+          ticks: { color: textColor, font: { size: 9 } },
+          grid:  { display: false }
+        }
+      }
+    }
+  });
+
+  // Primeiro ponto imediato, depois a cada 5s
+  liveMetricsTick();
+  _liveTimer = setInterval(liveMetricsTick, 5000);
+}
+
+async function liveMetricsTick() {
+  try {
+    var elapsed = Math.round((Date.now() - _liveStartTime) / 1000);
+    var label = elapsed + 's';
+
+    // Buscar p95 via Prometheus proxy
+    var p95Val = null, rpsVal = null, errVal = null;
+
+    var qP95 = 'histogram_quantile(0.95,sum(rate(http_server_request_duration_seconds_bucket[1m]))by(le))';
+    var qRps = 'sum(rate(http_server_request_duration_seconds_count[1m]))';
+    var qErr = '100*sum(rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[1m]))/(sum(rate(http_server_request_duration_seconds_count[1m]))+1)';
+
+    var [rP95, rRps, rErr] = await Promise.all([
+      fetch('/api/observability/metrics?query=' + encodeURIComponent(qP95)).catch(function(){return null;}),
+      fetch('/api/observability/metrics?query=' + encodeURIComponent(qRps)).catch(function(){return null;}),
+      fetch('/api/observability/metrics?query=' + encodeURIComponent(qErr)).catch(function(){return null;})
+    ]);
+
+    if (rP95 && rP95.ok) {
+      var d = await rP95.json();
+      var v = d?.data?.result?.[0]?.value?.[1];
+      if (v != null && isFinite(+v)) p95Val = Math.round(+v * 1000); // segundos → ms
+    }
+    if (rRps && rRps.ok) {
+      var d2 = await rRps.json();
+      var v2 = d2?.data?.result?.[0]?.value?.[1];
+      if (v2 != null && isFinite(+v2)) rpsVal = parseFloat((+v2).toFixed(3));
+    }
+    if (rErr && rErr.ok) {
+      var d3 = await rErr.json();
+      var v3 = d3?.data?.result?.[0]?.value?.[1];
+      if (v3 != null && isFinite(+v3)) errVal = parseFloat((+v3).toFixed(2));
+    }
+
+    // Atualizar KPIs
+    var kP95 = document.getElementById('live-p95');
+    var kRps = document.getElementById('live-rps');
+    var kErr = document.getElementById('live-err');
+
+    if (kP95) {
+      kP95.textContent = p95Val != null ? p95Val + 'ms' : '—';
+      kP95.style.color = p95Val == null ? 'var(--muted)' : p95Val > 1000 ? '#ef4444' : p95Val > 500 ? '#f59e0b' : '#6366f1';
+    }
+    if (kRps) kRps.textContent = rpsVal != null ? rpsVal + '/s' : '—';
+    if (kErr) {
+      kErr.textContent = errVal != null ? errVal + '%' : '—';
+      kErr.style.color = errVal != null && errVal > 0 ? '#ef4444' : '#22c55e';
+    }
+
+    // Empurrar ponto no gráfico
+    _liveLabels.push(label);
+    _liveP95.push(p95Val);
+    _liveRps.push(rpsVal);
+    _liveErr.push(errVal);
+
+    // Janela deslizante: manter últimos 60 pontos (5 min)
+    var MAX = 60;
+    if (_liveLabels.length > MAX) {
+      _liveLabels.shift(); _liveP95.shift(); _liveRps.shift(); _liveErr.shift();
+    }
+
+    if (_liveChart) _liveChart.update('none');
+
+    // Alerta visual se p95 > 1000ms
+    if (p95Val != null && p95Val > 1000) {
+      if (kP95) kP95.style.animation = 'pulse .5s infinite';
+    } else if (kP95) {
+      kP95.style.animation = '';
+    }
+
+  } catch(e) {
+    console.warn('[liveMetrics] tick error:', e);
+  }
+}
+
+function liveMetricsStop() {
+  if (_liveTimer) { clearInterval(_liveTimer); _liveTimer = null; }
+  // Adicionar marcador de fim no gráfico
+  if (_liveChart && _liveLabels.length > 0) {
+    _liveChart.options.plugins.annotation = {};  // limpar
+    _liveChart.update('none');
+  }
+  // Mudar indicador para "concluído"
+  var panel = document.getElementById('liveMetricsPanel');
+  if (panel) {
+    var dot = panel.querySelector('span[style*="pulse"]');
+    if (dot) { dot.style.background = '#94a3b8'; dot.style.animation = 'none'; }
+    var lbl = panel.querySelector('span[style*="font-weight:600"]');
+    if (lbl) lbl.textContent = 'Métricas do Teste — Concluído';
+  }
+}
+
 function closeRunPanel() {
   var rp = document.getElementById('runPanel');
   rp.style.maxHeight = '0';
   rp.style.padding   = '0';
   rp.classList.remove('open');
   if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+  liveMetricsStop();
   if (typeof window._statusResume === 'function') window._statusResume();
 }
 
@@ -443,6 +663,7 @@ async function pollRunById(runId) {
     if (runStatus !== 'completed') {
       pollTimer = setTimeout(function() { pollRunById(runId); }, 6000);
     } else {
+      liveMetricsStop();
       var icon = conclusion === 'success' ? '✅' : '❌';
       document.getElementById('runStatusMsg').innerHTML = icon + ' Pipeline concluido: <strong>' + (conclusion || '') + '</strong>';
       // Retomar polling de status
@@ -5641,6 +5862,27 @@ tr:hover td { background: rgba(255,255,255,.02); }
                   <div id="runStatusMsg"></div>
                   <div class="jobs-grid" id="jobsGrid"></div>
                   <div class="run-info" id="runInfo"></div>
+
+                  <!-- Gráfico ao vivo durante execução -->
+                  <div id="liveMetricsPanel" style="display:none;margin-top:16px;border-top:1px solid var(--border);padding-top:14px">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                      <div style="display:flex;align-items:center;gap:8px">
+                        <span style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;animation:pulse 1s infinite"></span>
+                        <span style="font-size:12px;font-weight:600;color:var(--text)">Métricas ao Vivo</span>
+                        <span style="font-size:10px;color:var(--muted)">Prometheus · atualiza a cada 5s</span>
+                      </div>
+                      <div style="display:flex;gap:16px;font-size:11px">
+                        <span>p95: <strong id="live-p95" style="color:#6366f1">—</strong></span>
+                        <span>req/s: <strong id="live-rps" style="color:#22c55e">—</strong></span>
+                        <span>erro: <strong id="live-err" style="color:#ef4444">—</strong></span>
+                      </div>
+                    </div>
+                    <div style="position:relative;height:140px">
+                      <canvas id="liveMetricsChart"></canvas>
+                    </div>
+                    <!-- Fases do teste -->
+                    <div id="live-phases" style="display:flex;gap:4px;margin-top:6px;font-size:10px;color:var(--muted)"></div>
+                  </div>
                 </div>
               </div>
             </div>
