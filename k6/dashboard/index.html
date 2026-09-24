@@ -4990,7 +4990,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <div id="qs-main" style="display:none">
           <div style="display:flex;align-items:center;justify-content:center;gap:32px;flex-wrap:wrap;padding:24px 0 16px">
             <!-- Gauge circular -->
-            <div style="position:relative;width:140px;height:140px;flex-shrink:0">
+            <div onclick="qsShowGaugeModal()" title="Ver recomendacoes de melhoria" style="position:relative;width:140px;height:140px;flex-shrink:0;cursor:pointer;transition:opacity .2s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
               <svg width="140" height="140" viewBox="0 0 140 140">
                 <circle cx="70" cy="70" r="58" fill="none" stroke="var(--border)" stroke-width="12"/>
                 <circle id="qs-gauge-arc" cx="70" cy="70" r="58" fill="none" stroke="#22c55e" stroke-width="12"
@@ -5001,6 +5001,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
               <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
                 <span id="qs-number" style="font-size:2.2rem;font-weight:800;line-height:1;color:var(--text)">--</span>
                 <span style="font-size:11px;color:var(--muted);margin-top:2px">/ 100</span>
+                <span style="font-size:9px;color:var(--muted);opacity:.6;margin-top:3px">&#128161; ver dicas</span>
               </div>
             </div>
             <!-- Badge e classificacao -->
@@ -5442,6 +5443,144 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
       // Salvar valores para uso no modal
       var _origRenderDimRaw = window._qsRenderDimRaw;
+
+      // --- Modal de Recomendacoes do Gauge ---
+      window.qsShowGaugeModal = function() {
+        var vals = window._qsCurrentVals || {};
+        var score = parseInt((document.getElementById('qs-number') || {}).textContent) || 0;
+        var badge = (document.getElementById('qs-badge') || {}).textContent || '--';
+
+        // Gerar recomendacoes priorizadas por gap
+        var recs = [];
+
+        // Coverage (meta 80%)
+        var cov = vals['cov'];
+        if (cov == null) {
+          recs.push({ dim:'Cobertura de Testes', icon:'&#128202;', color:'#6366f1', prio:'medium',
+            action:'Execute o CI/CD para gerar dados do SonarCloud.',
+            detail:'Dados de cobertura ainda nao disponiveis.' });
+        } else if (cov < 50) {
+          recs.push({ dim:'Cobertura de Testes', icon:'&#128202;', color:'#ef4444', prio:'high',
+            action:'Adicione testes unitarios nos handlers e servicos de dominio.',
+            detail:'Coverage ' + cov.toFixed(1) + '% esta critico (meta: 80%). Priorize os arquivos sem cobertura listados no SonarCloud.' });
+        } else if (cov < 80) {
+          recs.push({ dim:'Cobertura de Testes', icon:'&#128202;', color:'#f59e0b', prio:'medium',
+            action:'Aumente a cobertura nos handlers com menor percentual.',
+            detail:'Coverage ' + cov.toFixed(1) + '% (meta: 80%). Verifique quais linhas nao sao exercitadas e adicione cenarios de teste.' });
+        } else {
+          recs.push({ dim:'Cobertura de Testes', icon:'&#128202;', color:'#22c55e', prio:'ok',
+            action:'Mantenha o nivel atual e monitore regressoes a cada PR.',
+            detail:'Coverage ' + cov.toFixed(1) + '% — acima da meta de 80%. Excelente!' });
+        }
+
+        // Mutation (meta 70%)
+        var mut = vals['mut'];
+        if (mut == null) {
+          recs.push({ dim:'Mutation Score', icon:'&#129680;', color:'#8b5cf6', prio:'medium',
+            action:'Execute o workflow mutation-tests.yml para gerar os dados.',
+            detail:'Dados de mutacao ainda nao disponiveis.' });
+        } else if (mut < 50) {
+          recs.push({ dim:'Mutation Score', icon:'&#129680;', color:'#ef4444', prio:'high',
+            action:'Revise os testes — eles executam o codigo mas nao validam o comportamento.',
+            detail:'Mutation Score ' + mut.toFixed(1) + '% (meta: 70%). Adicione assertions especificas nos handlers com sobreviventes.' });
+        } else if (mut < 70) {
+          recs.push({ dim:'Mutation Score', icon:'&#129680;', color:'#f59e0b', prio:'medium',
+            action:'Foque nos handlers com sobreviventes listados na secao Mutacao.',
+            detail:'Mutation Score ' + mut.toFixed(1) + '% (meta: 70%). Revise RemoveFromCart e GetOrderBySession que tem os menores scores.' });
+        } else {
+          recs.push({ dim:'Mutation Score', icon:'&#129680;', color:'#22c55e', prio:'ok',
+            action:'Continue cobrindo os novos handlers a cada feature adicionada.',
+            detail:'Mutation Score ' + mut.toFixed(1) + '% — acima da meta de 70%. Otimo trabalho!' });
+        }
+
+        // K6 Error Rate (meta: score > 95 = error < 0.25%)
+        var err = vals['err'];
+        if (err == null) {
+          recs.push({ dim:'Taxa de Erro K6', icon:'&#128293;', color:'#06b6d4', prio:'medium',
+            action:'Execute um stress test (smoke ou load) para gerar dados de confiabilidade.',
+            detail:'Dados de erro K6 ainda nao disponiveis.' });
+        } else if (err < 70) {
+          recs.push({ dim:'Taxa de Erro K6', icon:'&#128293;', color:'#ef4444', prio:'high',
+            action:'Investigue os endpoints com maior taxa de falha na secao Rotas Chamadas.',
+            detail:'Confiabilidade ' + err.toFixed(1) + '% — taxa de erro alta. Verifique logs da aplicacao e politicas de rate limit / resiliencia.' });
+        } else if (err < 95) {
+          recs.push({ dim:'Taxa de Erro K6', icon:'&#128293;', color:'#f59e0b', prio:'medium',
+            action:'Ajuste os thresholds de resiliencia (retry, circuit breaker) e rode um load test.',
+            detail:'Confiabilidade ' + err.toFixed(1) + '% — ha erros esporadicos. Verifique timeouts e dependencias externas (Redis, Kafka).' });
+        } else {
+          recs.push({ dim:'Taxa de Erro K6', icon:'&#128293;', color:'#22c55e', prio:'ok',
+            action:'Agende testes de spike e soak para validar cenarios extremos.',
+            detail:'Confiabilidade ' + err.toFixed(1) + '% — API estavel nos testes de carga. Excelente!' });
+        }
+
+        // Seguranca (meta 100%)
+        var sec = vals['sec'];
+        if (sec == null) {
+          recs.push({ dim:'Seguranca OWASP+PCI', icon:'&#128737;', color:'#f59e0b', prio:'medium',
+            action:'Revise os checklists OWASP e PCI DSS na secao Seguranca.',
+            detail:'Dados de seguranca nao disponiveis — verifique os itens manualmente.' });
+        } else if (sec < 60) {
+          recs.push({ dim:'Seguranca OWASP+PCI', icon:'&#128737;', color:'#ef4444', prio:'high',
+            action:'Abra a secao Seguranca e resolva os itens marcados como NOK imediatamente.',
+            detail:'Score de seguranca ' + sec.toFixed(1) + '% — varios controles criticos pendentes. Priorize A01 (Broken Access Control) e A02 (Cryptographic Failures).' });
+        } else if (sec < 100) {
+          recs.push({ dim:'Seguranca OWASP+PCI', icon:'&#128737;', color:'#f59e0b', prio:'medium',
+            action:'Verifique os itens NOK no OWASP e PCI e implemente os controles restantes.',
+            detail:'Score de seguranca ' + sec.toFixed(1) + '% (' + sec.toFixed(0) + '% dos controles OK). Revise os itens pendentes para atingir 100%.' });
+        } else {
+          recs.push({ dim:'Seguranca OWASP+PCI', icon:'&#128737;', color:'#22c55e', prio:'ok',
+            action:'Mantenha os controles e adicione DAST (OWASP ZAP) para validacao dinamica.',
+            detail:'Todos os controles OWASP+PCI estao OK! Considere implementar varredura DAST.' });
+        }
+
+        // Ordenar: high > medium > ok
+        var order = { high: 0, medium: 1, ok: 2 };
+        recs.sort(function(a, b) { return order[a.prio] - order[b.prio]; });
+
+        // Montar HTML
+        var prioBadge = { high: '<span style="background:#ef444422;color:#ef4444;border:1px solid #ef4444;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700">PRIORIDADE ALTA</span>',
+                          medium: '<span style="background:#f59e0b22;color:#f59e0b;border:1px solid #f59e0b;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700">MELHORAR</span>',
+                          ok: '<span style="background:#22c55e22;color:#22c55e;border:1px solid #22c55e;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700">OK</span>' };
+
+        var scoreColor = score >= 80 ? '#22c55e' : score >= 60 ? '#f59e0b' : '#ef4444';
+        var recsHtml = recs.map(function(r) {
+          return '<div style="padding:12px 14px;background:var(--surface2);border:1px solid ' + r.color + '33;border-radius:8px;margin-bottom:8px">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">' +
+              '<span style="font-size:13px;font-weight:600;color:var(--text)">' + r.icon + ' ' + r.dim + '</span>' +
+              prioBadge[r.prio] +
+            '</div>' +
+            '<div style="font-size:12px;color:var(--muted);margin-bottom:5px">' + r.detail + '</div>' +
+            '<div style="font-size:12px;color:' + r.color + ';font-weight:500">&#128073; ' + r.action + '</div>' +
+          '</div>';
+        }).join('');
+
+        var nextScore = Math.min(100, score + 5);
+        var html =
+          '<div style="text-align:center;margin-bottom:18px">' +
+            '<div style="font-size:2.8rem;font-weight:800;color:' + scoreColor + ';line-height:1">' + score + '</div>' +
+            '<div style="font-size:12px;color:var(--muted);margin-top:2px">/ 100 &nbsp;&#183;&nbsp; ' + badge + '</div>' +
+          '</div>' +
+          '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">&#127919; Recomendacoes para chegar a ' + nextScore + '+</div>' +
+          recsHtml;
+
+        // Exibir no modal reutilizavel
+        var overlay = document.getElementById('qs-gauge-modal-overlay');
+        if (!overlay) {
+          overlay = document.createElement('div');
+          overlay.id = 'qs-gauge-modal-overlay';
+          overlay.onclick = function(e) { if (e.target === overlay) overlay.style.display = 'none'; };
+          overlay.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10001;align-items:flex-start;justify-content:center;padding-top:60px;overflow-y:auto';
+          overlay.innerHTML =
+            '<div onclick="event.stopPropagation()" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px 26px;max-width:440px;width:92%;position:relative;margin-bottom:40px">' +
+              '<button onclick="document.getElementById(\'qs-gauge-modal-overlay\').style.display=\'none\'" style="position:absolute;top:12px;right:14px;background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer">&#10005;</button>' +
+              '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:16px">&#127942; Analise de Qualidade</div>' +
+              '<div id="qs-gauge-modal-body"></div>' +
+            '</div>';
+          document.body.appendChild(overlay);
+        }
+        document.getElementById('qs-gauge-modal-body').innerHTML = html;
+        overlay.style.display = 'flex';
+      };
     })();
     </script>
 
