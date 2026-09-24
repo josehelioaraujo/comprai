@@ -3132,8 +3132,9 @@ window.loadCorrelacao = async function() {
         var riskTxt = (r.riskIdx * 100).toFixed(0);
         var mColor  = METHOD_COLORS[r.method] || 'var(--muted)';
 
-        return '<tr onclick="corrOpenModal(' + i + ')" style="cursor:pointer;transition:background .15s" ' +
-          'data-cidx="' + i + '">' +
+        var detRowId = 'corr-det-' + i;
+        return '<tr style="cursor:pointer;transition:background .15s" data-cidx="' + i + '"' +
+          ' onclick="corrToggleRow(' + i + ')">' +
           '<td style="padding:10px 12px">' +
             '<div style="display:flex;align-items:center;gap:8px">' +
               '<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:rgba(255,255,255,.07);color:' + mColor + '">' + r.method + '</span>' +
@@ -3163,7 +3164,12 @@ window.loadCorrelacao = async function() {
               RISK_LABELS[r.riskLevel] + '</span>' +
           '</td>' +
           '<td style="padding:10px 12px;text-align:center">' +
-            '<span style="font-size:11px;color:#6366f1;cursor:pointer">&#128269; Drill-down</span>' +
+            '<span class="corr-row-chev" id="corr-chev-' + i + '" style="font-size:13px;color:var(--muted);transition:transform .2s;display:inline-block">&#9660;</span>' +
+          '</td>' +
+        '</tr>' +
+        '<tr id="corr-det-' + i + '" style="display:none">' +
+          '<td colspan="6" style="padding:0;border-bottom:2px solid var(--border)">' +
+            '<div id="corr-det-body-' + i + '" style="padding:14px 16px;background:rgba(0,0,0,.2)"></div>' +
           '</td>' +
         '</tr>';
       }).join('');
@@ -3292,6 +3298,104 @@ window.corrOpenModal = function(idx) {
 window.corrCloseModal = function() {
   var overlay = document.getElementById('corr-modal-overlay');
   if (overlay) overlay.style.display = 'none';
+};
+
+window.corrToggleRow = function(idx) {
+  var r = (window._corrRows || [])[idx];
+  if (!r) return;
+
+  var detRow  = document.getElementById('corr-det-' + idx);
+  var detBody = document.getElementById('corr-det-body-' + idx);
+  var chev    = document.getElementById('corr-chev-' + idx);
+  if (!detRow) return;
+
+  var isOpen = detRow.style.display !== 'none';
+
+  // Fechar todos os outros
+  (window._corrRows || []).forEach(function(_, j) {
+    if (j === idx) return;
+    var dr = document.getElementById('corr-det-' + j);
+    var ch = document.getElementById('corr-chev-' + j);
+    if (dr) dr.style.display = 'none';
+    if (ch) ch.style.transform = 'rotate(0deg)';
+  });
+
+  if (isOpen) {
+    detRow.style.display = 'none';
+    if (chev) chev.style.transform = 'rotate(0deg)';
+    return;
+  }
+
+  // Abrir e preencher o detalhe inline
+  detRow.style.display = '';
+  if (chev) chev.style.transform = 'rotate(90deg)';
+
+  if (!detBody) return;
+
+  var RISK_COLORS = { high: '#ef4444', medium: '#f59e0b', low: '#22c55e' };
+  var riskColor = RISK_COLORS[r.riskLevel];
+
+  var p95Color = !r.p95 ? 'var(--muted)'
+    : r.p95 > 1000 ? '#ef4444' : r.p95 > 500 ? '#f59e0b' : '#22c55e';
+  var mutColor = r.mutScore == null ? 'var(--muted)'
+    : r.mutScore < 50 ? '#ef4444' : r.mutScore < 70 ? '#f59e0b' : '#22c55e';
+
+  // 3 métricas em linha
+  var metricsHtml = [
+    { label: 'p95 K6',
+      value: r.p95 != null ? r.p95.toFixed(0) + ' ms' : '—',
+      color: p95Color,
+      hint: r.p95 == null ? 'Sem dados K6 para este endpoint'
+           : r.p95 > 1000 ? '🔴 Crítico — 1 em cada 20 req demora mais que isso'
+           : r.p95 > 500  ? '🟡 Lento — revisar cache e timeouts'
+           : '🟢 Dentro do esperado (meta: < 500ms)' },
+    { label: 'Mutation Score',
+      value: r.mutScore != null ? r.mutScore.toFixed(1) + '%' : '—',
+      color: mutColor,
+      hint: r.mutScore == null ? 'Sem dados Stryker para este handler'
+           : r.mutScore < 50 ? '🔴 Crítico — muita lógica não validada pelos testes'
+           : r.mutScore < 70 ? '🟡 ' + (r.mutInfo ? r.mutInfo.survived + ' mutante(s) sobrevivente(s)' : 'Lacunas nos testes')
+           : '🟢 Testes validando bem a lógica' },
+    { label: 'Índice de Risco',
+      value: (r.riskIdx * 100).toFixed(0) + '/100',
+      color: riskColor,
+      hint: 'p95 normalizado (50%) + lacuna mutation (50%). Quanto maior, maior chance de erro silencioso sob carga.' }
+  ].map(function(m) {
+    return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;flex:1;min-width:120px">' +
+      '<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px" title="' + m.hint + '">' + m.label + ' <span style="opacity:.5">ℹ</span></div>' +
+      '<div style="font-size:1.3rem;font-weight:800;color:' + m.color + ';line-height:1.1">' + m.value + '</div>' +
+      '<div style="font-size:10px;color:var(--muted);margin-top:4px;line-height:1.4">' + m.hint + '</div>' +
+    '</div>';
+  }).join('');
+
+  // Diagnóstico compacto
+  var diagText = r.riskLevel === 'high'
+    ? '⚠️ Risco de <strong>erro silencioso</strong>: possível fallback não testado que falha sem logar.'
+    : r.riskLevel === 'medium'
+    ? '🔬 Lacunas nos testes podem encobrir comportamentos inesperados sob carga moderada.'
+    : '✅ Performance e cobertura dentro do esperado. Continue monitorando.';
+
+  // Recomendações compactas
+  var recs = [];
+  if (r.p95 != null && r.p95 > 1000) recs.push('Adicione logging de duração por plugin de catálogo para identificar a fonte lenta');
+  if (r.p95 != null && r.p95 > 500)  recs.push('Verifique timeouts dos HttpClients e efetividade do cache Redis (HybridCache)');
+  if (r.mutScore != null && r.mutScore < 70) recs.push('Adicione teste explícito para o caminho de fallback — simule timeout do plugin e verifique o log de erro');
+  if (r.mutScore != null && r.mutScore < 50) recs.push('Substitua assertions genéricas (IsSuccess) por validações dos valores retornados');
+  if (r.riskLevel === 'high') recs.push('Instrumente com OTel: contador de fallback + duração por fonte → detecta erro silencioso no Prometheus');
+  if (!recs.length) recs.push('Mantenha p95 < 300ms e execute Mutation Tests a cada PR para não regredir');
+
+  var recsHtml = recs.map(function(rec, i) {
+    return '<div style="display:flex;gap:8px;font-size:11px;color:var(--muted);padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04)">' +
+      '<span style="color:' + riskColor + ';font-weight:700;flex-shrink:0">' + (i+1) + '.</span>' +
+      '<span>' + rec + '</span>' +
+    '</div>';
+  }).join('');
+
+  detBody.innerHTML =
+    '<div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">' + metricsHtml + '</div>' +
+    '<div style="font-size:12px;margin-bottom:10px;padding:8px 12px;border-left:3px solid ' + riskColor + ';background:rgba(0,0,0,.2);border-radius:0 6px 6px 0">' + diagText + '</div>' +
+    '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px">Recomendações</div>' +
+    recsHtml;
 };
 
 
@@ -6790,25 +6894,33 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
           <!-- KPI topo -->
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px" id="corr-kpi-row" style="display:none">
-            <div class="kpi-card" style="position:relative">
-              <div class="kpi-hint">Endpoints com risco ALTO — p95 elevado e mutation score abaixo de 70%.</div>
-              <div class="kpi-label">&#128308; Risco Alto</div>
-              <div class="kpi-value" id="corr-kpi-high" style="color:#ef4444">—</div>
-            </div>
-            <div class="kpi-card" style="position:relative">
-              <div class="kpi-hint">Endpoints com risco MÉDIO — p95 aceitável mas mutation score com lacunas.</div>
-              <div class="kpi-label">&#128993; Risco Médio</div>
-              <div class="kpi-value" id="corr-kpi-med" style="color:#f59e0b">—</div>
-            </div>
-            <div class="kpi-card" style="position:relative">
-              <div class="kpi-hint">Endpoints com risco BAIXO — performance ok e testes validando a lógica.</div>
-              <div class="kpi-label">&#128994; Risco Baixo</div>
-              <div class="kpi-value" id="corr-kpi-low" style="color:#22c55e">—</div>
-            </div>
-            <div class="kpi-card" style="position:relative">
-              <div class="kpi-hint">Pior endpoint — maior índice de risco combinado desta análise.</div>
-              <div class="kpi-label">&#127919; Maior Risco</div>
-              <div class="kpi-value" id="corr-kpi-worst" style="font-size:13px;margin-top:4px">—</div>
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:10px 14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">
+              <!-- Risco Alto -->
+              <div title="Endpoints com risco ALTO — p95 elevado e mutation score abaixo de 70%" style="display:flex;align-items:center;gap:6px;padding:5px 12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);border-radius:20px">
+                <span style="width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block"></span>
+                <span style="font-size:11px;color:var(--muted)">Alto</span>
+                <span id="corr-kpi-high" style="font-size:13px;font-weight:800;color:#ef4444">—</span>
+              </div>
+              <div style="width:1px;height:20px;background:var(--border)"></div>
+              <!-- Risco Médio -->
+              <div title="Endpoints com risco MÉDIO — p95 aceitável mas mutation score com lacunas" style="display:flex;align-items:center;gap:6px;padding:5px 12px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);border-radius:20px">
+                <span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block"></span>
+                <span style="font-size:11px;color:var(--muted)">Médio</span>
+                <span id="corr-kpi-med" style="font-size:13px;font-weight:800;color:#f59e0b">—</span>
+              </div>
+              <div style="width:1px;height:20px;background:var(--border)"></div>
+              <!-- Risco Baixo -->
+              <div title="Endpoints com risco BAIXO — performance ok e testes validando a lógica" style="display:flex;align-items:center;gap:6px;padding:5px 12px;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);border-radius:20px">
+                <span style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block"></span>
+                <span style="font-size:11px;color:var(--muted)">Baixo</span>
+                <span id="corr-kpi-low" style="font-size:13px;font-weight:800;color:#22c55e">—</span>
+              </div>
+              <div style="width:1px;height:20px;background:var(--border)"></div>
+              <!-- Maior Risco -->
+              <div title="Endpoint com maior índice de risco combinado" style="display:flex;align-items:center;gap:6px;margin-left:4px">
+                <span style="font-size:11px;color:var(--muted)">&#127919; Maior risco:</span>
+                <span id="corr-kpi-worst" style="font-size:12px;font-weight:700;color:var(--text);font-family:monospace">—</span>
+              </div>
             </div>
           </div>
 
