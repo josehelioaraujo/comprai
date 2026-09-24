@@ -100,7 +100,7 @@ let runReloadPending = false;
 let verInfo = {};
 
 // IDs das secoes navegaveis (exceto detalhes que e fixo)
-const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','mutacaoBlock','sonarBlock','owaspBlock','pciBlock','depBlock','evolucaoBlock','integrationBlock','obsMetricasBlock','obsLogsBlock','obsTracesBlock','obsErrosBlock','obsContainersBlock','healthMapBlock'];
+const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','mutacaoBlock','sonarBlock','owaspBlock','pciBlock','depBlock','evolucaoBlock','integrationBlock','obsMetricasBlock','obsLogsBlock','obsTracesBlock','obsErrosBlock','obsContainersBlock','healthMapBlock','qualityScoreBlock'];
 let activeSection = null; // null = nenhuma extra visivel
 
 const TYPE_ORDER = ['smoke','load','stress','spike','soak'];
@@ -4450,6 +4450,9 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <span class="nav-text">&#x2B50; Qualidade</span><span class="nav-group-chevron">&#9660;</span>
       </div>
       <div class="nav-group-items">
+        <div class="nav-item" id="nav-quality-score" onclick="showSection('qualityScoreBlock', this); loadQualityScore();" title="Quality Score unificado 0-100">
+          <span class="nav-icon">&#127942;</span><span class="nav-text">Quality Score</span>
+        </div>
         <div class="nav-item" id="nav-sonar" onclick="showSection('sonarBlock', this)" title="SonarCloud Quality Gate">
           <span class="nav-icon">&#9728;</span><span class="nav-text">SonarCloud</span>
         </div>
@@ -4965,6 +4968,331 @@ tr:hover td { background: rgba(255,255,255,.02); }
         </div>
       </div>
     </div>
+
+    <!-- ===== QUALITY SCORE ===== -->
+    <div class="section-block" id="qualityScoreBlock" style="display:none">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title-text">&#127942; Quality Score Unificado
+          <span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative">
+            <span class="info-hint-btn">i</span>
+            <span class="info-hint-box" style="position:fixed;width:280px;z-index:9999">Score 0-100 calculado a partir de 4 dimensoes: Cobertura de Testes (25%), Mutation Score (30%), Taxa de Erro K6 (25%) e Seguranca OWASP+PCI (20%). Dados carregados das fontes ja disponiveis no dashboard.</span>
+          </span>
+        </span>
+      </div>
+      <div class="section-content">
+        <!-- Score principal -->
+        <div id="qs-main" style="display:none">
+          <div style="display:flex;align-items:center;justify-content:center;gap:32px;flex-wrap:wrap;padding:24px 0 16px">
+            <!-- Gauge circular -->
+            <div style="position:relative;width:140px;height:140px;flex-shrink:0">
+              <svg width="140" height="140" viewBox="0 0 140 140">
+                <circle cx="70" cy="70" r="58" fill="none" stroke="var(--border)" stroke-width="12"/>
+                <circle id="qs-gauge-arc" cx="70" cy="70" r="58" fill="none" stroke="#22c55e" stroke-width="12"
+                  stroke-dasharray="364.4" stroke-dashoffset="364.4"
+                  stroke-linecap="round" transform="rotate(-90 70 70)"
+                  style="transition:stroke-dashoffset .8s ease,stroke .4s"/>
+              </svg>
+              <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+                <span id="qs-number" style="font-size:2.2rem;font-weight:800;line-height:1;color:var(--text)">--</span>
+                <span style="font-size:11px;color:var(--muted);margin-top:2px">/ 100</span>
+              </div>
+            </div>
+            <!-- Badge e classificacao -->
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div id="qs-badge" style="display:inline-block;padding:6px 18px;border-radius:20px;font-size:13px;font-weight:700;border:1px solid">—</div>
+              <div id="qs-label" style="font-size:12px;color:var(--muted);max-width:220px;line-height:1.6"></div>
+              <div id="qs-updated" style="font-size:11px;color:var(--muted);opacity:.7"></div>
+            </div>
+          </div>
+
+          <!-- Dimensoes -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:8px">
+            <!-- Coverage -->
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 16px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <span style="font-size:12px;color:var(--muted)">&#128202; Cobertura de Testes</span>
+                <span style="font-size:10px;color:var(--muted);opacity:.7">peso 25%</span>
+              </div>
+              <div style="font-size:1.4rem;font-weight:700" id="qs-cov-val">--</div>
+              <div style="background:var(--border);border-radius:4px;height:4px;margin-top:6px;overflow:hidden">
+                <div id="qs-cov-bar" style="height:100%;border-radius:4px;background:#6366f1;width:0%;transition:width .6s ease"></div>
+              </div>
+              <div style="font-size:10px;color:var(--muted);margin-top:4px" id="qs-cov-pts">— pts</div>
+            </div>
+            <!-- Mutation -->
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 16px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <span style="font-size:12px;color:var(--muted)">&#129680; Mutation Score</span>
+                <span style="font-size:10px;color:var(--muted);opacity:.7">peso 30%</span>
+              </div>
+              <div style="font-size:1.4rem;font-weight:700" id="qs-mut-val">--</div>
+              <div style="background:var(--border);border-radius:4px;height:4px;margin-top:6px;overflow:hidden">
+                <div id="qs-mut-bar" style="height:100%;border-radius:4px;background:#8b5cf6;width:0%;transition:width .6s ease"></div>
+              </div>
+              <div style="font-size:10px;color:var(--muted);margin-top:4px" id="qs-mut-pts">— pts</div>
+            </div>
+            <!-- K6 Error Rate -->
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 16px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <span style="font-size:12px;color:var(--muted)">&#128293; Taxa de Erro K6</span>
+                <span style="font-size:10px;color:var(--muted);opacity:.7">peso 25%</span>
+              </div>
+              <div style="font-size:1.4rem;font-weight:700" id="qs-err-val">--</div>
+              <div style="background:var(--border);border-radius:4px;height:4px;margin-top:6px;overflow:hidden">
+                <div id="qs-err-bar" style="height:100%;border-radius:4px;background:#06b6d4;width:0%;transition:width .6s ease"></div>
+              </div>
+              <div style="font-size:10px;color:var(--muted);margin-top:4px" id="qs-err-pts">— pts</div>
+            </div>
+            <!-- Seguranca -->
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 16px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <span style="font-size:12px;color:var(--muted)">&#128737; Segurança OWASP+PCI</span>
+                <span style="font-size:10px;color:var(--muted);opacity:.7">peso 20%</span>
+              </div>
+              <div style="font-size:1.4rem;font-weight:700" id="qs-sec-val">--</div>
+              <div style="background:var(--border);border-radius:4px;height:4px;margin-top:6px;overflow:hidden">
+                <div id="qs-sec-bar" style="height:100%;border-radius:4px;background:#f59e0b;width:0%;transition:width .6s ease"></div>
+              </div>
+              <div style="font-size:10px;color:var(--muted);margin-top:4px" id="qs-sec-pts">— pts</div>
+            </div>
+          </div>
+
+          <!-- Tabela de pesos e formula -->
+          <div style="margin-top:16px;padding:12px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:8px">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:600">&#129518; COMO O SCORE É CALCULADO</div>
+            <div style="font-size:11px;color:var(--muted);line-height:1.8">
+              <span style="font-family:monospace">Score = (Coverage × 0.25) + (Mutation × 0.30) + (K6_Reliability × 0.25) + (Security × 0.20)</span><br>
+              K6_Reliability = 100 quando error_rate = 0% · decresce linearmente até 0 quando error_rate ≥ 5%<br>
+              Security = média entre (OWASP_ok/OWASP_total) e (PCI_ok/PCI_total) em %
+            </div>
+          </div>
+        </div>
+
+        <!-- Loading / empty -->
+        <div id="qs-loading" style="text-align:center;padding:40px;color:var(--muted)">
+          <div style="font-size:2rem;margin-bottom:8px">&#9203;</div>
+          <div>Calculando Quality Score...</div>
+        </div>
+        <div id="qs-error" style="display:none;text-align:center;padding:40px;color:var(--muted)">
+          <div style="font-size:2rem;margin-bottom:8px">&#128680;</div>
+          <div id="qs-error-msg" style="color:var(--danger)"></div>
+          <div style="font-size:0.8rem;margin-top:4px">Execute os workflows para gerar os dados de qualidade.</div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+    (function() {
+      var QS_LOADED = false;
+
+      window.loadQualityScore = async function() {
+        if (QS_LOADED) return;
+        var loadingEl = document.getElementById('qs-loading');
+        var mainEl    = document.getElementById('qs-main');
+        var errorEl   = document.getElementById('qs-error');
+        var errorMsg  = document.getElementById('qs-error-msg');
+
+        loadingEl.style.display = 'block';
+        mainEl.style.display    = 'none';
+        errorEl.style.display   = 'none';
+
+        try {
+          // Buscar dados em paralelo
+          var [resMut, resSonar, resK6] = await Promise.all([
+            fetch('/k6/results/mutation/latest.json?t=' + Date.now()),
+            fetch('/k6/results/sonar/latest.json?t=' + Date.now()),
+            fetch('/k6/results/index.json?t=' + Date.now())
+          ]);
+
+          // --- Mutation ---
+          var mutScore = null;
+          if (resMut.ok) {
+            var mut = await resMut.json();
+            mutScore = parseFloat(mut.score) || 0;
+          }
+
+          // --- Coverage via Sonar ---
+          var covScore = null;
+          if (resSonar.ok) {
+            var sonar = await resSonar.json();
+            var mList = (sonar.component || {}).measures || [];
+            mList.forEach(function(m) {
+              if (m.metric === 'coverage') covScore = parseFloat(m.value);
+            });
+          }
+
+          // --- K6 Error Rate ---
+          var errScore = null;
+          var errPct   = null;
+          if (resK6.ok) {
+            var k6 = await resK6.json();
+            // Procurar em qualquer tipo de teste o error_rate mais recente
+            var types = ['smoke','load','stress','spike','soak'];
+            for (var t = 0; t < types.length; t++) {
+              var tp = types[t];
+              if (k6[tp] && k6[tp].http_req_failed != null) {
+                errPct = parseFloat(k6[tp].http_req_failed) * 100;
+                break;
+              }
+              // fallback: campo error_rate direto
+              if (k6[tp] && k6[tp].error_rate != null) {
+                errPct = parseFloat(k6[tp].error_rate);
+                break;
+              }
+            }
+            // se nao achou por tipo, tenta raiz
+            if (errPct === null && k6.http_req_failed != null) errPct = parseFloat(k6.http_req_failed) * 100;
+            if (errPct === null && k6.error_rate    != null) errPct = parseFloat(k6.error_rate);
+          }
+          // Converter error rate em score: 0% erro = 100pts, 5%+ erro = 0pts
+          if (errPct !== null) {
+            errScore = Math.max(0, 100 - (errPct / 5) * 100);
+          }
+
+          // --- Seguranca OWASP + PCI ---
+          // Ler dos arrays ja definidos no dashboard
+          var secScore = null;
+          if (typeof OWASP_ITEMS !== 'undefined' && typeof PCI_ITEMS !== 'undefined' && typeof countStatus !== 'undefined') {
+            var ow = countStatus(OWASP_ITEMS);
+            var pc = countStatus(PCI_ITEMS);
+            var owPct = ow.total > 0 ? (ow.ok / ow.total) * 100 : 0;
+            var pcPct = pc.total > 0 ? (pc.ok / pc.total) * 100 : 0;
+            secScore = (owPct + pcPct) / 2;
+          }
+
+          // --- Calcular score final ---
+          var dimensions = [];
+          var totalWeight = 0;
+          var weightedSum = 0;
+
+          function addDim(val, weight) {
+            if (val !== null) {
+              weightedSum += val * weight;
+              totalWeight += weight;
+            }
+            dimensions.push({ val: val, weight: weight });
+          }
+
+          addDim(covScore,  0.25);
+          addDim(mutScore,  0.30);
+          addDim(errScore,  0.25);
+          addDim(secScore,  0.20);
+
+          if (totalWeight === 0) throw new Error('Nenhum dado disponivel para calcular o score.');
+
+          // Normalizar pelo peso disponivel
+          var finalScore = Math.round(weightedSum / totalWeight);
+
+          // --- Renderizar ---
+          var color = finalScore >= 80 ? '#22c55e' : finalScore >= 60 ? '#f59e0b' : '#ef4444';
+          var label = finalScore >= 80 ? 'EXCELENTE' : finalScore >= 60 ? 'SATISFATORIO' : 'PRECISA MELHORAR';
+          var desc  = finalScore >= 80
+            ? 'Projeto com alta maturidade de qualidade. Continue monitorando regressoes.'
+            : finalScore >= 60
+            ? 'Qualidade aceitavel. Ha oportunidades de melhoria em algumas dimensoes.'
+            : 'Atencao! Algumas dimensoes estao abaixo do esperado. Priorize as melhorias.';
+
+          // Gauge arc: circunferencia = 2*pi*58 = 364.4
+          var arc = document.getElementById('qs-gauge-arc');
+          if (arc) {
+            var offset = 364.4 - (364.4 * finalScore / 100);
+            arc.style.strokeDashoffset = offset;
+            arc.style.stroke = color;
+          }
+
+          setText('qs-number', finalScore);
+          var badge = document.getElementById('qs-badge');
+          if (badge) {
+            badge.textContent = label;
+            badge.style.background = color + '22';
+            badge.style.color = color;
+            badge.style.borderColor = color;
+          }
+          setText('qs-label', desc);
+          setText('qs-updated', 'Calculado em ' + new Date().toLocaleString('pt-BR'));
+
+          // Dimensao Coverage
+          renderDim('qs-cov', covScore, 0.25, '#6366f1', '%');
+          // Dimensao Mutation
+          renderDim('qs-mut', mutScore, 0.30, '#8b5cf6', '%');
+          // Dimensao K6 Erro
+          var errDisplay = errPct !== null ? errPct.toFixed(2) + '% erro' : null;
+          renderDimRaw('qs-err', errScore, errDisplay, 0.25, '#06b6d4');
+          // Dimensao Seguranca
+          renderDim('qs-sec', secScore, 0.20, '#f59e0b', '%');
+
+          // Topbar badge
+          updateTopbarScore(finalScore, color);
+
+          loadingEl.style.display = 'none';
+          mainEl.style.display    = 'block';
+          QS_LOADED = true;
+
+        } catch(e) {
+          loadingEl.style.display = 'none';
+          errorEl.style.display   = 'block';
+          if (errorMsg) errorMsg.textContent = 'Erro: ' + e.message;
+        }
+      };
+
+      function setText(id, val) {
+        var el = document.getElementById(id);
+        if (el && val !== null && val !== undefined) el.textContent = val;
+      }
+
+      function renderDim(prefix, val, weight, color, suffix) {
+        var display = val !== null ? val.toFixed(1) + (suffix || '') : 'N/D';
+        renderDimRaw(prefix, val, display, weight, color);
+      }
+
+      function renderDimRaw(prefix, score, display, weight, color) {
+        setText(prefix + '-val', display !== null ? display : 'N/D');
+        var bar = document.getElementById(prefix + '-bar');
+        if (bar) bar.style.width = (score !== null ? Math.min(score, 100) : 0) + '%';
+        if (bar) bar.style.background = color;
+        var pts = score !== null ? Math.round(score * weight) + ' pts (' + (weight * 100) + '% do score)' : 'dado indisponivel';
+        setText(prefix + '-pts', pts);
+        // Colorir valor
+        var valEl = document.getElementById(prefix + '-val');
+        if (valEl && score !== null) {
+          valEl.style.color = score >= 70 ? '#22c55e' : score >= 50 ? '#f59e0b' : '#ef4444';
+        }
+      }
+
+      function updateTopbarScore(score, color) {
+        var pill = document.getElementById('qs-topbar-pill');
+        if (!pill) {
+          // Criar pill na topbar ao lado do status
+          var statusBtn = document.getElementById('status-pill');
+          if (statusBtn && statusBtn.parentNode) {
+            pill = document.createElement('button');
+            pill.id = 'qs-topbar-pill';
+            pill.title = 'Quality Score — clique para ver detalhes';
+            pill.onclick = function() {
+              var navEl = document.getElementById('nav-quality-score');
+              showSection('qualityScoreBlock', navEl);
+              loadQualityScore();
+            };
+            pill.style.cssText = 'display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;border:1px solid;cursor:pointer;font-size:12px;font-weight:600;background:transparent;transition:all .2s';
+            statusBtn.parentNode.insertBefore(pill, statusBtn);
+          }
+        }
+        if (pill) {
+          pill.textContent = '\u2605 ' + score;
+          pill.style.color = color;
+          pill.style.borderColor = color;
+          pill.style.background = color + '18';
+        }
+      }
+
+      // Hook no showSection para disparar quando abrir
+      var _origQS = window.showSection;
+      window.showSection = function(id, el) {
+        if (typeof _origQS === 'function') _origQS(id, el);
+        if (id === 'qualityScoreBlock') loadQualityScore();
+      };
+    })();
+    </script>
 
     <div class="section-block" id="owaspBlock" style="display:none">
       <div class="section-header" onclick="toggleSection(this)">
