@@ -3312,6 +3312,34 @@ window.corrOpenModal = function(idx) {
   if (overlay) overlay.style.display = 'flex';
 };
 
+window.corrToggleAll = function(thEl) {
+  var rows = window._corrRows || [];
+  var chevAll = document.getElementById('corr-chev-all');
+  // Verificar se há algum aberto
+  var anyOpen = rows.some(function(_, i) {
+    var det = document.getElementById('corr-det-' + i);
+    return det && det.style.display !== 'none';
+  });
+  // Se há algum aberto → fechar todos; senão → abrir todos
+  rows.forEach(function(_, i) {
+    var det  = document.getElementById('corr-det-' + i);
+    var chev = document.getElementById('corr-chev-' + i);
+    if (anyOpen) {
+      if (det)  det.style.display  = 'none';
+      if (chev) chev.style.transform = 'rotate(0deg)';
+    } else {
+      if (det && det.style.display === 'none') {
+        det.style.display = '';
+        // Preencher se ainda vazio
+        var body = document.getElementById('corr-det-body-' + i);
+        if (body && body.innerHTML === '') corrToggleRow(i);
+      }
+      if (chev) chev.style.transform = 'rotate(90deg)';
+    }
+  });
+  if (chevAll) chevAll.style.transform = anyOpen ? 'rotate(0deg)' : 'rotate(90deg)';
+};
+
 window.corrCloseModal = function() {
   var overlay = document.getElementById('corr-modal-overlay');
   if (overlay) overlay.style.display = 'none';
@@ -7011,7 +7039,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
                       </span>
                     </th>
                     <th style="padding:9px 12px;text-align:center;color:var(--muted);font-weight:600">Risco</th>
-                    <th style="padding:9px 12px;text-align:center;color:var(--muted);font-weight:600"><span style="font-size:13px;color:var(--text);opacity:.8">&#9660;</span></th>
+                    <th style="padding:9px 12px;text-align:center;color:var(--muted);font-weight:600;cursor:pointer" onclick="corrToggleAll(this)" title="Expandir / recolher todos"><span id="corr-chev-all" style="font-size:13px;color:var(--text);opacity:.8;transition:transform .25s;display:inline-block">&#9660;</span></th>
                   </tr>
                 </thead>
                 <tbody id="corr-tbody"></tbody>
