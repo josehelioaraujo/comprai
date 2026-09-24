@@ -577,6 +577,34 @@ function liveMetricsStop() {
   }
 }
 
+async function cancelCurrentRun() {
+  if (!currentRunId || !ghCfg) return;
+  var btn = document.getElementById('btnCancelRun');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Cancelando...'; }
+  try {
+    var res = await fetch('/api/github/run/' + currentRunId + '/cancel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (res.ok || res.status === 202) {
+      if (btn) { btn.textContent = '✓ Cancelado'; btn.style.color = '#94a3b8'; btn.style.borderColor = '#94a3b8'; }
+      liveMetricsStop();
+      // Atualizar status no painel
+      var msg = document.getElementById('runStatusMsg');
+      if (msg) msg.innerHTML = '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#94a3b8;margin-right:4px"></span>Run cancelado pelo usuário.';
+      // Parar polling
+      if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+    } else {
+      var body = await res.text();
+      if (btn) { btn.disabled = false; btn.textContent = '✕ Cancelar'; }
+      alert('Erro ao cancelar: ' + res.status + ' — ' + body.substring(0, 100));
+    }
+  } catch(e) {
+    if (btn) { btn.disabled = false; btn.textContent = '✕ Cancelar'; }
+    alert('Erro: ' + e.message);
+  }
+}
+
 function closeRunPanel() {
   var rp = document.getElementById('runPanel');
   rp.style.maxHeight = '0';
@@ -715,7 +743,13 @@ function renderRunStatus(run, jobs) {
   document.getElementById('runStatusMsg').innerHTML = statusLabel + ' &nbsp;|&nbsp; Run <strong>#' + runNum + '</strong>';
   var runUrl = run.html_url || run.htmlUrl || '';
   var runTs  = run.created_at || run.createdAt || '';
-  document.getElementById('runInfo').innerHTML = (runUrl ? '<a href="' + runUrl + '" target="_blank">Ver no GitHub ↗</a>' : '') + (runTs ? ' &nbsp;·&nbsp; Iniciado: ' + new Date(runTs).toLocaleString('pt-BR') : '');
+  var cancelBtn = (runStatus !== 'completed')
+    ? ' &nbsp;<button id="btnCancelRun" onclick="cancelCurrentRun()" style="background:none;border:1px solid #ef4444;color:#ef4444;border-radius:6px;padding:2px 10px;font-size:11px;cursor:pointer;margin-left:4px" title="Cancelar este run">✕ Cancelar</button>'
+    : '';
+  document.getElementById('runInfo').innerHTML =
+    (runUrl ? '<a href="' + runUrl + '" target="_blank">Ver no GitHub ↗</a>' : '') +
+    (runTs  ? ' &nbsp;·&nbsp; Iniciado: ' + new Date(runTs).toLocaleString('pt-BR') : '') +
+    cancelBtn;
   if (!jobs.length) { document.getElementById('jobsGrid').innerHTML = '<div style="color:var(--muted);font-size:13px;">Aguardando jobs...</div>'; return; }
   document.getElementById('jobsGrid').innerHTML = jobs.map(function(job) {
     var dotCls = jobDotClass(job.status, job.conclusion);

@@ -713,6 +713,34 @@ app.MapGet("/api/github/run/{runId}/status", async (long runId, string? repo, IC
 .WithTags("GitHub")
 .AllowAnonymous();
 
+// ── GitHub Run Cancel ─────────────────────────────────────────────────────────
+app.MapPost("/api/github/run/{runId}/cancel", async (long runId, string? repo, IConfiguration config, IHttpClientFactory factory) =>
+{
+    var ghPat = config["GitHub:Pat"]
+             ?? Environment.GetEnvironmentVariable("GH_PAT")
+             ?? string.Empty;
+    if (string.IsNullOrEmpty(ghPat))
+        return Results.Problem("GH_PAT não configurado", statusCode: 500);
+
+    repo ??= config["GitHub:Repo"] ?? "josehelioaraujo/comprai";
+    var client = factory.CreateClient("github");
+
+    var resp = await client.PostAsync(
+        $"https://api.github.com/repos/{repo}/actions/runs/{runId}/cancel",
+        new StringContent("{}", System.Text.Encoding.UTF8, "application/json"));
+
+    // 202 Accepted = cancelamento aceito, 409 = já concluído
+    if (resp.StatusCode == System.Net.HttpStatusCode.Accepted)
+        return Results.Accepted();
+    if (resp.StatusCode == System.Net.HttpStatusCode.Conflict)
+        return Results.Conflict(new { message = "Run já concluído ou não pode ser cancelado" });
+
+    var err = await resp.Content.ReadAsStringAsync();
+    return Results.Problem($"GitHub API: {(int)resp.StatusCode} — {err}", statusCode: 502);
+})
+.WithName("GitHubRunCancel")
+.WithTags("GitHub");
+
 // ── GitHub Run Latest ─────────────────────────────────────────────────────────
 app.MapGet("/api/github/run/latest", async (string? workflow, string? repo, IConfiguration config, IHttpClientFactory factory) =>
 {
