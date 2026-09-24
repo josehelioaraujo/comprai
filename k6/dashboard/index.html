@@ -3180,6 +3180,9 @@ window.loadCorrelacao = async function() {
             '<span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:12px;background:' + riskColor + '22;color:' + riskColor + ';cursor:help" title="' + badgeTitle + '">' +
               RISK_LABELS[r.riskLevel] + '</span>' +
           '</td>' +
+          '<td style="padding:10px 12px;text-align:center">' +
+            '<span id="corr-chev-' + i + '" style="font-size:16px;color:var(--text);opacity:.7;transition:transform .25s;display:inline-block">&#9660;</span>' +
+          '</td>' +
         '</tr>' +
         '<tr id="corr-det-' + i + '" style="display:none">' +
           '<td colspan="6" style="padding:0;border-bottom:2px solid var(--border)">' +
