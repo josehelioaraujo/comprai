@@ -3135,7 +3135,7 @@ window.loadCorrelacao = async function() {
         var detRowId  = 'corr-det-' + i;
         var riskTitle  = 'Indice = p95 norm x 50% + lacuna mut x 50%. ' + (r.riskLevel === 'high' ? 'ALTO: ponto cego duplo — performance degradada + testes insuficientes.' : r.riskLevel === 'medium' ? 'MEDIO: lacunas que merecem atencao sob carga.' : 'BAIXO: performance e cobertura OK.');
         var badgeTitle = r.riskLevel === 'high' ? 'Acao imediata: p95 alto + mutation baixo = risco de erro silencioso sob carga' : r.riskLevel === 'medium' ? 'Monitorar: ha lacunas que merecem atencao' : 'Nivel aceitavel — continue monitorando';
-        return '<tr style="cursor:pointer;transition:background .15s" data-cidx="' + i + '"' +
+        return '<tr style="cursor:pointer;transition:background .15s;background:var(--surface)" data-cidx="' + i + '"' +
           ' onclick="corrToggleRow(' + i + ')">' +
           '<td style="padding:10px 12px">' +
             '<div style="display:flex;align-items:center;gap:8px">' +
@@ -6921,7 +6921,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
           <!-- Tabela resumo últimos runs -->
           <div id="evol-insights" style="display:none;margin-top:16px"></div>
           <div id="evol-table-wrap" style="display:none;overflow-x:auto;border-radius:6px;border:1px solid var(--border);margin-top:16px">
-            <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <table style="width:100%;border-collapse:collapse;font-size:12px;background:var(--surface)">
               <thead>
                 <tr style="background:var(--surface2);border-bottom:1px solid var(--border)">
                   <th style="padding:8px 12px;text-align:left;color:var(--muted);font-weight:600">Run</th>
