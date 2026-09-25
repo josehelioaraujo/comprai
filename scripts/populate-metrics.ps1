@@ -23,7 +23,7 @@ function Invoke-Api {
         }
         return $r.StatusCode
     } catch {
-        $code = $_.Exception.Response?.StatusCode?.value__ ?? "ERR"
+        $resp = $_.Exception.Response; $code = if ($resp) { [int]$resp.StatusCode } else { "ERR" }
         return $code
     }
 }
@@ -142,3 +142,4 @@ Write-Host "  CartAdds : $totalCart     (ucp_cart_add_items_total)"
 Write-Host "  Checkouts: $totalCheckout (ucp_checkout_requests_total)"
 Write-Host ""
 Write-Host "Aguarde ~15s para o Prometheus raspar e verifique o OpsWatch." -ForegroundColor Cyan
+
