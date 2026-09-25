@@ -105,11 +105,10 @@ for ($round = 1; $round -le $Rounds; $round++) {
     Write-Host "  [cart] Adicionando $($products.Count) produtos..."
     foreach ($p in $products) {
         $body = @{
-            sessionId = $sessionId
-            product   = @{ id=$p.id; name=$p.name; price=$p.price; source=$p.source; imageUrl=$null; url=$null; description=$null }
-            quantity  = 1
+            product  = @{ id=$p.id; name=$p.name; price=$p.price; source=$p.source; imageUrl=$null; url=$null; description=$null }
+            quantity = 1
         }
-        $sc = Invoke-Api -Method "POST" -Path "/api/cart/add" -Body $body
+        $sc = Invoke-Api -Method "POST" -Path "/api/cart/$sessionId/items" -Body $body
         $totalCart++
         Write-Host "    $($p.name) [$sc]"
         Start-Sleep -Milliseconds 200
@@ -117,11 +116,8 @@ for ($round = 1; $round -le $Rounds; $round++) {
 
     # ── 4. /api/checkout ─────────────────────────────────────────────────────
     Write-Host "  [checkout] Checkout da sessao $sessionId..."
-    $body = @{
-        sessionId = $sessionId
-        customer  = @{ name="Populate Script"; email="populate@test.com"; phone="11999999999"; address="Rua Teste, 123" }
-    }
-    $sc = Invoke-Api -Method "POST" -Path "/api/checkout" -Body $body
+    $body = @{ name="Populate Script"; email="populate@test.com"; phone="11999999999"; address="Rua Teste, 123" }
+    $sc = Invoke-Api -Method "POST" -Path "/api/checkout/$sessionId" -Body $body
     $totalCheckout++
     Write-Host "    /api/checkout [$sc]"
 
@@ -142,4 +138,5 @@ Write-Host "  CartAdds : $totalCart     (ucp_cart_add_items_total)"
 Write-Host "  Checkouts: $totalCheckout (ucp_checkout_requests_total)"
 Write-Host ""
 Write-Host "Aguarde ~15s para o Prometheus raspar e verifique o OpsWatch." -ForegroundColor Cyan
+
 
