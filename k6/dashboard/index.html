@@ -7847,10 +7847,10 @@ tr:hover td { background: rgba(255,255,255,.02); }
             <button class="obs-range-btn" onclick="obsLoad('metricas')" style="margin-left:auto">&#8635; Atualizar</button>
           </div>
           <div class="obs-kpi-grid" id="obs-met-kpis">
-            <div class="obs-kpi-card" id="obs-kpi-rps"><div class="obs-tooltip" id="obs-tip-rps">Requisições por segundo — média dos últimos 5 min</div><div class="obs-kpi-label">req/s</div><div class="obs-kpi-value" id="obs-met-rps">—</div><div class="obs-kpi-sub">últimos 5 min</div></div>
-            <div class="obs-kpi-card" id="obs-kpi-p99"><div class="obs-tooltip" id="obs-tip-p99">Latência no percentil 99 — 99% das requisições respondem abaixo desse tempo</div><div class="obs-kpi-label">Latência p99</div><div class="obs-kpi-value" id="obs-met-p99">—</div><div class="obs-kpi-sub">ms</div></div>
-            <div class="obs-kpi-card" id="obs-kpi-err"><div class="obs-tooltip" id="obs-tip-err">% de respostas 5xx nos últimos 5 min — meta: &lt; 0.1%</div><div class="obs-kpi-label">Taxa de Erro</div><div class="obs-kpi-value" id="obs-met-err">—</div><div class="obs-kpi-sub">% 5xx</div></div>
-            <div class="obs-kpi-card" id="obs-kpi-up"><div class="obs-tooltip" id="obs-tip-up">Disponibilidade da API</div><div class="obs-kpi-label">Uptime</div><div class="obs-kpi-value" id="obs-met-up">—</div><div class="obs-kpi-sub">% disponibilidade</div></div>
+            <div class="obs-kpi-card" id="obs-kpi-rps"><div class="obs-tooltip" id="obs-tip-rps">Requisições por segundo — taxa média de chamadas à API nos últimos 5 min. Em idle: ~0.01–0.1 req/s. Sob stress test: 5–50 req/s.</div><div class="obs-kpi-label">req/s</div><div class="obs-kpi-value" id="obs-met-rps">—</div><div class="obs-kpi-sub">últimos 5 min</div></div>
+            <div class="obs-kpi-card" id="obs-kpi-p99"><div class="obs-tooltip" id="obs-tip-p99">Latência p99 — 99% das requisições respondem abaixo desse tempo. Meta: &lt;200ms para /api/search. &lt;500ms para checkout. Valor "—" = sem tráfego no período.</div><div class="obs-kpi-label">Latência p99</div><div class="obs-kpi-value" id="obs-met-p99">—</div><div class="obs-kpi-sub">ms</div></div>
+            <div class="obs-kpi-card" id="obs-kpi-err"><div class="obs-tooltip" id="obs-tip-err">% de respostas HTTP 5xx (erros do servidor) nos últimos 5 min. Meta: &lt;0.1%. Acima de 1% indica problema crítico — verifique logs e containers.</div><div class="obs-kpi-label">Taxa de Erro</div><div class="obs-kpi-value" id="obs-met-err">—</div><div class="obs-kpi-sub">% 5xx</div></div>
+            <div class="obs-kpi-card" id="obs-kpi-up"><div class="obs-tooltip" id="obs-tip-up">Disponibilidade calculada pelo health check. 99.9% = ~43 min/mês fora do ar. Passe o mouse para ver o breakdown em tempo real.</div><div class="obs-kpi-label">Uptime</div><div class="obs-kpi-value" id="obs-met-up">—</div><div class="obs-kpi-sub">% disponibilidade</div></div>
           </div>
           <div class="obs-chart-wrap"><canvas id="obs-met-chart"></canvas></div>
           <div id="obs-met-state" class="obs-loading"><div class="obs-loading-spin"></div>Carregando métricas...</div>
@@ -7868,19 +7868,26 @@ tr:hover td { background: rgba(255,255,255,.02); }
           </div>
           <!-- KPIs de conversão -->
           <div class="obs-kpi-grid" id="met-funil-kpis" style="display:none">
-            <div class="obs-kpi-card"><div class="obs-kpi-label">&#128270; Buscas</div><div class="obs-kpi-value" id="met-f-search">—</div><div class="obs-kpi-sub">total</div></div>
-            <div class="obs-kpi-card"><div class="obs-kpi-label">&#128722; Carrinho</div><div class="obs-kpi-value" id="met-f-cart">—</div><div class="obs-kpi-sub">conv %</div></div>
-            <div class="obs-kpi-card"><div class="obs-kpi-label">&#9989; Checkout</div><div class="obs-kpi-value" id="met-f-checkout">—</div><div class="obs-kpi-sub">conv %</div></div>
-            <div class="obs-kpi-card"><div class="obs-kpi-label">&#128666; Pedidos</div><div class="obs-kpi-value" id="met-f-orders">—</div><div class="obs-kpi-sub">conv %</div></div>
+            <div class="obs-kpi-card"><div class="obs-tooltip">Total de buscas iniciadas no catálogo. É o topo do funil — todas as outras etapas derivam deste número.</div><div class="obs-kpi-label">&#128270; Buscas</div><div class="obs-kpi-value" id="met-f-search">—</div><div class="obs-kpi-sub">total acumulado</div></div>
+            <div class="obs-kpi-card"><div class="obs-tooltip">% de buscas que resultaram em ao menos 1 item adicionado ao carrinho. Meta saudável: &gt; 30%. Valor baixo indica produtos irrelevantes ou UX ruim.</div><div class="obs-kpi-label">&#128722; Carrinho</div><div class="obs-kpi-value" id="met-f-cart">—</div><div class="obs-kpi-sub">conv % sobre buscas</div></div>
+            <div class="obs-kpi-card"><div class="obs-tooltip">% de carrinhos que avançaram para checkout. Meta: &gt; 60%. Queda aqui indica fricção no fluxo de pagamento ou carrinho abandonado.</div><div class="obs-kpi-label">&#9989; Checkout</div><div class="obs-kpi-value" id="met-f-checkout">—</div><div class="obs-kpi-sub">conv % sobre buscas</div></div>
+            <div class="obs-kpi-card"><div class="obs-tooltip">% de buscas que geraram um pedido confirmado. É a conversão final end-to-end do funil UCP. Meta: &gt; 20% do topo.</div><div class="obs-kpi-label">&#128666; Pedidos</div><div class="obs-kpi-value" id="met-f-orders">—</div><div class="obs-kpi-sub">conv % sobre buscas</div></div>
           </div>
           <div id="met-funil-state"></div>
         </div>
 
         <!-- ── ABA: Plugins ── -->
         <div id="met-panel-plugins" class="met-panel" style="display:none">
-          <div style="display:flex;align-items:center;margin:10px 0 14px">
+          <div style="display:flex;align-items:center;margin:10px 0 8px">
             <span style="font-size:12px;color:var(--text-muted)">p95 / erros / fallbacks por plugin de catálogo</span>
             <button class="obs-range-btn" onclick="metLoadPlugins()" style="margin-left:auto">&#8635; Atualizar</button>
+          </div>
+          <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;font-size:11px;color:var(--text-muted)">
+            <span title="Buscas totais disparadas para este plugin (fan-out paralelo)">&#128270; <b>Buscas</b>: total de chamadas</span>
+            <span title="Erros (exceções / timeout) — meta: 0">&#10060; <b>Erros</b>: exceções capturadas</span>
+            <span title="Fallbacks: plugin retornou 0 itens ou lançou erro — indica indisponibilidade parcial">&#9888; <b>Fallbacks</b>: retornou vazio ou falhou</span>
+            <span title="Latência no percentil 95 das chamadas ao plugin — meta: &lt;500ms">&#9201; <b>p95</b>: latência ms — meta &lt;500ms</span>
+            <span>&#128994; saudável &nbsp;&#128993; atenção &nbsp;&#128308; crítico</span>
           </div>
           <div id="met-plugins-table-wrap">
             <div class="met-funil-loading"><div class="obs-loading-spin"></div>Carregando plugins...</div>
@@ -7897,16 +7904,19 @@ tr:hover td { background: rgba(255,255,255,.02); }
           </div>
           <div class="obs-kpi-grid" id="met-cache-kpis">
             <div class="obs-kpi-card">
+              <div class="obs-tooltip">Buscas respondidas direto do Redis / memória local sem consultar os plugins externos. Cada hit economiza latência e evita chamadas à API dos catálogos.</div>
               <div class="obs-kpi-label">&#9989; Cache Hits</div>
               <div class="obs-kpi-value" id="met-cache-hits">—</div>
-              <div class="obs-kpi-sub">total</div>
+              <div class="obs-kpi-sub">total acumulado</div>
             </div>
             <div class="obs-kpi-card">
+              <div class="obs-tooltip">Buscas que não encontraram resultado em cache e precisaram consultar os plugins (ML, Shopify, VTEX…). Um miss gera latência adicional de ~200–2000ms.</div>
               <div class="obs-kpi-label">&#10060; Cache Misses</div>
               <div class="obs-kpi-value" id="met-cache-misses">—</div>
-              <div class="obs-kpi-sub">total</div>
+              <div class="obs-kpi-sub">total acumulado</div>
             </div>
             <div class="obs-kpi-card" id="met-cache-rate-card">
+              <div class="obs-tooltip">Proporção de hits sobre o total de requisições ao cache. Abaixo de 70% indica chaves muito variadas (parâmetros distintos) ou TTL muito curto. Acima de 90% é excelente.</div>
               <div class="obs-kpi-label">&#128200; Hit Rate</div>
               <div class="obs-kpi-value" id="met-cache-rate">—</div>
               <div class="obs-kpi-sub">% (meta &gt; 70%)</div>
@@ -7927,10 +7937,10 @@ tr:hover td { background: rgba(255,255,255,.02); }
             <button class="obs-range-btn" onclick="metLoadLlm()" style="margin-left:auto">&#8635; Atualizar</button>
           </div>
           <div class="obs-kpi-grid">
-            <div class="obs-kpi-card"><div class="obs-kpi-label">&#129504; Intenções</div><div class="obs-kpi-value" id="met-llm-intents">—</div><div class="obs-kpi-sub">detectadas</div></div>
-            <div class="obs-kpi-card"><div class="obs-kpi-label">&#128172; Ollama Calls</div><div class="obs-kpi-value" id="met-llm-calls">—</div><div class="obs-kpi-sub">total</div></div>
-            <div class="obs-kpi-card"><div class="obs-kpi-label">&#10060; Ollama Erros</div><div class="obs-kpi-value" id="met-llm-errors">—</div><div class="obs-kpi-sub">total</div></div>
-            <div class="obs-kpi-card"><div class="obs-kpi-label">&#9201; Latência Avg</div><div class="obs-kpi-value" id="met-llm-lat">—</div><div class="obs-kpi-sub">ms</div></div>
+            <div class="obs-kpi-card"><div class="obs-tooltip">Total de mensagens processadas pelo roteador de intenções (/api/intent). Cada intenção detectada aciona um fluxo UCP diferente: busca, carrinho, checkout ou consulta de pedido.</div><div class="obs-kpi-label">&#129504; Intenções</div><div class="obs-kpi-value" id="met-llm-intents">—</div><div class="obs-kpi-sub">total detectadas</div></div>
+            <div class="obs-kpi-card"><div class="obs-tooltip">Chamadas ao Ollama para análise dos resultados K6 (/api/k6/analyze). Cada chamada envolve inferência local — latência esperada: 2–30s dependendo do modelo.</div><div class="obs-kpi-label">&#128172; Ollama Calls</div><div class="obs-kpi-value" id="met-llm-calls">—</div><div class="obs-kpi-sub">total acumulado</div></div>
+            <div class="obs-kpi-card"><div class="obs-tooltip">Falhas nas chamadas ao Ollama (timeout, modelo não carregado, OOM). Taxa de erro &gt; 5% indica que o modelo precisa ser recarregado ou a VPS está sem memória suficiente.</div><div class="obs-kpi-label">&#10060; Ollama Erros</div><div class="obs-kpi-value" id="met-llm-errors">—</div><div class="obs-kpi-sub">total acumulado</div></div>
+            <div class="obs-kpi-card"><div class="obs-tooltip">Latência média das chamadas ao Ollama em ms. Valores esperados: gemma3 ~3–8s, llama3 ~5–15s. Acima de 30s indica sobrecarga ou modelo muito grande para a VPS.</div><div class="obs-kpi-label">&#9201; Latência Avg</div><div class="obs-kpi-value" id="met-llm-lat">—</div><div class="obs-kpi-sub">ms por chamada</div></div>
           </div>
           <!-- Tabela distribuição de intenções -->
           <div id="met-llm-intent-dist" style="margin-top:14px"></div>
