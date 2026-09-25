@@ -266,9 +266,6 @@ public static class ObservabilityEndpoints
             catch (Exception ex) { return Results.Problem(ex.Message, statusCode: 503); }
         })
         .WithTags("Observability").WithName("ObsErrors").AllowAnonymous();
-    }
-
-    // ── Helpers Prometheus ────────────────────────────────────────────────────
 
         // ── Logs de Acesso — Loki ─────────────────────────────────────────────────
         app.MapGet("/api/observability/logs/access", async (
@@ -279,7 +276,6 @@ public static class ObservabilityEndpoints
             var n       = limit ?? 200;
             var client  = factory.CreateClient("observability");
 
-            // Filtra apenas linhas de access log
             var logQuery = "{job=\"comprai-api\"} |= `ACCESS`";
             if (!string.IsNullOrWhiteSpace(method)) logQuery += $" |= `{method.ToUpper()}`";
             if (!string.IsNullOrWhiteSpace(path))   logQuery += $" |= `{path}`";
@@ -303,36 +299,25 @@ public static class ObservabilityEndpoints
                         if (!stream.TryGetProperty("values", out var values)) continue;
                         foreach (var entry in values.EnumerateArray())
                         {
-                            var arr = entry.EnumerateArray().ToList();
+                            var arr     = entry.EnumerateArray().ToList();
                             if (arr.Count < 2) continue;
-                            var tsNs = long.TryParse(arr[0].GetString(), out var ns) ? ns : 0;
-                            var ts   = DateTimeOffset.FromUnixTimeMilliseconds(tsNs / 1_000_000).UtcDateTime;
-                            var msg  = arr[1].GetString() ?? "";
-
-                            // Parsear "ACCESS METHOD PATH STATUS MS ip=X ua=Y"
-                            var parts  = msg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                            // Formato: ... ACCESS METHOD PATH QUERY STATUS MSms ip=X ua=Y...
-                            var idxAcc = Array.IndexOf(parts, "ACCESS");
+                            var tsNs    = long.TryParse(arr[0].GetString(), out var ns) ? ns : 0;
+                            var ts      = DateTimeOffset.FromUnixTimeMilliseconds(tsNs / 1_000_000).UtcDateTime;
+                            var msg     = arr[1].GetString() ?? "";
+                            var parts   = msg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                            var idxAcc  = Array.IndexOf(parts, "ACCESS");
                             if (idxAcc < 0) continue;
                             var reqMethod = idxAcc + 1 < parts.Length ? parts[idxAcc + 1] : "-";
                             var reqPath   = idxAcc + 2 < parts.Length ? parts[idxAcc + 2] : "-";
-                            var reqQuery  = idxAcc + 3 < parts.Length && parts[idxAcc + 3].StartsWith("?") ? parts[idxAcc + 3] : "";
-                            var shift     = reqQuery != "" ? 1 : 0;
+                            var hasQuery  = idxAcc + 3 < parts.Length && parts[idxAcc + 3].StartsWith("?");
+                            var reqQuery  = hasQuery ? parts[idxAcc + 3] : "";
+                            var shift     = hasQuery ? 1 : 0;
                             var reqStatus = idxAcc + 3 + shift < parts.Length ? parts[idxAcc + 3 + shift] : "-";
                             var reqMs     = idxAcc + 4 + shift < parts.Length ? parts[idxAcc + 4 + shift].Replace("ms", "") : "-";
                             var ipPart    = parts.FirstOrDefault(p => p.StartsWith("ip="))?.Substring(3) ?? "-";
                             var uaParts   = parts.SkipWhile(p => !p.StartsWith("ua=")).ToArray();
                             var ua        = uaParts.Length > 0 ? string.Join(" ", uaParts).Substring(3) : "-";
-
-                            entries.Add(new {
-                                timestamp = ts,
-                                method    = reqMethod,
-                                path      = reqPath + reqQuery,
-                                status    = reqStatus,
-                                ms        = reqMs,
-                                ip        = ipPart,
-                                ua
-                            });
+                            entries.Add(new { timestamp = ts, method = reqMethod, path = reqPath + reqQuery, status = reqStatus, ms = reqMs, ip = ipPart, ua });
                         }
                     }
                 }
@@ -341,7 +326,9 @@ public static class ObservabilityEndpoints
             catch (Exception ex) { return Results.Problem(ex.Message, statusCode: 503); }
         })
         .WithTags("Observability").WithName("ObsAccessLogs").AllowAnonymous();
+    }
 
+    // ── Helpers Prometheus ────────────────────────────────────────────────────
     private static async Task<double?> QueryInstant(HttpClient client, string baseUrl, string query, CancellationToken ct)
     {
         try
