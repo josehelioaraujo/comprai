@@ -7,6 +7,7 @@ param(
 )
 
 $ErrorActionPreference = "Continue"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $sessionId = "populate-$(Get-Random -Maximum 9999)"
 
 function Invoke-Api {
@@ -138,5 +139,6 @@ Write-Host "  CartAdds : $totalCart     (ucp_cart_add_items_total)"
 Write-Host "  Checkouts: $totalCheckout (ucp_checkout_requests_total)"
 Write-Host ""
 Write-Host "Aguarde ~15s para o Prometheus raspar e verifique o OpsWatch." -ForegroundColor Cyan
+
 
 
