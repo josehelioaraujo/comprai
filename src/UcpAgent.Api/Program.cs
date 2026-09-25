@@ -251,15 +251,33 @@ app.MapGet("/health/ready", () => Results.Ok(new { status = "ready" }))
 app.MapGet("/api/search", async (
     string q, int page, int pageSize,
     string? category, decimal? minPrice, decimal? maxPrice,
-    IMediator mediator, HybridCache cache, CancellationToken ct) =>
+    IMediator mediator, HybridCache cache, UcpMetrics metrics, CancellationToken ct) =>
 {
     var cacheKey = $"search:{q}:{page}:{pageSize}:{category}:{minPrice}:{maxPrice}";
-    // Executa sem cache primeiro para verificar se tem resultados
-    var result = await mediator.Send(
+
+    // Tenta ler do cache; se nao existir, chama os plugins (MISS)
+    bool isMiss = false;
+    var cached = await cache.GetOrCreateAsync<Result<SearchResult>?>(
+        cacheKey,
+        async _ =>
+        {
+            isMiss = true;
+            metrics.CacheMissTotal.Add(1);
+            var r = await mediator.Send(
+                new SearchProductsQuery(q, page, pageSize, category, minPrice, maxPrice), ct);
+            // Nao cacheia resultado vazio — evita cachear falha temporaria de plugin
+            return (r.IsSuccess && r.Value.Items.Count > 0) ? r : null;
+        },
+        cancellationToken: ct);
+
+    // Se nao foi miss, veio do cache (HIT)
+    if (!isMiss && cached != null)
+        metrics.CacheHitTotal.Add(1);
+
+    // Se factory retornou null (resultado vazio), executa sem cachear
+    var result = cached ?? await mediator.Send(
         new SearchProductsQuery(q, page, pageSize, category, minPrice, maxPrice), ct);
-    // So cacheia se tiver ao menos 1 item â evita cachear falha temporaria de plugin
-    if (result.IsSuccess && result.Value.Items.Count > 0)
-        await cache.SetAsync(cacheKey, result, cancellationToken: ct);
+
     return result.IsSuccess ? Results.Ok(result.Value) : Results.Problem(result.Error);
 })
 .WithTags("Search").WithName("SearchProducts")
@@ -808,6 +826,7 @@ record K6AnalyzeRequest(string Summary, string Question, string? Model);
 record AdminRestartRequest(string? Target, string? Password);
 
 record GitHubDispatchRequest(string? Repo, string? Workflow, string? Ref, Dictionary<string, string>? Inputs = null);
+
 
 
 
