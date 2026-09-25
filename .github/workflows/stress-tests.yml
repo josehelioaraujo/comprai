@@ -640,22 +640,43 @@ jobs:
           import datetime
           sha = os.environ.get('GIT_SHA','')[:7]
           ts  = datetime.datetime.utcnow().isoformat() + 'Z'
-          # Detectar threshold failures em cada resultado
+          # Detectar threshold failures e embutir routes[] por tipo
           threshold_failures = []
+          index = {
+              'run': os.environ.get('RUN_NUMBER',''),
+              'sha': sha,
+              'timestamp': ts,
+              'tests': tests,
+              'conclusion': 'success',
+              'threshold_failures': [],
+          }
           for t_info in tests:
+              t = t_info['type']
               try:
-                  data = json.loads(Path(f'k6/results/{t_info["file"]}').read_text())
-                  meta = data.get('meta', {})
-                  scenarios = data.get('scenarios', [])
-                  for sc in scenarios:
+                  data = json.loads(Path(f'k6/results/{t}.json').read_text())
+                  # Threshold failures
+                  for sc in data.get('scenarios', []):
                       for th in sc.get('thresholds', []):
                           if not th.get('ok', True):
-                              threshold_failures.append({'test': t_info['type'], 'metric': th.get('metric',''), 'threshold': th.get('threshold','')})
+                              threshold_failures.append({'test': t, 'metric': th.get('metric',''), 'threshold': th.get('threshold','')})
+                  # Embutir routes[] e p95 global para a Correlação K6×Mutation
+                  entry = {}
+                  if data.get('routes'):
+                      entry['routes'] = data['routes']
+                  scenarios = data.get('scenarios', [])
+                  if scenarios:
+                      sc0 = scenarios[0]
+                      if sc0.get('p95') is not None:
+                          entry['http_req_duration_p95'] = sc0['p95']
+                      if sc0.get('p50') is not None:
+                          entry['http_req_duration_p50'] = sc0['p50']
+                  if entry:
+                      index[t] = entry
               except: pass
-          conclusion = 'failure' if threshold_failures else 'success'
-          index = {'run': os.environ.get('RUN_NUMBER',''), 'sha': sha, 'timestamp': ts, 'tests': tests, 'conclusion': conclusion, 'threshold_failures': threshold_failures}
+          index['conclusion'] = 'failure' if threshold_failures else 'success'
+          index['threshold_failures'] = threshold_failures
           Path('k6/results/index.json').write_text(json.dumps(index, indent=2))
-          print('index.json:', tests, '| conclusion:', conclusion, '| threshold_failures:', len(threshold_failures))
+          print('index.json | tests:', len(tests), '| routes_by_type:', [t for t in types if index.get(t,{}).get('routes')], '| threshold_failures:', len(threshold_failures))
           PYEOF
         env:
           RUN_NUMBER: ${{ github.run_number }}
