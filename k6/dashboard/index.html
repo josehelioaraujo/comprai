@@ -743,7 +743,7 @@ function renderRunStatus(run, jobs) {
   document.getElementById('runStatusMsg').innerHTML = statusLabel + ' &nbsp;|&nbsp; Run <strong>#' + runNum + '</strong>';
   var runUrl = run.html_url || run.htmlUrl || '';
   var runTs  = run.created_at || run.createdAt || '';
-  var cancelBtn = (runStatus !== 'completed')
+  var cancelBtn = (run.status !== 'completed')
     ? ' &nbsp;<button id="btnCancelRun" onclick="cancelCurrentRun()" style="background:none;border:1px solid #ef4444;color:#ef4444;border-radius:6px;padding:2px 10px;font-size:11px;cursor:pointer;margin-left:4px" title="Cancelar este run">✕ Cancelar</button>'
     : '';
   document.getElementById('runInfo').innerHTML =
