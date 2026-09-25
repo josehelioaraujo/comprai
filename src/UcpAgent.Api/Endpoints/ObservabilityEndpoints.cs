@@ -50,11 +50,11 @@ public static class ObservabilityEndpoints
             var baseUrl = config["Observability:PrometheusUrl"] ?? "http://comprai-prometheus:9090";
             var client  = factory.CreateClient("observability");
 
-            var search   = await QueryInstant(client, baseUrl, "sum(ucp_search_total_total)",    ct);
-            var cart     = await QueryInstant(client, baseUrl, "sum(ucp_cart_add_total_total)",   ct);
-            var checkout = await QueryInstant(client, baseUrl, "sum(ucp_checkout_success_total)", ct);
-            var orders   = await QueryInstant(client, baseUrl, "sum(ucp_order_placed_total_total)", ct);
-            var chkFail  = await QueryInstant(client, baseUrl, "sum(ucp_checkout_failure_total)", ct);
+            var search   = await QueryInstant(client, baseUrl, "sum(ucp.search.total_requests_total)",    ct);
+            var cart     = await QueryInstant(client, baseUrl, "sum(ucp.cart.add.total_items_total)",   ct);
+            var checkout = await QueryInstant(client, baseUrl, "sum(ucp.checkout.success_requests_total)", ct);
+            var orders   = await QueryInstant(client, baseUrl, "sum(ucp.order.placed.total_orders_total)", ct);
+            var chkFail  = await QueryInstant(client, baseUrl, "sum(ucp.checkout.total_requests_total)", ct);
 
             return Results.Ok(new
             {
@@ -77,10 +77,10 @@ public static class ObservabilityEndpoints
             var client  = factory.CreateClient("observability");
 
             // Buscar totais por plugin (label: plugin)
-            var totalByPlugin   = await QueryLabeled(client, baseUrl, "sum by (plugin)(ucp_plugin_search_total_total)",   "plugin", ct);
-            var errorsByPlugin  = await QueryLabeled(client, baseUrl, "sum by (plugin)(ucp_plugin_error_total_total)",    "plugin", ct);
-            var fallbackByPlugin= await QueryLabeled(client, baseUrl, "sum by (plugin)(ucp_plugin_fallback_total_total)", "plugin", ct);
-            var p95ByPlugin     = await QueryLabeled(client, baseUrl, "histogram_quantile(0.95, sum by (plugin, le)(rate(ucp_plugin_duration_milliseconds_bucket[5m]))) * 1", "plugin", ct);
+            var totalByPlugin   = await QueryLabeled(client, baseUrl, "sum by (plugin)(ucp.plugin.search.total_requests_total)",   "plugin", ct);
+            var errorsByPlugin  = await QueryLabeled(client, baseUrl, "sum by (plugin)(ucp.plugin.fallback.total_events_total)",    "plugin", ct);
+            var fallbackByPlugin= await QueryLabeled(client, baseUrl, "sum by (plugin)(ucp.plugin.fallback.total_events_total)", "plugin", ct);
+            var p95ByPlugin     = await QueryLabeled(client, baseUrl, "histogram_quantile(0.95, sum by (plugin, le)(rate(ucp.plugin.duration_milliseconds_bucket[5m])))", "plugin", ct);
 
             var plugins = totalByPlugin.Keys.Union(errorsByPlugin.Keys).Distinct().Select(p => new
             {
@@ -104,8 +104,8 @@ public static class ObservabilityEndpoints
             var baseUrl = config["Observability:PrometheusUrl"] ?? "http://comprai-prometheus:9090";
             var client  = factory.CreateClient("observability");
 
-            var hits   = await QueryInstant(client, baseUrl, "sum(ucp_cache_hit_total_total)",  ct);
-            var misses = await QueryInstant(client, baseUrl, "sum(ucp_cache_miss_total_total)", ct);
+            var hits   = await QueryInstant(client, baseUrl, "sum(ucp.cache.hit.total_hits_total)",  ct);
+            var misses = await QueryInstant(client, baseUrl, "sum(ucp.cache.miss.total_misses_total)", ct);
             var total  = (hits ?? 0) + (misses ?? 0);
             double? hitRate = total > 0 ? ((hits ?? 0) / total * 100) : null;
 
@@ -122,14 +122,14 @@ public static class ObservabilityEndpoints
             var baseUrl = config["Observability:PrometheusUrl"] ?? "http://comprai-prometheus:9090";
             var client  = factory.CreateClient("observability");
 
-            var totalIntents  = await QueryInstant(client, baseUrl, "sum(ucp_intent_detected_total_total)", ct);
-            var ollamaCalls   = await QueryInstant(client, baseUrl, "sum(ucp_ollama_request_total_total)",  ct);
-            var ollamaErrors  = await QueryInstant(client, baseUrl, "sum(ucp_ollama_error_total_total)",    ct);
+            var totalIntents  = await QueryInstant(client, baseUrl, "sum(ucp.intent.detected.total_requests_total)", ct);
+            var ollamaCalls   = await QueryInstant(client, baseUrl, "sum(ucp.ollama.request.total_requests_total)",  ct);
+            var ollamaErrors  = await QueryInstant(client, baseUrl, "sum(ucp.ollama.error.total_errors_total)",    ct);
             var avgLatencyMs  = await QueryInstant(client, baseUrl,
-                "sum(rate(ucp_ollama_duration_milliseconds_sum[5m])) / sum(rate(ucp_ollama_duration_milliseconds_count[5m]))", ct);
+                "sum(rate(ucp.ollama.duration_milliseconds_sum[5m])) / sum(rate(ucp.ollama.duration_milliseconds_count[5m]))", ct);
 
             // Distribuição de intenções por label
-            var intentDist = await QueryLabeled(client, baseUrl, "sum by (intent)(ucp_intent_detected_total_total)", "intent", ct);
+            var intentDist = await QueryLabeled(client, baseUrl, "sum by (intent)(ucp.intent.detected.total_requests_total)", "intent", ct);
 
             return Results.Ok(new { totalIntents, ollamaCalls, ollamaErrors, avgLatencyMs, intentDistribution = intentDist });
         })
@@ -337,3 +337,4 @@ public static class ObservabilityEndpoints
     private static int RangeToSeconds(string range) => range switch { "15m" => 900, "1h" => 3600, "6h" => 21600, "24h" => 86400, _ => 900 };
     private static int RangeToStep(string range)    => range switch { "15m" => 30,  "1h" => 60,   "6h" => 300,   "24h" => 900,  _ => 30  };
 }
+
