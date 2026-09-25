@@ -283,7 +283,7 @@ app.MapGet("/api/search", async (
             // Nao cacheia resultado vazio
             return (r.IsSuccess && r.Value.Items.Count > 0) ? r : null;
         },
-        cancellationToken: ct);
+        ct);
 
     if (fromCache && result != null) metrics.CacheHitTotal.Add(1);
 
@@ -839,6 +839,7 @@ record K6AnalyzeRequest(string Summary, string Question, string? Model);
 record AdminRestartRequest(string? Target, string? Password);
 
 record GitHubDispatchRequest(string? Repo, string? Workflow, string? Ref, Dictionary<string, string>? Inputs = null);
+
 
 
 
