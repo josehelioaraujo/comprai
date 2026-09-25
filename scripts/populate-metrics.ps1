@@ -8,6 +8,7 @@ param(
 
 $ErrorActionPreference = "Continue"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 $sessionId = "populate-$(Get-Random -Maximum 9999)"
 
 function Invoke-Api {
@@ -75,14 +76,14 @@ $totalCheckout = 0
 for ($round = 1; $round -le $Rounds; $round++) {
     Write-Host "--- Round $round/$Rounds ---" -ForegroundColor Yellow
 
-    # ── 1. /api/intent — todas as intenções ──────────────────────────────────
-    Write-Host "  [intent] Disparando intenções variadas..."
+    # ── 1. /api/intent — todas as intencoes ──────────────────────────────────
+    Write-Host "  [intent] Disparando intencoes variadas..."
     foreach ($tipo in $intentTexts.Keys) {
         foreach ($texto in $intentTexts[$tipo]) {
             $body = @{ text = $texto; sessionId = $sessionId }
             $sc = Invoke-Api -Method "POST" -Path "/api/intent" -Body $body
             $totalIntents++
-            Write-Host "    $tipo → '$texto' [$sc]"
+            Write-Host "    $tipo -> '$texto' [$sc]"
             Start-Sleep -Milliseconds 300
         }
     }
@@ -139,6 +140,7 @@ Write-Host "  CartAdds : $totalCart     (ucp_cart_add_items_total)"
 Write-Host "  Checkouts: $totalCheckout (ucp_checkout_requests_total)"
 Write-Host ""
 Write-Host "Aguarde ~15s para o Prometheus raspar e verifique o OpsWatch." -ForegroundColor Cyan
+
 
 
 
