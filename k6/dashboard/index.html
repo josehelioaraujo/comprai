@@ -4286,7 +4286,208 @@ function adminTrackRun(label, runId) {
     });
   }
 
-  /* ── LOGS ──────────────────────────────────────────────────── */
+  /* ── MÉTRICAS: abas ─────────────────────────────────────────── */
+  var _metPluginsChart = null;
+
+  window.metSwitchTab = function(tab, btn) {
+    document.querySelectorAll('.met-tab').forEach(function(b){ b.classList.remove('active'); });
+    document.querySelectorAll('.met-panel').forEach(function(p){ p.style.display='none'; });
+    if (btn) btn.classList.add('active');
+    var panel = document.getElementById('met-panel-' + tab);
+    if (panel) panel.style.display = 'block';
+    if (tab === 'geral')   obsLoadMetricas();
+    if (tab === 'funil')   metLoadFunil();
+    if (tab === 'plugins') metLoadPlugins();
+    if (tab === 'cache')   metLoadCache();
+    if (tab === 'llm')     metLoadLlm();
+  };
+
+  /* ── FUNIL UCP ─────────────────────────────────────────────── */
+  window.metLoadFunil = function() {
+    var wrap = document.getElementById('met-funil-wrap');
+    var kpis = document.getElementById('met-funil-kpis');
+    if (wrap) wrap.innerHTML = '<div class="met-funil-loading"><div class="obs-loading-spin"></div>Carregando funil...</div>';
+    if (kpis) kpis.style.display = 'none';
+
+    fetch('/api/observability/metrics/funil')
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        var steps = [
+          { label: 'Buscas',   key: 'search',   color: '#06b6d4', kpiId: 'met-f-search' },
+          { label: 'Carrinho', key: 'cart',      color: '#6366f1', kpiId: 'met-f-cart'   },
+          { label: 'Checkout', key: 'checkout',  color: '#f59e0b', kpiId: 'met-f-checkout'},
+          { label: 'Pedidos',  key: 'orders',    color: '#22c55e', kpiId: 'met-f-orders'  }
+        ];
+        var base = d.search || 1;
+        var html = '';
+        steps.forEach(function(s, i) {
+          var val = d[s.key] || 0;
+          var pct = i === 0 ? 100 : Math.min(100, ((val / base) * 100));
+          var pctFmt = i === 0 ? val.toFixed(0) : (pct.toFixed(1) + '%');
+          html += '<div class="met-funil-bar-row">' +
+            '<div class="met-funil-bar-label">' + s.label + '</div>' +
+            '<div class="met-funil-bar-track">' +
+              '<div class="met-funil-bar-fill" style="width:' + pct.toFixed(1) + '%;background:' + s.color + '"></div>' +
+            '</div>' +
+            '<div class="met-funil-bar-pct">' + pctFmt + '</div>' +
+          '</div>';
+          var kpiEl = document.getElementById(s.kpiId);
+          if (kpiEl) kpiEl.textContent = i === 0 ? val.toFixed(0) : pct.toFixed(1) + '%';
+        });
+        if (wrap) wrap.innerHTML = html;
+        if (kpis) kpis.style.display = '';
+      })
+      .catch(function(e){
+        if (wrap) wrap.innerHTML = '<div style="color:var(--danger);font-size:12px;padding:8px 0">Erro: ' + e.message + ' — métricas ainda não acumuladas?</div>';
+      });
+  };
+
+  /* ── PLUGINS ────────────────────────────────────────────────── */
+  window.metLoadPlugins = function() {
+    var wrap = document.getElementById('met-plugins-table-wrap');
+    if (wrap) wrap.innerHTML = '<div class="met-funil-loading"><div class="obs-loading-spin"></div>Carregando plugins...</div>';
+
+    fetch('/api/observability/metrics/plugins')
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        var plugins = d.plugins || [];
+        if (!plugins.length) {
+          if (wrap) wrap.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:8px 0">Sem dados ainda — execute uma busca para gerar métricas.</div>';
+          return;
+        }
+        var html = '<table class="met-plugins-table"><thead><tr>' +
+          '<th>Plugin</th><th>Buscas</th><th>Erros</th><th>Fallbacks</th><th>p95 (ms)</th><th>Status</th>' +
+          '</tr></thead><tbody>';
+        plugins.forEach(function(p) {
+          var errRate = p.total > 0 ? ((p.errors / p.total) * 100).toFixed(1) : '0.0';
+          var status = p.errors === 0 ? '🟢' : p.errors < p.total * 0.1 ? '🟡' : '🔴';
+          html += '<tr>' +
+            '<td style="font-weight:600">' + p.plugin + '</td>' +
+            '<td>' + (p.total || 0) + '</td>' +
+            '<td>' + (p.errors || 0) + ' <span style="color:var(--text-muted);font-size:10px">(' + errRate + '%)</span></td>' +
+            '<td>' + (p.fallbacks || 0) + '</td>' +
+            '<td>' + (p.p95 != null ? p.p95.toFixed(0) + ' ms' : '—') + '</td>' +
+            '<td>' + status + '</td>' +
+          '</tr>';
+        });
+        html += '</tbody></table>';
+        if (wrap) wrap.innerHTML = html;
+
+        // Gráfico de barras p95 por plugin
+        var ctx = document.getElementById('met-plugins-chart');
+        if (ctx && plugins.length) {
+          if (_metPluginsChart) _metPluginsChart.destroy();
+          _metPluginsChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: plugins.map(function(p){ return p.plugin; }),
+              datasets: [{
+                label: 'p95 (ms)',
+                data: plugins.map(function(p){ return p.p95 || 0; }),
+                backgroundColor: plugins.map(function(p){
+                  return p.errors === 0 ? 'rgba(6,182,212,.7)' : p.errors < p.total * 0.1 ? 'rgba(245,158,11,.7)' : 'rgba(239,68,68,.7)';
+                }),
+                borderRadius: 4
+              }]
+            },
+            options: {
+              responsive: true, maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+              scales: {
+                x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.04)' } },
+                y: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.04)' }, title: { display: true, text: 'p95 ms', color: '#64748b', font: { size: 10 } } }
+              }
+            }
+          });
+        }
+      })
+      .catch(function(e){
+        if (wrap) wrap.innerHTML = '<div style="color:var(--danger);font-size:12px;padding:8px 0">Erro: ' + e.message + '</div>';
+      });
+  };
+
+  /* ── CACHE REDIS ────────────────────────────────────────────── */
+  window.metLoadCache = function() {
+    var st = document.getElementById('met-cache-state');
+    if (st) st.innerHTML = '';
+    ['met-cache-hits','met-cache-misses','met-cache-rate'].forEach(function(id){
+      var el = document.getElementById(id); if (el) el.textContent = '—';
+    });
+
+    fetch('/api/observability/metrics/cache')
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        setText('met-cache-hits',   d.hits   != null ? d.hits.toFixed(0)   : '—');
+        setText('met-cache-misses', d.misses != null ? d.misses.toFixed(0) : '—');
+        var rate = d.hitRate != null ? d.hitRate : (d.hits && (d.hits + d.misses) > 0 ? (d.hits / (d.hits + d.misses) * 100) : null);
+        if (rate != null) {
+          setText('met-cache-rate', rate.toFixed(1) + '%');
+          var bar  = document.getElementById('met-cache-bar');
+          var lbl  = document.getElementById('met-cache-bar-label');
+          var card = document.getElementById('met-cache-rate-card');
+          if (bar)  bar.style.width = Math.min(100, rate).toFixed(1) + '%';
+          if (bar)  bar.style.background = rate >= 70 ? 'var(--success)' : rate >= 40 ? 'var(--warning)' : 'var(--danger)';
+          if (lbl)  lbl.textContent = rate >= 70 ? '🟢 Saudável (' + rate.toFixed(1) + '%)' : rate >= 40 ? '🟡 Atenção (' + rate.toFixed(1) + '%)' : '🔴 Crítico (' + rate.toFixed(1) + '%) — abaixo da meta de 70%';
+          if (card) card.style.borderColor = rate >= 70 ? 'var(--success)' : rate >= 40 ? 'var(--warning)' : 'var(--danger)';
+        } else {
+          var lbl = document.getElementById('met-cache-bar-label');
+          if (lbl) lbl.textContent = 'Sem dados — execute buscas para gerar hits/misses.';
+        }
+      })
+      .catch(function(e){
+        if (st) st.innerHTML = '<div style="color:var(--danger);font-size:12px;padding:8px 0">Erro: ' + e.message + '</div>';
+      });
+  };
+
+  /* ── LLM / OLLAMA ───────────────────────────────────────────── */
+  window.metLoadLlm = function() {
+    var st = document.getElementById('met-llm-state');
+    var distEl = document.getElementById('met-llm-intent-dist');
+    if (st) st.innerHTML = '';
+    if (distEl) distEl.innerHTML = '<div class="met-funil-loading"><div class="obs-loading-spin"></div>Carregando...</div>';
+    ['met-llm-intents','met-llm-calls','met-llm-errors','met-llm-lat'].forEach(function(id){
+      var el = document.getElementById(id); if (el) el.textContent = '—';
+    });
+
+    fetch('/api/observability/metrics/llm')
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        setText('met-llm-intents', d.totalIntents != null ? d.totalIntents.toFixed(0) : '—');
+        setText('met-llm-calls',   d.ollamaCalls  != null ? d.ollamaCalls.toFixed(0)  : '—');
+        setText('met-llm-errors',  d.ollamaErrors != null ? d.ollamaErrors.toFixed(0) : '—');
+        setText('met-llm-lat',     d.avgLatencyMs != null ? d.avgLatencyMs.toFixed(0) + ' ms' : '—');
+
+        // Distribuição de intenções
+        var intents = d.intentDistribution || {};
+        var keys = Object.keys(intents);
+        if (keys.length && distEl) {
+          var total = keys.reduce(function(s,k){ return s + (intents[k]||0); }, 0) || 1;
+          var colors = { SearchProducts:'#06b6d4', AddToCart:'#6366f1', Checkout:'#22c55e', GetOrder:'#f59e0b', ViewCart:'#8b5cf6', Unknown:'#64748b' };
+          var html = '<div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:8px">Distribuição de Intenções</div>';
+          keys.sort(function(a,b){ return (intents[b]||0)-(intents[a]||0); }).forEach(function(k){
+            var val = intents[k] || 0;
+            var pct = (val / total * 100);
+            var col = colors[k] || '#64748b';
+            html += '<div class="met-funil-bar-row" style="margin-bottom:4px">' +
+              '<div class="met-funil-bar-label" style="width:110px">' + k + '</div>' +
+              '<div class="met-funil-bar-track">' +
+                '<div class="met-funil-bar-fill" style="width:' + pct.toFixed(1) + '%;background:' + col + '"></div>' +
+              '</div>' +
+              '<div class="met-funil-bar-pct">' + pct.toFixed(0) + '% (' + val + ')</div>' +
+            '</div>';
+          });
+          distEl.innerHTML = html;
+        } else if (distEl) {
+          distEl.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:8px 0">Sem dados de intenções — use o endpoint /api/intent para gerar.</div>';
+        }
+      })
+      .catch(function(e){
+        if (st) st.innerHTML = '<div style="color:var(--danger);font-size:12px;padding:8px 0">Erro: ' + e.message + '</div>';
+        if (distEl) distEl.innerHTML = '';
+      });
+  };
+
+    /* ── LOGS ──────────────────────────────────────────────────── */
   function obsLoadLogs() {
     setState('log', 'loading');
     var level = obsState.logs.level !== 'all' ? '&level=' + obsState.logs.level : '';
@@ -5561,6 +5762,22 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
 
 /* ── Observabilidade: forçar section-content sempre visível ── */
+/* ── Met Tabs ─────────────────────────── */
+.met-tabs { display:flex; gap:4px; flex-wrap:wrap; padding:10px 0 0; border-bottom:1px solid var(--border); margin-bottom:4px; }
+.met-tab  { background:none; border:none; border-bottom:2px solid transparent; padding:6px 12px; font-size:12px; font-weight:600; color:var(--text-muted); cursor:pointer; border-radius:4px 4px 0 0; transition:all .15s; white-space:nowrap; }
+.met-tab:hover  { color:var(--text); background:var(--surface2); }
+.met-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+.met-panel { display:block; }
+.met-funil-bar-row { display:flex; align-items:center; gap:10px; }
+.met-funil-bar-label { font-size:11px; color:var(--text-muted); width:90px; text-align:right; flex-shrink:0; }
+.met-funil-bar-track { flex:1; background:var(--surface2); border-radius:6px; height:14px; overflow:hidden; }
+.met-funil-bar-fill  { height:100%; border-radius:6px; transition:width .6s ease; }
+.met-funil-bar-pct   { font-size:11px; color:var(--text); width:44px; text-align:right; flex-shrink:0; }
+.met-funil-loading   { display:flex; align-items:center; gap:8px; color:var(--text-muted); font-size:12px; padding:12px 0; }
+.met-plugins-table   { width:100%; border-collapse:collapse; font-size:12px; }
+.met-plugins-table th { padding:6px 8px; text-align:left; color:var(--text-muted); font-weight:600; border-bottom:1px solid var(--border); }
+.met-plugins-table td { padding:6px 8px; border-bottom:1px solid rgba(255,255,255,.04); }
+.met-plugins-table tr:hover td { background:var(--surface2); }
 #obsMetricasBlock .section-content,
 #obsLogsBlock .section-content,
 #obsTracesBlock .section-content,
@@ -7610,25 +7827,115 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <span class="obs-refresh-badge" id="obs-met-refresh"><span class="obs-refresh-dot"></span>live</span>
         <span class="section-chevron">&#9660;</span>
       </div>
-      <div id="obs-met-content" style="padding:16px">
-        <!-- Range selector -->
-        <div class="obs-toolbar">
-          <button class="obs-range-btn active" onclick="obsSetRange('metricas','15m',this)">15 min</button>
-          <button class="obs-range-btn" onclick="obsSetRange('metricas','1h',this)">1 h</button>
-          <button class="obs-range-btn" onclick="obsSetRange('metricas','6h',this)">6 h</button>
-          <button class="obs-range-btn" onclick="obsSetRange('metricas','24h',this)">24 h</button>
-          <button class="obs-range-btn" onclick="obsLoad('metricas')" style="margin-left:auto">&#8635; Atualizar</button>
+      <div id="obs-met-content" style="padding:12px 16px 16px">
+        <!-- Abas de métricas -->
+        <div class="met-tabs" id="met-tabs">
+          <button class="met-tab active" data-tab="geral"  onclick="metSwitchTab('geral',this)">&#128202; Visão Geral</button>
+          <button class="met-tab"        data-tab="funil"  onclick="metSwitchTab('funil',this)">&#128260; Funil UCP</button>
+          <button class="met-tab"        data-tab="plugins" onclick="metSwitchTab('plugins',this)">&#128268; Plugins</button>
+          <button class="met-tab"        data-tab="cache"  onclick="metSwitchTab('cache',this)">&#9889; Cache Redis</button>
+          <button class="met-tab"        data-tab="llm"    onclick="metSwitchTab('llm',this)">&#129504; LLM / Ollama</button>
         </div>
-        <!-- KPI cards -->
-        <div class="obs-kpi-grid" id="obs-met-kpis">
-          <div class="obs-kpi-card" id="obs-kpi-rps"><div class="obs-tooltip" id="obs-tip-rps">Requisições por segundo — média dos últimos 5 min</div><div class="obs-kpi-label">req/s</div><div class="obs-kpi-value" id="obs-met-rps">—</div><div class="obs-kpi-sub">últimos 5 min</div></div>
-          <div class="obs-kpi-card" id="obs-kpi-p99"><div class="obs-tooltip" id="obs-tip-p99">Latência no percentil 99 — 99% das requisições respondem abaixo desse tempo</div><div class="obs-kpi-label">Latência p99</div><div class="obs-kpi-value" id="obs-met-p99">—</div><div class="obs-kpi-sub">ms</div></div>
-          <div class="obs-kpi-card" id="obs-kpi-err"><div class="obs-tooltip" id="obs-tip-err">% de respostas 5xx nos últimos 5 min — meta: &lt; 0.1%</div><div class="obs-kpi-label">Taxa de Erro</div><div class="obs-kpi-value" id="obs-met-err">—</div><div class="obs-kpi-sub">% 5xx</div></div>
-          <div class="obs-kpi-card" id="obs-kpi-up"><div class="obs-tooltip" id="obs-tip-up">Disponibilidade da API</div><div class="obs-kpi-label">Uptime</div><div class="obs-kpi-value" id="obs-met-up">—</div><div class="obs-kpi-sub">% disponibilidade</div></div>
+
+        <!-- ── ABA: Visão Geral ── -->
+        <div id="met-panel-geral" class="met-panel">
+          <div class="obs-toolbar" style="margin-top:10px">
+            <button class="obs-range-btn active" onclick="obsSetRange('metricas','15m',this)">15 min</button>
+            <button class="obs-range-btn" onclick="obsSetRange('metricas','1h',this)">1 h</button>
+            <button class="obs-range-btn" onclick="obsSetRange('metricas','6h',this)">6 h</button>
+            <button class="obs-range-btn" onclick="obsSetRange('metricas','24h',this)">24 h</button>
+            <button class="obs-range-btn" onclick="obsLoad('metricas')" style="margin-left:auto">&#8635; Atualizar</button>
+          </div>
+          <div class="obs-kpi-grid" id="obs-met-kpis">
+            <div class="obs-kpi-card" id="obs-kpi-rps"><div class="obs-tooltip" id="obs-tip-rps">Requisições por segundo — média dos últimos 5 min</div><div class="obs-kpi-label">req/s</div><div class="obs-kpi-value" id="obs-met-rps">—</div><div class="obs-kpi-sub">últimos 5 min</div></div>
+            <div class="obs-kpi-card" id="obs-kpi-p99"><div class="obs-tooltip" id="obs-tip-p99">Latência no percentil 99 — 99% das requisições respondem abaixo desse tempo</div><div class="obs-kpi-label">Latência p99</div><div class="obs-kpi-value" id="obs-met-p99">—</div><div class="obs-kpi-sub">ms</div></div>
+            <div class="obs-kpi-card" id="obs-kpi-err"><div class="obs-tooltip" id="obs-tip-err">% de respostas 5xx nos últimos 5 min — meta: &lt; 0.1%</div><div class="obs-kpi-label">Taxa de Erro</div><div class="obs-kpi-value" id="obs-met-err">—</div><div class="obs-kpi-sub">% 5xx</div></div>
+            <div class="obs-kpi-card" id="obs-kpi-up"><div class="obs-tooltip" id="obs-tip-up">Disponibilidade da API</div><div class="obs-kpi-label">Uptime</div><div class="obs-kpi-value" id="obs-met-up">—</div><div class="obs-kpi-sub">% disponibilidade</div></div>
+          </div>
+          <div class="obs-chart-wrap"><canvas id="obs-met-chart"></canvas></div>
+          <div id="obs-met-state" class="obs-loading"><div class="obs-loading-spin"></div>Carregando métricas...</div>
         </div>
-        <!-- Gráfico -->
-        <div class="obs-chart-wrap"><canvas id="obs-met-chart"></canvas></div>
-        <div id="obs-met-state" class="obs-loading"><div class="obs-loading-spin"></div>Carregando métricas...</div>
+
+        <!-- ── ABA: Funil UCP ── -->
+        <div id="met-panel-funil" class="met-panel" style="display:none">
+          <div style="display:flex;align-items:center;gap:8px;margin:10px 0 14px">
+            <span style="font-size:12px;color:var(--text-muted)">Conversão Search → Cart → Checkout → Payment → Order</span>
+            <button class="obs-range-btn" onclick="metLoadFunil()" style="margin-left:auto">&#8635; Atualizar</button>
+          </div>
+          <!-- Funil visual -->
+          <div id="met-funil-wrap" style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">
+            <div class="met-funil-loading"><div class="obs-loading-spin"></div>Carregando funil...</div>
+          </div>
+          <!-- KPIs de conversão -->
+          <div class="obs-kpi-grid" id="met-funil-kpis" style="display:none">
+            <div class="obs-kpi-card"><div class="obs-kpi-label">&#128270; Buscas</div><div class="obs-kpi-value" id="met-f-search">—</div><div class="obs-kpi-sub">total</div></div>
+            <div class="obs-kpi-card"><div class="obs-kpi-label">&#128722; Carrinho</div><div class="obs-kpi-value" id="met-f-cart">—</div><div class="obs-kpi-sub">conv %</div></div>
+            <div class="obs-kpi-card"><div class="obs-kpi-label">&#9989; Checkout</div><div class="obs-kpi-value" id="met-f-checkout">—</div><div class="obs-kpi-sub">conv %</div></div>
+            <div class="obs-kpi-card"><div class="obs-kpi-label">&#128666; Pedidos</div><div class="obs-kpi-value" id="met-f-orders">—</div><div class="obs-kpi-sub">conv %</div></div>
+          </div>
+          <div id="met-funil-state"></div>
+        </div>
+
+        <!-- ── ABA: Plugins ── -->
+        <div id="met-panel-plugins" class="met-panel" style="display:none">
+          <div style="display:flex;align-items:center;margin:10px 0 14px">
+            <span style="font-size:12px;color:var(--text-muted)">p95 / erros / fallbacks por plugin de catálogo</span>
+            <button class="obs-range-btn" onclick="metLoadPlugins()" style="margin-left:auto">&#8635; Atualizar</button>
+          </div>
+          <div id="met-plugins-table-wrap">
+            <div class="met-funil-loading"><div class="obs-loading-spin"></div>Carregando plugins...</div>
+          </div>
+          <div class="obs-chart-wrap" style="margin-top:14px"><canvas id="met-plugins-chart"></canvas></div>
+          <div id="met-plugins-state"></div>
+        </div>
+
+        <!-- ── ABA: Cache Redis ── -->
+        <div id="met-panel-cache" class="met-panel" style="display:none">
+          <div style="display:flex;align-items:center;margin:10px 0 14px">
+            <span style="font-size:12px;color:var(--text-muted)">Hit rate Redis / HybridCache — meta: &gt; 70%</span>
+            <button class="obs-range-btn" onclick="metLoadCache()" style="margin-left:auto">&#8635; Atualizar</button>
+          </div>
+          <div class="obs-kpi-grid" id="met-cache-kpis">
+            <div class="obs-kpi-card">
+              <div class="obs-kpi-label">&#9989; Cache Hits</div>
+              <div class="obs-kpi-value" id="met-cache-hits">—</div>
+              <div class="obs-kpi-sub">total</div>
+            </div>
+            <div class="obs-kpi-card">
+              <div class="obs-kpi-label">&#10060; Cache Misses</div>
+              <div class="obs-kpi-value" id="met-cache-misses">—</div>
+              <div class="obs-kpi-sub">total</div>
+            </div>
+            <div class="obs-kpi-card" id="met-cache-rate-card">
+              <div class="obs-kpi-label">&#128200; Hit Rate</div>
+              <div class="obs-kpi-value" id="met-cache-rate">—</div>
+              <div class="obs-kpi-sub">% (meta &gt; 70%)</div>
+            </div>
+          </div>
+          <!-- Barra visual de hit rate -->
+          <div style="margin:16px 0 8px;background:var(--surface2);border-radius:8px;height:18px;overflow:hidden">
+            <div id="met-cache-bar" style="height:100%;width:0%;background:var(--success);border-radius:8px;transition:width .6s ease"></div>
+          </div>
+          <div id="met-cache-bar-label" style="font-size:11px;color:var(--text-muted);text-align:center">aguardando dados...</div>
+          <div id="met-cache-state"></div>
+        </div>
+
+        <!-- ── ABA: LLM / Ollama ── -->
+        <div id="met-panel-llm" class="met-panel" style="display:none">
+          <div style="display:flex;align-items:center;margin:10px 0 14px">
+            <span style="font-size:12px;color:var(--text-muted)">Intenções detectadas · Chamadas Ollama · Latência</span>
+            <button class="obs-range-btn" onclick="metLoadLlm()" style="margin-left:auto">&#8635; Atualizar</button>
+          </div>
+          <div class="obs-kpi-grid">
+            <div class="obs-kpi-card"><div class="obs-kpi-label">&#129504; Intenções</div><div class="obs-kpi-value" id="met-llm-intents">—</div><div class="obs-kpi-sub">detectadas</div></div>
+            <div class="obs-kpi-card"><div class="obs-kpi-label">&#128172; Ollama Calls</div><div class="obs-kpi-value" id="met-llm-calls">—</div><div class="obs-kpi-sub">total</div></div>
+            <div class="obs-kpi-card"><div class="obs-kpi-label">&#10060; Ollama Erros</div><div class="obs-kpi-value" id="met-llm-errors">—</div><div class="obs-kpi-sub">total</div></div>
+            <div class="obs-kpi-card"><div class="obs-kpi-label">&#9201; Latência Avg</div><div class="obs-kpi-value" id="met-llm-lat">—</div><div class="obs-kpi-sub">ms</div></div>
+          </div>
+          <!-- Tabela distribuição de intenções -->
+          <div id="met-llm-intent-dist" style="margin-top:14px"></div>
+          <div id="met-llm-state"></div>
+        </div>
       </div>
     </div>
 
