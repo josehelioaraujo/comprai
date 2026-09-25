@@ -283,7 +283,8 @@ app.MapGet("/api/search", async (
             // Nao cacheia resultado vazio
             return (r.IsSuccess && r.Value.Items.Count > 0) ? r : null;
         },
-        ct);
+        ttl: null,
+        ct: ct);
 
     if (fromCache && result != null) metrics.CacheHitTotal.Add(1);
 
