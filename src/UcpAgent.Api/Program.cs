@@ -36,6 +36,7 @@ using UcpAgent.Catalog.DummyJSON;
 using UcpAgent.PriceWatcher;
 using UcpAgent.PriceWatcher.Channels;
 using UcpAgent.PriceWatcher.Hubs;
+using UcpAgent.Api.Cache;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddObservabilidade(builder.Configuration);
@@ -57,6 +58,18 @@ builder.Services.AddHybridCache(opt =>
         LocalCacheExpiration = TimeSpan.FromMinutes(1)
     };
 });
+
+// ── Cache Strategy ──────────────────────────────────────────────────────────
+var cacheStrategyStr = builder.Configuration["Features:CacheStrategy"] ?? "hybrid";
+var cacheStrategy = cacheStrategyStr.ToLowerInvariant() switch
+{
+    "aside"        => UcpAgent.SharedKernel.CacheStrategy.Aside,
+    "read-through" => UcpAgent.SharedKernel.CacheStrategy.ReadThrough,
+    "ttl"          => UcpAgent.SharedKernel.CacheStrategy.Ttl,
+    _              => UcpAgent.SharedKernel.CacheStrategy.Hybrid
+};
+builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.ICacheService>(
+    sp => new UcpCacheService(sp.GetRequiredService<HybridCache>(), cacheStrategy));
 
 // Ã¢ââ¬Ã¢ââ¬ OpenTelemetry Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬
 builder.Services.AddOpenTelemetry()
@@ -251,26 +264,34 @@ app.MapGet("/health/ready", () => Results.Ok(new { status = "ready" }))
 app.MapGet("/api/search", async (
     string q, int page, int pageSize,
     string? category, decimal? minPrice, decimal? maxPrice,
-    IMediator mediator, HybridCache cache, UcpMetrics metrics, CancellationToken ct) =>
+    IMediator mediator,
+    UcpAgent.SharedKernel.Ports.ICacheService cacheService,
+    UcpMetrics metrics,
+    CancellationToken ct) =>
 {
-    var cacheKey = $"search:{q}:{page}:{pageSize}:{category}:{minPrice}:{maxPrice}";
+    var cacheKey = $"search:{q.ToLowerInvariant().Trim()}:{page}:{pageSize}:{category}:{minPrice}:{maxPrice}";
     bool fromCache = true;
 
-    var result = await cache.GetOrCreateAsync(
+    var result = await cacheService.GetOrSetAsync(
         cacheKey,
-        async (token) =>
+        async token =>
         {
             fromCache = false;
             metrics.CacheMissTotal.Add(1);
             var r = await mediator.Send(
                 new SearchProductsQuery(q, page, pageSize, category, minPrice, maxPrice), token);
-            return r;
+            // Nao cacheia resultado vazio
+            return (r.IsSuccess && r.Value.Items.Count > 0) ? r : null;
         },
         cancellationToken: ct);
 
-    if (fromCache) metrics.CacheHitTotal.Add(1);
+    if (fromCache && result != null) metrics.CacheHitTotal.Add(1);
 
-    return result.IsSuccess ? Results.Ok(result.Value) : Results.Problem(result.Error);
+    // Se factory retornou null (sem resultados), executa sem cachear
+    var final = result ?? await mediator.Send(
+        new SearchProductsQuery(q, page, pageSize, category, minPrice, maxPrice), ct);
+
+    return final.IsSuccess ? Results.Ok(final.Value) : Results.Problem(final.Error);
 })
 .WithTags("Search").WithName("SearchProducts")
    .RequireRateLimiting(RateLimitExtensions.CatalogPolicy);
@@ -818,6 +839,7 @@ record K6AnalyzeRequest(string Summary, string Question, string? Model);
 record AdminRestartRequest(string? Target, string? Password);
 
 record GitHubDispatchRequest(string? Repo, string? Workflow, string? Ref, Dictionary<string, string>? Inputs = null);
+
 
 
 
