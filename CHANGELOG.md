@@ -1,3 +1,63 @@
+## [4.0.0] - 2026-09-25
+
+### Added
+
+- **Correlação K6 × Mutation (OpsWatch)**
+  - Nova seção no grupo Qualidade: cruza p95 K6 com mutation score por handler
+  - Índice de risco combinado (0-100): p95 normalizado × lacuna de mutation
+  - KPI barra horizontal compacta: Alto / Médio / Baixo / Maior risco (em linha)
+  - Tabela ordenada por risco: badge de método colorido, barra de progresso, badge ALTO/MÉDIO/BAIXO
+  - Chevron header ▼ — expande/recolhe todas as linhas de uma vez
+  - Chevron por linha — drill-down inline com 3 métricas + diagnóstico + recomendações priorizadas
+  - Diagnóstico em linguagem natural: explica cenário de erro silencioso (fallback não testado, não logado)
+  - Recomendações por categoria: p95 crítico, mutation baixo, risco de erro silencioso
+  - Tooltips nativos (`title=`) em todas as colunas com interpretação contextual por faixa
+
+- **Drill-down inline no Quality Trend**
+  - Botões ▶ CI/CD / ▶ Mutation / ▶ CVEs abrem painel inline com jobs+steps em tempo real
+  - Polling dos steps a cada 5s com ícones de status por step
+  - Chevron animado por job (auto-expande `in_progress` e `failure`)
+  - Link direto "↗ Ver no GitHub" com `run_id` real
+  - Botão ✕ para fechar o painel sem cancelar o run
+
+- **Quality Trend — tabela de runs com chevron**
+  - Cada run tem ▼ expansível com KPI cards inline (Coverage, Mutation, CVEs, Bugs, Smells)
+  - Delta ▲▼ vs run anterior com cor verde/vermelho
+  - Hint explicativo por métrica (hover no ℹ)
+  - Botão "Ver detalhes" abre drawer lateral existente
+
+- **Gráfico ao vivo durante Stress Test K6**
+  - Canvas Chart.js dual-Y aparece no runPanel assim que o workflow é disparado
+  - Eixo esquerdo: p95 (ms) com área translúcida roxa
+  - Eixo direito: req/s (verde) + erro % (vermelho)
+  - KPIs inline atualizados a cada 5s: p95 / req/s / erro
+  - Janela deslizante de 60 pontos (5 minutos de histórico)
+  - p95 > 1000ms: cor vermelha + animação pulse de alerta
+  - Chevron ▼ para colapsar/expandir o gráfico (KPIs permanecem visíveis)
+  - Para automaticamente ao concluir o workflow ou fechar o runPanel
+  - Fonte: Prometheus via `/api/observability/metrics` (proxy já existente)
+
+- **Botão ✕ Cancelar run**
+  - Aparece no runPanel ao lado de "Ver no GitHub ↗" somente durante `in_progress`/`queued`
+  - Ao clicar: para polling, para gráfico ao vivo, atualiza status para "Run cancelado pelo usuário"
+  - Novo endpoint `POST /api/github/run/{runId}/cancel` no `Program.cs`
+  - Chama `POST /repos/{owner}/{repo}/actions/runs/{id}/cancel` via GitHub API com PAT server-side
+  - Retorna: `202 Accepted` (cancelado) | `409 Conflict` (já concluído)
+
+- **Ícone 🔭 OpsWatch na sidebar**
+  - Emoji telescópio antes do texto "OpsWatch" no header da sidebar
+  - Mantém o comportamento de colapsar o texto ao recolher a sidebar
+
+### Fixed
+
+- SyntaxError `rgba(255,255,255,.03)` em `onmouseover` inline na tabela Correlação → event delegation com `data-cidx`
+- `async` órfão na linha 2883 quebrando parser JS → removido
+- `runStatus is not defined` no `renderRunStatus` → corrigido para `run.status`
+- Gráfico Quality Trend em branco quando Mutation/CVEs sem dados → `filter(Boolean)` nos datasets
+- TD duplicada na tabela Correlação causando coluna extra preta → removida
+- Colspan do detalhe ajustado para `99` (cobre todas as colunas dinamicamente)
+- Chevron ▼ coluna AÇÃO da tabela Correlação: restaurado e visível após reescritas anteriores
+
 ## [3.9.0] - 2026-09-24
 
 ### Added
