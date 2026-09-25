@@ -254,29 +254,21 @@ app.MapGet("/api/search", async (
     IMediator mediator, HybridCache cache, UcpMetrics metrics, CancellationToken ct) =>
 {
     var cacheKey = $"search:{q}:{page}:{pageSize}:{category}:{minPrice}:{maxPrice}";
+    bool fromCache = true;
 
-    // Tenta ler do cache; se nao existir, chama os plugins (MISS)
-    bool isMiss = false;
-    var cached = await cache.GetOrCreateAsync<Result<SearchResult>?>(
+    var result = await cache.GetOrCreateAsync(
         cacheKey,
-        async _ =>
+        async (token) =>
         {
-            isMiss = true;
+            fromCache = false;
             metrics.CacheMissTotal.Add(1);
             var r = await mediator.Send(
-                new SearchProductsQuery(q, page, pageSize, category, minPrice, maxPrice), ct);
-            // Nao cacheia resultado vazio — evita cachear falha temporaria de plugin
-            return (r.IsSuccess && r.Value.Items.Count > 0) ? r : null;
+                new SearchProductsQuery(q, page, pageSize, category, minPrice, maxPrice), token);
+            return r;
         },
         cancellationToken: ct);
 
-    // Se nao foi miss, veio do cache (HIT)
-    if (!isMiss && cached != null)
-        metrics.CacheHitTotal.Add(1);
-
-    // Se factory retornou null (resultado vazio), executa sem cachear
-    var result = cached ?? await mediator.Send(
-        new SearchProductsQuery(q, page, pageSize, category, minPrice, maxPrice), ct);
+    if (fromCache) metrics.CacheHitTotal.Add(1);
 
     return result.IsSuccess ? Results.Ok(result.Value) : Results.Problem(result.Error);
 })
@@ -826,6 +818,7 @@ record K6AnalyzeRequest(string Summary, string Question, string? Model);
 record AdminRestartRequest(string? Target, string? Password);
 
 record GitHubDispatchRequest(string? Repo, string? Workflow, string? Ref, Dictionary<string, string>? Inputs = null);
+
 
 
 
