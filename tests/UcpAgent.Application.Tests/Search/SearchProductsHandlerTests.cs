@@ -1,5 +1,6 @@
 using Moq;
 using UcpAgent.Application.Search;
+using UcpAgent.SharedKernel;
 using UcpAgent.SharedKernel.Models;
 using UcpAgent.SharedKernel.Ports;
 using Xunit;
@@ -14,6 +15,8 @@ public sealed class SearchProductsHandlerTests
     private static SearchResult MakeResult(IEnumerable<ProductDto> items, string source) =>
         new(items.ToList(), items.Count(), 1, 20, source);
 
+    private static readonly UcpMetrics _metrics = new();
+
     [Fact]
     public async Task Handle_SingleCatalog_ReturnsProducts()
     {
@@ -22,7 +25,7 @@ public sealed class SearchProductsHandlerTests
         catalog.Setup(c => c.SearchAsync(It.IsAny<SearchRequest>(), default))
                .ReturnsAsync(MakeResult([product], "mock"));
         catalog.Setup(c => c.SourceName).Returns("mock");
-        var handler = new SearchProductsHandler([catalog.Object]);
+        var handler = new SearchProductsHandler([catalog.Object], _metrics);
 
         var result = await handler.Handle(new SearchProductsQuery("notebook"), default);
 
@@ -42,7 +45,7 @@ public sealed class SearchProductsHandlerTests
         catalog2.Setup(c => c.SearchAsync(It.IsAny<SearchRequest>(), default))
                 .ReturnsAsync(MakeResult([MakeProduct("B", "shopify", 150m)], "shopify"));
         catalog2.Setup(c => c.SourceName).Returns("shopify");
-        var handler = new SearchProductsHandler([catalog1.Object, catalog2.Object]);
+        var handler = new SearchProductsHandler([catalog1.Object, catalog2.Object], _metrics);
 
         var result = await handler.Handle(new SearchProductsQuery("tênis"), default);
 
@@ -55,21 +58,20 @@ public sealed class SearchProductsHandlerTests
     {
         var catalog1 = new Mock<IProductCatalogPort>();
         var catalog2 = new Mock<IProductCatalogPort>();
-        // catalog1 tem 2 items, catalog2 tem 3 items
         var items1 = Enumerable.Range(1, 2).Select(i => MakeProduct($"A{i}", "ml", i * 10m)).ToList();
         var items2 = Enumerable.Range(1, 3).Select(i => MakeProduct($"B{i}", "shopify", i * 20m)).ToList();
         catalog1.Setup(c => c.SearchAsync(It.IsAny<SearchRequest>(), default))
-                .ReturnsAsync(new SearchResult(items1, 10, 1, 20, "ml")); // total=10
+                .ReturnsAsync(new SearchResult(items1, 10, 1, 20, "ml"));
         catalog1.Setup(c => c.SourceName).Returns("ml");
         catalog2.Setup(c => c.SearchAsync(It.IsAny<SearchRequest>(), default))
-                .ReturnsAsync(new SearchResult(items2, 15, 1, 20, "shopify")); // total=15
+                .ReturnsAsync(new SearchResult(items2, 15, 1, 20, "shopify"));
         catalog2.Setup(c => c.SourceName).Returns("shopify");
-        var handler = new SearchProductsHandler([catalog1.Object, catalog2.Object]);
+        var handler = new SearchProductsHandler([catalog1.Object, catalog2.Object], _metrics);
 
         var result = await handler.Handle(new SearchProductsQuery("produto"), default);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(25, result.Value!.TotalItems); // 10 + 15
+        Assert.Equal(25, result.Value!.TotalItems);
         Assert.Equal("aggregated", result.Value.Source);
     }
 
@@ -85,7 +87,7 @@ public sealed class SearchProductsHandlerTests
         catalog2.Setup(c => c.SearchAsync(It.IsAny<SearchRequest>(), default))
                 .ReturnsAsync(MakeResult([duplicate], "ml"));
         catalog2.Setup(c => c.SourceName).Returns("ml");
-        var handler = new SearchProductsHandler([catalog1.Object, catalog2.Object]);
+        var handler = new SearchProductsHandler([catalog1.Object, catalog2.Object], _metrics);
 
         var result = await handler.Handle(new SearchProductsQuery("tênis"), default);
 
@@ -103,7 +105,7 @@ public sealed class SearchProductsHandlerTests
         failCatalog.Setup(c => c.SearchAsync(It.IsAny<SearchRequest>(), default))
                    .ThrowsAsync(new HttpRequestException("timeout"));
         failCatalog.Setup(c => c.SourceName).Returns("fail");
-        var handler = new SearchProductsHandler([okCatalog.Object, failCatalog.Object]);
+        var handler = new SearchProductsHandler([okCatalog.Object, failCatalog.Object], _metrics);
 
         var result = await handler.Handle(new SearchProductsQuery("produto"), default);
 
@@ -124,7 +126,7 @@ public sealed class SearchProductsHandlerTests
         catalog.Setup(c => c.SearchAsync(It.IsAny<SearchRequest>(), default))
                .ReturnsAsync(MakeResult(products, "ml"));
         catalog.Setup(c => c.SourceName).Returns("ml");
-        var handler = new SearchProductsHandler([catalog.Object]);
+        var handler = new SearchProductsHandler([catalog.Object], _metrics);
 
         var result = await handler.Handle(new SearchProductsQuery("produto"), default);
         var items  = result.Value!.Items;
@@ -137,7 +139,7 @@ public sealed class SearchProductsHandlerTests
     [Fact]
     public async Task Handle_NoCatalogs_ReturnsEmptySuccess()
     {
-        var handler = new SearchProductsHandler([]);
+        var handler = new SearchProductsHandler([], _metrics);
 
         var result = await handler.Handle(new SearchProductsQuery("produto"), default);
 
@@ -153,7 +155,7 @@ public sealed class SearchProductsHandlerTests
         catalog.Setup(c => c.SearchAsync(It.IsAny<SearchRequest>(), default))
                .ReturnsAsync(MakeResult([MakeProduct("1", "ml", 10m)], "ml"));
         catalog.Setup(c => c.SourceName).Returns("ml");
-        var handler = new SearchProductsHandler([catalog.Object]);
+        var handler = new SearchProductsHandler([catalog.Object], _metrics);
 
         var result = await handler.Handle(new SearchProductsQuery("x"), default);
 

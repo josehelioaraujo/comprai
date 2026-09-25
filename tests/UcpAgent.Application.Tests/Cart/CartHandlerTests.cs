@@ -1,5 +1,6 @@
 using Moq;
 using UcpAgent.Application.Cart;
+using UcpAgent.SharedKernel;
 using UcpAgent.SharedKernel.Models;
 using UcpAgent.SharedKernel.Ports;
 using Xunit;
@@ -12,13 +13,15 @@ public sealed class CartHandlerTests
     private static ProductDto MakeProduct(string id = "P1") =>
         new(id, "Produto Teste", 99.90m, null, null, "eletronicos", "mock");
 
+    private static readonly UcpMetrics _metrics = new();
+
     // ── AddToCart ─────────────────────────────────────────────────────────────
 
     [Fact]
     public async Task AddToCart_ValidProduct_ReturnsItemId()
     {
         var cart    = new Mock<ICartPort>();
-        var handler = new AddToCartHandler(cart.Object);
+        var handler = new AddToCartHandler(cart.Object, _metrics);
         var product = MakeProduct();
         var command = new AddToCartCommand("session-1", product, 2);
         cart.Setup(c => c.AddItemAsync("session-1", product, 2, default))
@@ -34,7 +37,7 @@ public sealed class CartHandlerTests
     public async Task AddToCart_RetornaExatamenteOItemIdDoPort()
     {
         var cart    = new Mock<ICartPort>();
-        var handler = new AddToCartHandler(cart.Object);
+        var handler = new AddToCartHandler(cart.Object, _metrics);
         var product = MakeProduct();
         var command = new AddToCartCommand("session-1", product, 1);
         cart.Setup(c => c.AddItemAsync(It.IsAny<string>(), It.IsAny<ProductDto>(), It.IsAny<int>(), default))
@@ -49,7 +52,7 @@ public sealed class CartHandlerTests
     public async Task AddToCart_CallsPortWithCorrectArgs()
     {
         var cart    = new Mock<ICartPort>();
-        var handler = new AddToCartHandler(cart.Object);
+        var handler = new AddToCartHandler(cart.Object, _metrics);
         var product = MakeProduct("P99");
         var command = new AddToCartCommand("session-x", product, 3);
         cart.Setup(c => c.AddItemAsync(It.IsAny<string>(), It.IsAny<ProductDto>(), It.IsAny<int>(), default))
@@ -64,7 +67,7 @@ public sealed class CartHandlerTests
     public async Task AddToCart_IsSuccessTrue()
     {
         var cart    = new Mock<ICartPort>();
-        var handler = new AddToCartHandler(cart.Object);
+        var handler = new AddToCartHandler(cart.Object, _metrics);
         cart.Setup(c => c.AddItemAsync(It.IsAny<string>(), It.IsAny<ProductDto>(), It.IsAny<int>(), default))
             .ReturnsAsync("item-1");
 
