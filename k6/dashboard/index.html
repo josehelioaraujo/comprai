@@ -4320,11 +4320,19 @@ function adminTrackRun(label, runId) {
         ];
         var base = d.search || 1;
         var html = '';
+        var funilHints = [];
         steps.forEach(function(s, i) {
           var val = d[s.key] || 0;
           var pct = i === 0 ? 100 : Math.min(100, ((val / base) * 100));
           var pctFmt = i === 0 ? val.toFixed(0) : (pct.toFixed(1) + '%');
-          html += '<div class="met-funil-bar-row">' +
+          // Hint dinâmico por etapa
+          var hint = '';
+          if (i === 0) hint = val === 0 ? 'Nenhuma busca registrada ainda.' : val + ' buscas — base do funil.';
+          if (i === 1) hint = pct >= 30 ? '🟢 ' + pct.toFixed(1) + '% — saudável (meta > 30%)' : pct >= 10 ? '🟡 ' + pct.toFixed(1) + '% — abaixo do ideal. Meta > 30%. Pode indicar produtos irrelevantes.' : '🔴 ' + pct.toFixed(1) + '% — crítico. Poucos produtos no catálogo ou intent mal roteado.';
+          if (i === 2) hint = pct >= 60 ? '🟢 ' + pct.toFixed(1) + '% — saudável (meta > 60%)' : pct >= 30 ? '🟡 ' + pct.toFixed(1) + '% — abaixo do ideal. Meta > 60%. Pode indicar fricção no fluxo.' : '🔴 ' + pct.toFixed(1) + '% — crítico. Muitos abandonos antes do checkout.';
+          if (i === 3) hint = pct >= 20 ? '🟢 ' + pct.toFixed(1) + '% — conversão final saudável (meta > 20%)' : pct >= 5 ? '🟡 ' + pct.toFixed(1) + '% — conversão final baixa. Meta > 20%.' : '🔴 ' + pct.toFixed(1) + '% — conversão final crítica.';
+          if (hint) funilHints.push(hint);
+          html += '<div class="met-funil-bar-row" title="' + hint + '">' +
             '<div class="met-funil-bar-label">' + s.label + '</div>' +
             '<div class="met-funil-bar-track">' +
               '<div class="met-funil-bar-fill" style="width:' + pct.toFixed(1) + '%;background:' + s.color + '"></div>' +
@@ -4334,6 +4342,11 @@ function adminTrackRun(label, runId) {
           var kpiEl = document.getElementById(s.kpiId);
           if (kpiEl) kpiEl.textContent = i === 0 ? val.toFixed(0) : pct.toFixed(1) + '%';
         });
+        // Painel de diagnóstico abaixo do funil
+        var diagHtml = '<div style="margin-top:14px;display:flex;flex-direction:column;gap:4px">';
+        funilHints.forEach(function(h) { diagHtml += '<div style="font-size:11px;color:var(--text-muted);padding:3px 8px;background:var(--surface2);border-radius:4px">' + h + '</div>'; });
+        diagHtml += '</div>';
+        html += diagHtml;
         if (wrap) wrap.innerHTML = html;
         if (kpis) kpis.style.display = '';
       })
@@ -4360,14 +4373,28 @@ function adminTrackRun(label, runId) {
           '</tr></thead><tbody>';
         plugins.forEach(function(p) {
           var errRate = p.total > 0 ? ((p.errors / p.total) * 100).toFixed(1) : '0.0';
-          var status = p.errors === 0 ? '🟢' : p.errors < p.total * 0.1 ? '🟡' : '🔴';
-          html += '<tr>' +
-            '<td style="font-weight:600">' + p.plugin + '</td>' +
+          var isMock = p.plugin === 'Mock' || p.plugin === 'FakeCatalog';
+          var statusIcon = p.errors === 0 ? '🟢' : p.errors < p.total * 0.1 ? '🟡' : '🔴';
+          // Hint contextual — Mock/Fake é esperado ter fallback alto
+          var statusHint = '';
+          if (isMock && p.fallbacks > 0) {
+            statusIcon = '🟡';
+            statusHint = 'Plugin de mock — fallbacks esperados. Não indica problema real.';
+          } else if (p.errors === 0) {
+            statusHint = 'Saudável — zero erros registrados.';
+          } else if (p.errors < p.total * 0.1) {
+            statusHint = 'Atenção — ' + errRate + '% de erros. Monitore a tendência.';
+          } else {
+            statusHint = 'Crítico — ' + errRate + '% de erros. Verifique conectividade e credenciais do plugin.';
+          }
+          var p95hint = p.p95 != null ? (p.p95 < 200 ? ' — rápido' : p.p95 < 500 ? ' — aceitável' : ' — lento, acima da meta de 500ms') : '';
+          html += '<tr title="' + statusHint + '">' +
+            '<td style="font-weight:600">' + p.plugin + (isMock ? ' <span style="font-size:9px;color:var(--text-muted);font-weight:400">(mock)</span>' : '') + '</td>' +
             '<td>' + (p.total || 0) + '</td>' +
-            '<td>' + (p.errors || 0) + ' <span style="color:var(--text-muted);font-size:10px">(' + errRate + '%)</span></td>' +
-            '<td>' + (p.fallbacks || 0) + '</td>' +
-            '<td>' + (p.p95 != null ? p.p95.toFixed(0) + ' ms' : '—') + '</td>' +
-            '<td>' + status + '</td>' +
+            '<td title="' + statusHint + '">' + (p.errors || 0) + ' <span style="color:var(--text-muted);font-size:10px">(' + errRate + '%)</span></td>' +
+            '<td title="Fallback = plugin retornou 0 itens ou lançou exceção. ' + (isMock ? 'Normal para mocks.' : 'Verifique se o catálogo está respondendo.') + '">' + (p.fallbacks || 0) + '</td>' +
+            '<td title="p95' + p95hint + '">' + (p.p95 != null ? p.p95.toFixed(0) + ' ms' : '—') + '</td>' +
+            '<td title="' + statusHint + '">' + statusIcon + '</td>' +
           '</tr>';
         });
         html += '</tbody></table>';
@@ -4431,7 +4458,7 @@ function adminTrackRun(label, runId) {
           if (card) card.style.borderColor = rate >= 70 ? 'var(--success)' : rate >= 40 ? 'var(--warning)' : 'var(--danger)';
         } else {
           var lbl = document.getElementById('met-cache-bar-label');
-          if (lbl) lbl.textContent = 'Sem dados — execute buscas para gerar hits/misses.';
+          if (lbl) lbl.textContent = 'Sem dados — o wiring de cache hit/miss ainda não foi implementado. Os contadores existem no OTel mas não são chamados nos endpoints de busca.';
         }
       })
       .catch(function(e){
@@ -4456,10 +4483,30 @@ function adminTrackRun(label, runId) {
         setText('met-llm-calls',   d.ollamaCalls  != null ? d.ollamaCalls.toFixed(0)  : '—');
         setText('met-llm-errors',  d.ollamaErrors != null ? d.ollamaErrors.toFixed(0) : '—');
         setText('met-llm-lat',     d.avgLatencyMs != null ? d.avgLatencyMs.toFixed(0) + ' ms' : '—');
+        // Hint dinâmico no card de erros Ollama
+        var errCard = document.getElementById('met-llm-errors');
+        if (errCard && d.ollamaErrors > 0) {
+          var errHint = d.ollamaErrors >= d.ollamaCalls ? 'Ollama não está rodando ou modelo não carregado. Suba o container ollama na VPS.' : d.ollamaErrors / d.ollamaCalls > 0.05 ? 'Taxa de erro > 5% — verifique memória disponível na VPS ou recarregue o modelo.' : 'Alguns erros registrados — pode ser timeout pontual.';
+          errCard.title = errHint;
+          errCard.style.color = d.ollamaErrors >= d.ollamaCalls ? 'var(--danger)' : 'var(--warning)';
+        }
+        // Hint latência
+        var latCard = document.getElementById('met-llm-lat');
+        if (latCard && d.avgLatencyMs != null) {
+          latCard.title = d.avgLatencyMs < 3000 ? 'Rápido para LLM local.' : d.avgLatencyMs < 15000 ? 'Latência normal para modelos locais (3–15s).' : 'Lento — modelo grande ou VPS sobrecarregada.';
+        }
 
         // Distribuição de intenções
         var intents = d.intentDistribution || {};
         var keys = Object.keys(intents);
+        var intentDesc = {
+          SearchProducts: 'Usuário pediu uma busca de produto — aciona o fan-out nos plugins de catálogo.',
+          AddToCart:      'Usuário pediu para adicionar item ao carrinho — requer sessionId e productId.',
+          ViewCart:       'Usuário quer ver o carrinho atual — redireciona para GET /api/cart/{sessionId}.',
+          Checkout:       'Usuário quer finalizar a compra — aciona o fluxo de pagamento.',
+          GetOrder:       'Usuário consulta status de um pedido — requer ORDER-XXXXXXXX.',
+          Unknown:        'Intenção não reconhecida — o texto não casou com nenhum padrão do router.'
+        };
         if (keys.length && distEl) {
           var total = keys.reduce(function(s,k){ return s + (intents[k]||0); }, 0) || 1;
           var colors = { SearchProducts:'#06b6d4', AddToCart:'#6366f1', Checkout:'#22c55e', GetOrder:'#f59e0b', ViewCart:'#8b5cf6', Unknown:'#64748b' };
@@ -4468,15 +4515,23 @@ function adminTrackRun(label, runId) {
             var val = intents[k] || 0;
             var pct = (val / total * 100);
             var col = colors[k] || '#64748b';
-            html += '<div class="met-funil-bar-row" style="margin-bottom:4px">' +
-              '<div class="met-funil-bar-label" style="width:110px">' + k + '</div>' +
+            var desc = intentDesc[k] || k;
+            html += '<div class="met-funil-bar-row" style="margin-bottom:4px" title="' + desc + '">' +
+              '<div class="met-funil-bar-label" style="width:110px;cursor:help" title="' + desc + '">' + k + '</div>' +
               '<div class="met-funil-bar-track">' +
                 '<div class="met-funil-bar-fill" style="width:' + pct.toFixed(1) + '%;background:' + col + '"></div>' +
               '</div>' +
               '<div class="met-funil-bar-pct">' + pct.toFixed(0) + '% (' + val + ')</div>' +
             '</div>';
           });
-          distEl.innerHTML = html;
+          // Hint: SearchProducts deve ser dominante
+          var searchPct = total > 0 ? ((intents['SearchProducts']||0) / total * 100) : 0;
+          var distHint = searchPct >= 40
+            ? '<div style="font-size:11px;color:var(--success);margin-top:8px">🟢 Distribuição saudável — SearchProducts domina, como esperado num agente de compras.</div>'
+            : searchPct > 0
+            ? '<div style="font-size:11px;color:var(--warning);margin-top:8px">🟡 SearchProducts com ' + searchPct.toFixed(0) + '% — esperado ser a intenção dominante (&gt; 40%).</div>'
+            : '<div style="font-size:11px;color:var(--text-muted);margin-top:8px">Sem dados de SearchProducts ainda.</div>';
+          distEl.innerHTML = html + distHint;
         } else if (distEl) {
           distEl.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:8px 0">Sem dados de intenções — use o endpoint /api/intent para gerar.</div>';
         }
