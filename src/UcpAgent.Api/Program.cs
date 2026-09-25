@@ -247,6 +247,33 @@ builder.Services.AddHttpClient("github", (sp, client) =>
 var app = builder.Build();
 
 app.UseCors("AllowAll");
+
+// ── Access Log Middleware ────────────────────────────────────────────────────
+app.Use(async (ctx, next) =>
+{
+    var sw = System.Diagnostics.Stopwatch.StartNew();
+    await next();
+    sw.Stop();
+    // Ignora assets estáticos e endpoints internos
+    var path = ctx.Request.Path.Value ?? "";
+    if (path.StartsWith("/k6") || path.StartsWith("/_") || path.EndsWith(".js")
+        || path.EndsWith(".css") || path.EndsWith(".ico") || path.EndsWith(".png"))
+        return;
+    var ip  = ctx.Connection.RemoteIpAddress?.ToString() ?? "-";
+    var fwd = ctx.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+    var clientIp = fwd?.Split(",")[0].Trim() ?? ip;
+    var ua  = ctx.Request.Headers.UserAgent.ToString();
+    var log = ctx.RequestServices.GetRequiredService<ILogger<Program>>();
+    log.LogInformation(
+        "ACCESS {Method} {Path}{Query} {Status} {Ms}ms ip={Ip} ua={Ua}",
+        ctx.Request.Method,
+        path,
+        ctx.Request.QueryString.ToString(),
+        ctx.Response.StatusCode,
+        sw.ElapsedMilliseconds,
+        clientIp,
+        ua);
+});
 app.UseRateLimiter();
 app.UseDefaultFiles();
 app.UseStaticFiles();
@@ -840,6 +867,7 @@ record K6AnalyzeRequest(string Summary, string Question, string? Model);
 record AdminRestartRequest(string? Target, string? Password);
 
 record GitHubDispatchRequest(string? Repo, string? Workflow, string? Ref, Dictionary<string, string>? Inputs = null);
+
 
 
 
