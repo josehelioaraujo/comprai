@@ -1,3 +1,49 @@
+## [4.1.0] - 2026-09-25
+
+### Added
+
+- **Instrumentação OTel Granular UCP (V033)**
+  - `UcpMetrics.cs` em `UcpAgent.SharedKernel` — Meter `comprai.ucp` com 17 instrumentos (Counter + Histogram)
+  - Funil UCP: `ucp_search_requests_total`, `ucp_cart_add_items_total`, `ucp_checkout_success_requests_total`, `ucp_order_placed_orders_total`
+  - Plugins: `ucp_plugin_search_requests_total`, `ucp_plugin_fallback_events_total`, `ucp_plugin_duration_milliseconds` (tag: plugin)
+  - LLM/Ollama: `ucp_intent_detected_requests_total` (tag: intent), `ucp_ollama_request_requests_total`, `ucp_ollama_duration_milliseconds`
+  - Cache: `ucp_cache_hit_hits_total` / `ucp_cache_miss_misses_total` (estrutura pronta, wiring pendente)
+  - Nomes com underscore para compatibilidade Prometheus 3.x (ponto em seletores PromQL não funciona na v3.14)
+
+- **OpsWatch — 5 Abas de Métricas (V034)**
+  - Aba Visão Geral: KPIs req/s, p99, taxa de erro, uptime + gráfico dual-axis (existente, reorganizado)
+  - Aba Funil UCP: barras horizontais Search→Cart→Checkout→Order com % de conversão + KPI cards
+  - Aba Plugins: tabela p95/erros/fallbacks por plugin + gráfico de barras Chart.js colorido por status
+  - Aba Cache Redis: KPIs hits/misses/hit-rate + barra de progresso com alerta <70%
+  - Aba LLM/Ollama: KPIs calls/errors/latência avg + distribuição de intenções por tipo com barras coloridas
+  - 4 novos endpoints backend: `GET /api/observability/metrics/{funil,plugins,cache,llm}`
+  - `QueryLabeled`: helper PromQL com `sum by (label)` para métricas por plugin/intent
+
+- **Hints Dinâmicos e Contextuais nas Métricas**
+  - Funil UCP: painel de diagnóstico 🟢🟡🔴 abaixo das barras com metas (carrinho >30%, checkout >60%, pedidos >20%)
+  - Plugins: Mock marcado como `(mock)`, fallback contextual, status com causa e ação sugerida no hover
+  - LLM/Ollama: descrição de cada tipo de intenção no hover, aviso se SearchProducts não for dominante
+  - Ollama erros: hint contextual com causa (container parado, modelo não carregado, memória)
+  - Tooltips em todos os KPI cards das 5 abas com metas, interpretação e contexto
+
+- **populate-metrics.ps1**
+  - Script PowerShell para popular métricas no OpsWatch: Search→Cart→Checkout, 12 intents, análise Ollama, 20 buscas multi-plugin
+  - Base para futuro runner de testes massivos configurável
+
+### Fixed
+
+- Nomes PromQL corrigidos 3x até bater nos nomes reais exportados pelo OTel .NET no Prometheus 3.14
+- `UcpMetrics` movido de `UcpAgent.Api` para `UcpAgent.SharedKernel` — resolve referência circular Api→Application
+- Testes unitários: `CartHandlerTests`, `SearchProductsHandlerTests`, `CheckoutHandlerTests` corrigidos para `new UcpMetrics()`
+
+### Pending
+
+- `ucp_intent_detected_requests_total` zerado — counter não está sendo chamado no `IntentEndpoints.cs`
+- Cache hit/miss wiring: `GetOrCreateAsync` no `/api/search` + contadores
+- Ollama: subir container na VPS (`docker run ollama/ollama` + `pull gemma3:latest`)
+
+---
+
 ## [4.0.0] - 2026-09-25
 
 ### Added
@@ -727,3 +773,4 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 [Unreleased]: https://github.com/josehelioaraujo/comprai/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/josehelioaraujo/comprai/releases/tag/v0.1.0
+

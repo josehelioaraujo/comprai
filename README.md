@@ -819,7 +819,11 @@ O **OpsWatch** é um portal operacional integrado ao pipeline CI/CD que consolid
 | Testes | Mutação | Score Stryker com killed/survived |
 | Testes | Evolução | Histórico acumulado de métricas |
 | Qualidade | SonarCloud | Quality Gate, Coverage, Bugs, Smells |
-| **Observabilidade** | **Métricas** | **KPI cards Prometheus + gráfico dual-axis** |
+| **Observabilidade** | **Métricas — Visão Geral** | **KPI cards Prometheus + gráfico dual-axis** |
+| **Observabilidade** | **Métricas — Funil UCP** | **Conversão Search→Cart→Checkout→Order com % e diagnóstico 🟢🟡🔴** |
+| **Observabilidade** | **Métricas — Plugins** | **p95/erros/fallbacks por plugin de catálogo + gráfico de barras** |
+| **Observabilidade** | **Métricas — Cache Redis** | **Hit rate com barra de progresso e alerta <70%** |
+| **Observabilidade** | **Métricas — LLM/Ollama** | **Calls/errors/latência avg + distribuição de intenções por tipo** |
 | **Observabilidade** | **Logs** | **Stream Loki com filtro e busca** |
 | **Observabilidade** | **Traces** | **Operações Jaeger com expand de spans** |
 | **Observabilidade** | **Erros Recentes** | **Erros agrupados com stacktrace** |
@@ -863,6 +867,8 @@ Acesse: `https://comprai.2.25.122.11.nip.io/k6/dashboard/`
 | **V030-QS** | Quality Score 0-100: gauge, 4 dimensões, drill-down com código real, botão ∑, Notable Events, Quality Trend com tooltip delta |
 | **V031** | Drill-down inline Quality Trend (CI/CD/Mutation/CVEs), Correlação K6×Mutation com índice de risco, drill-down por endpoint com diagnóstico e recomendações, ícone 🔭 OpsWatch |
 | **V031-Live** | Gráfico ao vivo durante Stress Test K6 (Prometheus dual-Y, polling 5s, alerta p95>1000ms), botão ✕ Cancelar run com endpoint `POST /api/github/run/{id}/cancel` |
+| **V033** | Instrumentação OTel granular: `UcpMetrics` em SharedKernel, 17 instrumentos, nomes underscore para Prometheus 3.x |
+| **V034** | OpsWatch — 5 abas de Métricas (Funil UCP, Plugins, Cache Redis, LLM/Ollama), hints dinâmicos 🟢🟡🔴, `populate-metrics.ps1` |
 
 ### 🔜 Próximas Versões
 
@@ -875,7 +881,7 @@ Acesse: `https://comprai.2.25.122.11.nip.io/k6/dashboard/`
 | **DAST com OWASP ZAP** | Análise dinâmica contra API em staging — fecha gap do SonarCloud estático | Futuro |
 | **Notificação ntfy.sh** | Push quando qualquer suite falha — ntfy já na VPS | Futuro |
 | **Padrão Saga** | 3 implementações chaveáveis (Wolverine, MassTransit, Nativo) via feature flag | Futuro |
-| **Instrumentação OTel** | Funil UCP, erro por plugin, cache hit/miss, span do LLM, eventos Kafka/RabbitMQ | Futuro |
+| **Instrumentação OTel** | Funil UCP ✅, erro/fallback por plugin ✅, LLM/intent ✅ — cache hit/miss e eventos Kafka pendentes | Futuro |
 | **K3s + Helm + Argo CD** | Migração Docker Compose → Kubernetes leve na VPS com GitOps | Futuro |
 | **Canal Web — Demo** | Next.js 15 + Tailwind + shadcn/ui — interface conversacional com raciocínio visível | Futuro |
 | **AIOps com Ollama** | Detecção de anomalias, RCA automático (Prometheus + Loki + Jaeger) | Futuro |
@@ -895,4 +901,5 @@ MIT License — veja [LICENSE](LICENSE) para detalhes.
 **Autor:** [@josehelioaraujo](https://github.com/josehelioaraujo)
 
 Para dúvidas, issues ou contribuições, abra uma issue ou pull request no repositório.
+
 
