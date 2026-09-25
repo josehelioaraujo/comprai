@@ -5,8 +5,7 @@ namespace UcpAgent.SharedKernel;
 
 /// <summary>
 /// Instrumentos OTel centralizados para o Funil UCP, Plugins, Cache Redis e LLM/Ollama.
-/// Registrado como Singleton — injetado nos handlers via DI.
-/// Fica no SharedKernel para ser acessível por Application, Api e plugins.
+/// Nomes com underscore para compatibilidade com PromQL (Prometheus 3.x não aceita ponto em seletores).
 /// </summary>
 [ExcludeFromCodeCoverage]
 public sealed class UcpMetrics : IDisposable
@@ -16,92 +15,60 @@ public sealed class UcpMetrics : IDisposable
     private readonly Meter _meter;
 
     // ── Funil UCP ────────────────────────────────────────────────────────────
-    /// <summary>Buscas iniciadas no catálogo (fan-out paralelo)</summary>
-    public Counter<long> SearchTotal { get; }
-
-    /// <summary>Itens retornados por busca</summary>
+    public Counter<long>    SearchTotal        { get; }
     public Histogram<double> SearchResultsCount { get; }
+    public Histogram<double> SearchDurationMs   { get; }
+    public Counter<long>    CartAddTotal        { get; }
+    public Counter<long>    CheckoutTotal       { get; }
+    public Counter<long>    CheckoutSuccessTotal { get; }
+    public Counter<long>    CheckoutFailureTotal { get; }
+    public Counter<long>    OrderPlacedTotal    { get; }
 
-    /// <summary>Latência da busca agregada (ms)</summary>
-    public Histogram<double> SearchDurationMs { get; }
+    // ── Plugins ───────────────────────────────────────────────────────────────
+    public Counter<long>    PluginSearchTotal   { get; }
+    public Counter<long>    PluginErrorTotal    { get; }
+    public Counter<long>    PluginFallbackTotal { get; }
+    public Histogram<double> PluginDurationMs   { get; }
 
-    /// <summary>Produtos adicionados ao carrinho</summary>
-    public Counter<long> CartAddTotal { get; }
-
-    /// <summary>Checkouts iniciados</summary>
-    public Counter<long> CheckoutTotal { get; }
-
-    /// <summary>Checkouts concluídos com sucesso</summary>
-    public Counter<long> CheckoutSuccessTotal { get; }
-
-    /// <summary>Checkouts com falha</summary>
-    public Counter<long> CheckoutFailureTotal { get; }
-
-    /// <summary>Pedidos criados (order placed)</summary>
-    public Counter<long> OrderPlacedTotal { get; }
-
-    // ── Plugins de Catálogo ──────────────────────────────────────────────────
-    /// <summary>Buscas por plugin (tag: plugin)</summary>
-    public Counter<long> PluginSearchTotal { get; }
-
-    /// <summary>Erros por plugin (tag: plugin)</summary>
-    public Counter<long> PluginErrorTotal { get; }
-
-    /// <summary>Fallbacks ativados (tag: plugin)</summary>
-    public Counter<long> PluginFallbackTotal { get; }
-
-    /// <summary>Latência por plugin em ms (tag: plugin)</summary>
-    public Histogram<double> PluginDurationMs { get; }
-
-    // ── Cache Redis ──────────────────────────────────────────────────────────
-    /// <summary>Cache hits</summary>
-    public Counter<long> CacheHitTotal { get; }
-
-    /// <summary>Cache misses</summary>
+    // ── Cache Redis ───────────────────────────────────────────────────────────
+    public Counter<long> CacheHitTotal  { get; }
     public Counter<long> CacheMissTotal { get; }
 
-    // ── LLM / Ollama ─────────────────────────────────────────────────────────
-    /// <summary>Intenções detectadas pelo router (tag: intent)</summary>
-    public Counter<long> IntentDetectedTotal { get; }
-
-    /// <summary>Chamadas ao Ollama (tag: model)</summary>
-    public Counter<long> OllamaRequestTotal { get; }
-
-    /// <summary>Erros nas chamadas ao Ollama (tag: model)</summary>
-    public Counter<long> OllamaErrorTotal { get; }
-
-    /// <summary>Latência das chamadas ao Ollama em ms (tag: model)</summary>
-    public Histogram<double> OllamaDurationMs { get; }
+    // ── LLM / Ollama ──────────────────────────────────────────────────────────
+    public Counter<long>    IntentDetectedTotal { get; }
+    public Counter<long>    OllamaRequestTotal  { get; }
+    public Counter<long>    OllamaErrorTotal    { get; }
+    public Histogram<double> OllamaDurationMs   { get; }
 
     public UcpMetrics()
     {
         _meter = new Meter(MeterName, "1.0");
 
-        // Funil UCP
-        SearchTotal          = _meter.CreateCounter<long>("ucp.search.total",        "requests", "Total de buscas iniciadas");
-        SearchResultsCount   = _meter.CreateHistogram<double>("ucp.search.results",  "items",    "Itens retornados por busca");
-        SearchDurationMs     = _meter.CreateHistogram<double>("ucp.search.duration", "ms",       "Latência da busca agregada");
-        CartAddTotal         = _meter.CreateCounter<long>("ucp.cart.add.total",       "items",    "Produtos adicionados ao carrinho");
-        CheckoutTotal        = _meter.CreateCounter<long>("ucp.checkout.total",       "requests", "Checkouts iniciados");
-        CheckoutSuccessTotal = _meter.CreateCounter<long>("ucp.checkout.success",     "requests", "Checkouts concluídos");
-        CheckoutFailureTotal = _meter.CreateCounter<long>("ucp.checkout.failure",     "requests", "Checkouts com falha");
-        OrderPlacedTotal     = _meter.CreateCounter<long>("ucp.order.placed.total",   "orders",   "Pedidos criados");
+        // Funil UCP — underscore para PromQL funcionar no Prometheus 3.x
+        SearchTotal          = _meter.CreateCounter<long>("ucp_search_total",          "requests", "Total de buscas iniciadas");
+        SearchResultsCount   = _meter.CreateHistogram<double>("ucp_search_results",    "items",    "Itens retornados por busca");
+        SearchDurationMs     = _meter.CreateHistogram<double>("ucp_search_duration",   "ms",       "Latência da busca agregada");
+        CartAddTotal         = _meter.CreateCounter<long>("ucp_cart_add_total",        "items",    "Produtos adicionados ao carrinho");
+        CheckoutTotal        = _meter.CreateCounter<long>("ucp_checkout_total",        "requests", "Checkouts iniciados");
+        CheckoutSuccessTotal = _meter.CreateCounter<long>("ucp_checkout_success",      "requests", "Checkouts concluídos");
+        CheckoutFailureTotal = _meter.CreateCounter<long>("ucp_checkout_failure",      "requests", "Checkouts com falha");
+        OrderPlacedTotal     = _meter.CreateCounter<long>("ucp_order_placed_total",    "orders",   "Pedidos criados");
 
         // Plugins
-        PluginSearchTotal   = _meter.CreateCounter<long>("ucp.plugin.search.total",   "requests", "Buscas por plugin");
-        PluginErrorTotal    = _meter.CreateCounter<long>("ucp.plugin.error.total",    "errors",   "Erros por plugin");
-        PluginFallbackTotal = _meter.CreateCounter<long>("ucp.plugin.fallback.total", "events",   "Fallbacks ativados por plugin");
-        PluginDurationMs    = _meter.CreateHistogram<double>("ucp.plugin.duration",   "ms",       "Latência por plugin");
+        PluginSearchTotal   = _meter.CreateCounter<long>("ucp_plugin_search_total",   "requests", "Buscas por plugin");
+        PluginErrorTotal    = _meter.CreateCounter<long>("ucp_plugin_error_total",    "errors",   "Erros por plugin");
+        PluginFallbackTotal = _meter.CreateCounter<long>("ucp_plugin_fallback_total", "events",   "Fallbacks por plugin");
+        PluginDurationMs    = _meter.CreateHistogram<double>("ucp_plugin_duration",   "ms",       "Latência por plugin");
 
         // Cache
-        CacheHitTotal  = _meter.CreateCounter<long>("ucp.cache.hit.total",  "hits",   "Cache hits");
-        CacheMissTotal = _meter.CreateCounter<long>("ucp.cache.miss.total", "misses", "Cache misses");
+        CacheHitTotal  = _meter.CreateCounter<long>("ucp_cache_hit_total",  "hits",   "Cache hits");
+        CacheMissTotal = _meter.CreateCounter<long>("ucp_cache_miss_total", "misses", "Cache misses");
 
         // LLM / Intent
-        IntentDetectedTotal = _meter.CreateCounter<long>("ucp.intent.detected.total", "requests", "Intenções detectadas");
-        OllamaRequestTotal  = _meter.CreateCounter<long>("ucp.ollama.request.total",  "requests", "Chamadas ao Ollama");
-        OllamaErrorTotal    = _meter.CreateCounter<long>("ucp.ollama.error.total",    "errors",   "Erros nas chamadas ao Ollama");
-        OllamaDurationMs    = _meter.CreateHistogram<double>("ucp.ollama.duration",   "ms",       "Latência Ollama");
+        IntentDetectedTotal = _meter.CreateCounter<long>("ucp_intent_detected_total", "requests", "Intenções detectadas");
+        OllamaRequestTotal  = _meter.CreateCounter<long>("ucp_ollama_request_total",  "requests", "Chamadas ao Ollama");
+        OllamaErrorTotal    = _meter.CreateCounter<long>("ucp_ollama_error_total",    "errors",   "Erros Ollama");
+        OllamaDurationMs    = _meter.CreateHistogram<double>("ucp_ollama_duration",   "ms",       "Latência Ollama");
     }
 
     public void Dispose() => _meter.Dispose();
