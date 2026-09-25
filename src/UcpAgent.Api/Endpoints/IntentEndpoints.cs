@@ -1,3 +1,4 @@
+using UcpAgent.SharedKernel;
 using UcpAgent.Api;
 using UcpAgent.Api.Models;
 using UcpAgent.Application.IntentRouter;

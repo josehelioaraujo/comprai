@@ -1,5 +1,4 @@
 using MediatR;
-using UcpAgent.Api;
 using UcpAgent.SharedKernel;
 using UcpAgent.SharedKernel.Ports;
 

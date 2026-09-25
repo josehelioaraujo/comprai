@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using MediatR;
-using UcpAgent.Api;
 using UcpAgent.SharedKernel;
 using UcpAgent.SharedKernel.Models;
 using UcpAgent.SharedKernel.Ports;
