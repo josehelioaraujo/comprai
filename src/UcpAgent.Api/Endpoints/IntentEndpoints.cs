@@ -1,4 +1,5 @@
-﻿using UcpAgent.Api.Models;
+using UcpAgent.Api;
+using UcpAgent.Api.Models;
 using UcpAgent.Application.IntentRouter;
 using UcpAgent.Application.Search;
 using UcpAgent.Application.Cart;
@@ -17,9 +18,14 @@ public static class IntentEndpoints
         app.MapPost("/api/intent", async (
             IntentRequest        req,
             IIntentRouterService router,
-            IMediator            mediator) =>
+            IMediator            mediator,
+            UcpMetrics           metrics) =>
         {
             var intent = router.Detect(req.Text, req.SessionId);
+
+            // Registra intenção detectada
+            metrics.IntentDetectedTotal.Add(1,
+                new KeyValuePair<string, object?>("intent", intent.Intent.ToString()));
 
             var (success, data, message) = intent.Intent switch
             {
@@ -74,4 +80,3 @@ public static class IntentEndpoints
         return r.IsSuccess ? (true, (object?)r.Value, null) : (false, null, r.Error);
     }
 }
-

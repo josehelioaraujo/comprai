@@ -38,6 +38,7 @@ using UcpAgent.PriceWatcher.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddObservabilidade(builder.Configuration);
+builder.Services.AddSingleton<UcpMetrics>();
 
 // Ã¢ââ¬Ã¢ââ¬ MediatR Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬
 builder.Services.AddMediatR(cfg =>
@@ -67,6 +68,7 @@ builder.Services.AddOpenTelemetry()
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()
         .AddRuntimeInstrumentation()
+        .AddMeter(UcpMetrics.MeterName)
         .AddPrometheusExporter());
 
 // Ã¢ââ¬Ã¢ââ¬ OpenAPI Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬
@@ -429,7 +431,7 @@ app.MapGet("/api/k6/models", async (IHttpClientFactory factory, CancellationToke
 .WithTags("K6")
 .WithName("GetOllamaModels");
 
-app.MapPost("/api/k6/analyze", async (K6AnalyzeRequest req, IHttpClientFactory factory, CancellationToken ct) =>
+app.MapPost("/api/k6/analyze", async (K6AnalyzeRequest req, IHttpClientFactory factory, UcpMetrics metrics, CancellationToken ct) =>
 {
     try
     {
@@ -452,9 +454,12 @@ app.MapPost("/api/k6/analyze", async (K6AnalyzeRequest req, IHttpClientFactory f
             Pergunta: {req.Question}
             """;
 
-        var ollamaBody = new
+        var oSw = System.Diagnostics.Stopwatch.StartNew();
+    var ollamaModel = req.Model ?? "gemma3:latest";
+    metrics.OllamaRequestTotal.Add(1, new KeyValuePair<string, object?>("model", ollamaModel));
+    var ollamaBody = new
         {
-            model = req.Model ?? "gemma3:latest",
+            model = ollamaModel,
             prompt = $"Sistema: {systemPrompt}\n\nUsuário: {userPrompt}",
             stream = false
         };
@@ -463,8 +468,14 @@ app.MapPost("/api/k6/analyze", async (K6AnalyzeRequest req, IHttpClientFactory f
         var content = new StringContent(payload, System.Text.Encoding.UTF8, "application/json");
         var resp = await client.PostAsync($"{ollamaUrl}/api/generate", content, ct);
 
+        oSw.Stop();
+        metrics.OllamaDurationMs.Record(oSw.Elapsed.TotalMilliseconds,
+            new KeyValuePair<string, object?>("model", ollamaModel));
         if (!resp.IsSuccessStatusCode)
+        {
+            metrics.OllamaErrorTotal.Add(1, new KeyValuePair<string, object?>("model", ollamaModel));
             return Results.Problem("Ollama retornou erro", statusCode: 502);
+        }
 
         var json = await resp.Content.ReadAsStringAsync(ct);
         using var doc = System.Text.Json.JsonDocument.Parse(json);
