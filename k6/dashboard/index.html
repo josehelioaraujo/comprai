@@ -4555,13 +4555,78 @@ function adminTrackRun(label, runId) {
     if(status)qs+='&status='+encodeURIComponent(status);
     if(path)qs+='&path='+encodeURIComponent(path);
     var tbody=document.getElementById('acc-tbody');
-    if(tbody)tbody.innerHTML='<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--text-muted)">Carregando...</td></tr>';
-    fetch('/api/observability/logs/access'+qs).then(function(r){return r.json();}).then(function(d){var entries=d.entries||[];var kpis=document.getElementById('acc-kpis');if(kpis){var total=entries.length,ok=0,err4=0,err5=0;entries.forEach(function(e){var s=parseInt(e.status)||0;if(s>=500)err5++;else if(s>=400)err4++;else ok++;});kpis.innerHTML='<div class="kpi-card"><div class="kpi-hint">Total de requisicoes HTTP nas ultimas 6h. Inclui health checks e endpoints de negocio.</div><div class="kpi-label">Total</div><div class="kpi-value">'+total+'</div><div class="kpi-unit">req</div></div><div class="kpi-card"><div class="kpi-hint">Requisicoes com sucesso (2xx). Ideal acima de 95% do total.</div><div class="kpi-label">2xx</div><div class="kpi-value" style="color:var(--success)">'+ok+'</div><div class="kpi-unit">sucesso</div></div><div class="kpi-card"><div class="kpi-hint">Erros do cliente (4xx): rota nao encontrada, parametros invalidos, nao autorizado.</div><div class="kpi-label">4xx</div><div class="kpi-value" style="color:var(--warning)">'+err4+'</div><div class="kpi-unit">erro cliente</div></div><div class="kpi-card"><div class="kpi-hint">Erros do servidor (5xx): excecoes, timeout de dependencias. Atencao se acima de 1%.</div><div class="kpi-label">5xx</div><div class="kpi-value" style="color:var(--danger)">'+err5+'</div><div class="kpi-unit">erro servidor</div></div>';}
-    if(!tbody)return;
-    if(!entries.length){tbody.innerHTML='<tr><td colspan="7" style="padding:20px;text-align:center">Sem registros.</td></tr>';return;}
-    tbody.innerHTML=entries.map(function(e){var sc=parseInt(e.status)||0,c=sc>=500?'var(--danger)':sc>=400?'var(--warning)':'var(--success)',ms=parseInt(e.ms)||0,mc=ms>1000?'color:var(--danger)':ms>300?'color:var(--warning)':'',ts=e.timestamp?new Date(e.timestamp).toLocaleTimeString('pt-BR'):'-',ua=(e.ua||'-').substring(0,40);var rid='r'+Math.random().toString(36).substr(2,5);return '<tr style="border-bottom:1px solid var(--border);cursor:pointer" onclick="var d=document.getElementById(\''+rid+'\');d.style.display=d.style.display===\'none\'?\'table-row\':\'none\'"><td style="padding:5px 8px;color:var(--text-muted)">'+ts+'</td><td style="padding:5px 8px;font-weight:600;font-size:11px">'+e.method+'</td><td style="padding:5px 8px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+e.path+'</td><td style="padding:5px 8px;text-align:center"><span style="background:'+c+'22;color:'+c+';border-radius:4px;padding:2px 7px;font-weight:700;font-size:11px">'+e.status+'</span></td><td style="padding:5px 8px;text-align:right;'+mc+'">'+e.ms+'ms</td><td style="padding:5px 8px;font-family:monospace;font-size:11px">'+e.ip+'</td><td style="padding:5px 8px;color:var(--text-muted);font-size:11px">'+ua+' <span style="opacity:.5">&#9660;</span></td></tr>';}).join('');
-    var st=document.getElementById('acc-state');if(st)st.textContent=entries.length+' registros - ultimas 6h';
-    }).catch(function(err){if(tbody)tbody.innerHTML='<tr><td colspan="7" style="color:var(--danger);padding:20px">Erro: '+err.message+'</td></tr>';});
+    if(tbody)tbody.innerHTML='<tr><td colspan="8" style="padding:20px;text-align:center;color:var(--text-muted)">Carregando...</td></tr>';
+    fetch('/api/observability/logs/access'+qs).then(function(r){return r.json();}).then(function(d){
+      var entries=d.entries||[];
+      var kpis=document.getElementById('acc-kpis');
+      if(kpis){
+        var total=entries.length,ok=0,err4=0,err5=0;
+        entries.forEach(function(e){var s=parseInt(e.status)||0;if(s>=500)err5++;else if(s>=400)err4++;else ok++;});
+        kpis.innerHTML='<div class="kpi-card"><div class="kpi-hint">Total de requisicoes HTTP nas ultimas 6h. Inclui health checks e endpoints de negocio.</div><div class="kpi-label">Total</div><div class="kpi-value">'+total+'</div><div class="kpi-unit">req</div></div><div class="kpi-card"><div class="kpi-hint">Requisicoes com sucesso (2xx). Ideal acima de 95% do total.</div><div class="kpi-label">2xx</div><div class="kpi-value" style="color:var(--success)">'+ok+'</div><div class="kpi-unit">sucesso</div></div><div class="kpi-card"><div class="kpi-hint">Erros do cliente (4xx): rota nao encontrada, parametros invalidos, nao autorizado.</div><div class="kpi-label">4xx</div><div class="kpi-value" style="color:var(--warning)">'+err4+'</div><div class="kpi-unit">erro cliente</div></div><div class="kpi-card"><div class="kpi-hint">Erros do servidor (5xx): excecoes, timeout de dependencias. Atencao se acima de 1%.</div><div class="kpi-label">5xx</div><div class="kpi-value" style="color:var(--danger)">'+err5+'</div><div class="kpi-unit">erro servidor</div></div>';
+      }
+      if(!tbody)return;
+      window._accEntries = entries;
+      window._accPage = 1;
+      obsRenderAccessPage();
+    }).catch(function(err){if(tbody)tbody.innerHTML='<tr><td colspan="8" style="color:var(--danger);padding:20px">Erro: '+err.message+'</td></tr>';});
+  };
+
+  window.obsRenderAccessPage = function() {
+    var entries = window._accEntries || [];
+    var tbody = document.getElementById('acc-tbody');
+    var st = document.getElementById('acc-state');
+    if (!tbody) return;
+    if (!entries.length) { tbody.innerHTML='<tr><td colspan="8" style="padding:20px;text-align:center">Sem registros.</td></tr>'; if(st) st.innerHTML=''; return; }
+
+    var pageSize = 20;
+    var totalPages = Math.max(1, Math.ceil(entries.length / pageSize));
+    var page = Math.min(Math.max(1, window._accPage || 1), totalPages);
+    window._accPage = page;
+    var start = (page - 1) * pageSize;
+    var pageEntries = entries.slice(start, start + pageSize);
+
+    tbody.innerHTML = pageEntries.map(function(e){
+      var sc=parseInt(e.status)||0;
+      var c=sc>=500?'var(--danger)':sc>=400?'var(--warning)':'var(--success)';
+      var ms=parseInt(e.ms)||0;
+      var mc=ms>1000?'color:var(--danger)':ms>300?'color:var(--warning)':'';
+      var ts=e.timestamp?new Date(e.timestamp).toLocaleTimeString('pt-BR'):'-';
+      var tsFull=e.timestamp?new Date(e.timestamp).toLocaleString('pt-BR'):'-';
+      var ua=(e.ua||'-').substring(0,40);
+      var rid='r'+Math.random().toString(36).substr(2,6);
+      var pathEsc=(e.path||'').replace(/'/g,"&#39;");
+      var uaEsc=(e.ua||'-').replace(/'/g,"&#39;");
+      var detail='<tr id="'+rid+'" style="display:none;background:var(--surface2)"><td colspan="8" style="padding:10px 16px;font-size:11px;line-height:1.8">'+
+        '<b>Timestamp:</b> '+tsFull+'<br>'+
+        '<b>Metodo:</b> '+e.method+'<br>'+
+        '<b>Path completo:</b> '+pathEsc+'<br>'+
+        '<b>Status:</b> '+e.status+'<br>'+
+        '<b>Latencia:</b> '+e.ms+'ms<br>'+
+        '<b>IP:</b> '+e.ip+'<br>'+
+        '<b>User-Agent:</b> '+uaEsc+
+        '</td></tr>';
+      return '<tr style="border-bottom:1px solid var(--border)">'+
+        '<td style="padding:5px 8px;color:var(--text-muted)">'+ts+'</td>'+
+        '<td style="padding:5px 8px;font-weight:600;font-size:11px">'+e.method+'</td>'+
+        '<td style="padding:5px 8px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+e.path+'</td>'+
+        '<td style="padding:5px 8px;text-align:center"><span style="background:'+c+'22;color:'+c+';border-radius:4px;padding:2px 7px;font-weight:700;font-size:11px">'+e.status+'</span></td>'+
+        '<td style="padding:5px 8px;text-align:right;'+mc+'">'+e.ms+'ms</td>'+
+        '<td style="padding:5px 8px;font-family:monospace;font-size:11px">'+e.ip+'</td>'+
+        '<td style="padding:5px 8px;color:var(--text-muted);font-size:11px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+ua+'</td>'+
+        '<td style="padding:5px 8px;text-align:center;cursor:pointer;width:30px" onclick="var d=document.getElementById(\''+rid+'\');var chv=this.querySelector(\'span\');if(d.style.display===\'none\'){d.style.display=\'table-row\';chv.style.transform=\'rotate(180deg)\'}else{d.style.display=\'none\';chv.style.transform=\'\'}"><span style="display:inline-block;transition:transform .15s;opacity:.6">&#9660;</span></td>'+
+        '</tr>' + detail;
+    }).join('');
+
+    if (st) {
+      var pagInfo = 'Pagina '+page+' de '+totalPages+' &mdash; '+entries.length+' registros (ultimas 6h)';
+      var prevDisabled = page<=1 ? 'disabled style="opacity:.4;cursor:not-allowed"' : '';
+      var nextDisabled = page>=totalPages ? 'disabled style="opacity:.4;cursor:not-allowed"' : '';
+      st.innerHTML = '<div style="display:flex;align-items:center;gap:12px;justify-content:center;margin-top:10px">'+
+        '<button class="obs-range-btn" '+prevDisabled+' onclick="window._accPage=(window._accPage||1)-1;obsRenderAccessPage()">&#8592; Anterior</button>'+
+        '<span style="font-size:11px;color:var(--text-muted)">'+pagInfo+'</span>'+
+        '<button class="obs-range-btn" '+nextDisabled+' onclick="window._accPage=(window._accPage||1)+1;obsRenderAccessPage()">Proxima &#8594;</button>'+
+        '</div>';
+    }
   };
 
   function obsLoadLogs() {
@@ -8071,6 +8136,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
                 <th style="padding:6px 8px;text-align:right">Ms</th>
                 <th style="padding:6px 8px;text-align:left">IP</th>
                 <th style="padding:6px 8px;text-align:left">UA</th>
+                <th style="padding:6px 8px;text-align:center;width:30px"></th>
               </tr>
             </thead>
             <tbody id="acc-tbody"><tr><td colspan="7" style="padding:20px;text-align:center;color:var(--text-muted)">Carregando...</td></tr></tbody>
