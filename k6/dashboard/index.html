@@ -4546,7 +4546,7 @@ function adminTrackRun(label, runId) {
 
 
     /* ── LOGS ──────────────────────────────────────────────────── */
-  function obsLoadAccess() {
+  window.obsLoadAccess = function() {
     var method=(document.getElementById('acc-method')||{}).value||'';
     var status=(document.getElementById('acc-status')||{}).value||'';
     var path=(document.getElementById('acc-path')||{}).value||'';
