@@ -4547,12 +4547,18 @@ function adminTrackRun(label, runId) {
 
     /* ── LOGS ──────────────────────────────────────────────────── */
   window.obsCollapseAllAccess = function() {
-    document.querySelectorAll('#acc-tbody tr').forEach(function(r){
-      if (r.id && r.id.indexOf('r') === 0) r.style.display = 'none';
+    console.log('obsCollapseAllAccess executando...');
+    var rows = document.querySelectorAll('#acc-tbody tr');
+    console.log('Total de linhas encontradas:', rows.length);
+    var collapsed = 0;
+    rows.forEach(function(r){
+      if (r.id && r.id.indexOf('r') === 0) { r.style.display = 'none'; collapsed++; }
     });
-    document.querySelectorAll('#acc-tbody td[onclick] span').forEach(function(s){
-      s.style.transform = '';
-    });
+    console.log('Linhas de detalhe recolhidas:', collapsed);
+    var spans = document.querySelectorAll('#acc-tbody td[onclick] span');
+    console.log('Chevrons individuais encontrados:', spans.length);
+    spans.forEach(function(s){ s.style.transform = ''; });
+    console.log('obsCollapseAllAccess concluido');
   };
 
   window.obsLoadAccess = function() {
@@ -4632,9 +4638,10 @@ function adminTrackRun(label, runId) {
     var pagInfo = 'Pagina '+page+' de '+totalPages+' &mdash; '+entries.length+' registros (ultimas 6h)';
     var prevDisabled = page<=1 ? 'disabled style="opacity:.4;cursor:not-allowed"' : '';
     var nextDisabled = page>=totalPages ? 'disabled style="opacity:.4;cursor:not-allowed"' : '';
-    var pagHtml = '<div style="display:flex;align-items:center;gap:10px">'+
+    var pagLabel = 'Pagina '+page+' de '+totalPages;
+    var pagHtml = '<div style="display:flex;align-items:center;gap:10px;justify-content:flex-start">'+
       '<button class="obs-range-btn" '+prevDisabled+' onclick="window._accPage=(window._accPage||1)-1;obsRenderAccessPage()" title="Pagina anterior" style="padding:4px 10px;font-size:14px">&#8592;</button>'+
-      '<span style="font-size:11px;color:var(--text-muted)">'+pagInfo+'</span>'+
+      '<span style="font-size:11px;color:var(--text-muted)">'+pagLabel+'</span>'+
       '<button class="obs-range-btn" '+nextDisabled+' onclick="window._accPage=(window._accPage||1)+1;obsRenderAccessPage()" title="Proxima pagina" style="padding:4px 10px;font-size:14px">&#8594;</button>'+
       '</div>';
     if (pagTop) pagTop.innerHTML = pagHtml;
@@ -8134,9 +8141,9 @@ tr:hover td { background: rgba(255,255,255,.02); }
           <input id="acc-path" type="text" placeholder="Filtrar path..." style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;flex:1;min-width:120px">
           <button class="obs-range-btn" onclick="obsLoadAccess()" style="margin-left:auto">&#8635; Atualizar</button>
         </div>
-        <div id="acc-pagination-top" style="margin-bottom:12px"></div>
-        <!-- KPIs rápidos -->
+                <!-- KPIs rápidos -->
         <div id="acc-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px"></div>
+        <div id="acc-pagination-top" style="margin:12px 0"></div>
         <!-- Tabela -->
         <div style="overflow-x:auto">
           <table style="width:100%;border-collapse:collapse;font-size:12px" id="acc-table">
@@ -8149,7 +8156,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
                 <th style="padding:6px 8px;text-align:right">Ms</th>
                 <th style="padding:6px 8px;text-align:left">IP</th>
                 <th style="padding:6px 8px;text-align:left">UA</th>
-                <th style="padding:6px 8px;text-align:center;width:30px;cursor:pointer" title="Recolher todos os detalhes" onclick="obsCollapseAllAccess()">&#8942;</th>
+                <th style="padding:6px 8px;text-align:center;width:30px;cursor:pointer" title="Recolher todos os detalhes" onclick="console.log('chevron header clicado');obsCollapseAllAccess()">&#8942;</th>
               </tr>
             </thead>
             <tbody id="acc-tbody"><tr><td colspan="7" style="padding:20px;text-align:center;color:var(--text-muted)">Carregando...</td></tr></tbody>
