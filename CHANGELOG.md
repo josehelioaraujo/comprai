@@ -1,3 +1,39 @@
+## [4.3.0] - 2026-09-26
+
+### Added
+
+- **OpsWatch — Painel Testes de Carga expandido (V035)**
+  - Grid de configuração 2 colunas: Tipo de Teste + VUs slider (1–300) | Duração (30s/1m/2m/5m/10m) + Rounds (1–10) + botões Executar/Parar
+  - Slider de VUs com accent roxo (`#6366f1`) e valor numérico ao vivo
+  - Campo Rounds — execução sequencial de N rounds via loop `async/await`
+  - Botão **Parar** — aparece só quando `rounds > 1`, para após o round atual completar
+  - **Rounds Indicator** — dots coloridos (amarelo=executando, roxo=concluído, vermelho=parado) + barra de progresso fina
+  - Workflow recebe `vus` e `duration` como inputs (suporte já existia no `stress-tests.yml`)
+  - `triggerTest()` reescrita como loop async: dispatch → poll até conclusão → próximo round
+  - `_dispatchSingle()` — extrai dispatch de 1 run com prefixo "Round X/N" no status
+  - `stopRounds()` — flag `_rnStop` para parar após round atual
+  - `updateRoundsUI()` — gerencia dots, barra e label de progresso
+  - Hook `_rnOnDone` em `pollRunById` — ao completar um run, avança automaticamente para o próximo round
+
+- **Workflow `populate-metrics.yml`**
+  - Dispara chamadas reais às rotas da API (intent, search, cart, checkout) via GitHub Actions
+  - 4 steps: Verificar conectividade, Popular intenções (18 tipos), Popular buscas (10 queries), Cart/Checkout + aguardar scrape Prometheus
+  - Input `rounds` configurável (default 3)
+  - Mantido no repo para dispatch manual quando necessário sem o `populate-metrics.ps1` local
+
+### Fixed
+
+- `async async function triggerTest()` — bug de substring: replace de `function triggerTest()` dentro de `async function triggerTest()` gerava `async` duplicado causando `SyntaxError`
+
+### Roadmap (anotado, não implementado)
+
+- Locust como segunda engine de teste de carga — OpsWatch como orquestrador agnóstico: seletor K6|Locust, proxy `/api/locust/*`, métricas ao vivo via REST API nativa do Locust (porta 8089)
+- Complexidade Ciclomática — `dotnet msbuild /t:Metrics`, thresholds verde<5 / amarelo 5-10 / vermelho>10, hotspots por método
+- Acoplamento de Componentes Ca/Ce — Métricas de Robert C. Martin: Instabilidade `I=Ce/(Ca+Ce)`, Abstração `A`, Distância da Main Sequence `D=|A+I-1|`, Zona de Dor, Zona de Inutilidade
+- Pentest OWASP ZAP — DAST dinâmico via Docker, `pentest.yml` semanal + sob demanda, findings por severidade (Crítico/Alto/Médio/Baixo) com referência OWASP Top 10
+
+---
+
 ## [4.2.0] - 2026-09-26
 
 ### Added

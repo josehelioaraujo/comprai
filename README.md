@@ -870,17 +870,18 @@ Acesse: `https://comprai.2.25.122.11.nip.io/k6/dashboard/`
 | **V033** | Instrumentação OTel granular: `UcpMetrics` em SharedKernel, 17 instrumentos, nomes underscore para Prometheus 3.x |
 | **V034** | OpsWatch — 5 abas de Métricas (Funil UCP, Plugins, Cache Redis, LLM/Ollama), hints dinâmicos 🟢🟡🔴, `populate-metrics.ps1` |
 | **V034-cont** | Cache Strategy (TTL/Aside/Read-Through/Hybrid), Access Log com aba Acesso completa (filtros, paginação, drill-down, rotas mais chamadas), versionamento SemVer automático no CI |
+| **V035** | OpsWatch — Painel Testes de Carga: VUs slider, Duração, Rounds sequenciais com progress dots, botão Parar, `populate-metrics.yml` |
 
 ### 🔜 Próximas Versões
 
 | Fase | Descrição | Versão |
 |------|-----------|--------|
-| **p95 por rota no index.json** | Extrair p95 por endpoint do raw.json.gz → popular `routes[]` no index.json para alimentar a Correlação K6×Mutation | V032 |
-| **Cancelar run** | Testar botão ✕ Cancelar e validar endpoint `/api/github/run/{id}/cancel` | V032 |
-| **Dependency Scanner avançado** | `dotnet list package --vulnerable` — CVEs em NuGets, fecha gap OWASP A06 | V032 |
+| **Locust — segunda engine** | OpsWatch orquestra K6 e Locust: seletor de engine, proxy `/api/locust/*`, métricas ao vivo sem pipeline | V036 |
+| **Complexidade Ciclomática** | `dotnet msbuild /t:Metrics` — hotspots por método, thresholds verde/amarelo/vermelho, hints explicativos | V036 |
+| **Acoplamento Ca/Ce** | Métricas Robert C. Martin: I, A, D — Zona de Dor vs Main Sequence, modal de teoria no OpsWatch | V036 |
+| **Pentest OWASP ZAP** | DAST dinâmico via Docker: `pentest.yml` semanal + sob demanda, findings por severidade com referência OWASP Top 10 | V036 |
 | **Alertas ntfy.sh** | Push quando qualquer suite falha — ntfy já na VPS | Futuro |
 | **DAST com OWASP ZAP** | Análise dinâmica contra API em staging — fecha gap do SonarCloud estático | Futuro |
-| **Notificação ntfy.sh** | Push quando qualquer suite falha — ntfy já na VPS | Futuro |
 | **Padrão Saga** | 3 implementações chaveáveis (Wolverine, MassTransit, Nativo) via feature flag | Futuro |
 | **Instrumentação OTel** | Funil UCP ✅, erro/fallback por plugin ✅, LLM/intent ✅ — cache hit/miss e eventos Kafka pendentes | Futuro |
 | **K3s + Helm + Argo CD** | Migração Docker Compose → Kubernetes leve na VPS com GitOps | Futuro |
