@@ -100,7 +100,7 @@ let runReloadPending = false;
 let verInfo = {};
 
 // IDs das secoes navegaveis (exceto detalhes que e fixo)
-const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','mutacaoBlock','sonarBlock','owaspBlock','pciBlock','depBlock','evolucaoBlock','integrationBlock','obsMetricasBlock','obsLogsBlock','obsTracesBlock','obsErrosBlock','obsContainersBlock','healthMapBlock','qualityScoreBlock','correlacaoBlock'];
+const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','mutacaoBlock','sonarBlock','owaspBlock','pciBlock','depBlock','evolucaoBlock','integrationBlock','obsMetricasBlock','obsLogsBlock','obsAcessoBlock','obsTracesBlock','obsErrosBlock','obsContainersBlock','healthMapBlock','qualityScoreBlock','correlacaoBlock'];
 let activeSection = null; // null = nenhuma extra visivel
 
 const TYPE_ORDER = ['smoke','load','stress','spike','soak'];
@@ -1443,6 +1443,9 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       if (id === 'depBlock')   { loadDepData(); }
       if (id === 'evolucaoBlock') { loadEvolucaoData(); }
       if (id === 'obsMetricasBlock') { requestAnimationFrame(function(){ setTimeout(function(){ obsLoad('metricas'); }, 100); }); }
+      if (id === 'obsAcessoBlock')  { requestAnimationFrame(function(){ setTimeout(function(){ obsLoadAccess(); }, 100); }); }
+      if (id === 'obsAcessoBlock')  { requestAnimationFrame(function(){ setTimeout(function(){ obsLoadAccess(); }, 100); }); }
+      if (id === 'obsAcessoBlock')  { requestAnimationFrame(function(){ setTimeout(function(){ obsLoadAccess(); }, 100); }); }
       if (id === 'obsLogsBlock')    { requestAnimationFrame(function(){ setTimeout(function(){ obsLoad('logs'); },     100); }); }
       if (id === 'obsTracesBlock')  { requestAnimationFrame(function(){ setTimeout(function(){ obsLoad('traces'); },   100); }); }
       if (id === 'obsErrosBlock')   { requestAnimationFrame(function(){ setTimeout(function(){ obsLoad('erros'); },    100); }); }
@@ -4543,6 +4546,24 @@ function adminTrackRun(label, runId) {
   };
 
     /* ── LOGS ──────────────────────────────────────────────────── */
+  function obsLoadAccess() {
+    var method=(document.getElementById('acc-method')||{}).value||'';
+    var status=(document.getElementById('acc-status')||{}).value||'';
+    var path=(document.getElementById('acc-path')||{}).value||'';
+    var qs='?limit=200';
+    if(method)qs+='&method='+encodeURIComponent(method);
+    if(status)qs+='&status='+encodeURIComponent(status);
+    if(path)qs+='&path='+encodeURIComponent(path);
+    var tbody=document.getElementById('acc-tbody');
+    if(tbody)tbody.innerHTML='<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--text-muted)">Carregando...</td></tr>';
+    fetch('/api/observability/logs/access'+qs).then(function(r){return r.json();}).then(function(d){var entries=d.entries||[];var kpis=document.getElementById('acc-kpis');if(kpis){var total=entries.length,ok=0,err4=0,err5=0;entries.forEach(function(e){var s=parseInt(e.status)||0;if(s>=500)err5++;else if(s>=400)err4++;else ok++;});kpis.innerHTML='<div class="obs-kpi-card"><div class="obs-kpi-label">Total</div><div class="obs-kpi-value">'+total+'</div></div><div class="obs-kpi-card"><div class="obs-kpi-label" style="color:var(--success)">2xx</div><div class="obs-kpi-value" style="color:var(--success)">'+ok+'</div></div><div class="obs-kpi-card"><div class="obs-kpi-label" style="color:var(--warning)">4xx</div><div class="obs-kpi-value" style="color:var(--warning)">'+err4+'</div></div><div class="obs-kpi-card"><div class="obs-kpi-label" style="color:var(--danger)">5xx</div><div class="obs-kpi-value" style="color:var(--danger)">'+err5+'</div></div>';}
+    if(!tbody)return;
+    if(!entries.length){tbody.innerHTML='<tr><td colspan="7" style="padding:20px;text-align:center">Sem registros.</td></tr>';return;}
+    tbody.innerHTML=entries.map(function(e){var sc=parseInt(e.status)||0,c=sc>=500?'var(--danger)':sc>=400?'var(--warning)':'var(--success)',ms=parseInt(e.ms)||0,mc=ms>1000?'color:var(--danger)':ms>300?'color:var(--warning)':'',ts=e.timestamp?new Date(e.timestamp).toLocaleTimeString('pt-BR'):'-',ua=(e.ua||'-').substring(0,40);return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:5px 8px;color:var(--text-muted)">'+ts+'</td><td style="padding:5px 8px;font-weight:600;font-size:11px">'+e.method+'</td><td style="padding:5px 8px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+e.path+'</td><td style="padding:5px 8px;text-align:center"><span style="background:'+c+'22;color:'+c+';border-radius:4px;padding:2px 7px;font-weight:700;font-size:11px">'+e.status+'</span></td><td style="padding:5px 8px;text-align:right;'+mc+'">'+e.ms+'ms</td><td style="padding:5px 8px;font-family:monospace;font-size:11px">'+e.ip+'</td><td style="padding:5px 8px;color:var(--text-muted);font-size:11px">'+ua+'</td></tr>';}).join('');
+    var st=document.getElementById('acc-state');if(st)st.textContent=entries.length+' registros - ultimas 6h';
+    }).catch(function(err){if(tbody)tbody.innerHTML='<tr><td colspan="7" style="color:var(--danger);padding:20px">Erro: '+err.message+'</td></tr>';});
+  }
+
   function obsLoadLogs() {
     setState('log', 'loading');
     var level = obsState.logs.level !== 'all' ? '&level=' + obsState.logs.level : '';
@@ -6017,6 +6038,15 @@ tr:hover td { background: rgba(255,255,255,.02); }
         </div>
         <div class="nav-item" id="nav-obs-logs" onclick="showSection('obsLogsBlock', this)" title="Logs Loki">
           <span class="nav-icon">&#128220;</span><span class="nav-text">Logs</span>
+        </div>
+        <div class="nav-item" id="nav-obs-acesso" onclick="showSection('obsAcessoBlock', this)" title="Logs de Acesso">
+          <span class="nav-icon">&#128272;</span><span class="nav-text">Acesso</span>
+        </div>
+        <div class="nav-item" id="nav-obs-acesso" onclick="showSection('obsAcessoBlock', this)" title="Logs de Acesso">
+          <span class="nav-icon">&#128272;</span><span class="nav-text">Acesso</span>
+        </div>
+        <div class="nav-item" id="nav-obs-acesso" onclick="showSection('obsAcessoBlock', this)" title="Logs de Acesso">
+          <span class="nav-icon">&#128272;</span><span class="nav-text">Acesso</span>
         </div>
         <div class="nav-item" id="nav-obs-traces" onclick="showSection('obsTracesBlock', this)" title="Traces Jaeger">
           <span class="nav-icon">&#128269;</span><span class="nav-text">Traces</span>
@@ -8001,6 +8031,156 @@ tr:hover td { background: rgba(255,255,255,.02); }
           <div id="met-llm-intent-dist" style="margin-top:14px"></div>
           <div id="met-llm-state"></div>
         </div>
+      </div>
+    </div>
+
+
+    <!-- ── Observabilidade: Acesso ─────────────────────────────────────────── -->
+    <div class="section-block" id="obsAcessoBlock" style="display:none">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title-text" style="flex:1">&#128272; Acesso — Access Log</span>
+        <span class="obs-refresh-badge" id="obs-access-refresh"><span class="obs-refresh-dot"></span>live</span>
+        <span class="section-chevron">&#9660;</span>
+      </div>
+      <div id="obs-access-content" style="padding:16px">
+        <!-- Toolbar de filtros -->
+        <div class="obs-toolbar" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
+          <select id="acc-method" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px">
+            <option value="">Todos métodos</option>
+            <option value="GET">GET</option>
+            <option value="POST">POST</option>
+            <option value="PUT">PUT</option>
+            <option value="DELETE">DELETE</option>
+          </select>
+          <select id="acc-status" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px">
+            <option value="">Todos status</option>
+            <option value="200">2xx OK</option>
+            <option value="400">4xx Erro cliente</option>
+            <option value="500">5xx Erro servidor</option>
+          </select>
+          <input id="acc-path" type="text" placeholder="Filtrar path..." style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;flex:1;min-width:120px">
+          <button class="obs-range-btn" onclick="obsLoadAccess()" style="margin-left:auto">&#8635; Atualizar</button>
+        </div>
+        <!-- KPIs rápidos -->
+        <div id="acc-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px"></div>
+        <!-- Tabela -->
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:12px" id="acc-table">
+            <thead>
+              <tr style="background:var(--surface2);color:var(--text-muted)">
+                <th style="padding:6px 8px;text-align:left;white-space:nowrap">Hora</th>
+                <th style="padding:6px 8px;text-align:left">Método</th>
+                <th style="padding:6px 8px;text-align:left">Path</th>
+                <th style="padding:6px 8px;text-align:center">Status</th>
+                <th style="padding:6px 8px;text-align:right">Ms</th>
+                <th style="padding:6px 8px;text-align:left">IP</th>
+                <th style="padding:6px 8px;text-align:left">UA</th>
+              </tr>
+            </thead>
+            <tbody id="acc-tbody"><tr><td colspan="7" style="padding:20px;text-align:center;color:var(--text-muted)">Carregando...</td></tr></tbody>
+          </table>
+        </div>
+        <div id="acc-state" style="margin-top:8px;font-size:11px;color:var(--text-muted)"></div>
+      </div>
+    </div>
+
+
+    <!-- ── Observabilidade: Acesso ─────────────────────────────────────────── -->
+    <div class="section-block" id="obsAcessoBlock" style="display:none">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title-text" style="flex:1">&#128272; Acesso — Access Log</span>
+        <span class="obs-refresh-badge" id="obs-access-refresh"><span class="obs-refresh-dot"></span>live</span>
+        <span class="section-chevron">&#9660;</span>
+      </div>
+      <div id="obs-access-content" style="padding:16px">
+        <!-- Toolbar de filtros -->
+        <div class="obs-toolbar" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
+          <select id="acc-method" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px">
+            <option value="">Todos métodos</option>
+            <option value="GET">GET</option>
+            <option value="POST">POST</option>
+            <option value="PUT">PUT</option>
+            <option value="DELETE">DELETE</option>
+          </select>
+          <select id="acc-status" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px">
+            <option value="">Todos status</option>
+            <option value="200">2xx OK</option>
+            <option value="400">4xx Erro cliente</option>
+            <option value="500">5xx Erro servidor</option>
+          </select>
+          <input id="acc-path" type="text" placeholder="Filtrar path..." style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;flex:1;min-width:120px">
+          <button class="obs-range-btn" onclick="obsLoadAccess()" style="margin-left:auto">&#8635; Atualizar</button>
+        </div>
+        <!-- KPIs rápidos -->
+        <div id="acc-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px"></div>
+        <!-- Tabela -->
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:12px" id="acc-table">
+            <thead>
+              <tr style="background:var(--surface2);color:var(--text-muted)">
+                <th style="padding:6px 8px;text-align:left;white-space:nowrap">Hora</th>
+                <th style="padding:6px 8px;text-align:left">Método</th>
+                <th style="padding:6px 8px;text-align:left">Path</th>
+                <th style="padding:6px 8px;text-align:center">Status</th>
+                <th style="padding:6px 8px;text-align:right">Ms</th>
+                <th style="padding:6px 8px;text-align:left">IP</th>
+                <th style="padding:6px 8px;text-align:left">UA</th>
+              </tr>
+            </thead>
+            <tbody id="acc-tbody"><tr><td colspan="7" style="padding:20px;text-align:center;color:var(--text-muted)">Carregando...</td></tr></tbody>
+          </table>
+        </div>
+        <div id="acc-state" style="margin-top:8px;font-size:11px;color:var(--text-muted)"></div>
+      </div>
+    </div>
+
+
+    <!-- ── Observabilidade: Acesso ─────────────────────────────────────────── -->
+    <div class="section-block" id="obsAcessoBlock" style="display:none">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title-text" style="flex:1">&#128272; Acesso — Access Log</span>
+        <span class="obs-refresh-badge" id="obs-access-refresh"><span class="obs-refresh-dot"></span>live</span>
+        <span class="section-chevron">&#9660;</span>
+      </div>
+      <div id="obs-access-content" style="padding:16px">
+        <!-- Toolbar de filtros -->
+        <div class="obs-toolbar" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
+          <select id="acc-method" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px">
+            <option value="">Todos métodos</option>
+            <option value="GET">GET</option>
+            <option value="POST">POST</option>
+            <option value="PUT">PUT</option>
+            <option value="DELETE">DELETE</option>
+          </select>
+          <select id="acc-status" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px">
+            <option value="">Todos status</option>
+            <option value="200">2xx OK</option>
+            <option value="400">4xx Erro cliente</option>
+            <option value="500">5xx Erro servidor</option>
+          </select>
+          <input id="acc-path" type="text" placeholder="Filtrar path..." style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;flex:1;min-width:120px">
+          <button class="obs-range-btn" onclick="obsLoadAccess()" style="margin-left:auto">&#8635; Atualizar</button>
+        </div>
+        <!-- KPIs rápidos -->
+        <div id="acc-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px"></div>
+        <!-- Tabela -->
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:12px" id="acc-table">
+            <thead>
+              <tr style="background:var(--surface2);color:var(--text-muted)">
+                <th style="padding:6px 8px;text-align:left;white-space:nowrap">Hora</th>
+                <th style="padding:6px 8px;text-align:left">Método</th>
+                <th style="padding:6px 8px;text-align:left">Path</th>
+                <th style="padding:6px 8px;text-align:center">Status</th>
+                <th style="padding:6px 8px;text-align:right">Ms</th>
+                <th style="padding:6px 8px;text-align:left">IP</th>
+                <th style="padding:6px 8px;text-align:left">UA</th>
+              </tr>
+            </thead>
+            <tbody id="acc-tbody"><tr><td colspan="7" style="padding:20px;text-align:center;color:var(--text-muted)">Carregando...</td></tr></tbody>
+          </table>
+        </div>
+        <div id="acc-state" style="margin-top:8px;font-size:11px;color:var(--text-muted)"></div>
       </div>
     </div>
 
