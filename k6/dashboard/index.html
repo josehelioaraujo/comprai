@@ -4543,6 +4543,8 @@ function adminTrackRun(label, runId) {
       });
   };
 
+
+
     /* ── LOGS ──────────────────────────────────────────────────── */
   function obsLoadAccess() {
     var method=(document.getElementById('acc-method')||{}).value||'';
@@ -4562,7 +4564,7 @@ function adminTrackRun(label, runId) {
     }).catch(function(err){if(tbody)tbody.innerHTML='<tr><td colspan="7" style="color:var(--danger);padding:20px">Erro: '+err.message+'</td></tr>';});
   }
 
-  function obsLoadLogs() {
+    function obsLoadLogs() {
     setState('log', 'loading');
     var level = obsState.logs.level !== 'all' ? '&level=' + obsState.logs.level : '';
     fetch('/api/observability/logs?limit=100' + level)
