@@ -316,66 +316,6 @@ async function _dispatchSingle(testType, vus, duration, roundNum, totalRounds) {
   }
 }
 
-function populateMetrics() {
-  if (!ghCfg) return;
-  var btn = document.getElementById('btnPopulate');
-  var rounds = (document.getElementById('populateRounds') || {value:'3'}).value || '3';
-  btn.disabled = true;
-  btn.textContent = '⏳ Disparando...';
-  var status = document.getElementById('populateStatus');
-  if (status) { status.style.display = ''; status.innerHTML = '<span style="animation:pulse 1s infinite;display:inline-block;width:8px;height:8px;border-radius:50%;background:#fbbf24;margin-right:6px;vertical-align:middle"></span>Disparando populate-metrics.yml (' + rounds + ' rounds)...'; }
-  fetch('/api/github/dispatch', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ repo: ghCfg.repo, workflow: 'populate-metrics.yml', ref: ghCfg.ref || 'main', inputs: { rounds: String(rounds) } })
-  }).then(function(resp) {
-    if (resp.ok || resp.status === 204) {
-      btn.textContent = '✓ Disparado!';
-      return resp.text().then(function(rt) {
-        var runId = null;
-        try { var dd = JSON.parse(rt); if (dd && dd.runId) runId = dd.runId; } catch(e) {}
-        if (status) {
-          var ghLink = runId ? ' <a href="https://github.com/' + ghCfg.repo + '/actions/runs/' + runId + '" target="_blank" style="color:var(--accent)">Ver run #' + runId + '</a>' : '';
-          status.innerHTML = '<span style="animation:pulse 1s infinite;display:inline-block;width:8px;height:8px;border-radius:50%;background:#fbbf24;margin-right:6px;vertical-align:middle"></span>Populando métricas (' + rounds + ' rounds)...' + ghLink;
-          if (runId) {
-            pollPopulateRun(runId);
-          } else {
-            setTimeout(function() { if (status) status.style.display='none'; }, 30000);
-          }
-        }
-      });
-    } else {
-      btn.textContent = '✗ Erro';
-      if (status) status.innerHTML = '✗ Erro ao disparar workflow';
-    }
-  }).catch(function(e) {
-    btn.textContent = '✗ Falha';
-    if (status) status.innerHTML = '✗ Falha: ' + e.message;
-  }).finally(function() {
-    setTimeout(function() { btn.disabled = false; btn.innerHTML = '&#9881; Popular'; }, 6000);
-  });
-}
-
-function pollPopulateRun(runId) {
-  var status = document.getElementById('populateStatus');
-  fetch('/api/github/run/' + runId + '/status').then(function(r) { return r.json(); }).then(function(d) {
-    var st = d.status || 'in_progress';
-    var conclusion = d.conclusion || '';
-    if (st === 'completed') {
-      var ok = conclusion === 'success';
-      if (status) status.innerHTML = (ok ? '✅' : '❌') + ' Métricas populadas' + (ok ? ' com sucesso' : ': ' + conclusion) + ' <a href="https://github.com/' + (ghCfg ? ghCfg.repo : '') + '/actions/runs/' + runId + '" target="_blank" style="color:var(--accent);font-size:11px">Ver run</a>';
-      if (ok) { setTimeout(function() { obsLoad('metricas'); }, 3000); }
-      setTimeout(function() { if (status) status.style.display = 'none'; }, 20000);
-    } else {
-      var jobs = d.jobs || [];
-      var running = jobs.find(function(j) { return j.status === 'in_progress'; });
-      var msg = running ? 'Executando: ' + (running.name || running.steps && running.steps.find(function(s){return s.status==='in_progress';}) && (running.steps.find(function(s){return s.status==='in_progress';}).name) || running.name) : 'Aguardando runner...';
-      if (status) status.innerHTML = '<span style="animation:pulse 1s infinite;display:inline-block;width:8px;height:8px;border-radius:50%;background:#fbbf24;margin-right:6px;vertical-align:middle"></span>' + msg + ' <a href="https://github.com/' + (ghCfg ? ghCfg.repo : '') + '/actions/runs/' + runId + '" target="_blank" style="color:var(--accent);font-size:11px">Ver run</a>';
-      setTimeout(function() { pollPopulateRun(runId); }, 5000);
-    }
-  }).catch(function() { setTimeout(function() { pollPopulateRun(runId); }, 8000); });
-}
-
 function stopRounds() {
   _rnStop = true;
   var b = document.getElementById('btnStopRounds');
@@ -8193,13 +8133,8 @@ tr:hover td { background: rgba(255,255,255,.02); }
       <div class="section-header" onclick="toggleSection(this)">
         <span class="section-title-text" style="flex:1">&#128200; Métricas — Prometheus</span>
         <span class="obs-refresh-badge" id="obs-met-refresh"><span class="obs-refresh-dot"></span>live</span>
-        <span onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:6px;margin-right:8px;">
-          <input type="number" id="populateRounds" value="3" min="1" max="10" title="Rounds" style="width:42px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 5px;border-radius:6px;font-size:11px;text-align:center;outline:none;">
-          <button id="btnPopulate" onclick="populateMetrics()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;white-space:nowrap;" title="Disparar populate-metrics.yml via GitHub Actions">&#9881; Popular</button>
-        </span>
         <span class="section-chevron">&#9660;</span>
       </div>
-      <div id="populateStatus" style="display:none;padding:6px 16px 0;font-size:12px;color:var(--muted);border-bottom:1px solid var(--border);"></div>
       <div id="obs-met-content" style="padding:12px 16px 16px">
         <!-- Abas de métricas -->
         <div class="met-tabs" id="met-tabs">
