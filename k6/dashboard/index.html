@@ -253,7 +253,7 @@ async function loadGhConfig() {
 }
 
 // ── Trigger workflow ─────────────────────────────────────────
-async async function triggerTest() {
+async function triggerTest() {
   if (!ghCfg) return;
   var testType = document.getElementById('testTypeSelect').value;
   var vus = document.getElementById('vusSlider') ? document.getElementById('vusSlider').value : '50';
