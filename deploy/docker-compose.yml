@@ -19,6 +19,8 @@ services:
       Features__UsarPriceWatcher: ${USAR_PRICE_WATCHER:-true}
       GitHub__Pat: ${GH_PAT:-}
       Admin__RestartPassword: ${ADMIN_RESTART_PASSWORD:-}
+      Logging__LogLevel__Default: Information
+      Logging__LogLevel__Microsoft.AspNetCore: Warning
       # Em producao: OTEL_ENDPOINT=http://comprai-dd-agent:4317 (Datadog)
       # Em dev local: OTEL_ENDPOINT=http://comprai-jaeger:4319  (Jaeger)
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_ENDPOINT:-http://comprai-otel-collector:4317}
