@@ -264,7 +264,6 @@ async function triggerTest() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ repo: ghCfg.repo, workflow: ghCfg.workflow_file || 'stress-tests.yml', ref: ghCfg.ref || 'main', inputs: { test_type: testType } })
     });
-  };
     if (resp.ok || resp.status === 204) {
       btn.textContent = '✓ Disparado!';
       openRunPanel('Aguardando pipeline iniciar...');
@@ -323,7 +322,6 @@ function openRunPanel(msg) {
         if (el) el.style.display = 'none';
       }
     });
-  };
   }
   // Pausar polling de status durante o teste
   if (typeof window._statusPause === 'function') window._statusPause('🔥 Teste rodando');
@@ -588,7 +586,6 @@ async function cancelCurrentRun() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
-  };
     if (res.ok || res.status === 202) {
       if (btn) { btn.textContent = '✓ Cancelado'; btn.style.color = '#94a3b8'; btn.style.borderColor = '#94a3b8'; }
       liveMetricsStop();
@@ -804,7 +801,6 @@ async function loadAll(silent) {
       var bi = TYPE_ORDER.indexOf((b.meta && b.meta.test_type ? b.meta.test_type : '').toLowerCase());
       return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
     });
-  };
     render();
   } catch(e) {
     document.getElementById('loadingMsg').textContent = '❌ Erro: ' + e.message;
@@ -861,7 +857,6 @@ function renderResults() {
     (d.scenarios || []).forEach(function(sc) {
       rows.push('<tr><td>' + typeBadge(m.test_type) + '</td><td>' + (sc.sc||'—') + '</td><td>' + fmt(sc.p50) + '</td><td>' + fmt(sc.p95) + '</td><td>' + fmt(sc.p99) + '</td><td>' + fmt(sc.rps) + '</td><td>' + (sc.total||'—') + '</td><td>' + ((sc.err||0)*100).toFixed(2) + '%</td><td><span class="' + (sc.ok?'badge-pass':'badge-fail') + '">' + (sc.ok?'OK':'FAIL') + '</span></td></tr>');
     });
-  };
   });
   document.getElementById('res-count').textContent = rows.length + ' cenarios';
   document.getElementById('resultsTableBody').innerHTML = rows.join('');
@@ -1059,7 +1054,6 @@ window.addEventListener('DOMContentLoaded', function() {
       hint.addEventListener('mouseenter',function(){clearTimeout(timer);});
       hint.addEventListener('mouseleave',function(){timer=setTimeout(hide,150);});
     });
-  };
   }
   if (document.readyState==='loading') document.addEventListener('DOMContentLoaded',initChartHints);
   else initChartHints();
@@ -1079,10 +1073,8 @@ window.addEventListener('DOMContentLoaded', function() {
         box.style.left = Math.max(4, Math.min(r.left - 60, window.innerWidth - 270)) + 'px';
         box.style.opacity = '1';
       });
-  };
       wrap.addEventListener('mouseleave', function() { box.style.opacity = '0'; });
     });
-  };
   }
 
   function initKpiHints() {
@@ -1116,10 +1108,8 @@ window.addEventListener('DOMContentLoaded', function() {
         hint.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 230)) + 'px';
         hint.style.opacity = '1';
       });
-  };
       card.addEventListener('mouseleave', function() { hint.style.opacity = '0'; });
     });
-  };
   }
 
   if (document.readyState === 'loading') {
@@ -1322,13 +1312,10 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
           pop.style.left = left + 'px';
           pop.style.top  = top  + 'px';
         });
-  };
         card.addEventListener('mouseleave', function() {
           pop.style.display = 'none';
         });
-  };
       });
-  };
     }
     // Inicializar após carregar dados (seção pode estar display:none inicialmente)
     var _origLoad = window.loadSonarData;
@@ -1437,13 +1424,10 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
           pop.style.left = left + 'px';
           pop.style.top  = top  + 'px';
         });
-  };
         badge.addEventListener('mouseleave', function() {
           pop.style.display = 'none';
         });
-  };
       });
-  };
     }
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', initSecPopovers);
@@ -1479,14 +1463,12 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       var g = document.getElementById(id);
       return g && g.classList.contains('collapsed');
     });
-  };
     ['group-testes', 'group-qualidade', 'group-observabilidade', 'group-seguranca', 'group-k6'].forEach(function(id) {
       var g = document.getElementById(id);
       if (!g) return;
       if (allCollapsed) g.classList.remove('collapsed');
       else g.classList.add('collapsed');
     });
-  };
     updateCollapseBtn();
   }
 
@@ -1497,7 +1479,6 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       var g = document.getElementById(id);
       return g && g.classList.contains('collapsed');
     });
-  };
     btn.title = allCollapsed ? 'Expandir tudo' : 'Recolher tudo';
     btn.textContent = allCollapsed ? '\u21C5' : '\u21C4';
   }
@@ -1631,7 +1612,6 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
         if (c.id)   compMap[c.id.toLowerCase()] = c;
         if (c.name) compMap[c.name.toLowerCase()] = c;
       });
-  };
     }
     var W = Math.max(wrap.clientWidth || 700, 700), H = 540;
     var dark = document.documentElement.getAttribute('data-theme') !== 'light';
@@ -1701,7 +1681,6 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
         var idx = parseInt(g.getAttribute('data-idx'));
         g.addEventListener('click', function(){ _hmShowDetail(nodeData[idx]); });
       });
-  };
     }
 
     document.getElementById('hm-last-update').textContent = 'Updated: ' + new Date().toLocaleTimeString('pt-BR');
@@ -1742,7 +1721,6 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
         tick.title = t;
         ticks.appendChild(tick);
       });
-  };
     } else {
       ticks.innerHTML = '<span style="color:var(--text-muted);font-size:12px">Sem histórico disponível</span>';
     }
@@ -1779,7 +1757,6 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
           var xn = x.name.toLowerCase();
           return xn === 'comprai-' + name || xn === name || xn.includes(name);
         });
-  };
         if (!c) {
           cWrap.innerHTML = '<span style="color:var(--text-muted);font-size:12px;grid-column:1/-1">Container não encontrado</span>';
           return;
@@ -1813,7 +1790,6 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       .catch(function(){
         cWrap.innerHTML = '<span style="color:var(--text-muted);font-size:12px;grid-column:1/-1">Erro ao buscar container</span>';
       });
-  };
   }
 
   function _hmCard(label, value, color) {
@@ -1858,7 +1834,6 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       var btn = document.getElementById('hm-modal-copy-btn');
       if (btn) { btn.textContent = '\u2713'; setTimeout(function(){ btn.innerHTML = '&#128203;'; }, 1500); }
     });
-  };
   }
 
 
@@ -2147,7 +2122,6 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
           '</div>' : '') ;
       container.appendChild(row);
     });
-  };
   }
 
   function toggleCompDetail(id) {
@@ -2168,7 +2142,6 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       hist.forEach((s, i) => {
         ticks[30 - hist.length + i] = s === 'operational' ? 'ok' : s === 'degraded' ? 'degraded' : 'down';
       });
-  };
       const pct = hist.length === 0 ? '—'
         : (hist.filter(s => s === 'operational').length / hist.length * 100).toFixed(0) + '%';
       const row = document.createElement('div');
@@ -2180,7 +2153,6 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
         '</div>';
       wrap.appendChild(row);
     });
-  };
   }
 
   function statusCls(s) {
@@ -2222,7 +2194,6 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       var g = document.getElementById(id);
       if (g) g.classList.add('collapsed');
     });
-  };
     updateCollapseBtn();
     fetchStatusData();
   });
@@ -2275,7 +2246,6 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ repo: IT_REPO, workflow: IT_WF, ref: IT_BRANCH })
       });
-  };
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.detail || err.title || 'Dispatch falhou: ' + res.status);
@@ -2306,7 +2276,6 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ repo: IT_REPO, workflow: IT_WF, ref: IT_BRANCH })
       });
-  };
       const data = await res.json();
       if (!data.runId) { setTimeout(() => itPollForRun(), 5000); return; }
       itRunId = data.runId;
@@ -2481,7 +2450,6 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
         : (runOk ? Math.round((new Date(run.updated_at) - new Date(run.created_at)) / (1000 * Object.keys(IT_HINTS).length)) + 's' : '—');
       results.push({ cls, meta, status, dur });
     });
-  };
 
     const passCount = results.filter(r => r.status === 'pass').length;
     const failCount = results.filter(r => r.status === 'fail').length;
@@ -2507,7 +2475,6 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
         </div>`;
       wrap.appendChild(card);
     });
-  };
 
     document.getElementById('it-results').style.display = '';
     // Abrir automaticamente qualquer suite com falha
@@ -2517,7 +2484,6 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
         card.querySelector('.it-suite-body').classList.add('open');
       }
     });
-  };
   }
 
   function itBadgeLabel(s) {
@@ -2660,7 +2626,6 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       btn.textContent = '✓';
       setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = '&#128203;'; }, 2000);
     });
-  };
   }
 
   function runbookCopyAll() {
@@ -2673,7 +2638,6 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       btn.textContent = '✓ Copiado!';
       setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = '&#128203; Copiar tudo'; }, 2500);
     });
-  };
   }
 
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeRunbook(); });
@@ -2705,7 +2669,6 @@ async function depRunScan() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ repo: DEP_REPO, workflow: DEP_WF, ref: DEP_BRANCH })
     });
-  };
     if (!res.ok) {
       var err = await res.json().catch(function(){ return {}; });
       throw new Error(err.detail || err.title || 'Dispatch falhou: ' + res.status);
@@ -2769,7 +2732,6 @@ async function loadDepData() {
       if (el)   el.textContent  = (d.counts && d.counts[s]) ? d.counts[s] : '0';
       if (card) card.style.opacity = (d.counts && d.counts[s] && d.counts[s] > 0) ? '1' : '.4';
     });
-  };
     if (kpiRow) kpiRow.style.display = '';
 
     var badge = document.getElementById('dep-gate-badge');
@@ -2823,7 +2785,6 @@ async function loadDepData() {
             '<td style="text-align:center"><span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative"><span class="info-hint-btn" title="Como corrigir">i</span><span class="info-hint-box" style="position:fixed;width:280px;z-index:9999;line-height:1.7;text-align:left"><strong style="color:var(--text);display:block;margin-bottom:4px">' + depE(p.package) + '</strong><span style="font-size:11px">' + infoTip + '</span><hr style="border:none;border-top:1px solid rgba(255,255,255,.1);margin:6px 0"><code style="font-size:10px;color:#94a3b8">' + fixCmd + '</code></span></span></td>';
           tbody.appendChild(tr);
         });
-  };
       }
       if (empty)    empty.style.display = 'none';
       if (tableWrap) tableWrap.style.display = '';
@@ -3037,7 +2998,6 @@ function evolRenderInsights(byRun, runs) {
       if (v == null) return;
       if (best === null || v > best) { best = v; bestRun = r; }
     });
-  };
     if (bigUp !== null && bigUp >= 5)
       insights.push({ icon: '▲', color: '#22c55e', text: '<b>' + m.label + '</b> subiu <b>+' + bigUp + m.suf + '</b> no run <b>#' + bigUpRun + '</b>' });
     if (bigDown !== null && bigDown <= -5)
@@ -3318,13 +3278,11 @@ window.loadCorrelacao = async function() {
           total: f.total || 0
         };
       });
-  };
       // fallback: se não tiver files, usar score global
       if (Object.keys(mutByHandler).length === 0 && mutData.score != null) {
         ENDPOINT_HANDLER_MAP.forEach(function(m) {
           mutByHandler[m.handler] = { score: parseFloat(mutData.score), killed: 0, survived: 0, total: 0 };
         });
-  };
       }
     }
 
@@ -3344,17 +3302,14 @@ window.loadCorrelacao = async function() {
             p95ByRoute[key] = { p95: r.p95 || r['p(95)'] || 0, method: r.method, path: r.path || r.url };
           }
         });
-  };
         // fallback: p95 global do tipo
         if (Object.keys(p95ByRoute).length === 0 && td.http_req_duration_p95 != null) {
           ENDPOINT_HANDLER_MAP.forEach(function(m) {
             var key = m.method + ':' + m.path;
             if (!p95ByRoute[key]) p95ByRoute[key] = { p95: td.http_req_duration_p95, method: m.method, path: m.path };
           });
-  };
         }
       });
-  };
     }
 
     // ── Calcular índice de risco por endpoint ───────────────────
@@ -3391,9 +3346,7 @@ window.loadCorrelacao = async function() {
         hasK6:     !!p95Info,
         hasMut:    !!mutInfo
       });
-  };
     });
-  };
 
     // Ordenar por índice de risco desc
     rows.sort(function(a,b) { return b.riskIdx - a.riskIdx; });
@@ -3406,7 +3359,6 @@ window.loadCorrelacao = async function() {
       seen[key] = true;
       return true;
     });
-  };
 
     // ── KPI cards ───────────────────────────────────────────────
     var nHigh   = rows.filter(function(r){ return r.riskLevel === 'high';   }).length;
@@ -3515,12 +3467,10 @@ window.loadCorrelacao = async function() {
         var tr = e.target.closest('tr[data-cidx]');
         if (tr) tr.style.background = 'rgba(255,255,255,.03)';
       });
-  };
       tbody.addEventListener('mouseout', function(e) {
         var tr = e.target.closest('tr[data-cidx]');
         if (tr) tr.style.background = '';
       });
-  };
     }
 
     if (emptyEl) emptyEl.style.display = 'none';
@@ -3606,7 +3556,6 @@ window.corrOpenModal = function(idx) {
       icon: '✅', color: '#22c55e', label: 'Continue monitorando',
       items: ['Mantenha o p95 abaixo de 300ms', 'Execute Mutation Tests a cada PR para não regredir o score']
     });
-  };
 
     recsEl.innerHTML = recs.map(function(rec) {
       return '<div style="border:1px solid ' + rec.color + '33;border-radius:8px;overflow:hidden">' +
@@ -3647,7 +3596,6 @@ window.corrToggleAll = function(thEl) {
       if (det)  det.style.display    = 'none';
       if (chev) chev.style.transform = 'rotate(0deg)';
     });
-  };
     if (chevAll) chevAll.style.transform = 'rotate(0deg)';
   } else {
     // Apenas mostrar as linhas de detalhe SEM preencher o body
@@ -3661,7 +3609,6 @@ window.corrToggleAll = function(thEl) {
       // Body vazio — drill-down abre apenas no clique individual da linha
       if (body) body.innerHTML = '';
     });
-  };
     if (chevAll) chevAll.style.transform = 'rotate(90deg)';
   }
 };
@@ -3883,7 +3830,6 @@ function gbDispatch(workflow) {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ repo: ghCfg.repo, workflow: workflow, ref: 'main' })
       });
-  };
       if (!res.ok) {
         var e = await res.json().catch(function(){return{};});
         throw new Error(e.detail||'Dispatch falhou: '+res.status);
@@ -4181,7 +4127,6 @@ async function adminConfirm() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ target: cfg.input, password: pwd })
     });
-  };
 
     if (res.status === 401) {
       errEl.innerHTML = '&#10007; Senha incorreta. Tente novamente.';
@@ -4313,7 +4258,6 @@ function adminTrackRun(label, runId) {
       .catch(function(e){
         setState('met', 'error', 'Erro ao conectar com Prometheus: ' + e.message);
       });
-  };
   }
 
   function obsRenderMetChart(series) {
@@ -4341,7 +4285,6 @@ function adminTrackRun(label, runId) {
         }
       }
     });
-  };
   }
 
   /* ── MÉTRICAS: abas ─────────────────────────────────────────── */
@@ -4400,7 +4343,6 @@ function adminTrackRun(label, runId) {
           var kpiEl = document.getElementById(s.kpiId);
           if (kpiEl) kpiEl.textContent = i === 0 ? val.toFixed(0) : pct.toFixed(1) + '%';
         });
-  };
         // Painel de diagnóstico abaixo do funil
         var diagHtml = '<div style="margin-top:14px;display:flex;flex-direction:column;gap:4px">';
         funilHints.forEach(function(h) { diagHtml += '<div style="font-size:11px;color:var(--text-muted);padding:3px 8px;background:var(--surface2);border-radius:4px">' + h + '</div>'; });
@@ -4412,7 +4354,6 @@ function adminTrackRun(label, runId) {
       .catch(function(e){
         if (wrap) wrap.innerHTML = '<div style="color:var(--danger);font-size:12px;padding:8px 0">Erro: ' + e.message + ' — métricas ainda não acumuladas?</div>';
       });
-  };
   };
 
   /* ── PLUGINS ────────────────────────────────────────────────── */
@@ -4457,7 +4398,6 @@ function adminTrackRun(label, runId) {
             '<td title="' + statusHint + '">' + statusIcon + '</td>' +
           '</tr>';
         });
-  };
         html += '</tbody></table>';
         if (wrap) wrap.innerHTML = html;
 
@@ -4487,13 +4427,11 @@ function adminTrackRun(label, runId) {
               }
             }
           });
-  };
         }
       })
       .catch(function(e){
         if (wrap) wrap.innerHTML = '<div style="color:var(--danger);font-size:12px;padding:8px 0">Erro: ' + e.message + '</div>';
       });
-  };
   };
 
   /* ── CACHE REDIS ────────────────────────────────────────────── */
@@ -4503,7 +4441,6 @@ function adminTrackRun(label, runId) {
     ['met-cache-hits','met-cache-misses','met-cache-rate'].forEach(function(id){
       var el = document.getElementById(id); if (el) el.textContent = '—';
     });
-  };
 
     fetch('/api/observability/metrics/cache')
       .then(function(r){ return r.json(); })
@@ -4529,7 +4466,6 @@ function adminTrackRun(label, runId) {
         if (st) st.innerHTML = '<div style="color:var(--danger);font-size:12px;padding:8px 0">Erro: ' + e.message + '</div>';
       });
   };
-  };
 
   /* ── LLM / OLLAMA ───────────────────────────────────────────── */
   window.metLoadLlm = function() {
@@ -4540,7 +4476,6 @@ function adminTrackRun(label, runId) {
     ['met-llm-intents','met-llm-calls','met-llm-errors','met-llm-lat'].forEach(function(id){
       var el = document.getElementById(id); if (el) el.textContent = '—';
     });
-  };
 
     fetch('/api/observability/metrics/llm')
       .then(function(r){ return r.json(); })
@@ -4590,7 +4525,6 @@ function adminTrackRun(label, runId) {
               '<div class="met-funil-bar-pct">' + pct.toFixed(0) + '% (' + val + ')</div>' +
             '</div>';
           });
-  };
           // Hint: SearchProducts deve ser dominante
           var searchPct = total > 0 ? ((intents['SearchProducts']||0) / total * 100) : 0;
           var distHint = searchPct >= 40
@@ -4608,7 +4542,6 @@ function adminTrackRun(label, runId) {
         if (distEl) distEl.innerHTML = '';
       });
   };
-  };
 
 
 
@@ -4623,15 +4556,15 @@ function adminTrackRun(label, runId) {
     if(path)qs+='&path='+encodeURIComponent(path);
     var tbody=document.getElementById('acc-tbody');
     if(tbody)tbody.innerHTML='<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--text-muted)">Carregando...</td></tr>';
-    fetch('/api/observability/logs/access'+qs).then(function(r){return r.json();}).then(function(d){var entries=d.entries||[];var kpis=document.getElementById('acc-kpis');if(kpis){var total=entries.length,ok=0,err4=0,err5=0;entries.forEach(function(e){var s=parseInt(e.status)||0;if(s>=500)err5++;else if(s>=400)err4++;else ok++;});kpis.innerHTML='<div class="kpi-card"><div class="kpi-hint">Total de requisicoes HTTP nas ultimas 6h. Inclui health checks e endpoints de negocio.</div><div class="kpi-label">Total</div><div class="kpi-value">'+total+'</div><div class="kpi-unit">req</div></div><div class="kpi-card"><div class="kpi-hint">Requisicoes com sucesso (2xx). Ideal acima de 95% do total.</div><div class="kpi-label">2xx</div><div class="kpi-value" style="color:var(--success)">'+ok+'</div><div class="kpi-unit">sucesso</div></div><div class="kpi-card"><div class="kpi-hint">Erros do cliente (4xx): rota nao encontrada, parametros invalidos, nao autorizado.</div><div class="kpi-label">4xx</div><div class="kpi-value" style="color:var(--warning)">'+err4+'</div><div class="kpi-unit">erro cliente</div></div><div class="kpi-card"><div class="kpi-hint">Erros do servidor (5xx): excecoes, timeout de dependencias. Atencao se acima de 1%.</div><div class="kpi-label">5xx</div><div class="kpi-value" style="color:var(--danger)">'+err5+'</div><div class="kpi-unit">erro servidor</div></div>';
+    fetch('/api/observability/logs/access'+qs).then(function(r){return r.json();}).then(function(d){var entries=d.entries||[];var kpis=document.getElementById('acc-kpis');if(kpis){var total=entries.length,ok=0,err4=0,err5=0;entries.forEach(function(e){var s=parseInt(e.status)||0;if(s>=500)err5++;else if(s>=400)err4++;else ok++;});kpis.innerHTML='<div class="obs-kpi-card"><div class="obs-kpi-hint">Total de requisicoes HTTP nas ultimas 6h. Inclui health checks e endpoints de negocio.</div><div class="obs-kpi-label">Total</div><div class="obs-kpi-value">'+total+'</div><div class="obs-kpi-sub">requisicoes</div></div><div class="obs-kpi-card"><div class="obs-kpi-label" style="color:var(--success)">2xx</div><div class="obs-kpi-value" style="color:var(--success)">'+ok+'</div></div><div class="obs-kpi-card"><div class="obs-kpi-label" style="color:var(--warning)">4xx</div><div class="obs-kpi-value" style="color:var(--warning)">'+err4+'</div></div><div class="obs-kpi-card"><div class="obs-kpi-label" style="color:var(--danger)">5xx</div><div class="obs-kpi-value" style="color:var(--danger)">'+err5+'</div></div>';}
     if(!tbody)return;
     if(!entries.length){tbody.innerHTML='<tr><td colspan="7" style="padding:20px;text-align:center">Sem registros.</td></tr>';return;}
     tbody.innerHTML=entries.map(function(e){var sc=parseInt(e.status)||0,c=sc>=500?'var(--danger)':sc>=400?'var(--warning)':'var(--success)',ms=parseInt(e.ms)||0,mc=ms>1000?'color:var(--danger)':ms>300?'color:var(--warning)':'',ts=e.timestamp?new Date(e.timestamp).toLocaleTimeString('pt-BR'):'-',ua=(e.ua||'-').substring(0,40);var rid='r'+Math.random().toString(36).substr(2,5);return '<tr style="border-bottom:1px solid var(--border);cursor:pointer" onclick="var d=document.getElementById(\''+rid+'\');d.style.display=d.style.display===\'none\'?\'table-row\':\'none\'"><td style="padding:5px 8px;color:var(--text-muted)">'+ts+'</td><td style="padding:5px 8px;font-weight:600;font-size:11px">'+e.method+'</td><td style="padding:5px 8px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+e.path+'</td><td style="padding:5px 8px;text-align:center"><span style="background:'+c+'22;color:'+c+';border-radius:4px;padding:2px 7px;font-weight:700;font-size:11px">'+e.status+'</span></td><td style="padding:5px 8px;text-align:right;'+mc+'">'+e.ms+'ms</td><td style="padding:5px 8px;font-family:monospace;font-size:11px">'+e.ip+'</td><td style="padding:5px 8px;color:var(--text-muted);font-size:11px">'+ua+'</td></tr>';}).join('');
     var st=document.getElementById('acc-state');if(st)st.textContent=entries.length+' registros - ultimas 6h';
-    }).catch(function(err){if(tbody)tbody.innerHTML='<tr><td colspan="7" style="color:var(--danger);padding:20px">Erro: '+err.message+'</td></tr>';});
-  };
+    }).catch(function(err){if(tbody)tbody.innerHTML='<tr><td colspan="7" style="color:var(--danger);padding:20px">Erro: '+err.message+'</td></tr><tr id="'+rid+'" style="display:none;background:var(--surface2)"><td colspan="7" style="padding:8px 16px;font-size:11px"><b>Path:</b> '+e.path+'<br><b>UA:</b> '+(e.ua||'-')+'<br><b>IP:</b> '+e.ip+'</td></tr>';});
+  }
 
-  function obsLoadLogs() {
+    function obsLoadLogs() {
     setState('log', 'loading');
     var level = obsState.logs.level !== 'all' ? '&level=' + obsState.logs.level : '';
     fetch('/api/observability/logs?limit=100' + level)
@@ -4650,7 +4583,6 @@ function adminTrackRun(label, runId) {
       .catch(function(e){
         setState('log', 'error', 'Erro ao conectar com Loki: ' + e.message);
       });
-  };
   }
 
   window.obsLogFilter = function(level, btn) {
@@ -4709,7 +4641,6 @@ function adminTrackRun(label, runId) {
       .catch(function(e){
         setState('trc', 'error', 'Erro ao conectar com Jaeger: ' + e.message);
       });
-  };
   }
 
   window.obsTracesFilter = function() {
@@ -4772,7 +4703,6 @@ function adminTrackRun(label, runId) {
       .catch(function(e){
         setState('err', 'error', 'Erro ao conectar com Loki: ' + e.message);
       });
-  };
   }
 
   function obsRenderErros(errors) {
@@ -4897,7 +4827,6 @@ function adminTrackRun(label, runId) {
               header.querySelector('.cnt-chevron').innerHTML = '&#9650;';
             }
           });
-  };
 
           // Botão Copiar Logs
           detail.addEventListener('click', function(e) {
@@ -4909,10 +4838,8 @@ function adminTrackRun(label, runId) {
                 btn.textContent = '✓ Copiado';
                 setTimeout(function(){ btn.innerHTML = '&#128203; Copiar'; }, 2000);
               });
-  };
             }
           });
-  };
 
           // Botão Ver Logs
           detail.querySelector('.cnt-log-btn').addEventListener('click', function(e) {
@@ -4929,7 +4856,6 @@ function adminTrackRun(label, runId) {
               })
               .catch(function(err){ logContent.textContent = 'Erro: ' + err.message; });
           });
-  };
 
           // Botões Restart / Stop / Start
           detail.addEventListener('click', function(e) {
@@ -4952,14 +4878,12 @@ function adminTrackRun(label, runId) {
               cntDoAction(action, c.name, btn, '');
             }
           });
-  };
 
           detail.className = 'cnt-detail';
           wrap.appendChild(header);
           wrap.appendChild(detail);
           grid.appendChild(wrap);
         });
-  };
 
         if (!obsContainersTimer) {
           obsContainersTimer = setInterval(obsLoadContainers, 30000);
@@ -4968,7 +4892,6 @@ function adminTrackRun(label, runId) {
       .catch(function(e){
         grid.innerHTML = '<div style="color:#ef4444;font-size:13px;padding:12px">Erro: ' + e.message + '</div>';
       });
-  };
   }
 
 
@@ -5001,7 +4924,6 @@ function adminTrackRun(label, runId) {
       pwdInput.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') box.querySelector('#cnt-modal-ok').click();
       });
-  };
     }
   }
 
@@ -5030,7 +4952,6 @@ function adminTrackRun(label, runId) {
       btn.disabled = false;
       setTimeout(function() { btn.innerHTML = orig; }, 2000);
     });
-  };
   }
 
 </script>
@@ -6811,7 +6732,6 @@ tr:hover td { background: rgba(255,255,255,.02); }
             mList.forEach(function(m) {
               if (m.metric === 'coverage') covScore = parseFloat(m.value);
             });
-  };
           }
 
           // --- K6 Error Rate ---
@@ -7087,7 +7007,6 @@ tr:hover td { background: rgba(255,255,255,.02); }
             var btn = document.getElementById('qs-btn-copy');
             if (btn) { btn.textContent = '\u2713 Copiado!'; setTimeout(function(){ btn.textContent = '\ud83d\udccb Copiar'; }, 2000); }
           });
-  };
         }
       };
 
@@ -7480,7 +7399,6 @@ tr:hover td { background: rgba(255,255,255,.02); }
         recs.sort(function(a, b) {
           return ({high:0, medium:1, ok:2}[a.prio] || 0) - ({high:0, medium:1, ok:2}[b.prio] || 0);
         });
-  };
         var scoreColor = score >= 80 ? '#22c55e' : score >= 60 ? '#f59e0b' : '#ef4444';
         var nextScore  = Math.min(100, score + 5);
         var recsHtml   = recs.map(function(r) {
@@ -8120,7 +8038,6 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <span class="obs-refresh-badge" id="obs-access-refresh"><span class="obs-refresh-dot"></span>live</span>
         <span class="section-chevron">&#9660;</span>
       </div>
-      <div class="section-content">
       <div id="obs-access-content" style="padding:16px">
         <!-- Toolbar de filtros -->
         <div class="obs-toolbar" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
@@ -8133,9 +8050,9 @@ tr:hover td { background: rgba(255,255,255,.02); }
           </select>
           <select id="acc-status" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px">
             <option value="">Todos status</option>
-            <option value="2xx">2xx OK</option>
-            <option value="4xx">4xx Erro cliente</option>
-            <option value="5xx">5xx Erro servidor</option>
+            <option value="200">2xx OK</option>
+            <option value="400">4xx Erro cliente</option>
+            <option value="500">5xx Erro servidor</option>
           </select>
           <input id="acc-path" type="text" placeholder="Filtrar path..." style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;flex:1;min-width:120px">
           <button class="obs-range-btn" onclick="obsLoadAccess()" style="margin-left:auto">&#8635; Atualizar</button>
