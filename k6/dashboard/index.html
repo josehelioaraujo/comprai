@@ -4576,8 +4576,64 @@ function adminTrackRun(label, runId) {
       if(!tbody)return;
       window._accEntries = entries;
       window._accPage = 1;
+      obsRenderRoutesPanel(entries);
+      obsPopulateRouteSelect(entries);
       obsRenderAccessPage();
     }).catch(function(err){if(tbody)tbody.innerHTML='<tr><td colspan="8" style="color:var(--danger);padding:20px">Erro: '+err.message+'</td></tr>';});
+  };
+
+  // Normaliza path removendo query string e IDs dinamicos comuns
+  window.obsNormalizePath = function(path) {
+    var p = (path || '').split('?')[0];
+    return p;
+  };
+
+  window.obsRenderRoutesPanel = function(entries) {
+    var panel = document.getElementById('acc-routes-panel');
+    if (!panel) return;
+    var counts = {};
+    entries.forEach(function(e){
+      var p = obsNormalizePath(e.path);
+      counts[p] = (counts[p] || 0) + 1;
+    });
+    var total = entries.length || 1;
+    var sorted = Object.keys(counts).map(function(p){ return {path: p, count: counts[p]}; })
+      .sort(function(a,b){ return b.count - a.count; })
+      .slice(0, 8);
+
+    var rows = sorted.map(function(r){
+      var pct = ((r.count / total) * 100).toFixed(1);
+      return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'+
+        '<span style="font-size:11px;font-family:monospace;color:var(--text);width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0" title="'+r.path+'">'+r.path+'</span>'+
+        '<div style="flex:1;background:var(--surface2);border-radius:4px;height:14px;overflow:hidden">'+
+          '<div style="height:100%;width:'+pct+'%;background:var(--accent2);border-radius:4px"></div>'+
+        '</div>'+
+        '<span style="font-size:11px;color:var(--text-muted);width:70px;text-align:right;flex-shrink:0">'+r.count+' ('+pct+'%)</span>'+
+      '</div>';
+    }).join('');
+
+    panel.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px">'+
+      '<div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">Rotas mais chamadas</div>'+
+      rows +
+      '</div>';
+  };
+
+  window.obsPopulateRouteSelect = function(entries) {
+    var sel = document.getElementById('acc-route');
+    if (!sel) return;
+    var currentVal = sel.value;
+    var counts = {};
+    entries.forEach(function(e){
+      var p = obsNormalizePath(e.path);
+      counts[p] = (counts[p] || 0) + 1;
+    });
+    var sorted = Object.keys(counts).sort(function(a,b){ return counts[b]-counts[a]; });
+    var opts = '<option value="">Todas as rotas</option>';
+    sorted.forEach(function(p){
+      opts += '<option value="'+p+'">'+p+' ('+counts[p]+')</option>';
+    });
+    sel.innerHTML = opts;
+    sel.value = currentVal;
   };
 
   window.obsRenderAccessPage = function() {
@@ -8133,10 +8189,14 @@ tr:hover td { background: rgba(255,255,255,.02); }
             <option value="500">5xx Erro servidor</option>
           </select>
           <input id="acc-path" type="text" placeholder="Filtrar path..." style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;flex:1;min-width:120px">
+          <select id="acc-route" onchange="document.getElementById('acc-path').value=this.value;obsLoadAccess()" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px">
+            <option value="">Todas as rotas</option>
+          </select>
           <button class="obs-range-btn" onclick="obsLoadAccess()" style="margin-left:auto">&#8635; Atualizar</button>
         </div>
                 <!-- KPIs rápidos -->
         <div id="acc-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px"></div>
+        <div id="acc-routes-panel" style="margin:12px 0"></div>
         <div id="acc-pagination-top" style="margin:12px 0"></div>
         <!-- Tabela -->
         <div style="overflow-x:auto">
