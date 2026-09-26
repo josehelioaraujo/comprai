@@ -869,6 +869,7 @@ Acesse: `https://comprai.2.25.122.11.nip.io/k6/dashboard/`
 | **V031-Live** | Gráfico ao vivo durante Stress Test K6 (Prometheus dual-Y, polling 5s, alerta p95>1000ms), botão ✕ Cancelar run com endpoint `POST /api/github/run/{id}/cancel` |
 | **V033** | Instrumentação OTel granular: `UcpMetrics` em SharedKernel, 17 instrumentos, nomes underscore para Prometheus 3.x |
 | **V034** | OpsWatch — 5 abas de Métricas (Funil UCP, Plugins, Cache Redis, LLM/Ollama), hints dinâmicos 🟢🟡🔴, `populate-metrics.ps1` |
+| **V034-cont** | Cache Strategy (TTL/Aside/Read-Through/Hybrid), Access Log com aba Acesso completa (filtros, paginação, drill-down, rotas mais chamadas), versionamento SemVer automático no CI |
 
 ### 🔜 Próximas Versões
 
@@ -883,6 +884,8 @@ Acesse: `https://comprai.2.25.122.11.nip.io/k6/dashboard/`
 | **Padrão Saga** | 3 implementações chaveáveis (Wolverine, MassTransit, Nativo) via feature flag | Futuro |
 | **Instrumentação OTel** | Funil UCP ✅, erro/fallback por plugin ✅, LLM/intent ✅ — cache hit/miss e eventos Kafka pendentes | Futuro |
 | **K3s + Helm + Argo CD** | Migração Docker Compose → Kubernetes leve na VPS com GitOps | Futuro |
+| **Graphify — Grafo de Arquitetura** | Mermaid no README + página interativa com hover (hints/interações) + JSON para contexto de IA | Futuro |
+| **Request-ID + Jaeger correlation** | Access Log sem payload no Loki — correlation-id linka ao trace completo em Jaeger | Futuro |
 | **Canal Web — Demo** | Next.js 15 + Tailwind + shadcn/ui — interface conversacional com raciocínio visível | Futuro |
 | **AIOps com Ollama** | Detecção de anomalias, RCA automático (Prometheus + Loki + Jaeger) | Futuro |
 | **StressForge** | Gerador agnóstico de stress tests a partir de Swagger/OpenAPI | Futuro |

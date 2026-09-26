@@ -1,3 +1,43 @@
+## [4.2.0] - 2026-09-26
+
+### Added
+
+- **Cache Strategy — TTL / Aside / Read-Through / Hybrid**
+  - `CacheStrategy` enum em `UcpAgent.SharedKernel` — 4 estratégias configuráveis
+  - `ICacheService` + `UcpCacheService` — implementação única que adapta comportamento por estratégia
+  - `Features:CacheStrategy` no appsettings — `hybrid` como padrão (Read-Through + Write-Behind + TTL curto, ideal para e-commerce)
+  - `/api/search` refatorado para usar `ICacheService` com hit/miss contabilizados via `bool fromCache`
+
+- **Access Log — Nova aba "Acesso" no OpsWatch**
+  - Middleware de access log no `Program.cs` — captura method/path/status/ms/ip/user-agent via `ILogger`
+  - Endpoint `GET /api/observability/logs/access` — parseia logs do Loki com filtro por método/status/path
+  - KPI cards (Total, 2xx, 4xx, 5xx) com hint no hover
+  - Filtros: método, status (2xx/4xx/5xx via regex Loki), rota (dropdown populado dinamicamente por frequência)
+  - Painel **"Rotas mais chamadas"** — barra de progresso + contagem + percentual, top 8 rotas, colapsável
+  - Tabela paginada (20/página) com chevron individual por linha
+  - Drill-down por linha: timestamp completo, path completo, status, latência, IP, user-agent — com botão "Copiar"
+  - Chevron mestre no header da tabela — recolhe todas as linhas expandidas de uma vez
+  - Colunas renomeadas para clareza: `Ms` → `Tempo Resp.`, `UA` → `Navegador`
+
+- **Versionamento SemVer automático do OpsWatch**
+  - `window.OPSWATCH_VERSION` exibido no sidebar, logo abaixo do título
+  - Formato `0.1.{commits_no_arquivo} ({short_sha})` — ex: `v0.1.243 (b3ca365)`
+  - Step dedicado no `ci-cd.yml`: `git rev-list --count` + `git rev-parse --short HEAD` injetam a versão real via `sed` antes do deploy — 100% derivado do Git, sem incremento manual
+
+### Fixed
+
+- `appsettings.json` não ia para o container Docker — `.csproj` usava `Include` (gera `NETSDK1022` duplicado); corrigido com `Content Update`
+- Logs `Information` filtrados em produção — `Logging__LogLevel__Default=Information` adicionado como env var no `docker-compose.yml`
+- `GetOrCreateAsync` do HybridCache: ambiguidade de overload resolvida passando `ttl: null` explícito
+- Múltiplos bugs de escaping de aspas em JS gerado dinamicamente via string concatenation — padrão de validação com `node --check` antes de cada commit no `index.html`
+
+### Roadmap (anotado, não implementado)
+
+- Request-ID + correlação Jaeger: logar apenas bytes do response + correlation-id, payload completo via trace (nunca no Loki, por segurança)
+- Graphify — grafo de arquitetura da solução: Mermaid no README + página HTML interativa com hover (hints + tipo de interação) + JSON estruturado para contexto de IA; script Python varre `.csproj` → `ProjectReference`, GitHub Action mantém atualizado
+
+---
+
 ## [4.1.0] - 2026-09-25
 
 ### Added
