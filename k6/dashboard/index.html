@@ -4547,18 +4547,17 @@ function adminTrackRun(label, runId) {
 
     /* ── LOGS ──────────────────────────────────────────────────── */
   window.obsCollapseAllAccess = function() {
-    console.log('obsCollapseAllAccess executando...');
-    var rows = document.querySelectorAll('#acc-tbody tr');
-    console.log('Total de linhas encontradas:', rows.length);
-    var collapsed = 0;
-    rows.forEach(function(r){
-      if (r.id && r.id.indexOf('r') === 0) { r.style.display = 'none'; collapsed++; }
+    var detailRows = [];
+    document.querySelectorAll('#acc-tbody tr').forEach(function(r){
+      if (r.id && r.id.indexOf('r') === 0) detailRows.push(r);
     });
-    console.log('Linhas de detalhe recolhidas:', collapsed);
-    var spans = document.querySelectorAll('#acc-tbody td[onclick] span');
-    console.log('Chevrons individuais encontrados:', spans.length);
-    spans.forEach(function(s){ s.style.transform = ''; });
-    console.log('obsCollapseAllAccess concluido');
+    var anyExpanded = detailRows.some(function(r){ return r.style.display === 'table-row'; });
+    var newDisplay = anyExpanded ? 'none' : 'table-row';
+    var newTransform = anyExpanded ? '' : 'rotate(180deg)';
+    detailRows.forEach(function(r){ r.style.display = newDisplay; });
+    document.querySelectorAll('#acc-tbody td[onclick] span').forEach(function(s){
+      s.style.transform = newTransform;
+    });
   };
 
   window.obsLoadAccess = function() {
@@ -8156,7 +8155,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
                 <th style="padding:6px 8px;text-align:right">Ms</th>
                 <th style="padding:6px 8px;text-align:left">IP</th>
                 <th style="padding:6px 8px;text-align:left">UA</th>
-                <th style="padding:6px 8px;text-align:center;width:30px;cursor:pointer" title="Recolher todos os detalhes" onclick="console.log('chevron header clicado');obsCollapseAllAccess()">&#8942;</th>
+                <th style="padding:6px 8px;text-align:center;width:30px;cursor:pointer" title="Expandir/recolher todos" onclick="obsCollapseAllAccess()">&#8942;</th>
               </tr>
             </thead>
             <tbody id="acc-tbody"><tr><td colspan="7" style="padding:20px;text-align:center;color:var(--text-muted)">Carregando...</td></tr></tbody>
