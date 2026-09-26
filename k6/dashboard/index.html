@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>OpsWatch</title>
+<script>window.OPSWATCH_VERSION = "0.1.241";</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
   <!-- ===== STATUS DRAWER ===== -->
@@ -6125,6 +6126,8 @@ tr:hover td { background: rgba(255,255,255,.02); }
       <button class="sidebar-toggle sidebar-toggle-collapse" onclick="toggleSidebar()" title="Recolher sidebar">&#8249;</button>
     </div>
   </div>
+  <div class="sidebar-version-tag" style="padding:0 16px 8px;font-size:10px;color:var(--text-muted);opacity:.6" id="opswatch-version-tag"></div>
+  <script>document.getElementById('opswatch-version-tag').textContent = 'v' + window.OPSWATCH_VERSION;</script>
   <!-- Botao expandir: visivel so quando colapsado -->
   <button class="sidebar-expand-btn" id="sidebarExpandBtn" onclick="toggleSidebar()" title="Expandir sidebar">&#8250;</button>
   <div class="sidebar-nav">
