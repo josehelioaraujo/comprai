@@ -4617,16 +4617,17 @@ function adminTrackRun(label, runId) {
         '</tr>' + detail;
     }).join('');
 
-    if (st) {
-      var pagInfo = 'Pagina '+page+' de '+totalPages+' &mdash; '+entries.length+' registros (ultimas 6h)';
-      var prevDisabled = page<=1 ? 'disabled style="opacity:.4;cursor:not-allowed"' : '';
-      var nextDisabled = page>=totalPages ? 'disabled style="opacity:.4;cursor:not-allowed"' : '';
-      st.innerHTML = '<div style="display:flex;align-items:center;gap:12px;justify-content:center;margin-top:10px">'+
-        '<button class="obs-range-btn" '+prevDisabled+' onclick="window._accPage=(window._accPage||1)-1;obsRenderAccessPage()">&#8592; Anterior</button>'+
-        '<span style="font-size:11px;color:var(--text-muted)">'+pagInfo+'</span>'+
-        '<button class="obs-range-btn" '+nextDisabled+' onclick="window._accPage=(window._accPage||1)+1;obsRenderAccessPage()">Proxima &#8594;</button>'+
-        '</div>';
-    }
+    var pagTop = document.getElementById('acc-pagination-top');
+    var pagInfo = 'Pagina '+page+' de '+totalPages+' &mdash; '+entries.length+' registros (ultimas 6h)';
+    var prevDisabled = page<=1 ? 'disabled style="opacity:.4;cursor:not-allowed"' : '';
+    var nextDisabled = page>=totalPages ? 'disabled style="opacity:.4;cursor:not-allowed"' : '';
+    var pagHtml = '<div style="display:flex;align-items:center;gap:12px">'+
+      '<button class="obs-range-btn" '+prevDisabled+' onclick="window._accPage=(window._accPage||1)-1;obsRenderAccessPage()">&#8592; Anterior</button>'+
+      '<span style="font-size:11px;color:var(--text-muted)">'+pagInfo+'</span>'+
+      '<button class="obs-range-btn" '+nextDisabled+' onclick="window._accPage=(window._accPage||1)+1;obsRenderAccessPage()">Proxima &#8594;</button>'+
+      '</div>';
+    if (pagTop) pagTop.innerHTML = pagHtml;
+    if (st) st.innerHTML = '';
   };
 
   function obsLoadLogs() {
@@ -8122,6 +8123,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
           <input id="acc-path" type="text" placeholder="Filtrar path..." style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;flex:1;min-width:120px">
           <button class="obs-range-btn" onclick="obsLoadAccess()" style="margin-left:auto">&#8635; Atualizar</button>
         </div>
+        <div id="acc-pagination-top" style="margin-bottom:12px"></div>
         <!-- KPIs rápidos -->
         <div id="acc-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px"></div>
         <!-- Tabela -->
@@ -8136,7 +8138,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
                 <th style="padding:6px 8px;text-align:right">Ms</th>
                 <th style="padding:6px 8px;text-align:left">IP</th>
                 <th style="padding:6px 8px;text-align:left">UA</th>
-                <th style="padding:6px 8px;text-align:center;width:30px"></th>
+                <th style="padding:6px 8px;text-align:center;width:30px" title="Detalhes">&#8942;</th>
               </tr>
             </thead>
             <tbody id="acc-tbody"><tr><td colspan="7" style="padding:20px;text-align:center;color:var(--text-muted)">Carregando...</td></tr></tbody>
