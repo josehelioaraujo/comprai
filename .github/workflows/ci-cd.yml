@@ -519,6 +519,15 @@ jobs:
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GH_PAT }}
+          fetch-depth: 0
+
+      - name: Injetar versao do OpsWatch
+        run: |
+          COMMITS=$(git rev-list --count HEAD -- k6/dashboard/index.html)
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          VERSION="0.1.${COMMITS} (${SHORT_SHA})"
+          echo "OpsWatch version: $VERSION"
+          sed -i "s/__OPSWATCH_VERSION__/${VERSION}/" k6/dashboard/index.html
 
       - name: Copiar dashboard para VPS
         uses: appleboy/scp-action@v0.1.7
