@@ -279,7 +279,17 @@ public static class ObservabilityEndpoints
             var logQuery = "{job=\"comprai-api\"} |= `ACCESS`";
             if (!string.IsNullOrWhiteSpace(method)) logQuery += $" |= `{method.ToUpper()}`";
             if (!string.IsNullOrWhiteSpace(path))   logQuery += $" |= `{path}`";
-            if (!string.IsNullOrWhiteSpace(status)) logQuery += $" |= ` {status}`";
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                var statusPattern = status switch
+                {
+                    "2xx" => " [2][0-9][0-9]",
+                    "4xx" => " [4][0-9][0-9]",
+                    "5xx" => " [5][0-9][0-9]",
+                    _     => $" {status}"
+                };
+                logQuery += $" |~ `{statusPattern}`";
+            }
 
             var url = $"{baseUrl}/loki/api/v1/query_range" +
                       $"?query={Uri.EscapeDataString(logQuery)}&limit={n}" +
@@ -397,5 +407,6 @@ public static class ObservabilityEndpoints
     private static int RangeToSeconds(string range) => range switch { "15m" => 900, "1h" => 3600, "6h" => 21600, "24h" => 86400, _ => 900 };
     private static int RangeToStep(string range)    => range switch { "15m" => 30,  "1h" => 60,   "6h" => 300,   "24h" => 900,  _ => 30  };
 }
+
 
 
