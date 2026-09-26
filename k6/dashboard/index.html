@@ -4613,8 +4613,11 @@ function adminTrackRun(label, runId) {
     }).join('');
 
     panel.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px">'+
-      '<div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">Rotas mais chamadas</div>'+
-      rows +
+      '<div style="display:flex;align-items:center;cursor:pointer;margin-bottom:10px" onclick="var b=document.getElementById(\'acc-routes-body\');var c=this.querySelector(\'.acc-routes-chevron\');if(b.style.display===\'none\'){b.style.display=\'\';c.style.transform=\'\'}else{b.style.display=\'none\';c.style.transform=\'rotate(-90deg)\'}">'+
+        '<span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;flex:1">Rotas mais chamadas</span>'+
+        '<span class="acc-routes-chevron" style="transition:transform .2s;opacity:.6">&#9660;</span>'+
+      '</div>'+
+      '<div id="acc-routes-body">'+rows+'</div>'+
       '</div>';
   };
 
