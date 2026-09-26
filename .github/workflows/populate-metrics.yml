@@ -1,0 +1,81 @@
+name: Populate Metrics
+
+on:
+  workflow_dispatch:
+    inputs:
+      rounds:
+        description: 'Rounds de chamadas'
+        required: false
+        default: '3'
+      target_url:
+        description: 'URL da API'
+        required: false
+        default: 'https://comprai.2.25.122.11.nip.io'
+
+jobs:
+  populate:
+    name: Popular metricas UCP
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Verificar conectividade
+        run: |
+          echo "Verificando API em ${{ github.event.inputs.target_url }}..."
+          curl -sf "${{ github.event.inputs.target_url }}/health/live" && echo "API OK" || echo "API pode estar iniciando, continuando..."
+
+      - name: Popular intencoes (Intent Router)
+        run: |
+          URL="${{ github.event.inputs.target_url }}"
+          ROUNDS="${{ github.event.inputs.rounds }}"
+          INTENTS=("quero comprar notebook" "buscar smartphone" "encontrar tv 4k" "preciso de fone bluetooth" "quero mouse gamer" "buscar headset" "comprar teclado mecanico" "encontrar monitor ultrawide" "quero cadeira gamer" "buscar webcam full hd" "quero comprar tablet" "buscar carregador rapido" "encontrar SSD externo" "preciso de cabo hdmi" "quero hub usb" "buscar memoria ram" "comprar placa de video" "encontrar processador")
+          for round in $(seq 1 $ROUNDS); do
+            echo "=== Round $round/$ROUNDS - Intencoes ==="
+            for intent in "${INTENTS[@]}"; do
+              SESSION="pop-${RANDOM}-$(date +%s)"
+              curl -sf -X POST "$URL/api/intent" \
+                -H "Content-Type: application/json" \
+                -d "{\"message\": \"$intent\", \"sessionId\": \"$SESSION\"}" > /dev/null || true
+              sleep 0.2
+            done
+          done
+          echo "Intencoes: OK"
+
+      - name: Popular buscas (Search)
+        run: |
+          URL="${{ github.event.inputs.target_url }}"
+          ROUNDS="${{ github.event.inputs.rounds }}"
+          QUERIES=("notebook" "smartphone" "tv%204k" "fone%20bluetooth" "mouse%20gamer" "headset" "teclado" "monitor" "tablet" "SSD")
+          for round in $(seq 1 $ROUNDS); do
+            echo "=== Round $round/$ROUNDS - Search ==="
+            for q in "${QUERIES[@]}"; do
+              SESSION="pop-${RANDOM}-$(date +%s)"
+              curl -sf "$URL/api/search?q=$q&sessionId=$SESSION" > /dev/null || true
+              sleep 0.3
+            done
+          done
+          echo "Search: OK"
+
+      - name: Popular carrinho e checkout
+        run: |
+          URL="${{ github.event.inputs.target_url }}"
+          ROUNDS="${{ github.event.inputs.rounds }}"
+          for round in $(seq 1 $ROUNDS); do
+            echo "=== Round $round/$ROUNDS - Cart/Checkout ==="
+            SESSION="pop-${RANDOM}-$(date +%s)"
+            curl -sf -X POST "$URL/api/cart/$SESSION/items" \
+              -H "Content-Type: application/json" \
+              -d '{"productId":"prod-001","name":"Notebook Gamer","price":4999.99,"quantity":1,"source":"mercadolivre"}' > /dev/null || true
+            sleep 0.3
+            curl -sf -X POST "$URL/api/checkout/$SESSION" \
+              -H "Content-Type: application/json" \
+              -d '{"paymentMethod":"mock"}' > /dev/null || true
+            sleep 0.5
+          done
+          echo "Cart/Checkout: OK"
+
+      - name: Aguardar scrape Prometheus
+        run: |
+          echo "Aguardando scrape Prometheus (20s)..."
+          sleep 20
+          echo "Metricas populadas com sucesso!"
