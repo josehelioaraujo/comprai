@@ -4596,7 +4596,9 @@ function adminTrackRun(label, runId) {
       var rid='r'+Math.random().toString(36).substr(2,6);
       var pathEsc=(e.path||'').replace(/'/g,"&#39;");
       var uaEsc=(e.ua||'-').replace(/'/g,"&#39;");
-      var detail='<tr id="'+rid+'" style="display:none;background:var(--surface2)"><td colspan="8" style="padding:10px 16px;font-size:11px;line-height:1.8">'+
+      var copyText=('Timestamp: '+tsFull+'\\nMetodo: '+e.method+'\\nPath: '+e.path+'\\nStatus: '+e.status+'\\nLatencia: '+e.ms+'ms\\nIP: '+e.ip+'\\nUser-Agent: '+(e.ua||'-')).replace(/'/g,"&#39;");
+      var detail='<tr id="'+rid+'" style="display:none;background:var(--surface2)"><td colspan="8" style="padding:10px 16px;font-size:11px;line-height:1.8;position:relative">'+
+        '<button onclick="event.stopPropagation();navigator.clipboard.writeText(this.getAttribute(\'data-copy\')).then(function(){var b=event.target;var old=b.textContent;b.textContent=\'Copiado!\';setTimeout(function(){b.textContent=old;},1200);})" data-copy="'+copyText+'" style="position:absolute;top:8px;right:12px;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);border-radius:4px;padding:3px 8px;font-size:10px;cursor:pointer;opacity:.7" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.7">&#128203; Copiar</button>'+
         '<b>Timestamp:</b> '+tsFull+'<br>'+
         '<b>Metodo:</b> '+e.method+'<br>'+
         '<b>Path completo:</b> '+pathEsc+'<br>'+
