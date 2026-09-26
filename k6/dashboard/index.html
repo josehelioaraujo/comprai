@@ -1443,9 +1443,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       if (id === 'depBlock')   { loadDepData(); }
       if (id === 'evolucaoBlock') { loadEvolucaoData(); }
       if (id === 'obsMetricasBlock') { requestAnimationFrame(function(){ setTimeout(function(){ obsLoad('metricas'); }, 100); }); }
-      if (id === )  { requestAnimationFrame(function(){ setTimeout(function(){ obsLoadAccess(); }, 100); }); }
-      if (id === )  { requestAnimationFrame(function(){ setTimeout(function(){ obsLoadAccess(); }, 100); }); }
-      if (id === )  { requestAnimationFrame(function(){ setTimeout(function(){ obsLoadAccess(); }, 100); }); }
+      if (id === 'obsAcessoBlock')  { requestAnimationFrame(function(){ setTimeout(function(){ obsLoadAccess(); }, 100); }); }
       if (id === 'obsLogsBlock')    { requestAnimationFrame(function(){ setTimeout(function(){ obsLoad('logs'); },     100); }); }
       if (id === 'obsTracesBlock')  { requestAnimationFrame(function(){ setTimeout(function(){ obsLoad('traces'); },   100); }); }
       if (id === 'obsErrosBlock')   { requestAnimationFrame(function(){ setTimeout(function(){ obsLoad('erros'); },    100); }); }
