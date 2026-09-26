@@ -6120,13 +6120,15 @@ tr:hover td { background: rgba(255,255,255,.02); }
 <div class="app-shell">
 <nav class="sidebar" id="sidebar">
   <div class="sidebar-header">
-    <span class="sidebar-logo-text" onclick="openAboutModal()" style="cursor:pointer;display:flex;align-items:center;gap:6px" title="Sobre o OpsWatch">🔭 OpsWatch</span>
+    <span class="sidebar-logo-text" onclick="openAboutModal()" style="cursor:pointer;display:flex;flex-direction:column;gap:1px" title="Sobre o OpsWatch">
+      <span style="display:flex;align-items:center;gap:6px">🔭 OpsWatch</span>
+      <span id="opswatch-version-tag" style="font-size:9px;font-weight:400;color:var(--text-muted);opacity:.6"></span>
+    </span>
     <div style="display:flex;align-items:center;gap:4px">
       <button id="btn-collapse-all" onclick="collapseAllGroups()" title="Recolher tudo" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:13px;padding:3px 5px;border-radius:4px;line-height:1;transition:all .15s" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">&#8644;</button>
       <button class="sidebar-toggle sidebar-toggle-collapse" onclick="toggleSidebar()" title="Recolher sidebar">&#8249;</button>
     </div>
   </div>
-  <div class="sidebar-version-tag" style="padding:0 16px 8px;font-size:10px;color:var(--text-muted);opacity:.6" id="opswatch-version-tag"></div>
   <script>document.getElementById('opswatch-version-tag').textContent = 'v' + window.OPSWATCH_VERSION;</script>
   <!-- Botao expandir: visivel so quando colapsado -->
   <button class="sidebar-expand-btn" id="sidebarExpandBtn" onclick="toggleSidebar()" title="Expandir sidebar">&#8250;</button>
