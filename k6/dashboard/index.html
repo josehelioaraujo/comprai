@@ -4546,6 +4546,15 @@ function adminTrackRun(label, runId) {
 
 
     /* ── LOGS ──────────────────────────────────────────────────── */
+  window.obsCollapseAllAccess = function() {
+    document.querySelectorAll('#acc-tbody tr').forEach(function(r){
+      if (r.id && r.id.indexOf('r') === 0) r.style.display = 'none';
+    });
+    document.querySelectorAll('#acc-tbody td[onclick] span').forEach(function(s){
+      s.style.transform = '';
+    });
+  };
+
   window.obsLoadAccess = function() {
     var method=(document.getElementById('acc-method')||{}).value||'';
     var status=(document.getElementById('acc-status')||{}).value||'';
@@ -4623,10 +4632,10 @@ function adminTrackRun(label, runId) {
     var pagInfo = 'Pagina '+page+' de '+totalPages+' &mdash; '+entries.length+' registros (ultimas 6h)';
     var prevDisabled = page<=1 ? 'disabled style="opacity:.4;cursor:not-allowed"' : '';
     var nextDisabled = page>=totalPages ? 'disabled style="opacity:.4;cursor:not-allowed"' : '';
-    var pagHtml = '<div style="display:flex;align-items:center;gap:12px">'+
-      '<button class="obs-range-btn" '+prevDisabled+' onclick="window._accPage=(window._accPage||1)-1;obsRenderAccessPage()">&#8592; Anterior</button>'+
+    var pagHtml = '<div style="display:flex;align-items:center;gap:10px">'+
+      '<button class="obs-range-btn" '+prevDisabled+' onclick="window._accPage=(window._accPage||1)-1;obsRenderAccessPage()" title="Pagina anterior" style="padding:4px 10px;font-size:14px">&#8592;</button>'+
       '<span style="font-size:11px;color:var(--text-muted)">'+pagInfo+'</span>'+
-      '<button class="obs-range-btn" '+nextDisabled+' onclick="window._accPage=(window._accPage||1)+1;obsRenderAccessPage()">Proxima &#8594;</button>'+
+      '<button class="obs-range-btn" '+nextDisabled+' onclick="window._accPage=(window._accPage||1)+1;obsRenderAccessPage()" title="Proxima pagina" style="padding:4px 10px;font-size:14px">&#8594;</button>'+
       '</div>';
     if (pagTop) pagTop.innerHTML = pagHtml;
     if (st) st.innerHTML = '';
@@ -5290,7 +5299,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
 /* ── KPI Cards ── */
 .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px,1fr)); gap: 12px; padding: 16px; }
 .kpi-hint {
-  position: absolute; bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%);
+  position: absolute; bottom: calc(100% + 2px); left: 50%; transform: translateX(-50%);
   background: #0a0e18; color: #c9d1d9; border: 1px solid var(--border);
   border-radius: 8px; padding: 8px 12px; font-size: 11px; line-height: 1.5;
   width: 210px; pointer-events: none; opacity: 0; transition: opacity .2s;
@@ -8140,7 +8149,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
                 <th style="padding:6px 8px;text-align:right">Ms</th>
                 <th style="padding:6px 8px;text-align:left">IP</th>
                 <th style="padding:6px 8px;text-align:left">UA</th>
-                <th style="padding:6px 8px;text-align:center;width:30px;cursor:pointer" title="Recolher todos os detalhes" onclick="document.querySelectorAll('#acc-tbody tr[id^=\'r\']').forEach(function(r){r.style.display='none';});document.querySelectorAll('#acc-tbody span[style*=rotate]').forEach(function(s){s.style.transform='';});">&#8942;</th>
+                <th style="padding:6px 8px;text-align:center;width:30px;cursor:pointer" title="Recolher todos os detalhes" onclick="obsCollapseAllAccess()">&#8942;</th>
               </tr>
             </thead>
             <tbody id="acc-tbody"><tr><td colspan="7" style="padding:20px;text-align:center;color:var(--text-muted)">Carregando...</td></tr></tbody>
