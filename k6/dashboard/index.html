@@ -99,6 +99,7 @@ let pollTimer = null;
 let currentRunId = null;
 let runReloadPending = false;
 let verInfo = {};
+let _rnTotal = 1, _rnCurrent = 0, _rnStop = false, _rnOnDone = null;
 
 // IDs das secoes navegaveis (exceto detalhes que e fixo)
 const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','mutacaoBlock','sonarBlock','owaspBlock','pciBlock','depBlock','evolucaoBlock','integrationBlock','obsMetricasBlock','obsLogsBlock','obsAcessoBlock','obsTracesBlock','obsErrosBlock','obsContainersBlock','healthMapBlock','qualityScoreBlock','correlacaoBlock'];
@@ -252,57 +253,99 @@ async function loadGhConfig() {
 }
 
 // ── Trigger workflow ─────────────────────────────────────────
-async function triggerTest() {
+async async function triggerTest() {
   if (!ghCfg) return;
   var testType = document.getElementById('testTypeSelect').value;
+  var vus = document.getElementById('vusSlider') ? document.getElementById('vusSlider').value : '50';
+  var duration = document.getElementById('durationSelect') ? document.getElementById('durationSelect').value : '1m';
+  var rounds = Math.max(1, Math.min(10, parseInt((document.getElementById('roundsInput') || {}).value) || 1));
   var btn = document.getElementById('btnRun');
+  var btnStop = document.getElementById('btnStopRounds');
+
+  _rnTotal = rounds; _rnCurrent = 0; _rnStop = false;
   btn.disabled = true;
-  btn.textContent = '⏳ Disparando...';
+  if (btnStop) btnStop.style.display = rounds > 1 ? 'inline-flex' : 'none';
+  updateRoundsUI(0, rounds, 'running');
+
+  for (var r = 1; r <= rounds; r++) {
+    if (_rnStop) break;
+    _rnCurrent = r;
+    updateRoundsUI(r, rounds, 'running');
+    btn.innerHTML = '<span style="display:inline-block;animation:spin .7s linear infinite">&#8635;</span>&nbsp;Round ' + r + '/' + rounds;
+    await new Promise(function(resolve) {
+      _rnOnDone = resolve;
+      _dispatchSingle(testType, vus, duration, r, rounds);
+    });
+    if (r < rounds && !_rnStop) { updateRoundsUI(r, rounds, 'done_round'); await new Promise(function(res){setTimeout(res,1500);}); }
+  }
+
+  updateRoundsUI(_rnCurrent, rounds, _rnStop ? 'stopped' : 'done');
+  btn.disabled = false; btn.innerHTML = '&#9654; Executar'; _rnOnDone = null;
+  if (btnStop) btnStop.style.display = 'none';
+}
+
+async function _dispatchSingle(testType, vus, duration, roundNum, totalRounds) {
+  var prefix = totalRounds > 1 ? 'Round ' + roundNum + '/' + totalRounds + ' \u2014 ' : '';
   try {
-    // Sempre usar /api/github/dispatch (server-side com PAT, retorna runId)
     var resp = await fetch('/api/github/dispatch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ repo: ghCfg.repo, workflow: ghCfg.workflow_file || 'stress-tests.yml', ref: ghCfg.ref || 'main', inputs: { test_type: testType } })
+      body: JSON.stringify({ repo: ghCfg.repo, workflow: ghCfg.workflow_file || 'stress-tests.yml', ref: ghCfg.ref || 'main', inputs: { test_type: testType, vus: String(vus), duration: duration } })
     });
     if (resp.ok || resp.status === 204) {
-      btn.textContent = '✓ Disparado!';
-      openRunPanel('Aguardando pipeline iniciar...');
-      // Iniciar gráfico ao vivo
-      var testType = document.getElementById('testTypeSelect') ? document.getElementById('testTypeSelect').value : 'stress';
+      openRunPanel(prefix + 'Aguardando pipeline iniciar...');
       liveMetricsStart(testType);
-
-      // Tentar extrair runId da resposta
       var runId = null;
-      try {
-        var respText = await resp.text();
-        if (respText && respText.trim().startsWith('{')) {
-          var dispData = JSON.parse(respText);
-          if (dispData && dispData.runId) runId = dispData.runId;
-        }
-      } catch(e) { console.warn('dispatch parse:', e); }
-
+      try { var rt = await resp.text(); if(rt && rt.trim().startsWith('{')){ var dd=JSON.parse(rt); if(dd && dd.runId) runId=dd.runId; } } catch(e) {}
       if (runId) {
         currentRunId = runId;
-        document.getElementById('runStatusMsg').innerHTML =
-          '<span style="animation:pulse 1s infinite;display:inline-block;width:9px;height:9px;border-radius:50%;background:#fbbf24;margin-right:4px;"></span>Run #' + runId + ' iniciado — aguardando jobs...';
+        document.getElementById('runStatusMsg').innerHTML = '<span style="animation:pulse 1s infinite;display:inline-block;width:9px;height:9px;border-radius:50%;background:#fbbf24;margin-right:4px;"></span>' + prefix + 'Run #' + runId + ' iniciado \u2014 aguardando jobs...';
         setTimeout(function(){ pollRunById(currentRunId); }, 3000);
       } else {
-        // Fallback: buscar o run mais recente após 10s
-        document.getElementById('runStatusMsg').innerHTML =
-          '<span style="animation:pulse 1s infinite;display:inline-block;width:9px;height:9px;border-radius:50%;background:#fbbf24;margin-right:4px;"></span>Workflow disparado — buscando run...';
+        document.getElementById('runStatusMsg').innerHTML = '<span style="animation:pulse 1s infinite;display:inline-block;width:9px;height:9px;border-radius:50%;background:#fbbf24;margin-right:4px;"></span>' + prefix + 'Workflow disparado \u2014 buscando run...';
         setTimeout(function(){ pollLatestRun(ghCfg.workflow_file || 'stress-tests.yml'); }, 10000);
       }
     } else {
       var body = await resp.text();
-      btn.textContent = '✗ Erro ' + resp.status;
-      openRunPanel('Erro ao disparar: ' + resp.status + ' — ' + body.substring(0, 120), testType);
+      openRunPanel('Erro ao disparar: ' + resp.status + ' \u2014 ' + body.substring(0,120), testType);
+      if (typeof _rnOnDone === 'function') { var _f=_rnOnDone; _rnOnDone=null; _f(); }
     }
   } catch(e) {
-    btn.textContent = '✗ Falha';
     openRunPanel('Falha de rede: ' + e.message, testType);
+    if (typeof _rnOnDone === 'function') { var _f=_rnOnDone; _rnOnDone=null; _f(); }
   }
-  setTimeout(function() { btn.disabled = false; btn.innerHTML = '&#9654; Executar'; }, 5000);
+}
+
+function stopRounds() {
+  _rnStop = true;
+  var b = document.getElementById('btnStopRounds');
+  if (b) { b.disabled = true; b.textContent = 'Parando...'; }
+}
+
+function updateRoundsUI(current, total, state) {
+  var ind = document.getElementById('roundsIndicator');
+  var dots = document.getElementById('roundsDots');
+  var bar = document.getElementById('roundsBar');
+  var lbl = document.getElementById('roundsLabel');
+  if (!ind) return;
+  if (total <= 1 && state !== 'done' && state !== 'stopped') { ind.style.display = 'none'; return; }
+  ind.style.display = '';
+  var dotHtml = '';
+  for (var i = 1; i <= total; i++) {
+    var col;
+    if (i < current) col = '#6366f1';
+    else if (i === current) col = (state === 'done' || state === 'done_round') ? '#6366f1' : (state === 'stopped' ? '#ef4444' : '#fbbf24');
+    else col = 'var(--border)';
+    dotHtml += '<span title="Round ' + i + '" style="width:10px;height:10px;border-radius:50%;background:' + col + ';display:inline-block;transition:background .3s;"></span>';
+  }
+  if (dots) dots.innerHTML = dotHtml;
+  var pct = state === 'done' ? 100 : Math.round(((current - (state === 'running' ? 1 : 0)) / total) * 100);
+  if (bar) bar.style.width = pct + '%';
+  if (lbl) {
+    if (state === 'done') lbl.innerHTML = '<span style="color:#22c55e">&#10003; ' + total + '/' + total + ' concluidos</span>';
+    else if (state === 'stopped') lbl.innerHTML = '<span style="color:#ef4444">&#9632; Parado</span>';
+    else lbl.textContent = current + '/' + total;
+  }
 }
 
 // ── Run panel ────────────────────────────────────────────────
@@ -709,6 +752,7 @@ async function pollRunById(runId) {
       // Retomar polling de status
       if (typeof window._statusResume === 'function') setTimeout(window._statusResume, 3000);
       if (!runReloadPending) { runReloadPending = true; setTimeout(function() { runReloadPending = false; loadAll(true); }, 8000); }
+      if (typeof _rnOnDone === 'function') { var _cb = _rnOnDone; _rnOnDone = null; setTimeout(_cb, 1500); }
     }
   } catch(e) {
     document.getElementById('runStatusMsg').textContent = 'Aguardando jobs... (' + e.message + ')';
@@ -6317,20 +6361,61 @@ tr:hover td { background: rgba(255,255,255,.02); }
         </div>
         <div class="section-content">
           <div class="section-inner">
-            <div style="padding:16px 20px 8px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-              <select id="testTypeSelect" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 12px;border-radius:8px;font-size:13px;cursor:pointer;outline:none;min-width:140px;">
-                <option value="smoke">Smoke</option>
-                <option value="load">Load</option>
-                <option value="stress">Stress</option>
-                <option value="spike">Spike</option>
-                <option value="soak">Soak</option>
-                <option value="all">Todos</option>
-              </select>
-              <button class="btn-run" id="btnRun" onclick="triggerTest()" style="display:flex;">&#9654;&nbsp; Executar Teste</button>
-              <span style="font-size:12px;color:var(--muted);margin-left:auto;" id="stress-last-run"></span>
+            <!-- Config Testes de Carga -->
+            <div style="padding:14px 20px 0;display:grid;grid-template-columns:1fr 1fr;gap:14px 24px;">
+              <div>
+                <label style="display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Tipo de teste</label>
+                <select id="testTypeSelect" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:8px;font-size:13px;cursor:pointer;outline:none;">
+                  <option value="smoke">Smoke</option>
+                  <option value="load">Load</option>
+                  <option value="stress">Stress</option>
+                  <option value="spike">Spike</option>
+                  <option value="soak">Soak</option>
+                  <option value="all">Todos (sequencial)</option>
+                </select>
+                <label style="display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin:10px 0 5px">VUs (usuarios virtuais)</label>
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <input type="range" id="vusSlider" min="1" max="300" value="50" step="1" oninput="document.getElementById('vusVal').textContent=this.value" style="flex:1;accent-color:#6366f1;">
+                  <span id="vusVal" style="font-size:13px;font-weight:600;color:#6366f1;min-width:32px;text-align:right;">50</span>
+                </div>
+              </div>
+              <div>
+                <div style="display:flex;gap:10px;margin-bottom:10px;">
+                  <div style="flex:1;">
+                    <label style="display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Duracao</label>
+                    <select id="durationSelect" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:8px;font-size:13px;cursor:pointer;outline:none;">
+                      <option value="30s">30s</option>
+                      <option value="1m" selected>1m</option>
+                      <option value="2m">2m</option>
+                      <option value="5m">5m</option>
+                      <option value="10m">10m</option>
+                    </select>
+                  </div>
+                  <div style="width:80px;">
+                    <label style="display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Rounds</label>
+                    <input type="number" id="roundsInput" min="1" max="10" value="1" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 8px;border-radius:8px;font-size:13px;outline:none;text-align:center;">
+                  </div>
+                </div>
+                <div style="display:flex;gap:8px;">
+                  <button class="btn-run" id="btnRun" onclick="triggerTest()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;">&#9654; Executar</button>
+                  <button id="btnStopRounds" onclick="stopRounds()" style="display:none;background:transparent;border:1px solid var(--border);color:var(--muted);padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px;" title="Parar apos round atual">&#9632; Parar</button>
+                </div>
+                <span style="font-size:11px;color:var(--muted);display:block;margin-top:6px;" id="stress-last-run"></span>
+              </div>
             </div>
-            <div style="padding:0 20px 16px;">
-              <div id="stress-info" style="font-size:12px;color:var(--muted);">Selecione um tipo de teste e clique em Executar para disparar o pipeline via GitHub Actions.</div>
+            <!-- Rounds Indicator -->
+            <div id="roundsIndicator" style="display:none;padding:10px 20px;border-top:1px solid var(--border);margin-top:12px;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
+                <span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;">Rounds:</span>
+                <div id="roundsDots" style="display:flex;gap:5px;"></div>
+                <span id="roundsLabel" style="font-size:12px;color:var(--text);font-weight:600;margin-left:auto;"></span>
+              </div>
+              <div style="background:var(--border);border-radius:4px;height:4px;overflow:hidden;">
+                <div id="roundsBar" style="height:4px;background:linear-gradient(90deg,#6366f1,#818cf8);border-radius:4px;transition:width .5s ease;width:0%;"></div>
+              </div>
+            </div>
+            <div style="padding:8px 20px 14px;">
+              <div id="stress-info" style="font-size:12px;color:var(--muted);">Selecione o tipo de teste, ajuste os VUs e clique em Executar para disparar o pipeline via GitHub Actions.</div>
             </div>
 
             <!-- Pipeline em Execucao — aparece logo apos clicar em Executar -->
