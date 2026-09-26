@@ -4546,7 +4546,7 @@ function adminTrackRun(label, runId) {
 
 
     /* ── LOGS ──────────────────────────────────────────────────── */
-  function obsLoadAccess() {
+  window.obsLoadAccess = function() {
     var method=(document.getElementById('acc-method')||{}).value||'';
     var status=(document.getElementById('acc-status')||{}).value||'';
     var path=(document.getElementById('acc-path')||{}).value||'';
@@ -4556,7 +4556,7 @@ function adminTrackRun(label, runId) {
     if(path)qs+='&path='+encodeURIComponent(path);
     var tbody=document.getElementById('acc-tbody');
     if(tbody)tbody.innerHTML='<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--text-muted)">Carregando...</td></tr>';
-    fetch('/api/observability/logs/access'+qs).then(function(r){return r.json();}).then(function(d){var entries=d.entries||[];var kpis=document.getElementById('acc-kpis');if(kpis){var total=entries.length,ok=0,err4=0,err5=0;entries.forEach(function(e){var s=parseInt(e.status)||0;if(s>=500)err5++;else if(s>=400)err4++;else ok++;});kpis.innerHTML='<div class="obs-kpi-card"><div class="obs-kpi-hint">Total de requisicoes HTTP recebidas pela API nas ultimas 6 horas. Inclui health checks, metricas e endpoints de negocio.</div><div class="obs-kpi-label">Total</div><div class="obs-kpi-value">'+total+'</div><div class="obs-kpi-sub">requisicoes</div></div><div class="obs-kpi-card"><div class="obs-kpi-hint">Requisicoes com sucesso (2xx). O ideal e acima de 95% do total.</div><div class="obs-kpi-label" style="color:var(--success)">2xx</div><div class="obs-kpi-value" style="color:var(--success)">'+ok+'</div><div class="obs-kpi-sub">sucesso</div></div><div class="obs-kpi-card"><div class="obs-kpi-hint">Erros do cliente (4xx): rota nao encontrada, parametros invalidos, nao autorizado. Podem indicar bugs no frontend ou uso incorreto da API.</div><div class="obs-kpi-label" style="color:var(--warning)">4xx</div><div class="obs-kpi-value" style="color:var(--warning)">'+err4+'</div><div class="obs-kpi-sub">erro cliente</div></div><div class="obs-kpi-card"><div class="obs-kpi-hint">Erros do servidor (5xx): excecoes nao tratadas, timeout de dependencias, Redis/Loki inacessivel. Requer atencao imediata se acima de 1%.</div><div class="obs-kpi-label" style="color:var(--danger)">5xx</div><div class="obs-kpi-value" style="color:var(--danger)">'+err5+'</div><div class="obs-kpi-sub">erro servidor</div></div>';}
+    fetch('/api/observability/logs/access'+qs).then(function(r){return r.json();}).then(function(d){var entries=d.entries||[];var kpis=document.getElementById('acc-kpis');if(kpis){var total=entries.length,ok=0,err4=0,err5=0;entries.forEach(function(e){var s=parseInt(e.status)||0;if(s>=500)err5++;else if(s>=400)err4++;else ok++;});kpis.innerHTML='<div class="obs-kpi-card"><div class="obs-kpi-label">Total</div><div class="obs-kpi-value">'+total+'</div></div><div class="obs-kpi-card"><div class="obs-kpi-label" style="color:var(--success)">2xx</div><div class="obs-kpi-value" style="color:var(--success)">'+ok+'</div></div><div class="obs-kpi-card"><div class="obs-kpi-label" style="color:var(--warning)">4xx</div><div class="obs-kpi-value" style="color:var(--warning)">'+err4+'</div></div><div class="obs-kpi-card"><div class="obs-kpi-label" style="color:var(--danger)">5xx</div><div class="obs-kpi-value" style="color:var(--danger)">'+err5+'</div></div>';}
     if(!tbody)return;
     if(!entries.length){tbody.innerHTML='<tr><td colspan="7" style="padding:20px;text-align:center">Sem registros.</td></tr>';return;}
     tbody.innerHTML=entries.map(function(e){var sc=parseInt(e.status)||0,c=sc>=500?'var(--danger)':sc>=400?'var(--warning)':'var(--success)',ms=parseInt(e.ms)||0,mc=ms>1000?'color:var(--danger)':ms>300?'color:var(--warning)':'',ts=e.timestamp?new Date(e.timestamp).toLocaleTimeString('pt-BR'):'-',ua=(e.ua||'-').substring(0,40);return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:5px 8px;color:var(--text-muted)">'+ts+'</td><td style="padding:5px 8px;font-weight:600;font-size:11px">'+e.method+'</td><td style="padding:5px 8px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+e.path+'</td><td style="padding:5px 8px;text-align:center"><span style="background:'+c+'22;color:'+c+';border-radius:4px;padding:2px 7px;font-weight:700;font-size:11px">'+e.status+'</span></td><td style="padding:5px 8px;text-align:right;'+mc+'">'+e.ms+'ms</td><td style="padding:5px 8px;font-family:monospace;font-size:11px">'+e.ip+'</td><td style="padding:5px 8px;color:var(--text-muted);font-size:11px">'+ua+'</td></tr>';}).join('');
@@ -8038,7 +8038,6 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <span class="obs-refresh-badge" id="obs-access-refresh"><span class="obs-refresh-dot"></span>live</span>
         <span class="section-chevron">&#9660;</span>
       </div>
-      <div class="section-content">
       <div id="obs-access-content" style="padding:16px">
         <!-- Toolbar de filtros -->
         <div class="obs-toolbar" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
