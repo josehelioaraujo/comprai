@@ -8140,7 +8140,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
                 <th style="padding:6px 8px;text-align:right">Ms</th>
                 <th style="padding:6px 8px;text-align:left">IP</th>
                 <th style="padding:6px 8px;text-align:left">UA</th>
-                <th style="padding:6px 8px;text-align:center;width:30px" title="Detalhes">&#8942;</th>
+                <th style="padding:6px 8px;text-align:center;width:30px;cursor:pointer" title="Recolher todos os detalhes" onclick="document.querySelectorAll('#acc-tbody tr[id^=\'r\']').forEach(function(r){r.style.display='none';});document.querySelectorAll('#acc-tbody span[style*=rotate]').forEach(function(s){s.style.transform='';});">&#8942;</th>
               </tr>
             </thead>
             <tbody id="acc-tbody"><tr><td colspan="7" style="padding:20px;text-align:center;color:var(--text-muted)">Carregando...</td></tr></tbody>
