@@ -487,6 +487,10 @@ function cmShowRefactor(level){
   }).sort(function(a,b){return b[1].cc-a[1].cc;});
   var colors={err:'#ef4444',warn:'#fbbf24',ok:'#22c55e'};
   var labels={err:'Refatorar urgente (complexidade > 10)',warn:'Atenção (complexidade 5–10)',ok:'Simples (complexidade < 5)'};
+  if(!filtered.length){
+    alert('Nenhum método com '+labels[level].toLowerCase()+'.');
+    return;
+  }
   var drawer=document.getElementById('cmRefactorDrawer');
   document.getElementById('cmRefactorTitle').innerHTML='<span style="color:'+colors[level]+'">&#9679;</span>&nbsp;'+labels[level];
   document.getElementById('cmRefactorSubtitle').textContent=filtered.length+' método(s) encontrado(s)';
