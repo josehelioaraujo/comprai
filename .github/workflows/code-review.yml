@@ -24,10 +24,8 @@ jobs:
         run: |
           git diff origin/${{ github.base_ref }}...HEAD \
             -- 'src/**/*.cs' 'tests/**/*.cs' \
-            > /tmp/pr_diff.txt
+            | head -c 7000 > /tmp/pr_diff.txt
           echo "Linhas no diff: $(wc -l < /tmp/pr_diff.txt)"
-          # Limitar a 8000 chars para nao estourar contexto
-          head -c 8000 /tmp/pr_diff.txt > /tmp/pr_diff_trimmed.txt
 
       - name: Executar code review via Claude API
         env:
@@ -35,10 +33,10 @@ jobs:
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BRANCH: ${{ github.head_ref }}
         run: |
-          python3 << 'PYEOF'
+          python3 - << 'PYEOF'
           import os, json, urllib.request
 
-          diff = open('/tmp/pr_diff_trimmed.txt', encoding='utf-8', errors='ignore').read()
+          diff = open('/tmp/pr_diff.txt', encoding='utf-8', errors='ignore').read()
           if not diff.strip():
               print("Sem diff de .cs para revisar")
               open('/tmp/review.json','w').write('{"skip": true}')
@@ -47,51 +45,40 @@ jobs:
           pr_title = os.environ.get('PR_TITLE', '')
           pr_branch = os.environ.get('PR_BRANCH', '')
 
-          prompt = f"""Voce e um especialista em .NET/C# fazendo code review de um Pull Request.
+          system = (
+              "Voce e um especialista em .NET/C# revisando Pull Requests. "
+              "Responda sempre em PT-BR, de forma objetiva e construtiva. "
+              "Contexto: projeto com Vertical Slice + Hexagonal + Plugin Pattern, "
+              ".NET 10, MediatR, xUnit, cobertura > 90%."
+          )
 
-PR: {pr_title}
-Branch: {pr_branch}
-
-Contexto do projeto:
-- Arquitetura: Vertical Slice + Hexagonal + Plugin Pattern
-- Runtime: .NET 10, Minimal API, MediatR
-- Padrao de nomenclatura: Handlers em Application, Ports em Domain, Adapters em Infrastructure
-- Testes: xUnit, cobertura > 90%, mutation testing com Stryker
-
-Diff do PR (apenas arquivos .cs):
-```diff
-{diff[:7000]}
-```
-
-Faca uma revisao de codigo objetiva em PT-BR. Estruture assim:
-
-## Resumo
-Uma ou duas frases sobre o que o PR faz.
-
-## Pontos Positivos
-Maximo 3 itens concisos.
-
-## Problemas Encontrados
-Para cada problema:
-- **[CRITICO/IMPORTANTE/SUGESTAO]** Descricao clara do problema
-- Arquivo e linha aproximada se possivel
-- Sugestao de correcao
-
-## Checklist de Qualidade
-- [ ] Segue arquitetura Vertical Slice / Hexagonal?
-- [ ] Tem testes unitarios para a logica de negocio?
-- [ ] Nomes de classes/metodos seguem convencao do projeto?
-- [ ] Sem dependencias desnecessarias entre camadas?
-- [ ] Tratamento de erros adequado?
-
-## Veredicto
-**APROVADO** / **APROVADO COM RESSALVAS** / **SOLICITAR MUDANCAS**
-"""
+          user_msg = (
+              "PR: " + pr_title + "\n"
+              "Branch: " + pr_branch + "\n\n"
+              "Diff (arquivos .cs):\n```diff\n" + diff + "\n```\n\n"
+              "Faca uma revisao objetiva estruturada assim:\n\n"
+              "## Resumo\nUma ou duas frases sobre o que o PR faz.\n\n"
+              "## Pontos Positivos\nMaximo 3 itens concisos.\n\n"
+              "## Problemas Encontrados\n"
+              "Para cada problema:\n"
+              "- **[CRITICO/IMPORTANTE/SUGESTAO]** Descricao clara\n"
+              "- Arquivo e linha aproximada se possivel\n"
+              "- Sugestao de correcao\n\n"
+              "## Checklist de Qualidade\n"
+              "- [ ] Segue arquitetura Vertical Slice / Hexagonal?\n"
+              "- [ ] Tem testes unitarios para a logica de negocio?\n"
+              "- [ ] Nomes seguem convencao do projeto?\n"
+              "- [ ] Sem dependencias desnecessarias entre camadas?\n"
+              "- [ ] Tratamento de erros adequado?\n\n"
+              "## Veredicto\n"
+              "**APROVADO** / **APROVADO COM RESSALVAS** / **SOLICITAR MUDANCAS**"
+          )
 
           body = {
               "model": "claude-sonnet-4-6",
               "max_tokens": 1500,
-              "messages": [{"role": "user", "content": prompt}]
+              "system": system,
+              "messages": [{"role": "user", "content": user_msg}]
           }
 
           req = urllib.request.Request(
@@ -109,8 +96,11 @@ Para cada problema:
               resp = json.loads(r.read())
 
           review_text = resp["content"][0]["text"]
-          print("Review gerado com sucesso")
-          open('/tmp/review.json','w').write(json.dumps({"text": review_text, "skip": False}))
+          print("Review gerado:")
+          print(review_text[:200])
+          open('/tmp/review.json','w').write(
+              json.dumps({"text": review_text, "skip": False})
+          )
           PYEOF
 
       - name: Postar review no PR
@@ -119,25 +109,33 @@ Para cada problema:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         run: |
-          python3 << 'PYEOF'
+          python3 - << 'PYEOF'
           import os, json, urllib.request
 
           review = json.load(open('/tmp/review.json'))
           if review.get('skip'):
-              print("Sem arquivos .cs para revisar — pulando")
+              print("Nenhum arquivo .cs para revisar — pulando")
               exit(0)
 
-          body = "## 🤖 Code Review — Claude AI\n\n" + review["text"]
-          body += "\n\n---\n*Revisao automatica gerada por Claude AI. Sempre valide com o time.*"
+          comment = (
+              "## Code Review automatico — Claude AI\n\n"
+              + review["text"]
+              + "\n\n---\n*Revisao gerada automaticamente. Valide com o time antes de mergear.*"
+          )
 
-          payload = json.dumps({"body": body}).encode()
-          url = f"https://api.github.com/repos/{os.environ['REPO']}/issues/{os.environ['PR_NUMBER']}/comments"
+          payload = json.dumps({"body": comment}).encode()
+          url = (
+              "https://api.github.com/repos/"
+              + os.environ["REPO"]
+              + "/issues/"
+              + os.environ["PR_NUMBER"]
+              + "/comments"
+          )
 
           req = urllib.request.Request(
-              url,
-              data=payload,
+              url, data=payload,
               headers={
-                  "Authorization": f"Bearer {os.environ['GH_TOKEN']}",
+                  "Authorization": "Bearer " + os.environ["GH_TOKEN"],
                   "Content-Type": "application/json",
                   "Accept": "application/vnd.github.v3+json"
               },
@@ -145,5 +143,5 @@ Para cada problema:
           )
           with urllib.request.urlopen(req) as r:
               result = json.loads(r.read())
-              print(f"Comentario postado: {result['html_url']}")
+              print("Comentario postado: " + result["html_url"])
           PYEOF
