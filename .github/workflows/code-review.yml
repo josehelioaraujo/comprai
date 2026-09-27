@@ -33,81 +33,81 @@ jobs:
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BRANCH: ${{ github.head_ref }}
         run: |
-          python3 - << 'PYEOF'
-          import os, json, urllib.request, sys
+          DIFF=$(cat /tmp/pr_diff.txt)
+          if [ -z "$DIFF" ]; then
+            echo "Sem diff de .cs para revisar"
+            echo '{"skip": true}' > /tmp/review.json
+            exit 0
+          fi
 
-          diff = open('/tmp/pr_diff.txt', encoding='utf-8', errors='ignore').read()
-          if not diff.strip():
-              print("Sem diff de .cs para revisar")
-              open('/tmp/review.json','w').write('{"skip": true}')
-              sys.exit(0)
-
-          api_key   = os.environ.get('GROQ_API_KEY', '')
+          # Montar payload JSON via Python (seguro para caracteres especiais)
+          python3 - << 'INNEREOF'
+          import os, json, sys
+          diff      = open('/tmp/pr_diff.txt', encoding='utf-8', errors='ignore').read()
           pr_title  = os.environ.get('PR_TITLE', '')
           pr_branch = os.environ.get('PR_BRANCH', '')
-
-          if not api_key:
-              print("GROQ_API_KEY nao configurado")
-              sys.exit(1)
-
-          system = (
+          system_msg = (
               "Voce e um especialista em .NET/C# revisando Pull Requests. "
-              "Responda sempre em PT-BR, de forma objetiva e construtiva. "
-              "Contexto: Vertical Slice + Hexagonal + Plugin Pattern, "
-              ".NET 10, MediatR, xUnit, cobertura maior que 90 porcento."
+              "Responda sempre em PT-BR, objetivamente. "
+              "Contexto: Vertical Slice + Hexagonal + Plugin Pattern, .NET 10, MediatR, xUnit."
           )
-
           user_msg = (
-              "PR: " + pr_title + "\n"
-              "Branch: " + pr_branch + "\n\n"
-              "Diff (arquivos .cs):\n```diff\n" + diff + "\n```\n\n"
-              "Faca uma revisao objetiva em PT-BR com esta estrutura:\n\n"
-              "## Resumo\nUma ou duas frases sobre o que o PR faz.\n\n"
-              "## Pontos Positivos\nMaximo 3 itens.\n\n"
-              "## Problemas Encontrados\n"
-              "- **[CRITICO/IMPORTANTE/SUGESTAO]** Descricao + sugestao de correcao\n\n"
-              "## Checklist\n"
-              "- [ ] Segue arquitetura Vertical Slice / Hexagonal?\n"
-              "- [ ] Tem testes para a logica de negocio?\n"
-              "- [ ] Nomes seguem convencao do projeto?\n"
-              "- [ ] Sem dependencias desnecessarias entre camadas?\n"
-              "- [ ] Tratamento de erros adequado?\n\n"
-              "## Veredicto\n"
-              "**APROVADO** / **APROVADO COM RESSALVAS** / **SOLICITAR MUDANCAS**"
+              "PR: " + pr_title + "
+Branch: " + pr_branch + "
+
+"
+              "Diff:
+```diff
+" + diff + "
+```
+
+"
+              "Estrutura da revisao:
+"
+              "## Resumo
+## Pontos Positivos
+"
+              "## Problemas Encontrados
+- **[CRITICO/IMPORTANTE/SUGESTAO]** descricao + correcao
+"
+              "## Checklist
+"
+              "- [ ] Arquitetura Vertical Slice / Hexagonal?
+"
+              "- [ ] Testes unitarios?
+- [ ] Convencao de nomes?
+"
+              "- [ ] Sem dependencias entre camadas?
+- [ ] Tratamento de erros?
+"
+              "## Veredicto
+**APROVADO** / **APROVADO COM RESSALVAS** / **SOLICITAR MUDANCAS**"
           )
+          payload = {"model": "llama-3.3-70b-versatile", "max_tokens": 1500,
+              "messages": [{"role": "system", "content": system_msg},
+                           {"role": "user",   "content": user_msg}]}
+          open('/tmp/payload.json','w').write(json.dumps(payload))
+          print("Payload gerado")
+          INNEREOF
 
-          body = json.dumps({
-              "model": "llama-3.3-70b-versatile",
-              "max_tokens": 1500,
-              "messages": [
-                  {"role": "system", "content": system},
-                  {"role": "user",   "content": user_msg}
-              ]
-          }).encode()
+          # Chamar Groq via curl (evita bloqueio Cloudflare)
+          HTTP_CODE=$(curl -s -o /tmp/groq_response.json -w "%{http_code}"             -X POST "https://api.groq.com/openai/v1/chat/completions"             -H "Content-Type: application/json"             -H "Authorization: Bearer $GROQ_API_KEY"             -H "User-Agent: curl/7.88.1"             -d @/tmp/payload.json)
 
-          req = urllib.request.Request(
-              "https://api.groq.com/openai/v1/chat/completions",
-              data=body,
-              headers={
-                  "Content-Type": "application/json",
-                  "Authorization": "Bearer " + api_key
-              },
-              method="POST"
-          )
+          echo "HTTP Status: $HTTP_CODE"
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Erro Groq:"
+            cat /tmp/groq_response.json
+            exit 1
+          fi
 
-          try:
-              with urllib.request.urlopen(req) as r:
-                  resp = json.loads(r.read())
-              review_text = resp["choices"][0]["message"]["content"]
-              print("Review gerado com sucesso")
-              open('/tmp/review.json','w').write(
-                  json.dumps({"text": review_text, "skip": False})
-              )
-          except urllib.error.HTTPError as e:
-              err = e.read().decode()
-              print("Erro HTTP " + str(e.code) + ": " + err[:300])
-              sys.exit(1)
-          PYEOF
+          # Extrair review e salvar
+          python3 -c "
+          import json
+          resp = json.load(open('/tmp/groq_response.json'))
+          text = resp['choices'][0]['message']['content']
+          open('/tmp/review.json','w').write(json.dumps({'text': text, 'skip': False}))
+          print('Review gerado com sucesso (' + str(len(text)) + ' chars)')
+          "
 
       - name: Postar review no PR
         env:
