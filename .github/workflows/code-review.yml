@@ -27,46 +27,57 @@ jobs:
             | head -c 7000 > /tmp/pr_diff.txt
           echo "Linhas no diff: $(wc -l < /tmp/pr_diff.txt)"
 
+      - name: Verificar API Key
+        env:
+          HAS_KEY: ${{ secrets.ANTHROPIC_API_KEY != '' }}
+        run: |
+          if [ -z "${{ secrets.ANTHROPIC_API_KEY }}" ]; then
+            echo "::error::ANTHROPIC_API_KEY nao configurado. Va em Settings > Secrets > Actions e adicione o secret."
+            echo "skip=true" >> $GITHUB_ENV
+          else
+            echo "API Key encontrada"
+            echo "skip=false" >> $GITHUB_ENV
+          fi
+
       - name: Executar code review via Claude API
+        if: env.skip == 'false'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BRANCH: ${{ github.head_ref }}
         run: |
           python3 - << 'PYEOF'
-          import os, json, urllib.request
+          import os, json, urllib.request, sys
 
           diff = open('/tmp/pr_diff.txt', encoding='utf-8', errors='ignore').read()
           if not diff.strip():
               print("Sem diff de .cs para revisar")
               open('/tmp/review.json','w').write('{"skip": true}')
-              exit(0)
+              sys.exit(0)
 
           pr_title = os.environ.get('PR_TITLE', '')
           pr_branch = os.environ.get('PR_BRANCH', '')
+          api_key   = os.environ.get('ANTHROPIC_API_KEY', '')
 
           system = (
               "Voce e um especialista em .NET/C# revisando Pull Requests. "
               "Responda sempre em PT-BR, de forma objetiva e construtiva. "
-              "Contexto: projeto com Vertical Slice + Hexagonal + Plugin Pattern, "
-              ".NET 10, MediatR, xUnit, cobertura > 90%."
+              "Contexto: Vertical Slice + Hexagonal + Plugin Pattern, "
+              ".NET 10, MediatR, xUnit, cobertura maior que 90 porcento."
           )
 
           user_msg = (
               "PR: " + pr_title + "\n"
               "Branch: " + pr_branch + "\n\n"
               "Diff (arquivos .cs):\n```diff\n" + diff + "\n```\n\n"
-              "Faca uma revisao objetiva estruturada assim:\n\n"
+              "Faca uma revisao objetiva em PT-BR com esta estrutura:\n\n"
               "## Resumo\nUma ou duas frases sobre o que o PR faz.\n\n"
-              "## Pontos Positivos\nMaximo 3 itens concisos.\n\n"
+              "## Pontos Positivos\nMaximo 3 itens.\n\n"
               "## Problemas Encontrados\n"
-              "Para cada problema:\n"
-              "- **[CRITICO/IMPORTANTE/SUGESTAO]** Descricao clara\n"
-              "- Arquivo e linha aproximada se possivel\n"
-              "- Sugestao de correcao\n\n"
-              "## Checklist de Qualidade\n"
+              "- **[CRITICO/IMPORTANTE/SUGESTAO]** Descricao + sugestao de correcao\n\n"
+              "## Checklist\n"
               "- [ ] Segue arquitetura Vertical Slice / Hexagonal?\n"
-              "- [ ] Tem testes unitarios para a logica de negocio?\n"
+              "- [ ] Tem testes para a logica de negocio?\n"
               "- [ ] Nomes seguem convencao do projeto?\n"
               "- [ ] Sem dependencias desnecessarias entre camadas?\n"
               "- [ ] Tratamento de erros adequado?\n\n"
@@ -74,36 +85,40 @@ jobs:
               "**APROVADO** / **APROVADO COM RESSALVAS** / **SOLICITAR MUDANCAS**"
           )
 
-          body = {
+          body = json.dumps({
               "model": "claude-sonnet-4-6",
               "max_tokens": 1500,
               "system": system,
               "messages": [{"role": "user", "content": user_msg}]
-          }
+          }).encode()
 
           req = urllib.request.Request(
               "https://api.anthropic.com/v1/messages",
-              data=json.dumps(body).encode(),
+              data=body,
               headers={
                   "Content-Type": "application/json",
-                  "x-api-key": os.environ["ANTHROPIC_API_KEY"],
+                  "x-api-key": api_key,
                   "anthropic-version": "2023-06-01"
               },
               method="POST"
           )
 
-          with urllib.request.urlopen(req) as r:
-              resp = json.loads(r.read())
-
-          review_text = resp["content"][0]["text"]
-          print("Review gerado:")
-          print(review_text[:200])
-          open('/tmp/review.json','w').write(
-              json.dumps({"text": review_text, "skip": False})
-          )
+          try:
+              with urllib.request.urlopen(req) as r:
+                  resp = json.loads(r.read())
+              review_text = resp["content"][0]["text"]
+              print("Review gerado com sucesso")
+              open('/tmp/review.json','w').write(
+                  json.dumps({"text": review_text, "skip": False})
+              )
+          except urllib.error.HTTPError as e:
+              err = e.read().decode()
+              print("Erro HTTP " + str(e.code) + ": " + err[:300])
+              sys.exit(1)
           PYEOF
 
       - name: Postar review no PR
+        if: env.skip == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -112,15 +127,19 @@ jobs:
           python3 - << 'PYEOF'
           import os, json, urllib.request
 
+          if not os.path.exists('/tmp/review.json'):
+              print("Sem review para postar")
+              exit(0)
+
           review = json.load(open('/tmp/review.json'))
           if review.get('skip'):
-              print("Nenhum arquivo .cs para revisar — pulando")
+              print("Review ignorado")
               exit(0)
 
           comment = (
-              "## Code Review automatico — Claude AI\n\n"
+              "## Code Review — Claude AI\n\n"
               + review["text"]
-              + "\n\n---\n*Revisao gerada automaticamente. Valide com o time antes de mergear.*"
+              + "\n\n---\n*Revisao automatica via Claude AI. Valide com o time antes de mergear.*"
           )
 
           payload = json.dumps({"body": comment}).encode()
