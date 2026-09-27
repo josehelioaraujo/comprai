@@ -812,36 +812,14 @@ O **OpsWatch** é um portal operacional integrado ao pipeline CI/CD que consolid
 
 ### Seções disponíveis
 
-| Grupo | Seção | Descrição |
-|-------|-------|-----------|
-| Testes | Stress Test | Resultados K6 com timeline e gráficos |
-| Testes | Testes Integrados | Pipeline CI/CD em tempo real |
-| Testes | Mutação | Score Stryker com killed/survived |
-| Testes | Evolução | Histórico acumulado de métricas |
-| Qualidade | SonarCloud | Quality Gate, Coverage, Bugs, Smells |
-| **Observabilidade** | **Métricas — Visão Geral** | **KPI cards Prometheus + gráfico dual-axis** |
-| **Observabilidade** | **Métricas — Funil UCP** | **Conversão Search→Cart→Checkout→Order com % e diagnóstico 🟢🟡🔴** |
-| **Observabilidade** | **Métricas — Plugins** | **p95/erros/fallbacks por plugin de catálogo + gráfico de barras** |
-| **Observabilidade** | **Métricas — Cache Redis** | **Hit rate com barra de progresso e alerta <70%** |
-| **Observabilidade** | **Métricas — LLM/Ollama** | **Calls/errors/latência avg + distribuição de intenções por tipo** |
-| **Observabilidade** | **Logs** | **Stream Loki com filtro e busca** |
-| **Observabilidade** | **Traces** | **Operações Jaeger com expand de spans** |
-| **Observabilidade** | **Erros Recentes** | **Erros agrupados com stacktrace** |
-| **Observabilidade** | **Containers** | **Monitor de containers com ações Start/Stop/Restart e logs inline** |
-| Segurança | OWASP Top 10 | Checklist de controles |
-| Segurança | PCI DSS | Compliance de pagamentos |
-| Segurança | CVEs NuGet | Vulnerabilidades em pacotes |
-| Análise K6 | Detalhes / Resumo / Gráficos | Análise aprofundada dos stress tests |
-
-### Stack de Observabilidade
-
-```
-comprai-api → OpenTelemetry → comprai-jaeger (traces)
-comprai-api → /metrics      → comprai-prometheus (métricas)
-containers  → comprai-promtail → comprai-loki (logs)
-```
-
-Acesse: `https://comprai.2.25.122.11.nip.io/k6/dashboard/`
+| Grupo | Seções |
+|---|---|
+| 🧪 **Testes** | Smoke · Load · Stress · Spike · Soak · Integrados |
+| ⭐ **Qualidade** | Quality Score · Quality Trend · Correlação K6×Mutation · **Métricas de Código** (Complexidade Ciclomática + Dependências Ca/Ce) |
+| 📡 **Observabilidade** | Métricas (Funil UCP · Plugins · Cache Redis · LLM/Ollama) · Logs · Traces · Erros · Acesso |
+| 🛡️ **Segurança** | Dependency Scanner (CVEs NuGet) |
+| 🔥 **Análise K6** | Resultados detalhados por cenário |
+| ⚙️ **Infra** | Status Page · Health Map · Monitor de Containers · Admin Restart |
 
 
 ## 🗺️ Roadmap
@@ -871,15 +849,19 @@ Acesse: `https://comprai.2.25.122.11.nip.io/k6/dashboard/`
 | **V034** | OpsWatch — 5 abas de Métricas (Funil UCP, Plugins, Cache Redis, LLM/Ollama), hints dinâmicos 🟢🟡🔴, `populate-metrics.ps1` |
 | **V034-cont** | Cache Strategy (TTL/Aside/Read-Through/Hybrid), Access Log com aba Acesso completa (filtros, paginação, drill-down, rotas mais chamadas), versionamento SemVer automático no CI |
 | **V035** | OpsWatch — Painel Testes de Carga: VUs slider, Duração, Rounds sequenciais com progress dots, botão Parar, `populate-metrics.yml` |
+| **V036** | OpsWatch — Métricas de Código: Complexidade Ciclomática (Python regex, modal com código + marcadores SonarCloud) + Dependências Ca/Ce (Robert C. Martin, pills Ca/Ce, Ca reverso); Code Review automático em PRs via Groq AI; nova dinâmica de branches/PRs |
 
 ### 🔜 Próximas Versões
 
 | Fase | Descrição | Versão |
 |------|-----------|--------|
-| **Locust — segunda engine** | OpsWatch orquestra K6 e Locust: seletor de engine, proxy `/api/locust/*`, métricas ao vivo sem pipeline | V036 |
-| **Complexidade Ciclomática** | `dotnet msbuild /t:Metrics` — hotspots por método, thresholds verde/amarelo/vermelho, hints explicativos | V036 |
-| **Acoplamento Ca/Ce** | Métricas Robert C. Martin: I, A, D — Zona de Dor vs Main Sequence, modal de teoria no OpsWatch | V036 |
-| **Pentest OWASP ZAP** | DAST dinâmico via Docker: `pentest.yml` semanal + sob demanda, findings por severidade com referência OWASP Top 10 | V036 |
+| **LLM Diagnóstico** | `/api/ai/analyze` — Ollama analisa p95 + logs + mutation score e gera diagnóstico em PT-BR; botão "Analisar" no OpsWatch | V037 |
+| **Notificações Slack/Teams** | Mensagem gerada por LLM ao detectar degradação; webhook simples, alto impacto em demo | V037 |
+| **Locust — segunda engine** | OpsWatch orquestra K6 e Locust: seletor de engine, proxy `/api/locust/*`, métricas ao vivo sem pipeline | V038 |
+| **Hermes Orchestrator** | NousResearch Hermes-3 via Ollama — agente autônomo que decide sequência de tools (search, cart, checkout, diagnose) | V038 |
+| **Pentest OWASP ZAP** | DAST dinâmico via Docker: `pentest.yml` semanal + sob demanda, findings por severidade com referência OWASP Top 10 | V037 |
+| **GROQ_MODEL_SELECTOR** | Seletor de modelo no `workflow_dispatch` do code-review — escolha de modelo sem editar o workflow | V037 |
+| **ELK Stack / New Relic** | Traces waterfall com correlação log↔trace; ELK exige upgrade VPS KVM4; New Relic free permanente com 1 NuGet | Futuro |
 | **Alertas ntfy.sh** | Push quando qualquer suite falha — ntfy já na VPS | Futuro |
 | **DAST com OWASP ZAP** | Análise dinâmica contra API em staging — fecha gap do SonarCloud estático | Futuro |
 | **Padrão Saga** | 3 implementações chaveáveis (Wolverine, MassTransit, Nativo) via feature flag | Futuro |

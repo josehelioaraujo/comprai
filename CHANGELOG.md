@@ -1,3 +1,56 @@
+## [4.4.0] - 2026-09-27
+
+### Added
+
+- **OpsWatch — Métricas de Código (V036)**
+  - Novo grupo **Qualidade** no sidebar com painel dedicado
+  - Aba **Complexidade Ciclomática**: análise Python dos arquivos `.cs`, thresholds verde <5 / amarelo 5–10 / vermelho >10
+  - Chevron único `▼/▶` para expandir/recolher todos os módulos
+  - Chevron por módulo (SharedKernel, Domain, Application, Infrastructure, Api)
+  - Chevron por método → detalhe inline com: nome, complexidade, pontos de decisão por tipo (`if`, `for`, `switch`, `catch`, etc.)
+  - Botão **Ver código** → modal com código completo: assinatura do método + corpo, marcadores `// (1)` `// (2)` em amarelo nos branch points (padrão SonarCloud)
+  - Clicar nos badges de threshold (verde/amarelo/vermelho) → modal listando todos os métodos da categoria com complexidade e botão "ver"
+  - Modal não abre se categoria não tem métodos
+  - Aba **Dependências de Componentes**: tabela Ca/Ce/I/Diagnóstico baseada nas métricas de Robert C. Martin
+  - Chevron por linha → pills amarelos (Usa / Ce) + pills verdes (Dependem deste / Ca reverso calculado em JS)
+  - Tooltip `ℹ` nas colunas com teoria contextual (Ca, Ce, I, Main Sequence)
+  - Botão **ℹ Teoria** → modal explicando Ca, Ce, I, Zona de Dor, Zona de Inutilidade
+  - Botão Recalcular com polling em tempo real do step em execução — recarrega dados automaticamente ao concluir
+
+- **Workflow `code-metrics.yml`**
+  - Trigger: `workflow_dispatch` + push em `src/**/*.cs` ou `.csproj`
+  - Python analisa arquivos `.cs` com regex para branch points — sem dependência de `dotnet msbuild /t:Metrics`
+  - Gera `complexity.json` + `coupling.json` em `/var/www/html/k6/results/metrics/`
+  - JSON inclui `snippet` (assinatura + corpo do método) e `branch_counts` por tipo para exibição no modal
+  - Descoberta automática de Ca reverso via `<ProjectReference>` nos `.csproj`
+  - Deploy via SSH nativo com `-i ~/.ssh/id_rsa` + step de verificação final
+
+- **Code Review Automático em PRs**
+  - Workflow `code-review.yml`: trigger em `pull_request` com paths `src/**/*.cs` e `tests/**/*.cs`
+  - Groq API (`openai/gpt-oss-120b`) via `curl` — descoberta automática do melhor modelo disponível via `GET /models`
+  - Posta comentário estruturado no PR em PT-BR: Resumo, Pontos Positivos, Problemas, Checklist, Veredicto
+  - `GROQ_API_KEY` configurado em Secrets do GitHub
+
+- **Processo de desenvolvimento**
+  - Nova dinâmica: branches `feat/`, `fix/`, `chore/` criadas apenas quando solicitado explicitamente
+  - Code review automático dispara em todo PR com arquivos `.cs`
+
+### Fixed
+
+- `paths-ignore` do `ci-cd.yml` ampliado para incluir `.github/workflows/**` — mudanças de workflow não disparam CI/CD
+- Descoberta de modelo Groq via API — evita hardcode de modelos descontinuados (`llama3-70b-8192`, `llama-3.3-70b-versatile`)
+
+### Roadmap (anotado, não implementado)
+
+- `GROQ_MODEL_SELECTOR` — seletor de modelo no `workflow_dispatch` do code-review
+- Pentest OWASP ZAP — DAST dinâmico, `pentest.yml` semanal + sob demanda
+- LLM Diagnóstico em tempo real — `/api/ai/analyze` com Ollama + fallback Claude
+- Notificações Slack/Teams com mensagem gerada por LLM
+- ELK Stack — possível com upgrade VPS KVM2 → KVM4 (`ELK_OPSWATCH`)
+- New Relic ou Grafana Cloud para traces waterfall com correlação log↔trace (`NEWRELIC_OPSWATCH`)
+
+---
+
 ## [4.3.0] - 2026-09-26
 
 ### Added
