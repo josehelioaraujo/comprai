@@ -40,7 +40,7 @@ jobs:
           )
           for proj in "${PROJECTS[@]}"; do
             name=$(basename "$proj" .csproj)
-            echo "Calculando metricas: $name"
+            echo "Calculando: $name"
             dotnet msbuild "$proj" /t:Metrics \
               /p:MetricsOutputFile=/tmp/metrics/${name}.xml \
               /nologo /verbosity:quiet 2>/dev/null || echo "Sem metricas: $name"
@@ -74,7 +74,7 @@ jobs:
               avg = round(sum(m["complexity"] for m in methods)/len(methods),1) if methods else 0
               complexity["projects"][proj] = {"avg_complexity":avg,
                   "max_complexity":methods[0]["complexity"] if methods else 0,"hotspots":methods[:8]}
-              print(f"{proj}: avg={avg} hotspots={len(methods[:8])}")
+              print(f"{proj}: avg={avg} max={methods[0]['complexity'] if methods else 0}")
 
           projects_refs = {}
           for root, dirs, files in os.walk("src"):
@@ -93,21 +93,24 @@ jobs:
               ce_v = len(deps); ca_v = ca.get(proj,0); total = ca_v+ce_v
               coupling_data[proj] = {"ca":ca_v,"ce":ce_v,
                   "instability":round(ce_v/total,3) if total>0 else 0.0,"deps":deps}
-              print(f"{proj}: Ca={ca_v} Ce={ce_v}")
+              print(f"{proj}: Ca={ca_v} Ce={ce_v} I={coupling_data[proj]['instability']}")
 
           json.dump(complexity, open("k6/results/metrics/complexity.json","w"), indent=2)
           json.dump({"projects":coupling_data,"generated_at":datetime.datetime.utcnow().isoformat()+"Z"},
                     open("k6/results/metrics/coupling.json","w"), indent=2)
-          print("JSONs gerados com sucesso")
+          print("JSONs gerados")
           PYEOF
 
-      - name: Publicar JSONs na VPS
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ env.VPS_HOST }}
-          username: ${{ env.VPS_USER }}
-          key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
-          source: "k6/results/metrics/complexity.json,k6/results/metrics/coupling.json"
-          target: "/var/www/html"
-          strip_components: 0
-          overwrite: true
+      - name: Publicar JSONs na VPS via SSH nativo
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+          ssh ${{ env.VPS_USER }}@${{ env.VPS_HOST }} "mkdir -p /var/www/html/k6/results/metrics"
+          scp k6/results/metrics/complexity.json \
+              k6/results/metrics/coupling.json \
+              ${{ env.VPS_USER }}@${{ env.VPS_HOST }}:/var/www/html/k6/results/metrics/
+          echo "JSONs publicados com sucesso"
