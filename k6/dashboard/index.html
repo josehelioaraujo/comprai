@@ -256,7 +256,7 @@ async function loadGhConfig() {
 async function triggerTest() {
   if (!ghCfg) return;
   var testType = document.getElementById('testTypeSelect').value;
-  var vus = document.getElementById('vusSlider') ? document.getElementById('vusSlider').value : '50';
+  var vus = document.getElementById('vusVal') ? (parseInt(document.getElementById('vusVal').value) || 50) : 50;
   var duration = document.getElementById('durationSelect') ? document.getElementById('durationSelect').value : '1m';
   var rounds = Math.max(1, Math.min(10, parseInt((document.getElementById('roundsInput') || {}).value) || 1));
   var btn = document.getElementById('btnRun');
@@ -316,6 +316,13 @@ async function _dispatchSingle(testType, vus, duration, roundNum, totalRounds) {
   }
 }
 
+function syncVus(val, src) {
+  var v = Math.max(1, parseInt(val) || 1);
+  var slider = document.getElementById('vusSlider');
+  var input  = document.getElementById('vusVal');
+  if (src === 'slider') { if (input)  input.value  = v; }
+  else                  { if (slider) slider.value = Math.min(v, parseInt(slider.max)); }
+}
 function stopRounds() {
   _rnStop = true;
   var b = document.getElementById('btnStopRounds');
@@ -6374,9 +6381,9 @@ tr:hover td { background: rgba(255,255,255,.02); }
                   <option value="all">Todos (sequencial)</option>
                 </select>
                 <label style="display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin:10px 0 5px">VUs (usuarios virtuais)</label>
-                <div style="display:flex;align-items:center;gap:10px;">
-                  <input type="range" id="vusSlider" min="1" max="300" value="50" step="1" oninput="document.getElementById('vusVal').textContent=this.value" style="flex:1;accent-color:#6366f1;">
-                  <span id="vusVal" style="font-size:13px;font-weight:600;color:#6366f1;min-width:32px;text-align:right;">50</span>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <input type="range" id="vusSlider" min="1" max="1000" value="50" step="1" oninput="syncVus(this.value,'slider')" style="flex:1;accent-color:#6366f1;">
+                  <input type="number" id="vusVal" min="1" max="9999" value="50" oninput="syncVus(this.value,'input')" style="width:58px;background:var(--surface2);border:1px solid var(--border);color:#6366f1;padding:4px 6px;border-radius:6px;font-size:13px;font-weight:600;text-align:center;outline:none;">
                 </div>
               </div>
               <div>
