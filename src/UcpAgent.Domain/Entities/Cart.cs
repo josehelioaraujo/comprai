@@ -11,17 +11,29 @@ public class Cart
 
     private readonly List<CartItem> _items = [];
 
-    private Cart() { SessionId = ""; }
+    private Cart() { SessionId = string.Empty; }
 
     public static Cart Create(string sessionId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
-        return new Cart { SessionId = sessionId, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
+        return new Cart
+        {
+            SessionId = sessionId,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
     }
 
     public CartItem AddItem(Product product, int quantity)
     {
-        var existing = _items.FirstOrDefault(i => i.Product.Id == product.Id && i.Product.Source == product.Source);
+        ArgumentNullException.ThrowIfNull(product);
+        if (quantity <= 0)
+            throw new ArgumentOutOfRangeException(nameof(quantity), "Quantidade deve ser maior que zero.");
+
+        var existing = _items.FirstOrDefault(i =>
+            i.Product.Id == product.Id &&
+            i.Product.Source == product.Source);
+
         if (existing is not null)
         {
             existing.UpdateQuantity(existing.Quantity + quantity);
@@ -37,9 +49,23 @@ public class Cart
 
     public void RemoveItem(string itemId)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(itemId);
         var item = _items.FirstOrDefault(i => i.ItemId == itemId)
             ?? throw new InvalidOperationException($"Item '{itemId}' não encontrado no carrinho.");
         _items.Remove(item);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void UpdateItemQuantity(string itemId, int newQuantity)
+    {
+        if (newQuantity <= 0)
+        {
+            RemoveItem(itemId);
+            return;
+        }
+        var item = _items.FirstOrDefault(i => i.ItemId == itemId)
+            ?? throw new InvalidOperationException($"Item '{itemId}' não encontrado no carrinho.");
+        item.UpdateQuantity(newQuantity);
         UpdatedAt = DateTime.UtcNow;
     }
 
@@ -49,5 +75,7 @@ public class Cart
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public bool IsEmpty => _items.Count == 0;
+    public bool IsEmpty => !_items.Any();
+    public bool HasItem(string productId, string source) =>
+        _items.Any(i => i.Product.Id == productId && i.Product.Source == source);
 }
