@@ -453,6 +453,8 @@ function cmShowRefactor(level){
     }).join('');
   }
   drawer.style.display='flex';
+  drawer.style.alignItems='center';
+  drawer.style.justifyContent='center';
 }
 function cmCloseRefactor(){
   var d=document.getElementById('cmRefactorDrawer');
@@ -5326,13 +5328,15 @@ function adminTrackRun(label, runId) {
 
 <div id="cmCodeModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10000;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'"><div style="background:var(--surface1);border:1px solid var(--border);border-radius:12px;width:min(720px,92vw);max-height:82vh;display:flex;flex-direction:column"><div style="display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0"><span id="cmCodeModalTitle" style="font-size:13px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)"></span><button onclick="cmCodeCopy()" id="cmCodeCopyBtn" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;white-space:nowrap">&#128203; Copiar</button><button onclick="document.getElementById('cmCodeModal').style.display='none'" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:20px;line-height:1;padding:0 4px">&times;</button></div><div style="overflow-y:auto;padding:12px 16px"><div id="cmCodeModalMeta" style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.6"></div><pre id="cmCodePre" style="font-size:12px;font-family:monospace;background:var(--surface0,#0b0f19);border-radius:8px;padding:14px;overflow-x:auto;margin:0;color:var(--text);line-height:1.5"></pre></div></div></div>
 
-<div id="cmRefactorDrawer" style="display:none;position:fixed;top:0;right:0;width:360px;height:100vh;background:var(--surface1);border-left:1px solid var(--border);z-index:9998;display:none;flex-direction:column;box-shadow:-4px 0 24px rgba(0,0,0,.4)">
-  <div style="display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid var(--border);flex-shrink:0">
-    <span id="cmRefactorTitle" style="font-size:13px;font-weight:600;flex:1"></span>
-    <button onclick="cmCloseRefactor()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:20px;line-height:1">&times;</button>
+<div id="cmRefactorDrawer" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9998;align-items:center;justify-content:center" onclick="if(event.target===this)cmCloseRefactor()">
+  <div style="background:var(--surface1);border:1px solid var(--border);border-radius:12px;width:min(480px,92vw);max-height:72vh;display:flex;flex-direction:column">
+    <div style="display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <span id="cmRefactorTitle" style="font-size:13px;font-weight:600;flex:1"></span>
+      <button onclick="cmCloseRefactor()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:20px;line-height:1">&times;</button>
+    </div>
+    <div id="cmRefactorSubtitle" style="font-size:11px;color:var(--muted);padding:6px 16px;border-bottom:1px solid var(--border);flex-shrink:0"></div>
+    <div id="cmRefactorList" style="overflow-y:auto;flex:1"></div>
   </div>
-  <div style="padding:8px 0;font-size:11px;color:var(--muted);padding:8px 16px;border-bottom:1px solid var(--border);flex-shrink:0" id="cmRefactorSubtitle"></div>
-  <div id="cmRefactorList" style="overflow-y:auto;flex:1;padding:8px 0"></div>
 </div>
 </body>
 </html>
