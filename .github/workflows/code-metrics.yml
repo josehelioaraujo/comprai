@@ -8,6 +8,10 @@ on:
       - 'src/**/*.csproj'
       - 'src/**/*.cs'
 
+env:
+  VPS_HOST: '2.25.122.11'
+  VPS_USER: 'root'
+
 jobs:
   metrics:
     name: Calcular metricas de codigo
@@ -36,14 +40,15 @@ jobs:
           )
           for proj in "${PROJECTS[@]}"; do
             name=$(basename "$proj" .csproj)
-            echo "Calculando metricas de $name..."
+            echo "Calculando metricas: $name"
             dotnet msbuild "$proj" /t:Metrics \
               /p:MetricsOutputFile=/tmp/metrics/${name}.xml \
-              /nologo /verbosity:quiet 2>/dev/null || echo "Aviso: $name sem metricas"
+              /nologo /verbosity:quiet 2>/dev/null || echo "Sem metricas: $name"
           done
 
       - name: Gerar JSONs de complexidade e acoplamento
         run: |
+          mkdir -p k6/results/metrics
           python3 << 'PYEOF'
           import os, re, json, xml.etree.ElementTree as ET
           from collections import defaultdict
@@ -52,74 +57,57 @@ jobs:
           PROJECTS = ["UcpAgent.SharedKernel","UcpAgent.Domain","UcpAgent.Application",
                       "UcpAgent.Infrastructure","UcpAgent.Api"]
 
-          # ── Complexidade ───────────────────────────────────────
-          complexity = {"projects": {}, "generated_at": datetime.datetime.utcnow().isoformat()+"Z"}
+          complexity = {"projects":{}, "generated_at": datetime.datetime.utcnow().isoformat()+"Z"}
           for proj in PROJECTS:
               xml_path = f"/tmp/metrics/{proj}.xml"
               if not os.path.exists(xml_path):
-                  print(f"Sem XML para {proj}")
                   continue
-              tree = ET.parse(xml_path)
               methods = []
-              for m in tree.getroot().iter("Method"):
+              for m in ET.parse(xml_path).getroot().iter("Method"):
                   cc = m.find("CyclomaticComplexity")
-                  mi = m.find("MaintainabilityIndex")
                   nm = m.find("Name")
-                  if cc is None or int(cc.text or 0) < 2:
-                      continue
+                  mi = m.find("MaintainabilityIndex")
+                  if cc is None or int(cc.text or 0) < 2: continue
                   methods.append({"name":(nm.text or "")[:80],"complexity":int(cc.text),
                                   "maintainability":int(mi.text) if mi is not None else 0})
               methods.sort(key=lambda x: x["complexity"], reverse=True)
               avg = round(sum(m["complexity"] for m in methods)/len(methods),1) if methods else 0
-              complexity["projects"][proj] = {
-                  "avg_complexity": avg,
-                  "max_complexity": methods[0]["complexity"] if methods else 0,
-                  "hotspots": methods[:8]
-              }
-              print(f"{proj}: avg={avg} max={methods[0]['complexity'] if methods else 0} hotspots={len(methods[:8])}")
+              complexity["projects"][proj] = {"avg_complexity":avg,
+                  "max_complexity":methods[0]["complexity"] if methods else 0,"hotspots":methods[:8]}
+              print(f"{proj}: avg={avg} hotspots={len(methods[:8])}")
 
-          # ── Acoplamento Ca/Ce ─────────────────────────────────
           projects_refs = {}
           for root, dirs, files in os.walk("src"):
               for f in files:
                   if f.endswith(".csproj"):
-                      name = f.replace(".csproj","")
-                      content = open(os.path.join(root,f)).read()
-                      deps = [os.path.basename(m.group(1)).replace(".csproj","")
-                              for m in re.finditer(r'<ProjectReference Include="([^"]+)"', content)]
-                      projects_refs[name] = deps
+                      txt = open(os.path.join(root,f)).read()
+                      projects_refs[f.replace(".csproj","")] = [
+                          os.path.basename(m.group(1)).replace(".csproj","")
+                          for m in re.finditer(r'<ProjectReference Include="([^"]+)"', txt)]
 
           ca = defaultdict(int)
-          ce = {}
           for proj, deps in projects_refs.items():
-              ce[proj] = len(deps)
-              for dep in deps:
-                  ca[dep] += 1
-
+              for dep in deps: ca[dep] += 1
           coupling_data = {}
-          for proj in projects_refs:
-              ca_v = ca.get(proj,0)
-              ce_v = ce.get(proj,0)
-              total = ca_v + ce_v
+          for proj, deps in projects_refs.items():
+              ce_v = len(deps); ca_v = ca.get(proj,0); total = ca_v+ce_v
               coupling_data[proj] = {"ca":ca_v,"ce":ce_v,
-                  "instability": round(ce_v/total,3) if total>0 else 0.0,
-                  "deps": projects_refs[proj]}
-              print(f"{proj}: Ca={ca_v} Ce={ce_v} I={coupling_data[proj]['instability']}")
+                  "instability":round(ce_v/total,3) if total>0 else 0.0,"deps":deps}
+              print(f"{proj}: Ca={ca_v} Ce={ce_v}")
 
-          coupling = {"projects": coupling_data, "generated_at": datetime.datetime.utcnow().isoformat()+"Z"}
-
-          os.makedirs("k6/results/metrics", exist_ok=True)
           json.dump(complexity, open("k6/results/metrics/complexity.json","w"), indent=2)
-          json.dump(coupling,   open("k6/results/metrics/coupling.json","w"),   indent=2)
+          json.dump({"projects":coupling_data,"generated_at":datetime.datetime.utcnow().isoformat()+"Z"},
+                    open("k6/results/metrics/coupling.json","w"), indent=2)
           print("JSONs gerados com sucesso")
           PYEOF
 
       - name: Publicar JSONs na VPS
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: 2.25.122.11
-          username: root
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
           source: "k6/results/metrics/complexity.json,k6/results/metrics/coupling.json"
           target: "/var/www/html"
           strip_components: 0
+          overwrite: true
