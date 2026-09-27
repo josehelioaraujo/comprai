@@ -39,11 +39,9 @@ jobs:
           mkdir -p k6/results/metrics
           python3 << 'PYEOF'
           import os, re, json
-          from collections import defaultdict
+          from collections import defaultdict, Counter
           import datetime
 
-          # ── Complexidade Ciclomática via contagem de branch points ──
-          # Conta pontos de decisão em cada método .cs
           BRANCH_KW = re.compile(
               r'\b(if|else\s+if|for|foreach|while|do|switch|case|catch|&&|\|\||when)\b'
           )
@@ -57,56 +55,51 @@ jobs:
               "SharedKernel": "src/UcpAgent.SharedKernel",
               "Domain":       "src/UcpAgent.Domain",
               "Application":  "src/UcpAgent.Application",
-              "Infrastructure": "src/UcpAgent.Infrastructure",
+              "Infrastructure":"src/UcpAgent.Infrastructure",
               "Api":          "src/UcpAgent.Api",
           }
 
-          complexity = {"projects": {}, "generated_at": datetime.datetime.utcnow().isoformat()+"Z"}
+          complexity = {"projects":{}, "generated_at": datetime.datetime.utcnow().isoformat()+"Z"}
 
           for proj_name, proj_path in PROJECTS.items():
               if not os.path.exists(proj_path):
                   continue
               methods = []
               for root, dirs, files in os.walk(proj_path):
-                  # Pular Tests
                   dirs[:] = [d for d in dirs if 'test' not in d.lower() and 'obj' not in d.lower()]
                   for f in files:
                       if not f.endswith('.cs'): continue
                       try:
                           src = open(os.path.join(root,f), encoding='utf-8', errors='ignore').read()
                       except: continue
-                      # Remover comentários
                       src = re.sub(r'//.*$', '', src, flags=re.MULTILINE)
                       src = re.sub(r'/\*.*?\*/', '', src, flags=re.DOTALL)
-                      # Extrair blocos de métodos
                       for m in METHOD_RE.finditer(src):
                           mname = m.group(1)
                           if mname in ('if','for','foreach','while','switch','catch','class','namespace'):
                               continue
-                          # Pegar corpo do método (simplificado: próximos 200 chars)
                           body_start = m.end()
-                          depth = 1; pos = body_start; body = []
-                          while pos < len(src) and depth > 0 and pos < body_start + 3000:
-                              c = src[pos]
-                              if c == '{': depth += 1
-                              elif c == '}': depth -= 1
-                              if depth > 0: body.append(c)
-                              pos += 1
+                          depth=1; pos=body_start; body=[]
+                          while pos < len(src) and depth > 0 and pos < body_start+3000:
+                              c=src[pos]
+                              if c=='{': depth+=1
+                              elif c=='}': depth-=1
+                              if depth>0: body.append(c)
+                              pos+=1
                           body_str = ''.join(body)
-                          cc = 1 + len(BRANCH_KW.findall(body_str))
-                          if cc >= 2:
-                              class_match = re.search(r'class\s+(\w+)', src[:m.start()])
-                              class_name = class_match.group(1) if class_match else f.replace('.cs','')
-                              # Contar branches por tipo
-                  branch_types = BRANCH_KW.findall(body_str)
-                  from collections import Counter
-                  branch_counts = dict(Counter(branch_types))
-                  methods.append({
-                                  "name": f"{class_name}.{mname}()"[:80],
-                                  "complexity": cc,
-                                  "maintainability": max(0, 100 - cc * 5),
-                      "branches": list(branch_types)
-                              })
+                          branch_types = BRANCH_KW.findall(body_str)
+                          cc = 1 + len(branch_types)
+                          if cc < 2: continue
+                          class_match = re.search(r'class\s+(\w+)', src[:m.start()])
+                          class_name = class_match.group(1) if class_match else f.replace('.cs','')
+                          branch_counts = dict(Counter(branch_types))
+                          methods.append({
+                              "name": f"{class_name}.{mname}()"[:80],
+                              "complexity": cc,
+                              "maintainability": max(0, 100-cc*5),
+                              "branches": branch_types[:20],
+                              "branch_counts": branch_counts
+                          })
               methods.sort(key=lambda x: x["complexity"], reverse=True)
               avg = round(sum(m["complexity"] for m in methods)/len(methods),1) if methods else 0
               full_name = f"UcpAgent.{proj_name}"
@@ -117,7 +110,7 @@ jobs:
               }
               print(f"{proj_name}: avg={avg} max={methods[0]['complexity'] if methods else 0} metodos={len(methods)}")
 
-          # ── Acoplamento Ca/Ce via ProjectReference ──────────────
+          # Acoplamento Ca/Ce
           projects_refs = {}
           for root, dirs, files in os.walk("src"):
               for f in files:
@@ -133,18 +126,13 @@ jobs:
 
           coupling_data = {}
           for proj, deps in projects_refs.items():
-              ce_v = len(deps); ca_v = ca.get(proj,0); total = ca_v + ce_v
-              coupling_data[proj] = {
-                  "ca": ca_v, "ce": ce_v,
-                  "instability": round(ce_v/total,3) if total > 0 else 0.0,
-                  "deps": deps
-              }
-              print(f"{proj}: Ca={ca_v} Ce={ce_v} I={coupling_data[proj]['instability']}")
+              ce_v=len(deps); ca_v=ca.get(proj,0); total=ca_v+ce_v
+              coupling_data[proj] = {"ca":ca_v,"ce":ce_v,
+                  "instability":round(ce_v/total,3) if total>0 else 0.0,"deps":deps}
+              print(f"{proj}: Ca={ca_v} Ce={ce_v}")
 
-          json.dump(complexity,
-              open("k6/results/metrics/complexity.json","w"), indent=2)
-          json.dump({"projects": coupling_data,
-              "generated_at": datetime.datetime.utcnow().isoformat()+"Z"},
+          json.dump(complexity, open("k6/results/metrics/complexity.json","w"), indent=2)
+          json.dump({"projects":coupling_data,"generated_at":datetime.datetime.utcnow().isoformat()+"Z"},
               open("k6/results/metrics/coupling.json","w"), indent=2)
           print("JSONs gerados com sucesso")
           PYEOF
