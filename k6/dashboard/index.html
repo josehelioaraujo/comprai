@@ -422,6 +422,42 @@ h+='</td></tr>';});
 h+='</tbody></table><div style="font-size:10px;color:var(--muted);margin-top:8px">Atualizado: '+(d.generated_at||'-')+'</div>';
 el.innerHTML=h;})
 .catch(function(){el.innerHTML='<div style="color:var(--muted);font-size:12px">Erro ao carregar</div>';});}
+function cmShowRefactor(level){
+  var hs=window._cmHotspots;
+  if(!hs)return;
+  var filtered=Object.entries(hs).filter(function(e){
+    var cc=e[1].cc;
+    if(level==='err')  return cc>10;
+    if(level==='warn') return cc>5&&cc<=10;
+    return cc<=5;
+  }).sort(function(a,b){return b[1].cc-a[1].cc;});
+  var colors={err:'#ef4444',warn:'#fbbf24',ok:'#22c55e'};
+  var labels={err:'Refatorar urgente (complexidade > 10)',warn:'Atenção (complexidade 5–10)',ok:'Simples (complexidade < 5)'};
+  var drawer=document.getElementById('cmRefactorDrawer');
+  document.getElementById('cmRefactorTitle').innerHTML='<span style="color:'+colors[level]+'">&#9679;</span>&nbsp;'+labels[level];
+  document.getElementById('cmRefactorSubtitle').textContent=filtered.length+' método(s) encontrado(s)';
+  var list=document.getElementById('cmRefactorList');
+  if(!filtered.length){
+    list.innerHTML='<div style="padding:20px 16px;color:var(--muted);font-size:12px;text-align:center">✅ Nenhum método nesta categoria</div>';
+  } else {
+    list.innerHTML=filtered.map(function(e){
+      var idx=e[0],h=e[1];
+      var name=h.name.split('(')[0].split('.').pop();
+      var fullName=h.name;
+      return '<div style="padding:10px 16px;border-bottom:.5px solid var(--border);display:flex;align-items:center;gap:10px">'
+        +'<span style="background:'+colors[level]+';color:#000;font-size:11px;font-weight:700;border-radius:4px;padding:1px 6px;flex-shrink:0">'+h.cc+'</span>'
+        +'<div style="flex:1;min-width:0"><div style="font-weight:500;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+fullName+'">'+name+'</div>'
+        +'<div style="color:var(--muted);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+fullName.split('.').slice(0,-1).join('.')+'</div></div>'
+        +(h.snippet?'<button onclick="cmShowCode('+idx+')" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:5px;font-size:10px;cursor:pointer;flex-shrink:0">ver</button>':'')
+        +'</div>';
+    }).join('');
+  }
+  drawer.style.display='flex';
+}
+function cmCloseRefactor(){
+  var d=document.getElementById('cmRefactorDrawer');
+  if(d)d.style.display='none';
+}
 function cmShowCode(idx){
   var h=window._cmHotspots&&window._cmHotspots[idx];
   if(!h)return;
@@ -5289,6 +5325,15 @@ function adminTrackRun(label, runId) {
 </script>
 
 <div id="cmCodeModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10000;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'"><div style="background:var(--surface1);border:1px solid var(--border);border-radius:12px;width:min(720px,92vw);max-height:82vh;display:flex;flex-direction:column"><div style="display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0"><span id="cmCodeModalTitle" style="font-size:13px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)"></span><button onclick="cmCodeCopy()" id="cmCodeCopyBtn" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;white-space:nowrap">&#128203; Copiar</button><button onclick="document.getElementById('cmCodeModal').style.display='none'" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:20px;line-height:1;padding:0 4px">&times;</button></div><div style="overflow-y:auto;padding:12px 16px"><div id="cmCodeModalMeta" style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.6"></div><pre id="cmCodePre" style="font-size:12px;font-family:monospace;background:var(--surface0,#0b0f19);border-radius:8px;padding:14px;overflow-x:auto;margin:0;color:var(--text);line-height:1.5"></pre></div></div></div>
+
+<div id="cmRefactorDrawer" style="display:none;position:fixed;top:0;right:0;width:360px;height:100vh;background:var(--surface1);border-left:1px solid var(--border);z-index:9998;display:none;flex-direction:column;box-shadow:-4px 0 24px rgba(0,0,0,.4)">
+  <div style="display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid var(--border);flex-shrink:0">
+    <span id="cmRefactorTitle" style="font-size:13px;font-weight:600;flex:1"></span>
+    <button onclick="cmCloseRefactor()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:20px;line-height:1">&times;</button>
+  </div>
+  <div style="padding:8px 0;font-size:11px;color:var(--muted);padding:8px 16px;border-bottom:1px solid var(--border);flex-shrink:0" id="cmRefactorSubtitle"></div>
+  <div id="cmRefactorList" style="overflow-y:auto;flex:1;padding:8px 0"></div>
+</div>
 </body>
 </html>
 
@@ -6712,7 +6757,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
 
       <!-- ===== CODE METRICS BLOCK ===== -->
-      <div class="section-block" id="codeMetricsBlock" style="display:none"><div class="section-header" onclick="toggleSection(this)"><span class="section-title-text" style="flex:1">&#128200; Métricas de Código</span><button onclick="event.stopPropagation();dispatchCodeMetrics()" id="btnCodeMetrics" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 10px;border-radius:6px;font-size:11px;cursor:pointer;margin-right:8px">&#9881; Recalcular</button><span class="section-chevron">&#9660;</span></div><div class="section-content"><div class="section-inner" style="padding:12px 16px 16px"><div style="display:flex;gap:4px;margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:8px"><button onclick="cmTab('complexity')" id="cmTab-complexity" class="cm-tab cm-tab-active">&#128293; Complexidade Ciclomática</button><button onclick="cmTab('coupling')" id="cmTab-coupling" class="cm-tab">&#128257; Dependências de Componentes</button></div><div id="cmPanel-complexity"><div style="font-size:11px;color:var(--muted);margin-bottom:10px">Threshold: <span style="color:#22c55e">&#9679; &lt;5 simples</span>&nbsp;<span style="color:#fbbf24">&#9679; 5–10 atenção</span>&nbsp;<span style="color:#ef4444">&#9679; &gt;10 refatorar</span> — via <code>dotnet msbuild /t:Metrics</code></div><div id="cmComplexityContent"><div style="color:var(--muted);font-size:12px;padding:20px 0;text-align:center">Carregando...</div></div></div><div id="cmPanel-coupling" style="display:none"><div style="font-size:11px;color:var(--muted);margin-bottom:10px">Métricas de Robert C. Martin — <strong>Ca</strong> aferente · <strong>Ce</strong> eferente · <strong>I</strong> = Ce/(Ca+Ce) <button onclick="document.getElementById('cmTheoryModal').style.display='flex'" style="margin-left:8px;background:none;border:1px solid var(--border);color:#818cf8;padding:2px 7px;border-radius:4px;font-size:10px;cursor:pointer">ℹ Teoria</button></div><div id="cmCouplingContent"><div style="color:var(--muted);font-size:12px;padding:20px 0;text-align:center">Carregando...</div></div></div><div id="cmStatus" style="font-size:11px;color:var(--muted);margin-top:8px;display:none"></div></div></div></div>
+      <div class="section-block" id="codeMetricsBlock" style="display:none"><div class="section-header" onclick="toggleSection(this)"><span class="section-title-text" style="flex:1">&#128200; Métricas de Código</span><button onclick="event.stopPropagation();dispatchCodeMetrics()" id="btnCodeMetrics" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 10px;border-radius:6px;font-size:11px;cursor:pointer;margin-right:8px">&#9881; Recalcular</button><span class="section-chevron">&#9660;</span></div><div class="section-content"><div class="section-inner" style="padding:12px 16px 16px"><div style="display:flex;gap:4px;margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:8px"><button onclick="cmTab('complexity')" id="cmTab-complexity" class="cm-tab cm-tab-active">&#128293; Complexidade Ciclomática</button><button onclick="cmTab('coupling')" id="cmTab-coupling" class="cm-tab">&#128257; Dependências de Componentes</button></div><div id="cmPanel-complexity"><div style="font-size:11px;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">Threshold: <span onclick="cmShowRefactor('ok')" style="color:#22c55e;cursor:pointer;text-decoration:underline dotted" title="Ver metodos simples">&#9679; &lt;5 simples</span>&nbsp;<span onclick="cmShowRefactor('warn')" style="color:#fbbf24;cursor:pointer;text-decoration:underline dotted" title="Ver metodos com atencao">&#9679; 5–10 atenção</span>&nbsp;<span onclick="cmShowRefactor('err')" style="color:#ef4444;cursor:pointer;text-decoration:underline dotted" title="Ver metodos para refatorar">&#9679; &gt;10 refatorar</span> — via <code>dotnet msbuild /t:Metrics</code></div><div id="cmComplexityContent"><div style="color:var(--muted);font-size:12px;padding:20px 0;text-align:center">Carregando...</div></div></div><div id="cmPanel-coupling" style="display:none"><div style="font-size:11px;color:var(--muted);margin-bottom:10px">Métricas de Robert C. Martin — <strong>Ca</strong> aferente · <strong>Ce</strong> eferente · <strong>I</strong> = Ce/(Ca+Ce) <button onclick="document.getElementById('cmTheoryModal').style.display='flex'" style="margin-left:8px;background:none;border:1px solid var(--border);color:#818cf8;padding:2px 7px;border-radius:4px;font-size:10px;cursor:pointer">ℹ Teoria</button></div><div id="cmCouplingContent"><div style="color:var(--muted);font-size:12px;padding:20px 0;text-align:center">Carregando...</div></div></div><div id="cmStatus" style="font-size:11px;color:var(--muted);margin-top:8px;display:none"></div></div></div></div>
       <div id="cmTheoryModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'"><div style="background:var(--surface1);border:1px solid var(--border);border-radius:12px;padding:1.5rem;max-width:480px;width:90%;max-height:80vh;overflow-y:auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem"><strong style="font-size:14px">Métricas de Acoplamento — Robert C. Martin</strong><button onclick="document.getElementById('cmTheoryModal').style.display='none'" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px">×</button></div><p style="font-size:12px;color:var(--muted);margin-bottom:1rem">Publicadas em <em>Agile Software Development, Principles, Patterns, and Practices</em> (2002).</p><div style="display:flex;flex-direction:column;gap:10px;font-size:12px"><div><strong>Ca — Acoplamento Aferente</strong><br><span style="color:var(--muted)">Quantos módulos dependem deste. Alto Ca = componente central.</span></div><div><strong>Ce — Acoplamento Eferente</strong><br><span style="color:var(--muted)">Quantos módulos este usa. Ce=0 = camada interna pura.</span></div><div><strong>I = Ce / (Ca + Ce)</strong><br><span style="color:var(--muted)">0 = estável. 1 = instável. Não é bom nem ruim — depende da camada.</span></div><div><strong>Zona de Dor</strong> — I≈0 + baixa abstração: estável mas concreto.</div><div><strong>Zona de Inutilidade</strong> — I≈1 + alta abstração: interfaces que ninguém usa.</div><div><strong>Main Sequence</strong> — D = |A + I - 1| ≈ 0: equilíbrio ideal.</div></div></div></div>
             <!-- ===== MUTACAO BLOCK ===== -->
     <div class="section-block" id="mutacaoBlock" style="display:none">
