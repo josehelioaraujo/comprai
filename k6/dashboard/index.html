@@ -325,7 +325,105 @@ function syncVus(val, src) {
 }
 function cmTab(t){['complexity','coupling'].forEach(function(x){document.getElementById('cmPanel-'+x).style.display=x===t?'':'none';var b=document.getElementById('cmTab-'+x);if(b)b.classList.toggle('cm-tab-active',x===t);});}
 function loadCodeMetrics(){loadComplexity();loadCoupling();}
-function loadComplexity(){var el=document.getElementById('cmComplexityContent');if(!el)return;var C={ok:'#22c55e',warn:'#fbbf24',err:'#ef4444'};fetch('/k6/results/metrics/complexity.json?_='+Date.now()).then(function(r){return r.ok?r.json():null;}).then(function(d){if(!d||!d.projects){el.innerHTML='<div style="color:var(--muted);font-size:12px;padding:12px 0">Nenhum dado — clique Recalcular</div>';return;}var h='';Object.entries(d.projects).forEach(function(e){var proj=e[0].replace('UcpAgent.',''),data=e[1];var c=data.avg_complexity>10?'err':data.avg_complexity>5?'warn':'ok';h+='<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">';h+='<span style="font-weight:500">'+proj+'</span>';h+='<span>avg <strong style="color:'+C[c]+'">'+data.avg_complexity+'</strong>&nbsp;max <strong style="color:'+(data.max_complexity>10?C.err:data.max_complexity>5?C.warn:C.ok)+'">'+data.max_complexity+'</strong></span></div>';(data.hotspots||[]).slice(0,4).forEach(function(ht){var hc=ht.complexity>10?'err':ht.complexity>5?'warn':'ok';var pct=Math.min(100,Math.round(ht.complexity/20*100));h+='<div class="cm-row"><span style="color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+ht.name+'">'+ht.name.split('(')[0].split('.').pop()+'</span>';h+='<div class="cm-bar-bg"><div class="cm-bar-fill" style="width:'+pct+'%;background:'+C[hc]+'"></div></div>';h+='<span style="color:'+C[hc]+';font-weight:600;min-width:22px;text-align:right">'+ht.complexity+'</span></div>';});h+='</div>';});h+='<div style="font-size:10px;color:var(--muted);margin-top:4px">Atualizado: '+(d.generated_at||'-')+'</div>';el.innerHTML=h;}).catch(function(){el.innerHTML='<div style="color:var(--muted);font-size:12px">Erro — rode code-metrics.yml</div>';});}
+function loadComplexity(){
+  var el=document.getElementById('cmComplexityContent');if(!el)return;
+  var C={ok:'#22c55e',warn:'#fbbf24',err:'#ef4444'};
+  fetch('/k6/results/metrics/complexity.json?_='+Date.now())
+  .then(function(r){return r.ok?r.json():null;})
+  .then(function(d){
+    if(!d||!d.projects||!Object.keys(d.projects).length){
+      el.innerHTML='<div style="color:var(--muted);font-size:12px;padding:12px 0">Nenhum dado &#8212; clique Recalcular</div>';return;}
+    // Contador global para IDs unicos
+    var uid=0;
+    var h='';
+    // Botao expand/collapse todos os modulos
+    h+='<div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:8px;gap:6px">';
+    h+='<button onclick="cmCxExpandAll(true)"  style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:2px 8px;border-radius:4px;font-size:11px;cursor:pointer">+ Expandir tudo</button>';
+    h+='<button onclick="cmCxExpandAll(false)" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:2px 8px;border-radius:4px;font-size:11px;cursor:pointer">- Recolher tudo</button>';
+    h+='</div>';
+    Object.entries(d.projects).forEach(function(e,pi){
+      var proj=e[0].replace('UcpAgent.',''),data=e[1];
+      var c=data.avg_complexity>10?'err':data.avg_complexity>5?'warn':'ok';
+      var modId='cmmod-'+pi;
+      // Header do modulo com chevron
+      h+='<div style="margin-bottom:6px">';
+      h+='<div id="cmmodh-'+pi+'" onclick="cmCxToggleMod('+pi+')" style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--surface2);border-radius:6px;cursor:pointer;user-select:none">';
+      h+='<span id="cmmodchev-'+pi+'" style="font-size:11px;color:var(--muted);transition:transform .2s">&#9660;</span>';
+      h+='<span style="font-weight:600;font-size:13px">'+proj+'</span>';
+      h+='<span style="margin-left:auto;font-size:11px">avg <strong style="color:'+C[c]+'">'+data.avg_complexity+'</strong>&nbsp;max <strong style="color:'+(data.max_complexity>10?C.err:data.max_complexity>5?C.warn:C.ok)+'">'+data.max_complexity+'</strong></span>';
+      h+='</div>';
+      // Lista de metodos
+      h+='<div id="'+modId+'" style="margin-top:2px">';
+      (data.hotspots||[]).forEach(function(ht,mi){
+        var hc=ht.complexity>10?'err':ht.complexity>5?'warn':'ok';
+        var pct=Math.min(100,Math.round(ht.complexity/20*100));
+        var rowId='cmrow-'+pi+'-'+mi;
+        var detId='cmdet-'+pi+'-'+mi;
+        // Hint explicativo
+        var hint=ht.complexity<=4?'Simples &#8212; poucas ramificacoes, facil de testar':
+                 ht.complexity<=7?'Atencao &#8212; '+ht.complexity+' pontos de decisao. Considere extrair metodos':
+                 'Alta complexidade &#8212; '+ht.complexity+' pontos de decisao. Refatorar: extrair casos de uso menores';
+        // Breakdown de branches
+        var breakdown='';
+        if(ht.branches){
+          var counts={};
+          ht.branches.forEach(function(b){counts[b]=(counts[b]||0)+1;});
+          breakdown=Object.entries(counts).map(function(e){return e[0]+' ('+e[1]+'x)';}).join(' &middot; ');
+        }
+        h+='<div id="'+rowId+'" class="cm-row" style="cursor:pointer;padding:5px 8px" onclick="cmCxToggleDet(\''+detId+'\')" title="'+hint+'">';
+        h+='<span style="color:var(--muted);font-size:10px;margin-right:4px">&#9654;</span>';
+        h+='<span style="color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+ht.name.split('(')[0].split('.').pop()+'</span>';
+        h+='<div class="cm-bar-bg"><div class="cm-bar-fill" style="width:'+pct+'%;background:'+C[hc]+'"></div></div>';
+        h+='<span style="color:'+C[hc]+';font-weight:600;min-width:22px;text-align:right">'+ht.complexity+'</span>';
+        h+='</div>';
+        // Painel de detalhes
+        h+='<div id="'+detId+'" style="display:none;padding:6px 12px 8px;font-size:11px;color:var(--muted);background:var(--surface2);border-radius:0 0 6px 6px;margin-bottom:2px">';
+        h+='<div><b style="color:var(--text)">Metodo:</b> '+ht.name+'</div>';
+        h+='<div style="margin-top:3px"><b style="color:var(--text)">Complexidade:</b> '+ht.complexity+' &#8212; '+hint+'</div>';
+        if(breakdown){
+          h+='<div style="margin-top:3px"><b style="color:var(--text)">Pontos de decisao:</b> '+breakdown+'</div>';
+        }
+        if(ht.complexity>10){
+          h+='<div style="margin-top:4px;color:#ef4444">&#9888; Refatorar: extrair metodos ou usar Strategy/Chain of Responsibility</div>';
+        } else if(ht.complexity>5){
+          h+='<div style="margin-top:4px;color:#fbbf24">&#9432; Adicionar testes para cada caminho de decisao</div>';
+        }
+        h+='</div>';
+      });
+      h+='</div></div>';
+    });
+    h+='<div style="font-size:10px;color:var(--muted);margin-top:8px">Atualizado: '+(d.generated_at||'-')+'</div>';
+    el.innerHTML=h;
+  }).catch(function(){el.innerHTML='<div style="color:var(--muted);font-size:12px">Erro &#8212; rode code-metrics.yml</div>';});
+}
+function cmCxToggleMod(pi){
+  var el=document.getElementById('cmmod-'+pi);
+  var ch=document.getElementById('cmmodchev-'+pi);
+  if(!el)return;
+  var open=el.style.display!=='none';
+  el.style.display=open?'none':'';
+  if(ch)ch.style.transform=open?'rotate(-90deg)':'rotate(0)';
+}
+function cmCxExpandAll(expand){
+  var i=0;
+  while(document.getElementById('cmmod-'+i)){
+    var el=document.getElementById('cmmod-'+i);
+    var ch=document.getElementById('cmmodchev-'+i);
+    if(el)el.style.display=expand?'':'none';
+    if(ch)ch.style.transform=expand?'rotate(0)':'rotate(-90deg)';
+    i++;
+  }
+}
+function cmCxToggleDet(id){
+  var el=document.getElementById(id);
+  if(!el)return;
+  var open=el.style.display==='block';
+  el.style.display=open?'none':'block';
+  // Virar chevron da linha
+  var row=document.getElementById(id.replace('cmdet','cmrow'));
+  if(row){var ch=row.querySelector('span:first-child');if(ch)ch.innerHTML=open?'&#9654;':'&#9660;';}
+}
+
 function loadCoupling(){var el=document.getElementById('cmCouplingContent');if(!el)return;
 fetch('/k6/results/metrics/coupling.json?_='+Date.now()).then(function(r){return r.ok?r.json():null;}).then(function(d){if(!d||!d.projects||!Object.keys(d.projects).length){el.innerHTML='<div style="color:var(--muted);font-size:12px;padding:12px 0">Nenhum dado — clique Recalcular</div>';return;}
 var CH={Ca:'Aferente: quantos projetos apontam para este. Alto Ca = componente central (Domain, SharedKernel). Mudancas aqui impactam todo o sistema.',Ce:'Eferente: quantos projetos este usa. Ce=0 = camada interna pura. Plugins tem Ce=1 (so usam Application). Api tem Ce alto pois orquestra todos os modulos.',I:'Instabilidade = Ce/(Ca+Ce). 0.00 = estavel (Domain, SharedKernel) - dificil mudar pois muito depende deles. 1.00 = instavel (plugins, Api) - livres para evoluir. Nao e bom nem ruim, depende da camada.',D:'Avaliacao arquitetural: Estavel = nucleo do negocio. Instavel (esperado) = plugin ou ponto de entrada que deve mudar com requisitos. Atencao = monitorar crescimento de dependencias.'};
