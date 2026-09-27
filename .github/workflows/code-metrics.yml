@@ -98,7 +98,8 @@ jobs:
                               "complexity": cc,
                               "maintainability": max(0, 100-cc*5),
                               "branches": branch_types[:20],
-                              "branch_counts": branch_counts
+                              "branch_counts": branch_counts,
+                              "snippet": body_str.strip()[:800]
                           })
               methods.sort(key=lambda x: x["complexity"], reverse=True)
               avg = round(sum(m["complexity"] for m in methods)/len(methods),1) if methods else 0
