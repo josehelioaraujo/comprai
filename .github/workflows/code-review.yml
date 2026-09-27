@@ -41,7 +41,7 @@ jobs:
           USER_MSG="PR: ${PR_TITLE}\nBranch: ${PR_BRANCH}\n\nDiff:\n\`\`\`diff\n${DIFF}\n\`\`\`\n\nEstrutura:\n## Resumo\n## Pontos Positivos\n## Problemas - [CRITICO/IMPORTANTE/SUGESTAO] descricao\n## Checklist\n- [ ] Arquitetura Vertical Slice/Hexagonal?\n- [ ] Testes unitarios?\n- [ ] Convencao de nomes?\n- [ ] Dependencias entre camadas?\n## Veredicto: APROVADO / APROVADO COM RESSALVAS / SOLICITAR MUDANCAS"
 
           PAYLOAD=$(jq -n \
-            --arg model "llama-3.3-70b-versatile" \
+            --arg model "llama3-70b-8192" \
             --arg sys "$SYSTEM" \
             --arg usr "$USER_MSG" \
             '{model: $model, max_tokens: 1500, messages: [{role:"system",content:$sys},{role:"user",content:$usr}]}')
@@ -64,7 +64,7 @@ jobs:
           echo "Review gerado: ${#REVIEW} chars"
 
           # 4. Postar comentario no PR
-          COMMENT=$(jq -n --arg body "## Code Review — AI (Groq / Llama 3.3 70B)\n\n${REVIEW}\n\n---\n*Revisao automatica. Valide antes de mergear.*" '{body: $body}')
+          COMMENT=$(jq -n --arg body "## Code Review — AI (Groq / Llama 3 70B)\n\n${REVIEW}\n\n---\n*Revisao automatica. Valide antes de mergear.*" '{body: $body}')
           curl -s -X POST \
             "https://api.github.com/repos/${REPO}/issues/${PR_NUMBER}/comments" \
             -H "Authorization: Bearer $GH_TOKEN" \
