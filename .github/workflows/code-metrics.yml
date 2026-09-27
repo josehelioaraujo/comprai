@@ -99,7 +99,22 @@ jobs:
                               "maintainability": max(0, 100-cc*5),
                               "branches": branch_types[:20],
                               "branch_counts": branch_counts,
-                              "snippet": body_str.strip()[:800]
+                              "snippet": (lambda sig, body: (
+                                  lambda lines, br_re, counter=[0]: (
+                                      sig + '\n{\n' + '\n'.join(
+                                          line + ('  // (' + str(counter.__setitem__(0, counter[0]+1) or counter[0]) + ')'
+                                                  if br_re.search(line) else '')
+                                          for line in lines
+                                      ) + '\n}'
+                                  )
+                              )(
+                                  body.split('\n'),
+                                  re.compile(r'\b(if|else\s+if|for|foreach|while|do|switch|case|catch|\&\&|\|\|)\b')
+                              )
+                          )(
+                              src[max(0, src.rfind('\n', 0, m.start())):m.end()-1].strip(),
+                              body_str
+                          )[:3000]
                           })
               methods.sort(key=lambda x: x["complexity"], reverse=True)
               avg = round(sum(m["complexity"] for m in methods)/len(methods),1) if methods else 0

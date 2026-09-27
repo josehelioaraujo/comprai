@@ -429,7 +429,14 @@ function cmShowCode(idx){
   document.getElementById('cmCodeModalTitle').textContent=h.name;
   var ic=h.cc>10?'#ef4444':h.cc>5?'#fbbf24':'#22c55e';
   document.getElementById('cmCodeModalMeta').innerHTML='Complexidade: <strong style="color:'+ic+'">'+h.cc+'</strong>';
-  document.getElementById('cmCodePre').textContent=h.snippet||'(trecho nao disponivel — clique em Recalcular)';
+  var snippet=h.snippet||'(trecho nao disponivel — clique em Recalcular)';
+  // Destacar linhas com marcadores (N)
+  var html=snippet.split('\n').map(function(line){
+    var esc=line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return esc.replace(/(\/\/ \(\d+\))/g,'<mark style="background:rgba(251,191,36,.25);color:#fbbf24;border-radius:3px;padding:0 3px">$1</mark>');
+  }).join('\n');
+  var pre=document.getElementById('cmCodePre');
+  pre.innerHTML=html;
   modal.style.display='flex';
 }
 function cmCodeCopy(){
