@@ -1,0 +1,159 @@
+name: Code Metrics
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**/*.csproj'
+      - 'src/**/*.cs'
+      - 'tests/**/*.cs'
+
+jobs:
+  metrics:
+    name: Calcular metricas de codigo
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+
+      - name: Instalar Microsoft.CodeAnalysis.Metrics
+        run: dotnet tool install --global dotnet-metrics || true
+
+      - name: Restaurar dependencias
+        run: dotnet restore comprai.sln
+
+      - name: Calcular complexidade ciclomatica e acoplamento
+        run: |
+          mkdir -p /tmp/metrics
+          PROJECTS=(
+            "src/UcpAgent.SharedKernel/UcpAgent.SharedKernel.csproj"
+            "src/UcpAgent.Domain/UcpAgent.Domain.csproj"
+            "src/UcpAgent.Application/UcpAgent.Application.csproj"
+            "src/UcpAgent.Infrastructure/UcpAgent.Infrastructure.csproj"
+            "src/UcpAgent.Api/UcpAgent.Api.csproj"
+          )
+          for proj in "${PROJECTS[@]}"; do
+            name=$(basename "$proj" .csproj)
+            dotnet msbuild "$proj" /t:Metrics \
+              /p:MetricsOutputFile=/tmp/metrics/${name}.xml \
+              /nologo /verbosity:quiet 2>/dev/null || true
+            echo "Gerado: /tmp/metrics/${name}.xml"
+          done
+
+      - name: Calcular Ca (aferente) via ProjectReference
+        run: |
+          python3 << 'PYEOF'
+          import os, re, json
+          from collections import defaultdict
+
+          proj_dir = "src"
+          projects = {}
+          refs = defaultdict(list)
+
+          # Coletar todos os .csproj
+          for root, dirs, files in os.walk(proj_dir):
+              for f in files:
+                  if f.endswith(".csproj"):
+                      path = os.path.join(root, f)
+                      name = f.replace(".csproj", "")
+                      content = open(path).read()
+                      projects[name] = {"path": path, "refs": []}
+                      for m in re.finditer(r'<ProjectReference Include="([^"]+)"', content):
+                          dep = os.path.basename(m.group(1)).replace(".csproj", "")
+                          refs[name].append(dep)
+                          projects[name]["refs"].append(dep)
+
+          # Calcular Ca: quantos projetos apontam para este
+          ca = defaultdict(int)
+          ce = {}
+          for proj, data in projects.items():
+              ce[proj] = len(data["refs"])
+              for dep in data["refs"]:
+                  ca[dep] += 1
+
+          coupling = {}
+          for proj in projects:
+              ca_val = ca.get(proj, 0)
+              ce_val = ce.get(proj, 0)
+              total  = ca_val + ce_val
+              inst   = round(ce_val / total, 3) if total > 0 else 0.0
+              coupling[proj] = {"ca": ca_val, "ce": ce_val, "instability": inst, "deps": projects[proj]["refs"]}
+
+          os.makedirs("k6/results/metrics", exist_ok=True)
+          with open("k6/results/metrics/coupling.json", "w") as f:
+              json.dump({"projects": coupling, "generated_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"}, f, indent=2)
+          print("coupling.json gerado")
+          for p, v in coupling.items():
+              print(f"  {p}: Ca={v['ca']} Ce={v['ce']} I={v['instability']}")
+          PYEOF
+
+      - name: Converter XML de metricas para JSON
+        run: |
+          python3 << 'PYEOF'
+          import os, xml.etree.ElementTree as ET, json
+
+          metrics_dir = "/tmp/metrics"
+          result = {"projects": {}, "generated_at": ""}
+          
+          PROJ_NAMES = ["UcpAgent.SharedKernel","UcpAgent.Domain","UcpAgent.Application",
+                        "UcpAgent.Infrastructure","UcpAgent.Api"]
+
+          for proj in PROJ_NAMES:
+              xml_path = f"{metrics_dir}/{proj}.xml"
+              if not os.path.exists(xml_path):
+                  continue
+              tree = ET.parse(xml_path)
+              root = tree.getroot()
+
+              methods = []
+              for m in root.iter("Method"):
+                  cc = m.find("CyclomaticComplexity")
+                  mi = m.find("MaintainabilityIndex")
+                  loc = m.find("SourceLines")
+                  name_el = m.find("Name")
+                  if cc is None: continue
+                  cc_val = int(cc.text or 0)
+                  if cc_val < 2: continue
+                  methods.append({
+                      "name": (name_el.text or "")[:80],
+                      "complexity": cc_val,
+                      "maintainability": int(mi.text) if mi is not None else 0,
+                      "loc": int(loc.text) if loc is not None else 0
+                  })
+
+              methods.sort(key=lambda x: x["complexity"], reverse=True)
+              hotspots = methods[:8]
+              avg = round(sum(m["complexity"] for m in methods) / len(methods), 1) if methods else 0
+              max_cc = methods[0]["complexity"] if methods else 0
+
+              result["projects"][proj] = {
+                  "avg_complexity": avg,
+                  "max_complexity": max_cc,
+                  "hotspots": hotspots
+              }
+
+          import datetime
+          result["generated_at"] = datetime.datetime.utcnow().isoformat() + "Z"
+          os.makedirs("k6/results/metrics", exist_ok=True)
+          with open("k6/results/metrics/complexity.json", "w") as f:
+              json.dump(result, f, indent=2)
+          print("complexity.json gerado")
+          for p, v in result["projects"].items():
+              print(f"  {p}: avg={v['avg_complexity']} max={v['max_complexity']} hotspots={len(v['hotspots'])}")
+          PYEOF
+
+      - name: Publicar JSONs na VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST || '2.25.122.11' }}
+          username: root
+          key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          source: "k6/results/metrics/complexity.json,k6/results/metrics/coupling.json"
+          target: "/var/www/html"
+          strip_components: 0
