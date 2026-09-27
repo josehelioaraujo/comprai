@@ -20,7 +20,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Gerar diff e chamar Groq
+      - name: Descobrir modelo disponivel e revisar
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           PR_TITLE: ${{ github.event.pull_request.title }}
@@ -32,21 +32,41 @@ jobs:
           # 1. Diff
           DIFF=$(git diff origin/${{ github.base_ref }}...HEAD -- 'src/**/*.cs' 'tests/**/*.cs' | head -c 6000)
           if [ -z "$DIFF" ]; then
-            echo "Sem diff .cs para revisar"
+            echo "Sem diff .cs"
             exit 0
           fi
 
-          # 2. Montar prompt e payload com jq
-          SYSTEM="Voce e especialista em .NET/C# revisando PRs. Responda em PT-BR. Contexto: Vertical Slice, Hexagonal, Plugin Pattern, .NET 10, MediatR, xUnit."
-          USER_MSG="PR: ${PR_TITLE}\nBranch: ${PR_BRANCH}\n\nDiff:\n\`\`\`diff\n${DIFF}\n\`\`\`\n\nEstrutura:\n## Resumo\n## Pontos Positivos\n## Problemas - [CRITICO/IMPORTANTE/SUGESTAO] descricao\n## Checklist\n- [ ] Arquitetura Vertical Slice/Hexagonal?\n- [ ] Testes unitarios?\n- [ ] Convencao de nomes?\n- [ ] Dependencias entre camadas?\n## Veredicto: APROVADO / APROVADO COM RESSALVAS / SOLICITAR MUDANCAS"
+          # 2. Listar modelos disponiveis e escolher o melhor
+          MODELS_JSON=$(curl -s "https://api.groq.com/openai/v1/models" \
+            -H "Authorization: Bearer $GROQ_API_KEY" \
+            -H "User-Agent: curl/7.88.1")
+          echo "Modelos disponiveis:"
+          echo "$MODELS_JSON" | jq -r '.data[].id' 2>/dev/null || echo "$MODELS_JSON"
 
+          # Preferencia: 70b > 8b > qualquer outro
+          MODEL=$(echo "$MODELS_JSON" | jq -r '
+            .data[].id |
+            select(test("llama.*70b|mixtral|qwen.*32|llama.*versatile"; "i"))
+          ' 2>/dev/null | head -1)
+
+          if [ -z "$MODEL" ]; then
+            MODEL=$(echo "$MODELS_JSON" | jq -r '.data[0].id' 2>/dev/null)
+          fi
+
+          if [ -z "$MODEL" ]; then
+            MODEL="llama-3.1-8b-instant"
+          fi
+
+          echo "Usando modelo: $MODEL"
+
+          # 3. Montar payload
           PAYLOAD=$(jq -n \
-            --arg model "llama-3.3-70b-versatile" \
-            --arg sys "$SYSTEM" \
-            --arg usr "$USER_MSG" \
+            --arg model "$MODEL" \
+            --arg sys "Voce e especialista em .NET/C# revisando PRs. Responda em PT-BR. Contexto: Vertical Slice, Hexagonal, Plugin Pattern, .NET 10, MediatR, xUnit." \
+            --arg usr "PR: ${PR_TITLE}\nBranch: ${PR_BRANCH}\n\nDiff (.cs):\n\`\`\`diff\n${DIFF}\n\`\`\`\n\nRevisao:\n## Resumo\n## Pontos Positivos\n## Problemas\n- [CRITICO/IMPORTANTE/SUGESTAO] descricao + correcao\n## Checklist\n- [ ] Arquitetura Vertical Slice/Hexagonal?\n- [ ] Testes unitarios?\n- [ ] Convencao de nomes?\n- [ ] Dependencias entre camadas?\n## Veredicto: APROVADO / APROVADO COM RESSALVAS / SOLICITAR MUDANCAS" \
             '{model: $model, max_tokens: 1500, messages: [{role:"system",content:$sys},{role:"user",content:$usr}]}')
 
-          # 3. Chamar Groq
+          # 4. Chamar Groq
           HTTP=$(curl -s -o /tmp/groq.json -w "%{http_code}" \
             -X POST "https://api.groq.com/openai/v1/chat/completions" \
             -H "Content-Type: application/json" \
@@ -61,10 +81,12 @@ jobs:
           fi
 
           REVIEW=$(jq -r '.choices[0].message.content' /tmp/groq.json)
-          echo "Review gerado: ${#REVIEW} chars"
+          echo "Review: ${#REVIEW} chars"
 
-          # 4. Postar comentario no PR
-          COMMENT=$(jq -n --arg body "## Code Review — AI (Groq / Llama 3.3 70B)\n\n${REVIEW}\n\n---\n*Revisao automatica. Valide antes de mergear.*" '{body: $body}')
+          # 5. Postar no PR
+          COMMENT=$(jq -n \
+            --arg body "## Code Review — AI (Groq / ${MODEL})\n\n${REVIEW}\n\n---\n*Revisao automatica. Valide antes de mergear.*" \
+            '{body: $body}')
           curl -s -X POST \
             "https://api.github.com/repos/${REPO}/issues/${PR_NUMBER}/comments" \
             -H "Authorization: Bearer $GH_TOKEN" \
