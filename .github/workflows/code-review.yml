@@ -46,7 +46,7 @@ jobs:
           # Preferencia: 70b > 8b > qualquer outro
           MODEL=$(echo "$MODELS_JSON" | jq -r '
             .data[].id |
-            select(test("llama.*70b|mixtral|qwen.*32|llama.*versatile"; "i"))
+            select(test("gpt-oss-120b|llama.*70b|mixtral|qwen.*27b|qwen.*32|llama.*versatile"; "i"))
           ' 2>/dev/null | head -1)
 
           if [ -z "$MODEL" ]; then
