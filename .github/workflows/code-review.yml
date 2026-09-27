@@ -20,113 +20,53 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Gerar diff do PR
-        run: |
-          git diff origin/${{ github.base_ref }}...HEAD \
-            -- 'src/**/*.cs' 'tests/**/*.cs' \
-            | head -c 7000 > /tmp/pr_diff.txt
-          echo "Linhas: $(wc -l < /tmp/pr_diff.txt)"
-
-      - name: Montar payload JSON
-        env:
-          PR_TITLE: ${{ github.event.pull_request.title }}
-          PR_BRANCH: ${{ github.head_ref }}
-        run: |
-          cat > /tmp/build_payload.py << 'PYEOF'
-import os, json, sys
-
-diff     = open('/tmp/pr_diff.txt', encoding='utf-8', errors='ignore').read()
-title    = os.environ.get('PR_TITLE', '')
-branch   = os.environ.get('PR_BRANCH', '')
-
-if not diff.strip():
-    open('/tmp/review.json','w').write('{"skip":true}')
-    print("Sem diff para revisar")
-    sys.exit(0)
-
-system = (
-    "Voce e um especialista em .NET/C# revisando Pull Requests. "
-    "Responda em PT-BR, de forma objetiva e construtiva. "
-    "Contexto: Vertical Slice, Hexagonal, Plugin Pattern, .NET 10, MediatR, xUnit."
-)
-user = (
-    "PR: " + title + "\nBranch: " + branch + "\n\n"
-    "Diff (.cs):\n```diff\n" + diff + "\n```\n\n"
-    "Revisao:\n\n"
-    "## Resumo\n"
-    "## Pontos Positivos\n"
-    "## Problemas Encontrados\n"
-    "- **[CRITICO/IMPORTANTE/SUGESTAO]** descricao + correcao\n"
-    "## Checklist\n"
-    "- [ ] Arquitetura Vertical Slice / Hexagonal?\n"
-    "- [ ] Testes unitarios?\n"
-    "- [ ] Convencao de nomes?\n"
-    "- [ ] Dependencias entre camadas?\n"
-    "- [ ] Tratamento de erros?\n"
-    "## Veredicto: APROVADO / APROVADO COM RESSALVAS / SOLICITAR MUDANCAS"
-)
-payload = {
-    "model": "llama-3.3-70b-versatile",
-    "max_tokens": 1500,
-    "messages": [
-        {"role": "system", "content": system},
-        {"role": "user",   "content": user}
-    ]
-}
-open('/tmp/payload.json','w').write(json.dumps(payload))
-print("Payload gerado: " + str(len(json.dumps(payload))) + " bytes")
-PYEOF
-          python3 /tmp/build_payload.py
-
-      - name: Chamar Groq API
+      - name: Gerar diff e chamar Groq
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-        run: |
-          if [ ! -f /tmp/payload.json ]; then
-            echo "Sem payload — pulando"
-            exit 0
-          fi
-          HTTP=$(curl -s -o /tmp/groq_resp.json -w "%{http_code}" \
-            -X POST "https://api.groq.com/openai/v1/chat/completions" \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer $GROQ_API_KEY" \
-            -H "User-Agent: curl/7.88.1" \
-            --data @/tmp/payload.json)
-          echo "HTTP: $HTTP"
-          if [ "$HTTP" != "200" ]; then
-            cat /tmp/groq_resp.json
-            exit 1
-          fi
-          python3 -c "import json; d=open('/tmp/groq_resp.json').read(); r=json.loads(d); t=r['choices'][0]['message']['content']; open('/tmp/review.json','w').write(json.dumps({'text':t,'skip':False})); print('OK: '+str(len(t))+' chars')"
-
-      - name: Postar review no PR
-        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BRANCH: ${{ github.head_ref }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         run: |
-          cat > /tmp/post_review.py << 'PYEOF'
-import os, json, urllib.request
+          # 1. Diff
+          DIFF=$(git diff origin/${{ github.base_ref }}...HEAD -- 'src/**/*.cs' 'tests/**/*.cs' | head -c 6000)
+          if [ -z "$DIFF" ]; then
+            echo "Sem diff .cs para revisar"
+            exit 0
+          fi
 
-if not os.path.exists('/tmp/review.json'):
-    print("Sem review")
-    exit(0)
+          # 2. Montar prompt e payload com jq
+          SYSTEM="Voce e especialista em .NET/C# revisando PRs. Responda em PT-BR. Contexto: Vertical Slice, Hexagonal, Plugin Pattern, .NET 10, MediatR, xUnit."
+          USER_MSG="PR: ${PR_TITLE}\nBranch: ${PR_BRANCH}\n\nDiff:\n\`\`\`diff\n${DIFF}\n\`\`\`\n\nEstrutura:\n## Resumo\n## Pontos Positivos\n## Problemas - [CRITICO/IMPORTANTE/SUGESTAO] descricao\n## Checklist\n- [ ] Arquitetura Vertical Slice/Hexagonal?\n- [ ] Testes unitarios?\n- [ ] Convencao de nomes?\n- [ ] Dependencias entre camadas?\n## Veredicto: APROVADO / APROVADO COM RESSALVAS / SOLICITAR MUDANCAS"
 
-data = json.load(open('/tmp/review.json'))
-if data.get('skip'):
-    print("Review ignorado")
-    exit(0)
+          PAYLOAD=$(jq -n \
+            --arg model "llama-3.3-70b-versatile" \
+            --arg sys "$SYSTEM" \
+            --arg usr "$USER_MSG" \
+            '{model: $model, max_tokens: 1500, messages: [{role:"system",content:$sys},{role:"user",content:$usr}]}')
 
-body = "## Code Review — AI (Groq / Llama 3.3 70B)\n\n" + data["text"] + "\n\n---\n*Revisao automatica. Valide antes de mergear.*"
-payload = json.dumps({"body": body}).encode()
-url = "https://api.github.com/repos/" + os.environ["REPO"] + "/issues/" + os.environ["PR_NUMBER"] + "/comments"
-req = urllib.request.Request(url, data=payload, method="POST", headers={
-    "Authorization": "Bearer " + os.environ["GH_TOKEN"],
-    "Content-Type": "application/json",
-    "Accept": "application/vnd.github.v3+json"
-})
-with urllib.request.urlopen(req) as r:
-    res = json.loads(r.read())
-    print("Postado: " + res["html_url"])
-PYEOF
-          python3 /tmp/post_review.py
+          # 3. Chamar Groq
+          HTTP=$(curl -s -o /tmp/groq.json -w "%{http_code}" \
+            -X POST "https://api.groq.com/openai/v1/chat/completions" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $GROQ_API_KEY" \
+            -H "User-Agent: curl/7.88.1" \
+            -d "$PAYLOAD")
+
+          echo "Groq HTTP: $HTTP"
+          if [ "$HTTP" != "200" ]; then
+            cat /tmp/groq.json
+            exit 1
+          fi
+
+          REVIEW=$(jq -r '.choices[0].message.content' /tmp/groq.json)
+          echo "Review gerado: ${#REVIEW} chars"
+
+          # 4. Postar comentario no PR
+          COMMENT=$(jq -n --arg body "## Code Review — AI (Groq / Llama 3.3 70B)\n\n${REVIEW}\n\n---\n*Revisao automatica. Valide antes de mergear.*" '{body: $body}')
+          curl -s -X POST \
+            "https://api.github.com/repos/${REPO}/issues/${PR_NUMBER}/comments" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$COMMENT" | jq -r '.html_url // "Erro ao postar"'
