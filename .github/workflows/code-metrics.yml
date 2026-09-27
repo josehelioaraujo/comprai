@@ -25,6 +25,15 @@ jobs:
         with:
           dotnet-version: '10.x'
 
+      - name: Configurar SSH
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$VPS_SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
       - name: Restaurar dependencias
         run: dotnet restore comprai.sln
 
@@ -93,24 +102,36 @@ jobs:
               ce_v = len(deps); ca_v = ca.get(proj,0); total = ca_v+ce_v
               coupling_data[proj] = {"ca":ca_v,"ce":ce_v,
                   "instability":round(ce_v/total,3) if total>0 else 0.0,"deps":deps}
-              print(f"{proj}: Ca={ca_v} Ce={ce_v} I={coupling_data[proj]['instability']}")
+              print(f"{proj}: Ca={ca_v} Ce={ce_v}")
 
           json.dump(complexity, open("k6/results/metrics/complexity.json","w"), indent=2)
           json.dump({"projects":coupling_data,"generated_at":datetime.datetime.utcnow().isoformat()+"Z"},
                     open("k6/results/metrics/coupling.json","w"), indent=2)
-          print("JSONs gerados")
+          print("JSONs gerados com sucesso")
           PYEOF
 
-      - name: Publicar JSONs na VPS via SSH nativo
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+      - name: Criar diretorio na VPS
         run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ env.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
-          ssh ${{ env.VPS_USER }}@${{ env.VPS_HOST }} "mkdir -p /var/www/html/k6/results/metrics"
-          scp k6/results/metrics/complexity.json \
-              k6/results/metrics/coupling.json \
-              ${{ env.VPS_USER }}@${{ env.VPS_HOST }}:/var/www/html/k6/results/metrics/
-          echo "JSONs publicados com sucesso"
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
+            ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
+            "mkdir -p /var/www/html/k6/results/metrics"
+
+      - name: Publicar complexity.json na VPS
+        run: |
+          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
+            k6/results/metrics/complexity.json \
+            ${{ env.VPS_USER }}@${{ env.VPS_HOST }}:/var/www/html/k6/results/metrics/complexity.json
+          echo "complexity.json publicado"
+
+      - name: Publicar coupling.json na VPS
+        run: |
+          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
+            k6/results/metrics/coupling.json \
+            ${{ env.VPS_USER }}@${{ env.VPS_HOST }}:/var/www/html/k6/results/metrics/coupling.json
+          echo "coupling.json publicado"
+
+      - name: Verificar arquivos na VPS
+        run: |
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
+            ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
+            "ls -la /var/www/html/k6/results/metrics/ && echo '✅ Arquivos confirmados'"
