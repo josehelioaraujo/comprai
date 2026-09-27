@@ -27,22 +27,9 @@ jobs:
             | head -c 7000 > /tmp/pr_diff.txt
           echo "Linhas no diff: $(wc -l < /tmp/pr_diff.txt)"
 
-      - name: Verificar API Key
+      - name: Executar code review via Groq
         env:
-          HAS_KEY: ${{ secrets.ANTHROPIC_API_KEY != '' }}
-        run: |
-          if [ -z "${{ secrets.ANTHROPIC_API_KEY }}" ]; then
-            echo "::error::ANTHROPIC_API_KEY nao configurado. Va em Settings > Secrets > Actions e adicione o secret."
-            echo "skip=true" >> $GITHUB_ENV
-          else
-            echo "API Key encontrada"
-            echo "skip=false" >> $GITHUB_ENV
-          fi
-
-      - name: Executar code review via Claude API
-        if: env.skip == 'false'
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BRANCH: ${{ github.head_ref }}
         run: |
@@ -55,9 +42,13 @@ jobs:
               open('/tmp/review.json','w').write('{"skip": true}')
               sys.exit(0)
 
-          pr_title = os.environ.get('PR_TITLE', '')
+          api_key   = os.environ.get('GROQ_API_KEY', '')
+          pr_title  = os.environ.get('PR_TITLE', '')
           pr_branch = os.environ.get('PR_BRANCH', '')
-          api_key   = os.environ.get('ANTHROPIC_API_KEY', '')
+
+          if not api_key:
+              print("GROQ_API_KEY nao configurado")
+              sys.exit(1)
 
           system = (
               "Voce e um especialista em .NET/C# revisando Pull Requests. "
@@ -86,19 +77,20 @@ jobs:
           )
 
           body = json.dumps({
-              "model": "claude-sonnet-4-6",
+              "model": "llama-3.1-70b-versatile",
               "max_tokens": 1500,
-              "system": system,
-              "messages": [{"role": "user", "content": user_msg}]
+              "messages": [
+                  {"role": "system", "content": system},
+                  {"role": "user",   "content": user_msg}
+              ]
           }).encode()
 
           req = urllib.request.Request(
-              "https://api.anthropic.com/v1/messages",
+              "https://api.groq.com/openai/v1/chat/completions",
               data=body,
               headers={
                   "Content-Type": "application/json",
-                  "x-api-key": api_key,
-                  "anthropic-version": "2023-06-01"
+                  "Authorization": "Bearer " + api_key
               },
               method="POST"
           )
@@ -106,7 +98,7 @@ jobs:
           try:
               with urllib.request.urlopen(req) as r:
                   resp = json.loads(r.read())
-              review_text = resp["content"][0]["text"]
+              review_text = resp["choices"][0]["message"]["content"]
               print("Review gerado com sucesso")
               open('/tmp/review.json','w').write(
                   json.dumps({"text": review_text, "skip": False})
@@ -118,7 +110,6 @@ jobs:
           PYEOF
 
       - name: Postar review no PR
-        if: env.skip == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -137,9 +128,9 @@ jobs:
               exit(0)
 
           comment = (
-              "## Code Review — Claude AI\n\n"
+              "## Code Review — AI (Groq / Llama 3.1 70B)\n\n"
               + review["text"]
-              + "\n\n---\n*Revisao automatica via Claude AI. Valide com o time antes de mergear.*"
+              + "\n\n---\n*Revisao automatica. Valide com o time antes de mergear.*"
           )
 
           payload = json.dumps({"body": comment}).encode()
