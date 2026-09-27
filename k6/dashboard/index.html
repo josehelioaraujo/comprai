@@ -395,116 +395,97 @@ function cmCxToggleDet(id){
   if(ch)ch.innerHTML=open?'&#9654;':'&#9660;';
 }
 
-function loadCoupling(){var el=document.getElementById('cmCouplingContent');if(!el)return;
-fetch('/k6/results/metrics/coupling.json?_='+Date.now()).then(function(r){return r.ok?r.json():null;}).then(function(d){if(!d||!d.projects||!Object.keys(d.projects).length){el.innerHTML='<div style="color:var(--muted);font-size:12px;padding:12px 0">Nenhum dado — clique Recalcular</div>';return;}
-var CH={Ca:'Aferente: quantos projetos apontam para este. Alto Ca = componente central (Domain, SharedKernel). Mudancas aqui impactam todo o sistema.',Ce:'Eferente: quantos projetos este usa. Ce=0 = camada interna pura. Plugins tem Ce=1 (so usam Application). Api tem Ce alto pois orquestra todos os modulos.',I:'Instabilidade = Ce/(Ca+Ce). 0.00 = estavel (Domain, SharedKernel) - dificil mudar pois muito depende deles. 1.00 = instavel (plugins, Api) - livres para evoluir. Nao e bom nem ruim, depende da camada.',D:'Avaliacao arquitetural: Estavel = nucleo do negocio. Instavel (esperado) = plugin ou ponto de entrada que deve mudar com requisitos. Atencao = monitorar crescimento de dependencias.'};
-var h='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.06em">';
-h+='<th style="width:18px;border-bottom:1px solid var(--border)"></th>';
-[['Projeto',''],['Ca',CH.Ca],['Ce',CH.Ce],['I',CH.I],['Diagnostico',CH.D]].forEach(function(c){h+='<th style="text-align:left;padding:4px 6px;border-bottom:1px solid var(--border)" title="'+c[1]+'">'+c[0]+(c[1]?' ℹ':'')+' </th>';});
-h+='</tr></thead><tbody>';
-Object.entries(d.projects).forEach(function(e,idx){var proj=e[0],v=e[1];var pn=proj.replace('UcpAgent.','');var inst=v.instability;
-var ic=inst<=0.2?'#22c55e':inst>=0.8?'#60a5fa':inst>=0.5?'#fbbf24':'var(--text)';
-var dl=inst<=0.2?'[OK] Estavel':inst>=0.8?'[OK] Instavel (esperado)':inst>=0.5?'[!] Atencao':'[~] Moderado';
-var dh=inst<=0.2?pn+' e nucleo estavel: '+v.ca+' projeto(s) dependem dele, ele nao depende de ninguem. Mudancas aqui impactam todo o sistema, por isso deve ser rico em interfaces (abstratos).':inst>=0.8?pn+' e instavel por design: Ca='+v.ca+' (ninguem depende), Ce='+v.ce+' (depende de '+v.ce+' projetos). Correto para plugins e pontos de entrada - devem mudar com requisitos.':'Acoplamento moderado (I='+inst.toFixed(2)+'). Monitorar crescimento de dependencias externas.';
-var deps=(v.deps&&v.deps.length)?v.deps.map(function(x){return x.replace('UcpAgent.','');}).join(' -> '):'(nenhuma dependencia externa)';
-h+='<tr id="cmcr-'+idx+'" style="border-bottom:.5px solid var(--border);cursor:pointer" onclick="cmCoupToggle('+idx+')">';
-h+='<td style="padding:4px 6px;color:var(--muted);font-size:11px">&#9654;</td>';
-h+='<td style="padding:6px;font-weight:500">'+pn+'</td>';
-h+='<td style="padding:6px;color:#22c55e;font-weight:600">'+v.ca+'</td>';
-h+='<td style="padding:6px;color:#ef4444;font-weight:600">'+v.ce+'</td>';
-h+='<td style="padding:6px;color:'+ic+';font-weight:600">'+inst.toFixed(2)+'</td>';
-h+='<td style="padding:6px;font-size:11px;color:var(--muted)" title="'+dh+'">'+dl+'</td></tr>';
-h+='<tr id="cmcd-'+idx+'" style="display:none">';
-h+='<td></td><td colspan="5" style="padding:6px 10px 10px;font-size:11px;color:var(--muted);background:var(--surface2);border-bottom:.5px solid var(--border)">';
-h+='<div><b style="color:var(--text)">Usa (Ce='+v.ce+'):</b> '+deps+'</div>';
-h+='<div style="margin-top:4px"><b style="color:var(--text)">Diagnostico:</b> '+dh+'</div>';
-h+='</td></tr>';});
-h+='</tbody></table><div style="font-size:10px;color:var(--muted);margin-top:8px">Atualizado: '+(d.generated_at||'-')+'</div>';
-el.innerHTML=h;})
-.catch(function(){el.innerHTML='<div style="color:var(--muted);font-size:12px">Erro ao carregar</div>';});}
-function cmShowRefactor(level){
-  // Se dados ainda nao carregados, carrega primeiro e reabre
-  if(!window._cmHotspots||!Object.keys(window._cmHotspots).length){
-    fetch('/k6/results/metrics/complexity.json?_='+Date.now())
-    .then(function(r){return r.ok?r.json():null;})
-    .then(function(d){
-      if(!d||!d.projects){
-        alert('Dados nao disponiveis. Clique em Recalcular primeiro.');
-        return;
-      }
-      // Popular _cmHotspots sem renderizar o painel
-      window._cmHotspots={};
-      var idx=0;
-      Object.entries(d.projects).forEach(function(e){
-        (e[1].hotspots||[]).forEach(function(ht){
-          window._cmHotspots[idx++]={name:ht.name,cc:ht.complexity,snippet:ht.snippet||''};
-        });
+function loadCoupling(){
+  var el=document.getElementById('cmCouplingContent');if(!el)return;
+  fetch('/k6/results/metrics/coupling.json?_='+Date.now())
+  .then(function(r){return r.ok?r.json():null;})
+  .then(function(d){
+    if(!d||!d.projects||!Object.keys(d.projects).length){
+      el.innerHTML='<div style="color:#64748b;font-size:12px;padding:12px 0">Nenhum dado &#8212; clique Recalcular</div>';return;}
+
+    // Construir Ca reverso: quem depende de cada projeto
+    var caMap={};
+    Object.entries(d.projects).forEach(function(e){
+      var proj=e[0],v=e[1];
+      (v.deps||[]).forEach(function(dep){
+        var depClean=dep.split(/[\\\/]/).pop().replace(/\.csproj$/,'');
+        if(!caMap[depClean])caMap[depClean]=[];
+        caMap[depClean].push(proj.replace('UcpAgent.',''));
       });
-      cmShowRefactor(level);
-    }).catch(function(){alert('Erro ao carregar dados. Clique em Recalcular.');});
-    return;
-  }
-  var hs=window._cmHotspots;
-  var filtered=Object.entries(hs).filter(function(e){
-    var cc=e[1].cc;
-    if(level==='err')  return cc>10;
-    if(level==='warn') return cc>5&&cc<=10;
-    return cc<=5;
-  }).sort(function(a,b){return b[1].cc-a[1].cc;});
-  var colors={err:'#ef4444',warn:'#fbbf24',ok:'#22c55e'};
-  var labels={err:'Refatorar urgente (complexidade > 10)',warn:'Atenção (complexidade 5–10)',ok:'Simples (complexidade < 5)'};
-  var drawer=document.getElementById('cmRefactorDrawer');
-  document.getElementById('cmRefactorTitle').innerHTML='<span style="color:'+colors[level]+'">&#9679;</span>&nbsp;'+labels[level];
-  document.getElementById('cmRefactorSubtitle').textContent=filtered.length+' método(s) encontrado(s)';
-  var list=document.getElementById('cmRefactorList');
-  if(!filtered.length){
-    list.innerHTML='<div style="padding:20px 16px;color:var(--muted);font-size:12px;text-align:center">✅ Nenhum método nesta categoria</div>';
-  } else {
-    list.innerHTML=filtered.map(function(e){
-      var idx=e[0],h=e[1];
-      var name=h.name.split('(')[0].split('.').pop();
-      var fullName=h.name;
-      return '<div style="padding:10px 16px;border-bottom:.5px solid var(--border);display:flex;align-items:center;gap:10px">'
-        +'<span style="background:'+colors[level]+';color:#000;font-size:11px;font-weight:700;border-radius:4px;padding:1px 6px;flex-shrink:0">'+h.cc+'</span>'
-        +'<div style="flex:1;min-width:0"><div style="font-weight:500;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+fullName+'">'+name+'</div>'
-        +'<div style="color:var(--muted);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+fullName.split('.').slice(0,-1).join('.')+'</div></div>'
-        +(h.snippet?'<button onclick="cmShowCode('+idx+')" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:5px;font-size:10px;cursor:pointer;flex-shrink:0">ver</button>':'')
-        +'</div>';
-    }).join('');
-  }
-  drawer.style.display='flex';
-  drawer.style.alignItems='center';
-  drawer.style.justifyContent='center';
+    });
+
+    var CH={
+      Ca:'Aferente — quantos projetos dependem deste. Alto Ca = nucleo estavel.',
+      Ce:'Eferente — quantos projetos este usa. Ce=0 = camada mais interna.',
+      I:'Instabilidade = Ce/(Ca+Ce). 0=estavel, 1=instavel por design.'
+    };
+
+    var h='<table style="width:100%;border-collapse:collapse;font-size:12px">';
+    h+='<thead><tr style="color:#475569;font-size:10px;text-transform:uppercase;letter-spacing:.07em">';
+    h+='<th style="width:18px;border-bottom:1px solid #1e2d42"></th>';
+    [['Projeto',''],['Ca \u2139',CH.Ca],['Ce \u2139',CH.Ce],['I \u2139',CH.I],['Diagn\u00f3stico','']].forEach(function(c){
+      h+='<th style="text-align:left;padding:5px 8px;border-bottom:1px solid #1e2d42" title="'+c[1]+'">'+c[0]+'</th>';
+    });
+    h+='</tr></thead><tbody>';
+
+    Object.entries(d.projects).forEach(function(e,idx){
+      var proj=e[0],v=e[1];
+      var pn=proj.replace('UcpAgent.','');
+      var inst=v.instability;
+      var ic=inst<=0.2?'#22c55e':inst>=0.8?'#60a5fa':inst>=0.5?'#fbbf24':'#94a3b8';
+      var dl=inst<=0.2?'\u2705 Est\u00e1vel':inst>=0.8?'\u26a1 Inst\u00e1vel':inst>=0.5?'\u26a0 Aten\u00e7\u00e3o':'\ud83d\udd35 Moderado';
+
+      // Deps limpos (sem caminhos)
+      var depsClean=(v.deps||[]).map(function(d){
+        return d.split(/[\\\/]/).pop().replace(/\.csproj$/,'').replace('UcpAgent.','');
+      });
+      // Quem depende deste
+      var dependents=caMap[pn]||[];
+
+      h+='<tr id="cmcr-'+idx+'" style="border-bottom:.5px solid #1e2d42;cursor:pointer" onclick="cmCoupToggle('+idx+')">';
+      h+='<td style="padding:4px 8px;color:#475569;font-size:11px">&#9654;</td>';
+      h+='<td style="padding:6px 8px;font-weight:600;color:#e2e8f0">'+pn+'</td>';
+      h+='<td style="padding:6px 8px;color:#22c55e;font-weight:700">'+v.ca+'</td>';
+      h+='<td style="padding:6px 8px;color:#ef4444;font-weight:700">'+v.ce+'</td>';
+      h+='<td style="padding:6px 8px;color:'+ic+';font-weight:700">'+inst.toFixed(2)+'</td>';
+      h+='<td style="padding:6px 8px;color:#64748b;font-size:11px">'+dl+'</td>';
+      h+='</tr>';
+
+      // Detalhe expandido — limpo e direto
+      h+='<tr id="cmcd-'+idx+'" style="display:none">';
+      h+='<td></td><td colspan="5" style="padding:8px 12px 12px;background:#0f1724;border-bottom:.5px solid #1e2d42">';
+
+      if(depsClean.length){
+        h+='<div style="margin-bottom:6px">';
+        h+='<span style="font-size:10px;color:#475569;text-transform:uppercase;letter-spacing:.07em">Usa (Ce='+v.ce+'):</span><br>';
+        h+=depsClean.map(function(d){
+          return '<span style="display:inline-block;margin:2px 4px 2px 0;background:#1e2d42;color:#fbbf24;padding:2px 8px;border-radius:4px;font-size:11px">'+d+'</span>';
+        }).join('');
+        h+='</div>';
+      } else {
+        h+='<div style="font-size:11px;color:#475569">N\u00e3o depende de nenhum m\u00f3dulo interno.</div>';
+      }
+
+      if(dependents.length){
+        h+='<div style="margin-top:6px">';
+        h+='<span style="font-size:10px;color:#475569;text-transform:uppercase;letter-spacing:.07em">Dependem deste (Ca='+v.ca+'):</span><br>';
+        h+=dependents.map(function(d){
+          return '<span style="display:inline-block;margin:2px 4px 2px 0;background:#1e2d42;color:#22c55e;padding:2px 8px;border-radius:4px;font-size:11px">'+d+'</span>';
+        }).join('');
+        h+='</div>';
+      } else {
+        h+='<div style="margin-top:6px;font-size:11px;color:#475569">Nenhum m\u00f3dulo interno depende deste.</div>';
+      }
+
+      h+='</td></tr>';
+    });
+
+    h+='</tbody></table>';
+    h+='<div style="font-size:10px;color:#334155;margin-top:10px">Atualizado: '+(d.generated_at||'-')+'</div>';
+    el.innerHTML=h;
+  }).catch(function(){el.innerHTML='<div style="color:#64748b;font-size:12px">Erro ao carregar</div>';});
 }
-function cmCloseRefactor(){
-  var d=document.getElementById('cmRefactorDrawer');
-  if(d)d.style.display='none';
-}
-function cmShowCode(idx){
-  var h=window._cmHotspots&&window._cmHotspots[idx];
-  if(!h)return;
-  var modal=document.getElementById('cmCodeModal');if(!modal)return;
-  document.getElementById('cmCodeModalTitle').textContent=h.name;
-  var ic=h.cc>10?'#ef4444':h.cc>5?'#fbbf24':'#22c55e';
-  document.getElementById('cmCodeModalMeta').innerHTML='Complexidade: <strong style="color:'+ic+'">'+h.cc+'</strong>';
-  var snippet=h.snippet||'(trecho nao disponivel — clique em Recalcular)';
-  // Destacar linhas com marcadores (N)
-  var html=snippet.split('\n').map(function(line){
-    var esc=line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    return esc.replace(/(\/\/ \(\d+\))/g,'<mark style="background:rgba(251,191,36,.25);color:#fbbf24;border-radius:3px;padding:0 3px">$1</mark>');
-  }).join('\n');
-  var pre=document.getElementById('cmCodePre');
-  pre.innerHTML=html;
-  modal.style.display='flex';
-}
-function cmCodeCopy(){
-  var pre=document.getElementById('cmCodePre'),btn=document.getElementById('cmCodeCopyBtn');
-  if(!pre)return;
-  navigator.clipboard.writeText(pre.textContent).then(function(){
-    btn.textContent='✓ Copiado!';
-    setTimeout(function(){btn.innerHTML='&#128203; Copiar';},2000);
-  }).catch(function(){btn.textContent='Erro';});
-}
+
 function cmCoupToggle(idx){var r=document.getElementById('cmcd-'+idx);var ch=document.querySelector('#cmcr-'+idx+' td:first-child');if(!r)return;var open=r.style.display==='table-row';r.style.display=open?'none':'table-row';if(ch)ch.innerHTML=open?'&#9654;':'&#9660';}
 
 function pollCodeMetricsRun(runId){
