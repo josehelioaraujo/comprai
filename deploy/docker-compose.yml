@@ -28,12 +28,7 @@ services:
       Ollama__BaseUrl: "http://host-gateway:11434"
       MercadoLivre__ClientId: ${ML_CLIENT_ID:-}
       MercadoLivre__ClientSecret: ${ML_CLIENT_SECRET:-}
-      # New Relic APM
-      NEW_RELIC_LICENSE_KEY: ${NEW_RELIC_LICENSE_KEY:-}
-      NEW_RELIC_APP_NAME: "comprai-api"
-      NEW_RELIC_DISTRIBUTED_TRACING_ENABLED: "true"
-      NEW_RELIC_LOG_LEVEL: "info"
-      NEW_RELIC_LOG_CONSOLE: "true"
+
     extra_hosts:
       - "host-gateway:host-gateway"
     depends_on:
@@ -240,6 +235,7 @@ services:
     command: ["--config=/etc/otel/config.yaml"]
     environment:
       DD_API_KEY: ${DD_API_KEY}
+      NEW_RELIC_LICENSE_KEY: ${NEW_RELIC_LICENSE_KEY:-}
     volumes:
       - ../observability/otel-collector-config.yaml:/etc/otel/config.yaml:ro
     networks:
