@@ -9,6 +9,7 @@ receivers:
 processors:
   batch:
     timeout: 2s
+    send_batch_size: 256
 
 exporters:
   datadog:
@@ -16,22 +17,24 @@ exporters:
       site: datadoghq.com
       key: ${DD_API_KEY}
 
-  otlp/newrelic:
-    endpoint: otlp.nr-data.net:4317
+  otlphttp/newrelic:
+    endpoint: https://otlp.nr-data.net:4318
     headers:
       api-key: ${NEW_RELIC_LICENSE_KEY}
+    tls:
+      insecure: false
 
 service:
   pipelines:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [datadog, otlp/newrelic]
+      exporters: [datadog, otlphttp/newrelic]
     metrics:
       receivers: [otlp]
       processors: [batch]
-      exporters: [datadog, otlp/newrelic]
+      exporters: [datadog, otlphttp/newrelic]
     logs:
       receivers: [otlp]
       processors: [batch]
-      exporters: [datadog, otlp/newrelic]
+      exporters: [datadog, otlphttp/newrelic]
