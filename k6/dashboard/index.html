@@ -102,7 +102,7 @@ let verInfo = {};
 let _rnTotal = 1, _rnCurrent = 0, _rnStop = false, _rnOnDone = null;
 
 // IDs das secoes navegaveis (exceto detalhes que e fixo)
-const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','codeMetricsBlock','mutacaoBlock','sonarBlock','owaspBlock','pciBlock','depBlock','pentestBlock','evolucaoBlock','integrationBlock','obsMetricasBlock','obsLogsBlock','obsAcessoBlock','obsTracesBlock','obsErrosBlock','obsContainersBlock','healthMapBlock','qualityScoreBlock','correlacaoBlock'];
+const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','codeMetricsBlock','mutacaoBlock','sonarBlock','owaspBlock','pciBlock','depBlock','pentestBlock','evolucaoBlock','integrationBlock','obsMetricasBlock','obsLogsBlock','obsAcessoBlock','obsTracesBlock','obsErrosBlock','obsContainersBlock','healthMapBlock','newRelicBlock','qualityScoreBlock','correlacaoBlock'];
 let activeSection = null; // null = nenhuma extra visivel
 
 const TYPE_ORDER = ['smoke','load','stress','spike','soak'];
@@ -1731,7 +1731,8 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       if (id === 'owaspBlock') { buildSecList(OWASP_ITEMS, 'owasp-list'); var ow=countStatus(OWASP_ITEMS); var owEl=document.getElementById('owasp-score'); if(owEl) owEl.textContent=ow.ok+'/'+ow.total+' OK'; }
       if (id === 'pciBlock')   { buildSecList(PCI_ITEMS,   'pci-list');   var pc=countStatus(PCI_ITEMS);   var pcEl=document.getElementById('pci-score');   if(pcEl) pcEl.textContent=pc.ok+'/'+pc.total+' OK'; }
       if (id === 'depBlock')   { loadDepData(); }
-      if (id === 'pentestBlock') { loadPentestData(); }
+      if (id === 'pentestBlock')  { loadPentestData(); }
+      if (id === 'newRelicBlock') { loadNewRelicData(); }
       if (id === 'evolucaoBlock') { loadEvolucaoData(); }
       if (id === 'codeMetricsBlock') { loadCodeMetrics(); }
       if (id === 'obsMetricasBlock') { requestAnimationFrame(function(){ setTimeout(function(){ obsLoad('metricas'); }, 100); }); }
@@ -3277,6 +3278,46 @@ function ptExportPDF() {
   // ── Download ──────────────────────────────────────────────────────────
   var date = new Date().toISOString().slice(0, 10);
   doc.save('pentest-report-' + date + '.pdf');
+}
+
+
+// ── New Relic APM ────────────────────────────────────────────────────────
+function loadNewRelicData() {
+  var empty = document.getElementById('nr-empty');
+  var kpi   = document.getElementById('nr-kpi-row');
+  var errEl = document.getElementById('nr-error');
+  var badge = document.getElementById('nr-status-badge');
+  if (empty)  { empty.style.display = ''; empty.innerHTML = '<div style="font-size:32px;margin-bottom:8px">&#8987;</div><div style="font-size:13px">Carregando...</div>'; }
+  if (kpi)    kpi.style.display   = 'none';
+  if (errEl)  errEl.style.display = 'none';
+
+  fetch('/api/observability/newrelic?_=' + Date.now())
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (empty) empty.style.display = 'none';
+      if (!d.connected) {
+        if (badge) { badge.innerHTML = '&#128308; Desconectado'; badge.style.cssText = 'background:rgba(239,68,68,.2);color:#ef4444;font-size:11px;font-weight:700;padding:3px 10px;border-radius:4px'; }
+        if (errEl) { errEl.style.display = ''; errEl.textContent = String.fromCharCode(9888) + ' ' + (d.error || 'Sem dados'); }
+        return;
+      }
+      if (badge) { badge.innerHTML = '&#128994; Conectado'; badge.style.cssText = 'background:rgba(34,197,94,.2);color:#22c55e;font-size:11px;font-weight:700;padding:3px 10px;border-radius:4px'; }
+      if (kpi) kpi.style.display = '';
+      function setKpi(id, val, suffix, threshold, good) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = val + (suffix || '');
+        el.style.color = (good ? val >= threshold : val <= threshold) ? '#22c55e' : '#f59e0b';
+      }
+      setKpi('nr-apdex',      d.apdex,      '',    0.94, true);
+      setKpi('nr-error-rate', d.errorRate,  '%',   1,    false);
+      setKpi('nr-throughput', d.throughput, '',    1,    true);
+      setKpi('nr-p95',        d.p95,        'ms',  500,  false);
+    })
+    .catch(function(e) {
+      if (empty) empty.style.display = 'none';
+      if (badge) { badge.innerHTML = '&#128308; Erro'; badge.style.cssText = 'background:rgba(239,68,68,.2);color:#ef4444;font-size:11px;font-weight:700;padding:3px 10px;border-radius:4px'; }
+      if (errEl) { errEl.style.display = ''; errEl.textContent = 'Erro: ' + e.message; }
+    });
 }
 
 
@@ -6841,6 +6882,9 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <div class="nav-item" id="nav-obs-containers" onclick="showSection('obsContainersBlock', this); obsLoadContainers();" title="Monitor de Containers">
           <span class="nav-icon">&#128260;</span><span class="nav-text">Containers</span>
         </div>
+        <div class="nav-item" id="nav-new-relic" onclick="showSection('newRelicBlock', this)" title="New Relic APM">
+          <span class="nav-icon">&#128204;</span><span class="nav-text">New Relic APM</span>
+        </div>
         <div class="nav-item" id="nav-health-map" onclick="showSection('healthMapBlock', this); renderHealthMap();" title="Health Map">
           <span class="nav-icon">&#128200;</span><span class="nav-text">Health Map</span>
         </div>
@@ -9115,7 +9159,56 @@ tr:hover td { background: rgba(255,255,255,.02); }
   </section>
 
   <!-- ── HEALTH MAP ──────────────────────────────────────────── -->
-  <section class="content-section" id="healthMapBlock" style="display:none">
+
+    <!-- ── New Relic APM ──────────────────────────────────────────── -->
+    <div class="section-block" id="newRelicBlock" style="display:none">
+      <div class="section-header" style="display:flex;align-items:center;gap:8px" onclick="toggleSection(this)">
+        <span class="section-title-text" style="flex:1">&#128204; New Relic APM</span>
+        <span class="section-count" id="nr-status-badge"></span>
+        <button onclick="event.stopPropagation();loadNewRelicData()" style="font-size:11px;padding:4px 10px;margin-right:6px;background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;cursor:pointer">&#8635; Atualizar</button>
+        <span class="section-chevron">&#9660;</span>
+      </div>
+      <div class="section-content">
+        <div style="padding:16px">
+          <!-- KPI cards -->
+          <div id="nr-kpi-row" style="display:none;margin-bottom:16px">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+              <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center" title="Apdex — satisfacao do usuario. Meta: >0.94">
+                <div id="nr-apdex" style="font-size:26px;font-weight:700;color:var(--text)">-</div>
+                <div style="font-size:11px;color:var(--muted);margin-top:2px">Apdex &#9432;</div>
+              </div>
+              <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center" title="Taxa de erro — percentual de requests com erro. Meta: <1%">
+                <div id="nr-error-rate" style="font-size:26px;font-weight:700;color:var(--text)">-</div>
+                <div style="font-size:11px;color:var(--muted);margin-top:2px">Error % &#9432;</div>
+              </div>
+              <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center" title="Throughput — requests por minuto nos ultimos 5 min">
+                <div id="nr-throughput" style="font-size:26px;font-weight:700;color:var(--text)">-</div>
+                <div style="font-size:11px;color:var(--muted);margin-top:2px">Req/min &#9432;</div>
+              </div>
+              <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center" title="Latencia p95 — 95% dos requests abaixo deste valor. Meta: <500ms">
+                <div id="nr-p95" style="font-size:26px;font-weight:700;color:var(--text)">-</div>
+                <div style="font-size:11px;color:var(--muted);margin-top:2px">p95 ms &#9432;</div>
+              </div>
+            </div>
+          </div>
+          <!-- Deep links -->
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+            <a href="https://one.newrelic.com/apm?account=8559442" target="_blank" style="font-size:11px;padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);text-decoration:none" onmouseover="this.style.borderColor='#00b4d8'" onmouseout="this.style.borderColor='var(--border)'">&#128202; APM</a>
+            <a href="https://one.newrelic.com/distributed-tracing?account=8559442" target="_blank" style="font-size:11px;padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);text-decoration:none" onmouseover="this.style.borderColor='#818cf8'" onmouseout="this.style.borderColor='var(--border)'">&#128269; Traces</a>
+            <a href="https://one.newrelic.com/errors-inbox?account=8559442" target="_blank" style="font-size:11px;padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);text-decoration:none" onmouseover="this.style.borderColor='#ef4444'" onmouseout="this.style.borderColor='var(--border)'">&#10060; Errors Inbox</a>
+            <a href="https://one.newrelic.com/logger?account=8559442" target="_blank" style="font-size:11px;padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);text-decoration:none" onmouseover="this.style.borderColor='#22c55e'" onmouseout="this.style.borderColor='var(--border)'">&#128220; Logs</a>
+            <a href="https://one.newrelic.com/dashboards?account=8559442" target="_blank" style="font-size:11px;padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);text-decoration:none" onmouseover="this.style.borderColor='#f59e0b'" onmouseout="this.style.borderColor='var(--border)'">&#128196; Dashboards</a>
+          </div>
+          <div id="nr-empty" style="text-align:center;padding:32px 0;color:var(--muted)">
+            <div style="font-size:32px;margin-bottom:8px">&#128204;</div>
+            <div style="font-size:13px">Carregando dados do New Relic...</div>
+          </div>
+          <div id="nr-error" style="display:none;padding:10px 12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:6px;font-size:12px;color:#ef4444"></div>
+        </div>
+      </div>
+    </div>
+
+    <section class="content-section" id="healthMapBlock" style="display:none">
     <div class="section-header" onclick="toggleSection(this)">
       <span class="section-title-text" style="flex:1">&#128200; Health Map</span>
       <span class="obs-refresh-badge" id="hm-refresh-badge"><span class="obs-refresh-dot"></span>30s</span>
