@@ -28,6 +28,9 @@ services:
       Ollama__BaseUrl: "http://host-gateway:11434"
       MercadoLivre__ClientId: ${ML_CLIENT_ID:-}
       MercadoLivre__ClientSecret: ${ML_CLIENT_SECRET:-}
+      # New Relic — NerdGraph proxy
+      NEW_RELIC_USER_KEY: ${NEW_RELIC_USER_KEY:-}
+      NEW_RELIC_ACCOUNT_ID: ${NEW_RELIC_ACCOUNT_ID:-}
 
     extra_hosts:
       - "host-gateway:host-gateway"
