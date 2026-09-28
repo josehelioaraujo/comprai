@@ -456,6 +456,16 @@ jobs:
               && sed -i "s|^GH_PAT=.*|GH_PAT=${{ secrets.GH_PAT }}|" .env \
               || echo "GH_PAT=${{ secrets.GH_PAT }}" >> .env
 
+            # Injetar NEW_RELIC_LICENSE_KEY no .env
+            grep -q '^NEW_RELIC_LICENSE_KEY=' .env \
+              && sed -i "s|^NEW_RELIC_LICENSE_KEY=.*|NEW_RELIC_LICENSE_KEY=${NEW_RELIC_LICENSE_KEY}|" .env \
+              || echo "NEW_RELIC_LICENSE_KEY=${NEW_RELIC_LICENSE_KEY}" >> .env
+
+            # Injetar NEW_RELIC_USER_KEY no .env
+            grep -q '^NEW_RELIC_USER_KEY=' .env \
+              && sed -i "s|^NEW_RELIC_USER_KEY=.*|NEW_RELIC_USER_KEY=${NEW_RELIC_USER_KEY}|" .env \
+              || echo "NEW_RELIC_USER_KEY=${NEW_RELIC_USER_KEY}" >> .env
+
             # Injetar senha do Admin Restart no .env (validada pela API)
             grep -q '^ADMIN_RESTART_PASSWORD=' .env \
               && sed -i "s|^ADMIN_RESTART_PASSWORD=.*|ADMIN_RESTART_PASSWORD=${ADMIN_RESTART_PASSWORD}|" .env \
