@@ -497,10 +497,10 @@ jobs:
               && sed -i "s|^ConnectionStrings__Redis=.*|ConnectionStrings__Redis=comprai-redis:6379,connectTimeout=2000,syncTimeout=2000,abortConnect=false|" .env \
               || echo "ConnectionStrings__Redis=comprai-redis:6379,connectTimeout=2000,syncTimeout=2000,abortConnect=false" >> .env
 
-            # Garantir OTEL_ENDPOINT aponta para dd-agent (Datadog)
+            # Garantir OTEL_ENDPOINT aponta para otel-collector (envia para Datadog + New Relic)
             grep -q '^OTEL_ENDPOINT=' .env \
-              && sed -i "s|^OTEL_ENDPOINT=.*|OTEL_ENDPOINT=http://comprai-dd-agent:4317|" .env \
-              || echo "OTEL_ENDPOINT=http://comprai-dd-agent:4317" >> .env
+              && sed -i "s|^OTEL_ENDPOINT=.*|OTEL_ENDPOINT=http://comprai-otel-collector:4317|" .env \
+              || echo "OTEL_ENDPOINT=http://comprai-otel-collector:4317" >> .env
 
             mkdir -p wwwroot
             cp docs/price-watcher-test.html wwwroot/
