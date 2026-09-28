@@ -84,8 +84,15 @@ builder.Services.AddOpenTelemetry()
         .AddRuntimeInstrumentation()
         .AddMeter(UcpMetrics.MeterName)
         .AddPrometheusExporter())
-    .WithLogging(l => l
-        .AddOtlpExporter());
+;
+
+// OTel Logging — envia logs via OTLP para o collector
+builder.Logging.AddOpenTelemetry(opt =>
+{
+    opt.IncludeFormattedMessage = true;
+    opt.IncludeScopes = true;
+    opt.AddOtlpExporter();
+});
 
 // Ã¢ââ¬Ã¢ââ¬ OpenAPI Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬
 builder.Services.AddOpenApi();
@@ -425,6 +432,7 @@ app.MapPost("/api/payment/{orderId}", async (
 
 app.MapIntentEndpoints();
 app.MapObservabilityEndpoints();
+app.MapNewRelicEndpoints();
 app.MapContainerEndpoints();
 app.MapFakeCatalogEndpoints();
 
