@@ -12,10 +12,14 @@ public static class OtelExtensions
         this IServiceCollection services,
         IConfiguration config)
     {
-        // Prioridade: env var padrão OTel → appsettings Otel:Endpoint → localhost
-        var endpoint = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT")
-                    ?? config["Otel:Endpoint"]
-                    ?? "http://localhost:4317";
+        // Usa OTEL_EXPORTER_OTLP_ENDPOINT se definido, senão localhost:4318
+        var endpointBase = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT")
+                        ?? config["Otel:Endpoint"]
+                        ?? "http://localhost:4318";
+
+        // Garante endpoint HTTP para traces
+        var traceEndpoint = endpointBase.TrimEnd('/')
+            .Replace(":4317", ":4318") + "/v1/traces";
 
         var servico = Environment.GetEnvironmentVariable("OTEL_SERVICE_NAME")
                    ?? config["Otel:ServiceName"]
@@ -28,8 +32,8 @@ public static class OtelExtensions
                 .AddHttpClientInstrumentation()
                 .AddOtlpExporter(o =>
                 {
-                    o.Endpoint = new Uri(endpoint);
-                    o.Protocol = OtlpExportProtocol.Grpc;
+                    o.Endpoint = new Uri(traceEndpoint);
+                    o.Protocol = OtlpExportProtocol.HttpProtobuf;
                 }));
 
         return services;

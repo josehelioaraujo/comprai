@@ -23,7 +23,7 @@ services:
       Logging__LogLevel__Microsoft.AspNetCore: Warning
       # Em producao: OTEL_ENDPOINT=http://comprai-dd-agent:4317 (Datadog)
       # Em dev local: OTEL_ENDPOINT=http://comprai-jaeger:4319  (Jaeger)
-      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_ENDPOINT:-http://comprai-otel-collector:4317}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_ENDPOINT:-http://comprai-otel-collector:4318}
       OTEL_SERVICE_NAME: "comprai-api"
       DOTNET_SYSTEM_NET_HTTP_SOCKETSHTTPHANDLER_HTTP2UNENCRYPTEDSUPORT: "1"
       OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY: "in_memory"
