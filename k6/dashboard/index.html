@@ -3132,6 +3132,69 @@ function ptPollResult(attempt) {
 }
 
 
+
+function ptExportPDF() {
+  // Limpar overlay anterior
+  var old = document.getElementById('print-pentest-overlay');
+  if (old) old.remove();
+
+  var sum = {
+    high:          parseInt(document.getElementById('pt-num-high')?.textContent) || 0,
+    medium:        parseInt(document.getElementById('pt-num-medium')?.textContent) || 0,
+    low:           parseInt(document.getElementById('pt-num-low')?.textContent) || 0,
+    informational: parseInt(document.getElementById('pt-num-informational')?.textContent) || 0,
+    total:         parseInt(document.getElementById('pt-num-total')?.textContent) || 0,
+  };
+
+  var target   = document.getElementById('pt-target')?.textContent || '';
+  var ts       = document.getElementById('pt-timestamp')?.textContent || '';
+  var findings = document.querySelectorAll('#pt-findings-list > div');
+
+  var rows = '';
+  findings.forEach(function(f) {
+    var header = f.querySelector('[onclick]');
+    if (!header) return;
+    var badge  = header.querySelector('span:first-child');
+    var title  = header.querySelectorAll('span')[1];
+    var detail = f.querySelector('[id^="pt-detail-"]');
+    var risk   = badge ? badge.textContent.trim() : '';
+    var name   = title ? title.textContent.trim() : '';
+    var desc   = detail ? (detail.querySelector('div:first-child')?.textContent || '') : '';
+    var sol    = detail ? (detail.querySelectorAll('div')[1]?.textContent || '') : '';
+    var cls    = risk === 'High' ? 'high' : risk === 'Medium' ? 'medium' : risk === 'Low' ? 'low' : 'info';
+    rows += '<div class="pt-finding">'
+      + '<span class="pt-risk-badge pt-risk-' + cls + '">' + risk + '</span>'
+      + '<strong>' + name + '</strong>'
+      + (desc ? '<p style="font-size:12px;margin:6px 0 2px;color:#444">' + desc.substring(0, 300) + '</p>' : '')
+      + (sol  ? '<p style="font-size:12px;margin:2px 0;color:#166534"><strong>Solução:</strong> ' + sol.substring(0, 200) + '</p>' : '')
+      + '</div>';
+  });
+
+  var html = '<div id="print-pentest-overlay">'
+    + '<h1>&#128269; Pentest — OWASP ZAP</h1>'
+    + '<p style="font-size:12px;color:#555;margin-bottom:16px">' + target + ' &nbsp;|&nbsp; ' + ts + '</p>'
+    + '<table style="width:100%;border-collapse:collapse;margin-bottom:16px;font-size:13px">'
+    + '<tr>'
+    + '<td style="padding:8px;background:#fee2e2;border-radius:4px;text-align:center"><strong style="color:#dc2626">' + sum.high + '</strong><br><small>High</small></td>'
+    + '<td style="padding:8px;background:#fef3c7;border-radius:4px;text-align:center"><strong style="color:#d97706">' + sum.medium + '</strong><br><small>Medium</small></td>'
+    + '<td style="padding:8px;background:#dbeafe;border-radius:4px;text-align:center"><strong style="color:#2563eb">' + sum.low + '</strong><br><small>Low</small></td>'
+    + '<td style="padding:8px;background:#f3f4f6;border-radius:4px;text-align:center"><strong style="color:#6b7280">' + sum.informational + '</strong><br><small>Info</small></td>'
+    + '<td style="padding:8px;background:#f8fafc;border-radius:4px;text-align:center"><strong>' + sum.total + '</strong><br><small>Total</small></td>'
+    + '</tr></table>'
+    + '<hr style="border:none;border-top:1px solid #ddd;margin-bottom:16px">'
+    + (rows || '<p style="color:#888">Nenhum finding para exibir.</p>')
+    + '<p style="font-size:10px;color:#aaa;margin-top:16px">Gerado por OpsWatch &mdash; OWASP ZAP API Scan</p>'
+    + '</div>';
+
+  document.body.insertAdjacentHTML('beforeend', html);
+  window.print();
+  setTimeout(function() {
+    var el = document.getElementById('print-pentest-overlay');
+    if (el) el.remove();
+  }, 1000);
+}
+
+
 // ── Dep Scan: disparar workflow ───────────────────────────────
 const DEP_REPO   = 'josehelioaraujo/comprai';
 const DEP_WF     = 'dependency-scan.yml';
@@ -6530,6 +6593,26 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .obs-kpi-card:hover .obs-tooltip { display: block; }
 
 </style>
+
+<style id="pentest-print-css">
+@media print {
+  body > *:not(#print-pentest-overlay) { display: none !important; }
+  #print-pentest-overlay {
+    display: block !important;
+    position: fixed; inset: 0;
+    background: #fff; color: #111;
+    padding: 32px; font-family: sans-serif;
+    z-index: 99999;
+  }
+  #print-pentest-overlay h1 { font-size: 18px; margin-bottom: 4px; }
+  #print-pentest-overlay .pt-finding { border: 1px solid #ddd; border-radius:6px; margin-bottom:8px; padding:10px; }
+  #print-pentest-overlay .pt-risk-badge { font-size:11px; font-weight:700; padding:2px 8px; border-radius:3px; margin-right:8px; }
+  #print-pentest-overlay .pt-risk-high   { background:#fee2e2; color:#dc2626; }
+  #print-pentest-overlay .pt-risk-medium { background:#fef3c7; color:#d97706; }
+  #print-pentest-overlay .pt-risk-low    { background:#dbeafe; color:#2563eb; }
+  #print-pentest-overlay .pt-risk-info   { background:#f3f4f6; color:#6b7280; }
+}
+</style>
 </head>
 <body>
 
@@ -8546,6 +8629,9 @@ tr:hover td { background: rgba(255,255,255,.02); }
           </span>
         </span>
         <span class="section-count" id="pt-score"></span>
+        <button onclick="event.stopPropagation();ptExportPDF()" style="font-size:11px;padding:4px 10px;margin-right:6px;background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:4px" title="Exportar relatório como PDF">
+          &#128196; PDF
+        </button>
         <button id="pt-run-btn" onclick="event.stopPropagation();pentestRunScan()" class="it-run-btn" style="font-size:11px;padding:4px 10px;margin-right:6px">
           <span>&#9654;</span> Executar Pentest
         </button>
@@ -8557,25 +8643,25 @@ tr:hover td { background: rgba(255,255,255,.02); }
           <!-- KPI cards -->
           <div id="pt-kpi-row" style="display:none;margin-bottom:16px">
             <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px">
-              <div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:12px;text-align:center">
+              <div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:12px;text-align:center;position:relative" title="Vulnerabilidades graves que podem ser exploradas remotamente. Corrigir imediatamente.">
                 <div id="pt-num-high" style="font-size:24px;font-weight:700;color:#ef4444">-</div>
-                <div style="font-size:11px;color:var(--muted);margin-top:2px">High</div>
+                <div style="font-size:11px;color:var(--muted);margin-top:2px">High <span style="font-size:9px;opacity:.5;cursor:help">ℹ</span></div>
               </div>
-              <div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:12px;text-align:center">
+              <div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:12px;text-align:center;position:relative" title="Vulnerabilidades moderadas que aumentam a superfície de ataque. Corrigir em breve.">
                 <div id="pt-num-medium" style="font-size:24px;font-weight:700;color:#f59e0b">-</div>
-                <div style="font-size:11px;color:var(--muted);margin-top:2px">Medium</div>
+                <div style="font-size:11px;color:var(--muted);margin-top:2px">Medium <span style="font-size:9px;opacity:.5;cursor:help">ℹ</span></div>
               </div>
-              <div style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);border-radius:8px;padding:12px;text-align:center">
+              <div style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);border-radius:8px;padding:12px;text-align:center;position:relative" title="Vulnerabilidades de baixo risco. Devem ser endereçadas no próximo ciclo de hardening.">
                 <div id="pt-num-low" style="font-size:24px;font-weight:700;color:#3b82f6">-</div>
-                <div style="font-size:11px;color:var(--muted);margin-top:2px">Low</div>
+                <div style="font-size:11px;color:var(--muted);margin-top:2px">Low <span style="font-size:9px;opacity:.5;cursor:help">ℹ</span></div>
               </div>
-              <div style="background:rgba(107,114,128,.1);border:1px solid rgba(107,114,128,.3);border-radius:8px;padding:12px;text-align:center">
+              <div style="background:rgba(107,114,128,.1);border:1px solid rgba(107,114,128,.3);border-radius:8px;padding:12px;text-align:center;position:relative" title="Informações de diagnóstico e boas práticas. Não são vulnerabilidades exploráveis diretamente.">
                 <div id="pt-num-informational" style="font-size:24px;font-weight:700;color:#6b7280">-</div>
-                <div style="font-size:11px;color:var(--muted);margin-top:2px">Info</div>
+                <div style="font-size:11px;color:var(--muted);margin-top:2px">Info <span style="font-size:9px;opacity:.5;cursor:help">ℹ</span></div>
               </div>
-              <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">
+              <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center" title="Total de findings encontrados no scan. Inclui todas as severidades.">
                 <div id="pt-num-total" style="font-size:24px;font-weight:700;color:var(--text)">-</div>
-                <div style="font-size:11px;color:var(--muted);margin-top:2px">Total</div>
+                <div style="font-size:11px;color:var(--muted);margin-top:2px">Total <span style="font-size:9px;opacity:.5;cursor:help">ℹ</span></div>
               </div>
             </div>
           </div>
