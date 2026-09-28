@@ -3134,64 +3134,149 @@ function ptPollResult(attempt) {
 
 
 function ptExportPDF() {
-  // Limpar overlay anterior
-  var old = document.getElementById('print-pentest-overlay');
-  if (old) old.remove();
+  // Carregar jsPDF sob demanda
+  if (!window.jspdf) {
+    var s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    s.onload = function() { ptExportPDF(); };
+    document.head.appendChild(s);
+    return;
+  }
 
-  var sum = {
-    high:          parseInt(document.getElementById('pt-num-high')?.textContent) || 0,
-    medium:        parseInt(document.getElementById('pt-num-medium')?.textContent) || 0,
-    low:           parseInt(document.getElementById('pt-num-low')?.textContent) || 0,
-    informational: parseInt(document.getElementById('pt-num-informational')?.textContent) || 0,
-    total:         parseInt(document.getElementById('pt-num-total')?.textContent) || 0,
+  var doc = new window.jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  var PAGE_W = 210, MARGIN = 14, y = 20;
+
+  // ── Cabeçalho ─────────────────────────────────────────────────────────
+  doc.setFillColor(15, 23, 42);
+  doc.rect(0, 0, PAGE_W, 28, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(16); doc.setFont('helvetica', 'bold');
+  doc.text('Pentest — OWASP ZAP', MARGIN, 13);
+  doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+  var target = (document.getElementById('pt-target')?.textContent || '').replace(/^[^\s]+\s/, '');
+  var ts     = (document.getElementById('pt-timestamp')?.textContent || '').replace(/^[^\s]+\s/, '');
+  doc.text(target + '   |   ' + ts, MARGIN, 21);
+  y = 36;
+
+  // ── KPI cards ─────────────────────────────────────────────────────────
+  var kpis = [
+    { id: 'high',          label: 'High',   r:239, g:68,  b:68  },
+    { id: 'medium',        label: 'Medium', r:245, g:158, b:11  },
+    { id: 'low',           label: 'Low',    r:59,  g:130, b:246 },
+    { id: 'informational', label: 'Info',   r:107, g:114, b:128 },
+    { id: 'total',         label: 'Total',  r:100, g:116, b:139 },
+  ];
+  var cardW = (PAGE_W - MARGIN * 2 - 4 * 3) / 5;
+  kpis.forEach(function(k, i) {
+    var val = document.getElementById('pt-num-' + k.id)?.textContent || '-';
+    var x = MARGIN + i * (cardW + 3);
+    doc.setFillColor(k.r, k.g, k.b, 0.12);
+    doc.setDrawColor(k.r, k.g, k.b);
+    doc.setLineWidth(0.4);
+    doc.roundedRect(x, y, cardW, 18, 2, 2, 'FD');
+    doc.setTextColor(k.r, k.g, k.b);
+    doc.setFontSize(18); doc.setFont('helvetica', 'bold');
+    doc.text(val, x + cardW / 2, y + 11, { align: 'center' });
+    doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+    doc.setTextColor(120, 120, 120);
+    doc.text(k.label, x + cardW / 2, y + 16, { align: 'center' });
+  });
+  y += 26;
+
+  // ── Linha divisória ───────────────────────────────────────────────────
+  doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3);
+  doc.line(MARGIN, y, PAGE_W - MARGIN, y);
+  y += 6;
+
+  // ── Findings ──────────────────────────────────────────────────────────
+  doc.setFontSize(10); doc.setFont('helvetica', 'bold');
+  doc.setTextColor(40, 40, 40);
+  doc.text('Findings por Risco', MARGIN, y);
+  y += 6;
+
+  var RISK_COLOR = {
+    'High':          [239, 68,  68 ],
+    'Medium':        [245, 158, 11 ],
+    'Low':           [59,  130, 246],
+    'Informational': [107, 114, 128],
   };
 
-  var target   = document.getElementById('pt-target')?.textContent || '';
-  var ts       = document.getElementById('pt-timestamp')?.textContent || '';
   var findings = document.querySelectorAll('#pt-findings-list > div');
+  if (findings.length === 0) {
+    doc.setFontSize(9); doc.setFont('helvetica', 'italic');
+    doc.setTextColor(150, 150, 150);
+    doc.text('Nenhum finding encontrado.', MARGIN, y);
+    y += 8;
+  }
 
-  var rows = '';
   findings.forEach(function(f) {
+    if (y > 270) { doc.addPage(); y = 20; }
+
     var header = f.querySelector('[onclick]');
     if (!header) return;
-    var badge  = header.querySelector('span:first-child');
-    var title  = header.querySelectorAll('span')[1];
+    var spans  = header.querySelectorAll('span');
+    var risk   = spans[0]?.textContent.trim() || '';
+    var name   = spans[1]?.textContent.trim().replace(/CWE-\d+/, '').replace(/A\d\d:\d{4}/, '').trim() || '';
     var detail = f.querySelector('[id^="pt-detail-"]');
-    var risk   = badge ? badge.textContent.trim() : '';
-    var name   = title ? title.textContent.trim() : '';
-    var desc   = detail ? (detail.querySelector('div:first-child')?.textContent || '') : '';
-    var sol    = detail ? (detail.querySelectorAll('div')[1]?.textContent || '') : '';
-    var cls    = risk === 'High' ? 'high' : risk === 'Medium' ? 'medium' : risk === 'Low' ? 'low' : 'info';
-    rows += '<div class="pt-finding">'
-      + '<span class="pt-risk-badge pt-risk-' + cls + '">' + risk + '</span>'
-      + '<strong>' + name + '</strong>'
-      + (desc ? '<p style="font-size:12px;margin:6px 0 2px;color:#444">' + desc.substring(0, 300) + '</p>' : '')
-      + (sol  ? '<p style="font-size:12px;margin:2px 0;color:#166534"><strong>Solução:</strong> ' + sol.substring(0, 200) + '</p>' : '')
-      + '</div>';
+    var divs   = detail ? detail.querySelectorAll('div') : [];
+    var desc   = divs[0]?.textContent.trim().replace(/^DESCRI[CÇ]AO\s*/i, '') || '';
+    var sol    = divs[1]?.textContent.trim().replace(/^SOLU[CÇ]AO\s*/i, '') || '';
+
+    var rc = RISK_COLOR[risk] || [107,114,128];
+
+    // Badge risco
+    doc.setFillColor(rc[0], rc[1], rc[2]);
+    doc.roundedRect(MARGIN, y, 18, 6, 1, 1, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(7); doc.setFont('helvetica', 'bold');
+    doc.text(risk, MARGIN + 9, y + 4.2, { align: 'center' });
+
+    // Nome
+    doc.setTextColor(30, 30, 30);
+    doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+    var nameLines = doc.splitTextToSize(name, PAGE_W - MARGIN * 2 - 22);
+    doc.text(nameLines, MARGIN + 21, y + 4.2);
+    y += Math.max(8, nameLines.length * 4.5 + 2);
+
+    // Descrição
+    if (desc) {
+      doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+      doc.setTextColor(80, 80, 80);
+      var descLines = doc.splitTextToSize(desc.substring(0, 350), PAGE_W - MARGIN * 2 - 4);
+      if (y + descLines.length * 4 > 275) { doc.addPage(); y = 20; }
+      doc.text(descLines, MARGIN + 2, y);
+      y += descLines.length * 4 + 2;
+    }
+
+    // Solução
+    if (sol) {
+      doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+      doc.setTextColor(22, 101, 52);
+      doc.text('Solução: ', MARGIN + 2, y);
+      doc.setFont('helvetica', 'normal');
+      var solLines = doc.splitTextToSize(sol.substring(0, 250), PAGE_W - MARGIN * 2 - 20);
+      doc.text(solLines, MARGIN + 18, y);
+      y += solLines.length * 4 + 2;
+    }
+
+    // Separador
+    doc.setDrawColor(230, 230, 230); doc.setLineWidth(0.2);
+    doc.line(MARGIN, y, PAGE_W - MARGIN, y);
+    y += 4;
   });
 
-  var html = '<div id="print-pentest-overlay">'
-    + '<h1>&#128269; Pentest — OWASP ZAP</h1>'
-    + '<p style="font-size:12px;color:#555;margin-bottom:16px">' + target + ' &nbsp;|&nbsp; ' + ts + '</p>'
-    + '<table style="width:100%;border-collapse:collapse;margin-bottom:16px;font-size:13px">'
-    + '<tr>'
-    + '<td style="padding:8px;background:#fee2e2;border-radius:4px;text-align:center"><strong style="color:#dc2626">' + sum.high + '</strong><br><small>High</small></td>'
-    + '<td style="padding:8px;background:#fef3c7;border-radius:4px;text-align:center"><strong style="color:#d97706">' + sum.medium + '</strong><br><small>Medium</small></td>'
-    + '<td style="padding:8px;background:#dbeafe;border-radius:4px;text-align:center"><strong style="color:#2563eb">' + sum.low + '</strong><br><small>Low</small></td>'
-    + '<td style="padding:8px;background:#f3f4f6;border-radius:4px;text-align:center"><strong style="color:#6b7280">' + sum.informational + '</strong><br><small>Info</small></td>'
-    + '<td style="padding:8px;background:#f8fafc;border-radius:4px;text-align:center"><strong>' + sum.total + '</strong><br><small>Total</small></td>'
-    + '</tr></table>'
-    + '<hr style="border:none;border-top:1px solid #ddd;margin-bottom:16px">'
-    + (rows || '<p style="color:#888">Nenhum finding para exibir.</p>')
-    + '<p style="font-size:10px;color:#aaa;margin-top:16px">Gerado por OpsWatch &mdash; OWASP ZAP API Scan</p>'
-    + '</div>';
+  // ── Rodapé ────────────────────────────────────────────────────────────
+  var pages = doc.internal.getNumberOfPages();
+  for (var p = 1; p <= pages; p++) {
+    doc.setPage(p);
+    doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+    doc.setTextColor(180, 180, 180);
+    doc.text('OpsWatch — OWASP ZAP API Scan   |   Página ' + p + ' de ' + pages, PAGE_W / 2, 292, { align: 'center' });
+  }
 
-  document.body.insertAdjacentHTML('beforeend', html);
-  window.print();
-  setTimeout(function() {
-    var el = document.getElementById('print-pentest-overlay');
-    if (el) el.remove();
-  }, 1000);
+  // ── Download ──────────────────────────────────────────────────────────
+  var date = new Date().toISOString().slice(0, 10);
+  doc.save('pentest-report-' + date + '.pdf');
 }
 
 
@@ -6594,25 +6679,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
 </style>
 
-<style id="pentest-print-css">
-@media print {
-  body > *:not(#print-pentest-overlay) { display: none !important; }
-  #print-pentest-overlay {
-    display: block !important;
-    position: fixed; inset: 0;
-    background: #fff; color: #111;
-    padding: 32px; font-family: sans-serif;
-    z-index: 99999;
-  }
-  #print-pentest-overlay h1 { font-size: 18px; margin-bottom: 4px; }
-  #print-pentest-overlay .pt-finding { border: 1px solid #ddd; border-radius:6px; margin-bottom:8px; padding:10px; }
-  #print-pentest-overlay .pt-risk-badge { font-size:11px; font-weight:700; padding:2px 8px; border-radius:3px; margin-right:8px; }
-  #print-pentest-overlay .pt-risk-high   { background:#fee2e2; color:#dc2626; }
-  #print-pentest-overlay .pt-risk-medium { background:#fef3c7; color:#d97706; }
-  #print-pentest-overlay .pt-risk-low    { background:#dbeafe; color:#2563eb; }
-  #print-pentest-overlay .pt-risk-info   { background:#f3f4f6; color:#6b7280; }
-}
-</style>
+
 </head>
 <body>
 
