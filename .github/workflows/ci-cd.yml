@@ -524,7 +524,7 @@ jobs:
             echo "Ollama status: $(systemctl is-active ollama)"
 
             docker compose -f deploy/docker-compose.yml --env-file .env down --remove-orphans --volumes || true
-            docker rm -f comprai-api comprai-redis comprai-mcp comprai-dd-agent || true
+            docker rm -f comprai-api comprai-redis comprai-mcp comprai-dd-agent comprai-otel-collector || true
             docker compose -f deploy/docker-compose.yml --env-file .env build --no-cache
             docker compose -f deploy/docker-compose.yml --env-file .env --profile datadog --profile kafka --profile rabbitmq up -d --force-recreate
             sleep 20
