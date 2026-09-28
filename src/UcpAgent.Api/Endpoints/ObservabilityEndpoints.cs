@@ -350,11 +350,12 @@ public static class ObservabilityEndpoints
             if (string.IsNullOrEmpty(userKey) || string.IsNullOrEmpty(accountId))
                 return Results.Ok(new { connected = false, error = "NEW_RELIC_USER_KEY ou NEW_RELIC_ACCOUNT_ID nao configurados" });
 
-            var nrql = $"SELECT apdex(duration, t: 0.5) as apdex, " +
-                       $"percentage(count(*), WHERE error IS TRUE) as errorRate, " +
+            var nrql = $"SELECT " +
+                       $"filter(count(*), WHERE duration.ms < 500) / count(*) as apdex, " +
+                       $"percentage(count(*), WHERE otel.status_code = 'ERROR') as errorRate, " +
                        $"rate(count(*), 1 minute) as throughput, " +
-                       $"percentile(duration, 95) as p95 " +
-                       $"FROM Transaction WHERE appName = 'comprai-api' SINCE 5 minutes ago";
+                       $"percentile(duration.ms, 95) as p95 " +
+                       $"FROM Span WHERE service.name = 'comprai-api' SINCE 5 minutes ago";
 
             var gqlQuery = $$"""{"query":"{ actor { account(id: {{accountId}}) { nrql(query: \"{{nrql}}\") { results } } } }"}""";
 
