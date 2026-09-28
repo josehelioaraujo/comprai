@@ -499,8 +499,8 @@ jobs:
 
             # Garantir OTEL_ENDPOINT aponta para otel-collector (envia para Datadog + New Relic)
             grep -q '^OTEL_ENDPOINT=' .env \
-              && sed -i "s|^OTEL_ENDPOINT=.*|OTEL_ENDPOINT=http://comprai-otel-collector:4317|" .env \
-              || echo "OTEL_ENDPOINT=http://comprai-otel-collector:4317" >> .env
+              && sed -i "s|^OTEL_ENDPOINT=.*|OTEL_ENDPOINT=http://comprai-otel-collector:4318|" .env \
+              || echo "OTEL_ENDPOINT=http://comprai-otel-collector:4318" >> .env
 
             mkdir -p wwwroot
             cp docs/price-watcher-test.html wwwroot/
