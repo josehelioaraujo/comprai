@@ -430,11 +430,14 @@ jobs:
           ADMIN_RESTART_PASSWORD: ${{ secrets.ADMIN_RESTART_PASSWORD }}
           ML_CLIENT_ID: ${{ secrets.ML_CLIENT_ID }}
           ML_CLIENT_SECRET: ${{ secrets.ML_CLIENT_SECRET }}
+          NEW_RELIC_LICENSE_KEY: ${{ secrets.NEW_RELIC_LICENSE_KEY }}
+          NEW_RELIC_USER_KEY: ${{ secrets.NEW_RELIC_USER_KEY }}
+          NEW_RELIC_ACCOUNT_ID: ${{ secrets.NEW_RELIC_ACCOUNT_ID }}
         with:
           host: ${{ env.VPS_HOST }}
           username: ${{ env.VPS_USER }}
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
-          envs: DATADOG_API_KEY,BUILD_VERSION,GH_PAT,ADMIN_RESTART_PASSWORD,ML_CLIENT_ID,ML_CLIENT_SECRET
+          envs: DATADOG_API_KEY,BUILD_VERSION,GH_PAT,ADMIN_RESTART_PASSWORD,ML_CLIENT_ID,ML_CLIENT_SECRET,NEW_RELIC_LICENSE_KEY,NEW_RELIC_USER_KEY,NEW_RELIC_ACCOUNT_ID
           script: |
             set -e
             cd ${{ env.VPS_PATH }}
@@ -455,6 +458,21 @@ jobs:
             grep -q '^GH_PAT=' .env \
               && sed -i "s|^GH_PAT=.*|GH_PAT=${{ secrets.GH_PAT }}|" .env \
               || echo "GH_PAT=${{ secrets.GH_PAT }}" >> .env
+
+            # Injetar NEW_RELIC_LICENSE_KEY no .env
+            grep -q '^NEW_RELIC_LICENSE_KEY=' .env \
+              && sed -i "s|^NEW_RELIC_LICENSE_KEY=.*|NEW_RELIC_LICENSE_KEY=${NEW_RELIC_LICENSE_KEY}|" .env \
+              || echo "NEW_RELIC_LICENSE_KEY=${NEW_RELIC_LICENSE_KEY}" >> .env
+
+            # Injetar NEW_RELIC_USER_KEY no .env
+            grep -q '^NEW_RELIC_USER_KEY=' .env \
+              && sed -i "s|^NEW_RELIC_USER_KEY=.*|NEW_RELIC_USER_KEY=${NEW_RELIC_USER_KEY}|" .env \
+              || echo "NEW_RELIC_USER_KEY=${NEW_RELIC_USER_KEY}" >> .env
+
+            # Injetar NEW_RELIC_ACCOUNT_ID no .env
+            grep -q '^NEW_RELIC_ACCOUNT_ID=' .env \
+              && sed -i "s|^NEW_RELIC_ACCOUNT_ID=.*|NEW_RELIC_ACCOUNT_ID=${NEW_RELIC_ACCOUNT_ID}|" .env \
+              || echo "NEW_RELIC_ACCOUNT_ID=${NEW_RELIC_ACCOUNT_ID}" >> .env
 
             # Injetar senha do Admin Restart no .env (validada pela API)
             grep -q '^ADMIN_RESTART_PASSWORD=' .env \

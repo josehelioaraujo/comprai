@@ -339,6 +339,67 @@ public static class ObservabilityEndpoints
     }
 
     // ── Helpers Prometheus ────────────────────────────────────────────────────
+    // ── New Relic APM — NerdGraph proxy ─────────────────────────────────────
+    public static void MapNewRelicEndpoints(this WebApplication app)
+    {
+        app.MapGet("/api/observability/newrelic", async (IConfiguration config, IHttpClientFactory factory, CancellationToken ct) =>
+        {
+            var userKey   = config["NewRelic:UserKey"]   ?? Environment.GetEnvironmentVariable("NEW_RELIC_USER_KEY")   ?? "";
+            var accountId = config["NewRelic:AccountId"] ?? Environment.GetEnvironmentVariable("NEW_RELIC_ACCOUNT_ID") ?? "";
+
+            if (string.IsNullOrEmpty(userKey) || string.IsNullOrEmpty(accountId))
+                return Results.Ok(new { connected = false, error = "NEW_RELIC_USER_KEY ou NEW_RELIC_ACCOUNT_ID nao configurados" });
+
+            var nrql = $"SELECT apdex(duration, t: 0.5) as apdex, " +
+                       $"percentage(count(*), WHERE error IS TRUE) as errorRate, " +
+                       $"rate(count(*), 1 minute) as throughput, " +
+                       $"percentile(duration, 95) as p95 " +
+                       $"FROM Transaction WHERE appName = 'comprai-api' SINCE 5 minutes ago";
+
+            var gqlQuery = $$"""{"query":"{ actor { account(id: {{accountId}}) { nrql(query: \"{{nrql}}\") { results } } } }"}""";
+
+            try
+            {
+                var client = factory.CreateClient("observability");
+                client.DefaultRequestHeaders.Clear();
+                client.DefaultRequestHeaders.Add("API-Key", userKey);
+
+                var resp = await client.PostAsync(
+                    "https://api.newrelic.com/graphql",
+                    new StringContent(gqlQuery, System.Text.Encoding.UTF8, "application/json"), ct);
+
+                if (!resp.IsSuccessStatusCode)
+                    return Results.Ok(new { connected = false, error = $"NerdGraph HTTP {(int)resp.StatusCode}" });
+
+                var json = await resp.Content.ReadAsStringAsync(ct);
+                using var doc = System.Text.Json.JsonDocument.Parse(json);
+
+                var results = doc.RootElement
+                    .GetProperty("data")
+                    .GetProperty("actor")
+                    .GetProperty("account")
+                    .GetProperty("nrql")
+                    .GetProperty("results")[0];
+
+                double GetVal(string key) => results.TryGetProperty(key, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.Number ? v.GetDouble() : 0;
+
+                return Results.Ok(new
+                {
+                    connected  = true,
+                    accountId  = accountId,
+                    apdex      = Math.Round(GetVal("apdex"), 2),
+                    errorRate  = Math.Round(GetVal("errorRate"), 2),
+                    throughput = Math.Round(GetVal("throughput"), 1),
+                    p95        = Math.Round(GetVal("p95") * 1000, 0), // s → ms
+                });
+            }
+            catch (Exception ex)
+            {
+                return Results.Ok(new { connected = false, error = ex.Message });
+            }
+        }).WithTags("Observability");
+    }
+
     private static async Task<double?> QueryInstant(HttpClient client, string baseUrl, string query, CancellationToken ct)
     {
         try
