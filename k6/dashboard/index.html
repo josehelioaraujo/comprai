@@ -102,7 +102,7 @@ let verInfo = {};
 let _rnTotal = 1, _rnCurrent = 0, _rnStop = false, _rnOnDone = null;
 
 // IDs das secoes navegaveis (exceto detalhes que e fixo)
-const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','codeMetricsBlock','mutacaoBlock','sonarBlock','owaspBlock','pciBlock','depBlock','evolucaoBlock','integrationBlock','obsMetricasBlock','obsLogsBlock','obsAcessoBlock','obsTracesBlock','obsErrosBlock','obsContainersBlock','healthMapBlock','qualityScoreBlock','correlacaoBlock'];
+const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','codeMetricsBlock','mutacaoBlock','sonarBlock','owaspBlock','pciBlock','depBlock','pentestBlock','evolucaoBlock','integrationBlock','obsMetricasBlock','obsLogsBlock','obsAcessoBlock','obsTracesBlock','obsErrosBlock','obsContainersBlock','healthMapBlock','qualityScoreBlock','correlacaoBlock'];
 let activeSection = null; // null = nenhuma extra visivel
 
 const TYPE_ORDER = ['smoke','load','stress','spike','soak'];
@@ -1731,6 +1731,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       if (id === 'owaspBlock') { buildSecList(OWASP_ITEMS, 'owasp-list'); var ow=countStatus(OWASP_ITEMS); var owEl=document.getElementById('owasp-score'); if(owEl) owEl.textContent=ow.ok+'/'+ow.total+' OK'; }
       if (id === 'pciBlock')   { buildSecList(PCI_ITEMS,   'pci-list');   var pc=countStatus(PCI_ITEMS);   var pcEl=document.getElementById('pci-score');   if(pcEl) pcEl.textContent=pc.ok+'/'+pc.total+' OK'; }
       if (id === 'depBlock')   { loadDepData(); }
+      if (id === 'pentestBlock') { loadPentestData(); }
       if (id === 'evolucaoBlock') { loadEvolucaoData(); }
       if (id === 'codeMetricsBlock') { loadCodeMetrics(); }
       if (id === 'obsMetricasBlock') { requestAnimationFrame(function(){ setTimeout(function(){ obsLoad('metricas'); }, 100); }); }
@@ -2941,6 +2942,195 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
 </div>
 
 <script>
+
+// ── Pentest OWASP ZAP ────────────────────────────────────────────────────
+const PT_REPO   = 'josehelioaraujo/comprai';
+const PT_WF     = 'pentest.yml';
+const PT_BRANCH = 'main';
+let   ptPollTimer = null;
+
+const PT_RISK_COLORS = {
+  'High':          { bg: 'rgba(239,68,68,.15)',   border: '#ef4444', text: '#ef4444' },
+  'Medium':        { bg: 'rgba(245,158,11,.15)',  border: '#f59e0b', text: '#f59e0b' },
+  'Low':           { bg: 'rgba(59,130,246,.15)',  border: '#3b82f6', text: '#3b82f6' },
+  'Informational': { bg: 'rgba(107,114,128,.15)', border: '#6b7280', text: '#6b7280' },
+};
+
+function loadPentestData() {
+  var empty = document.getElementById('pt-empty');
+  var kpi   = document.getElementById('pt-kpi-row');
+  var meta  = document.getElementById('pt-meta-bar');
+  var fw    = document.getElementById('pt-findings-wrap');
+  var ac    = document.getElementById('pt-allclear');
+  var err   = document.getElementById('pt-error-msg');
+  if (empty) { empty.style.display = ''; empty.innerHTML = '<div style="font-size:32px;margin-bottom:8px">&#8987;</div><div style="font-size:13px">Carregando...</div>'; }
+  if (kpi)  kpi.style.display  = 'none';
+  if (meta) meta.style.display = 'none';
+  if (fw)   fw.style.display   = 'none';
+  if (ac)   ac.style.display   = 'none';
+  if (err)  err.style.display  = 'none';
+
+  fetch('/k6/results/pentest/latest.json?_=' + Date.now())
+    .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+    .then(function(d) { ptRender(d); })
+    .catch(function() {
+      var el = document.getElementById('pt-empty');
+      if (el) el.innerHTML = '<div style="font-size:32px;margin-bottom:8px">&#128274;</div><div style="font-size:13px">Scan ainda nao executado.<br>Clique em <strong>Executar Pentest</strong> para iniciar.</div>';
+    });
+}
+
+function ptRender(d) {
+  var empty = document.getElementById('pt-empty');
+  var kpi   = document.getElementById('pt-kpi-row');
+  var meta  = document.getElementById('pt-meta-bar');
+  var fw    = document.getElementById('pt-findings-wrap');
+  var ac    = document.getElementById('pt-allclear');
+  var err   = document.getElementById('pt-error-msg');
+
+  if (empty) empty.style.display = 'none';
+  if (kpi)   kpi.style.display   = '';
+
+  // Score badge
+  var score = document.getElementById('pt-score');
+  if (score) {
+    var sMap = {
+      'vulnerable': { label: '&#128308; Vulneravel',  bg: 'rgba(239,68,68,.2)',   color: '#ef4444' },
+      'attention':  { label: '&#128993; Atencao',     bg: 'rgba(245,158,11,.2)',  color: '#f59e0b' },
+      'approved':   { label: '&#128994; Aprovado',    bg: 'rgba(34,197,94,.2)',   color: '#22c55e' },
+      'error':      { label: '&#9888; Erro',          bg: 'rgba(107,114,128,.2)', color: '#6b7280' },
+    };
+    var s = sMap[d.status] || sMap['error'];
+    score.innerHTML = s.label;
+    score.style.cssText = 'background:' + s.bg + ';color:' + s.color + ';font-size:11px;font-weight:700;padding:3px 10px;border-radius:4px;letter-spacing:.04em';
+  }
+
+  // KPIs
+  var sum = d.summary || {};
+  ['high','medium','low','informational','total'].forEach(function(k) {
+    var el = document.getElementById('pt-num-' + k);
+    if (el) el.textContent = (sum[k] !== undefined ? sum[k] : '-');
+  });
+
+  // Meta bar
+  if (meta) {
+    meta.style.display = 'flex';
+    var tgt = document.getElementById('pt-target');
+    var ts  = document.getElementById('pt-timestamp');
+    var rl  = document.getElementById('pt-run-link');
+    if (tgt && d.target)    tgt.textContent = '&#127919; ' + d.target;
+    if (ts  && d.generated) ts.textContent  = '&#128197; ' + new Date(d.generated).toLocaleString('pt-BR');
+    if (rl  && d.run_id)    { rl.href = 'https://github.com/' + PT_REPO + '/actions/runs/' + d.run_id; rl.style.display = ''; }
+  }
+
+  // Error
+  if (err) {
+    if (d.error) { err.style.display = ''; err.textContent = '&#9888; ' + d.error; }
+    else err.style.display = 'none';
+  }
+
+  // Findings
+  var findings = d.findings || [];
+  if (findings.length > 0) {
+    if (fw) fw.style.display = '';
+    if (ac) ac.style.display = 'none';
+    var list = document.getElementById('pt-findings-list');
+    if (list) {
+      list.innerHTML = '';
+      findings.forEach(function(f, idx) {
+        var rc = PT_RISK_COLORS[f.risk] || PT_RISK_COLORS['Informational'];
+        var owasp = f.owasp && f.owasp !== 'N/A'
+          ? '<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:3px;background:rgba(99,102,241,.2);color:#818cf8;margin-left:6px">' + f.owasp + '</span>' : '';
+        var cwe = f.cwe
+          ? '<span style="font-size:10px;color:var(--muted);margin-left:4px">CWE-' + f.cwe + '</span>' : '';
+        var inst_html = '';
+        if (f.instances && f.instances.length) {
+          inst_html = '<div style="margin-top:8px"><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Instancias</div>';
+          f.instances.forEach(function(i) {
+            inst_html += '<div style="font-size:11px;background:var(--surface2);border-radius:4px;padding:6px 8px;margin-bottom:4px">'
+              + '<span style="color:#818cf8;font-weight:700">' + (i.method||'') + '</span> '
+              + '<span style="color:var(--text);word-break:break-all">' + i.url + '</span>';
+            if (i.param) inst_html += '<br><span style="color:var(--muted)">Param: ' + i.param + '</span>';
+            if (i.evidence) inst_html += '<br><code style="font-size:10px;color:#f59e0b">' + i.evidence.substring(0,120) + '</code>';
+            inst_html += '</div>';
+          });
+          inst_html += '</div>';
+        }
+        var row = document.createElement('div');
+        row.style.cssText = 'border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden';
+        row.innerHTML =
+          '<div onclick="ptToggle(this,' + idx + ')" style="display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;background:var(--surface2)">'
+            + '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:3px;background:' + rc.bg + ';color:' + rc.text + ';border:1px solid ' + rc.border + ';min-width:74px;text-align:center">' + f.risk + '</span>'
+            + '<span style="flex:1;font-size:13px;font-weight:600;color:var(--text)">' + f.name + owasp + cwe + '</span>'
+            + '<span style="font-size:11px;color:var(--muted);white-space:nowrap">' + f.count + ' inst.</span>'
+            + '<span id="pt-chev-' + idx + '" style="color:var(--muted);transition:transform .2s;margin-left:4px">&#9660;</span>'
+          + '</div>'
+          + '<div id="pt-detail-' + idx + '" style="display:none;padding:12px 14px;border-top:1px solid var(--border)">'
+            + (f.description ? '<div style="font-size:12px;color:var(--text);margin-bottom:8px"><strong style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em">Descricao</strong>' + f.description + '</div>' : '')
+            + (f.solution    ? '<div style="font-size:12px;color:var(--text);margin-bottom:8px"><strong style="font-size:11px;color:#22c55e;display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em">Solucao</strong>' + f.solution + '</div>' : '')
+            + inst_html
+            + (f.reference ? '<div style="margin-top:8px;font-size:11px;color:var(--muted)"><strong>Ref:</strong> ' + f.reference.substring(0,200) + '</div>' : '')
+          + '</div>';
+        list.appendChild(row);
+      });
+    }
+  } else if (!d.error) {
+    if (fw) fw.style.display = 'none';
+    if (ac) ac.style.display = '';
+  }
+}
+
+function ptToggle(el, idx) {
+  var detail = document.getElementById('pt-detail-' + idx);
+  var chev   = document.getElementById('pt-chev-' + idx);
+  if (!detail) return;
+  var open = detail.style.display !== 'none';
+  detail.style.display = open ? 'none' : '';
+  if (chev) chev.style.transform = open ? '' : 'rotate(180deg)';
+}
+
+async function pentestRunScan() {
+  var btn = document.getElementById('pt-run-btn');
+  var sc  = document.getElementById('pt-score');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span> Executando...'; }
+  if (sc)  { sc.innerHTML = '&#8987; Iniciando...'; sc.style.cssText = 'background:rgba(107,114,128,.2);color:#6b7280;font-size:11px;font-weight:700;padding:3px 10px;border-radius:4px'; }
+  try {
+    var res = await fetch('/api/github/dispatch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ repo: PT_REPO, workflow: PT_WF, ref: PT_BRANCH })
+    });
+    if (!res.ok) {
+      var er = await res.json().catch(function(){ return {}; });
+      throw new Error(er.detail || er.title || 'Dispatch falhou: ' + res.status);
+    }
+    if (sc) { sc.innerHTML = '&#8987; Aguardando...'; }
+    ptPollResult(0);
+  } catch(e) {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<span>&#9654;</span> Executar Pentest'; }
+    if (sc)  { sc.innerHTML = '&#10060; ' + e.message; sc.style.cssText = 'background:rgba(239,68,68,.15);color:#ef4444;font-size:11px;font-weight:700;padding:3px 10px;border-radius:4px'; }
+    console.warn('pentestRunScan:', e);
+  }
+}
+
+function ptPollResult(attempt) {
+  clearTimeout(ptPollTimer);
+  if (attempt > 18) {
+    var btn = document.getElementById('pt-run-btn');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<span>&#9654;</span> Executar Pentest'; }
+    return;
+  }
+  ptPollTimer = setTimeout(function() {
+    fetch('/k6/results/pentest/latest.json?t=' + Date.now())
+      .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function(d) {
+        ptRender(d);
+        var btn = document.getElementById('pt-run-btn');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<span>&#9654;</span> Executar Pentest'; }
+      })
+      .catch(function() { ptPollResult(attempt + 1); });
+  }, 15000);
+}
+
 
 // ── Dep Scan: disparar workflow ───────────────────────────────
 const DEP_REPO   = 'josehelioaraujo/comprai';
@@ -6520,6 +6710,9 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <div class="nav-item" id="nav-dep" onclick="showSection('depBlock', this)" title="Dependency Scanner — Vulnerabilidades NuGet">
           <span class="nav-icon">&#128274;</span><span class="nav-text">Dependency Scanner</span>
         </div>
+        <div class="nav-item" id="nav-pentest" onclick="showSection('pentestBlock', this)" title="Pentest — OWASP ZAP">
+          <span class="nav-icon">&#128269;</span><span class="nav-text">Pentest OWASP ZAP</span>
+        </div>
       </div>
     </div>
     <div class="nav-group" id="group-k6">
@@ -8332,6 +8525,95 @@ tr:hover td { background: rgba(255,255,255,.02); }
         </div>
       </div>
     </div>
+
+    <!-- ── Pentest OWASP ZAP ─────────────────────────────────────────── -->
+    <div class="section-block" id="pentestBlock" style="display:none">
+      <div class="section-header" style="display:flex;align-items:center;gap:8px" onclick="toggleSection(this)">
+        <span class="section-title-text" style="flex:1">&#128269; Pentest &#8212; OWASP ZAP
+          <span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative">
+            <span class="info-hint-btn">i</span>
+            <span class="info-hint-box" style="position:fixed;width:320px;z-index:9999;line-height:1.7">
+              <strong style="color:var(--text);display:block;margin-bottom:6px">O que e DAST?</strong>
+              Dynamic Application Security Testing testa a aplicacao em runtime, encontrando vulnerabilidades que analise estatica nao detecta: headers inseguros, endpoints expostos e falhas de configuracao.
+              <hr style="border:none;border-top:1px solid rgba(255,255,255,.1);margin:8px 0">
+              <strong style="color:var(--text);display:block;margin-bottom:4px">OWASP ZAP API Scan</strong>
+              <span style="color:#22c55e">&#9658;</span> Escaneia todos os endpoints do Swagger automaticamente<br>
+              <span style="color:#f59e0b">&#9658;</span> Mapeia findings ao OWASP Top 10 2021 via CWE<br>
+              <span style="color:#3b82f6">&#9658;</span> Baseline scan: zero side-effects em producao<br>
+              <hr style="border:none;border-top:1px solid rgba(255,255,255,.1);margin:8px 0">
+              <code style="font-size:10px;color:#94a3b8">zaproxy/action-api-scan@v0.9.0</code>
+            </span>
+          </span>
+        </span>
+        <span class="section-count" id="pt-score"></span>
+        <button id="pt-run-btn" onclick="event.stopPropagation();pentestRunScan()" class="it-run-btn" style="font-size:11px;padding:4px 10px;margin-right:6px">
+          <span>&#9654;</span> Executar Pentest
+        </button>
+        <span class="section-chevron">&#9660;</span>
+      </div>
+      <div class="section-content">
+        <div style="padding:16px">
+
+          <!-- KPI cards -->
+          <div id="pt-kpi-row" style="display:none;margin-bottom:16px">
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px">
+              <div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:12px;text-align:center">
+                <div id="pt-num-high" style="font-size:24px;font-weight:700;color:#ef4444">-</div>
+                <div style="font-size:11px;color:var(--muted);margin-top:2px">High</div>
+              </div>
+              <div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:12px;text-align:center">
+                <div id="pt-num-medium" style="font-size:24px;font-weight:700;color:#f59e0b">-</div>
+                <div style="font-size:11px;color:var(--muted);margin-top:2px">Medium</div>
+              </div>
+              <div style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);border-radius:8px;padding:12px;text-align:center">
+                <div id="pt-num-low" style="font-size:24px;font-weight:700;color:#3b82f6">-</div>
+                <div style="font-size:11px;color:var(--muted);margin-top:2px">Low</div>
+              </div>
+              <div style="background:rgba(107,114,128,.1);border:1px solid rgba(107,114,128,.3);border-radius:8px;padding:12px;text-align:center">
+                <div id="pt-num-informational" style="font-size:24px;font-weight:700;color:#6b7280">-</div>
+                <div style="font-size:11px;color:var(--muted);margin-top:2px">Info</div>
+              </div>
+              <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center">
+                <div id="pt-num-total" style="font-size:24px;font-weight:700;color:var(--text)">-</div>
+                <div style="font-size:11px;color:var(--muted);margin-top:2px">Total</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Meta bar -->
+          <div id="pt-meta-bar" style="display:none;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;padding:10px 12px;background:var(--surface2);border-radius:6px;border:1px solid var(--border)">
+            <span id="pt-target" style="font-size:11px;color:var(--muted)"></span>
+            <span id="pt-timestamp" style="font-size:11px;color:var(--muted)"></span>
+            <a id="pt-run-link" href="#" target="_blank" style="display:none;font-size:11px;color:#818cf8">&#128279; Ver run</a>
+            <button onclick="loadPentestData()" style="margin-left:auto;background:none;border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer">&#8635; Atualizar</button>
+          </div>
+
+          <!-- Error msg -->
+          <div id="pt-error-msg" style="display:none;padding:10px 12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:6px;font-size:12px;color:#ef4444;margin-bottom:12px"></div>
+
+          <!-- Findings -->
+          <div id="pt-findings-wrap" style="display:none">
+            <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Findings por Risco</div>
+            <div id="pt-findings-list"></div>
+          </div>
+
+          <!-- All clear -->
+          <div id="pt-allclear" style="display:none;text-align:center;padding:32px 0">
+            <div style="font-size:36px;margin-bottom:8px">&#10003;</div>
+            <div style="font-size:14px;font-weight:600;color:#22c55e;margin-bottom:4px">Nenhuma vulnerabilidade encontrada</div>
+            <div style="font-size:12px;color:var(--muted)">A API passou no scan OWASP ZAP sem issues detectados.</div>
+          </div>
+
+          <!-- Empty state -->
+          <div id="pt-empty" style="text-align:center;padding:32px 0;color:var(--muted)">
+            <div style="font-size:32px;margin-bottom:8px">&#128274;</div>
+            <div style="font-size:13px">Scan ainda nao executado.<br>Clique em <strong>Executar Pentest</strong> para iniciar.</div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
 
     <div id="integrationBlock" class="content-section" style="display:none">
 
