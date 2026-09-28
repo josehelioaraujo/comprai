@@ -32,6 +32,8 @@
     <PackageReference Include="Stripe.net" Version="47.*" />
     <!-- Fixar versão segura do transitivo vulnerável -->
     <PackageReference Include="Microsoft.OpenApi" Version="2.11.0" />
+    <!-- New Relic APM -->
+    <PackageReference Include="NewRelic.Agent.Api" Version="10.*" />
   </ItemGroup>
 
   <ItemGroup>
