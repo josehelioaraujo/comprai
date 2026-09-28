@@ -3017,8 +3017,8 @@ function ptRender(d) {
     var tgt = document.getElementById('pt-target');
     var ts  = document.getElementById('pt-timestamp');
     var rl  = document.getElementById('pt-run-link');
-    if (tgt && d.target)    tgt.textContent = '&#127919; ' + d.target;
-    if (ts  && d.generated) ts.textContent  = '&#128197; ' + new Date(d.generated).toLocaleString('pt-BR');
+    if (tgt && d.target)    tgt.innerHTML = '&#127919; ' + d.target;
+    if (ts  && d.generated) ts.innerHTML  = '&#128197; ' + new Date(d.generated).toLocaleString('pt-BR');
     if (rl  && d.run_id)    { rl.href = 'https://github.com/' + PT_REPO + '/actions/runs/' + d.run_id; rl.style.display = ''; }
   }
 
