@@ -25,6 +25,8 @@ services:
       # Em dev local: OTEL_ENDPOINT=http://comprai-jaeger:4319  (Jaeger)
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_ENDPOINT:-http://comprai-otel-collector:4317}
       OTEL_SERVICE_NAME: "comprai-api"
+      DOTNET_SYSTEM_NET_HTTP_SOCKETSHTTPHANDLER_HTTP2UNENCRYPTEDSUPORT: "1"
+      OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY: "in_memory"
       Ollama__BaseUrl: "http://host-gateway:11434"
       MercadoLivre__ClientId: ${ML_CLIENT_ID:-}
       MercadoLivre__ClientSecret: ${ML_CLIENT_SECRET:-}
