@@ -348,15 +348,14 @@ public static class ObservabilityEndpoints
             if (string.IsNullOrEmpty(userKey) || string.IsNullOrEmpty(accountId))
                 return Results.Ok(new { connected = false, error = "NEW_RELIC_USER_KEY ou NEW_RELIC_ACCOUNT_ID nao configurados" });
 
-            var nrql = $"SELECT " +
-                       $"filter(count(*), WHERE duration.ms < 500) / count(*) as apdex, " +
-                       $"percentage(count(*), WHERE otel.status_code = 'ERROR') as errorRate, " +
-                       $"rate(count(*), 1 minute) as throughput, " +
-                       $"percentile(duration.ms, 95) as p95 " +
-                       $"FROM Span WHERE service.name = 'comprai-api' SINCE 5 minutes ago";
+            var nrql = "SELECT " +
+                       "filter(count(*), WHERE duration.ms < 500) / count(*) as apdex, " +
+                       "percentage(count(*), WHERE otel.status_code = 'ERROR') as errorRate, " +
+                       "rate(count(*), 1 minute) as throughput, " +
+                       "percentile(duration.ms, 95) as p95 " +
+                       "FROM Span WHERE service.name = 'comprai-api' SINCE 5 minutes ago";
 
-            var gqlQuery = $$"""{\"query\":\"{ actor { account(id: {{accountId}}) { nrql(query: \\\"{{nrql}}\\\") { results } } } }\"}""";
-
+            var gqlQuery = BuildGql(accountId, nrql);
             try
             {
                 var client = factory.CreateClient("observability");
@@ -619,11 +618,12 @@ public static class ObservabilityEndpoints
         return list;
     }
 
-    // Monta o payload GraphQL escapado corretamente
+    // Monta o payload GraphQL usando variáveis — evita escaping manual da NRQL
     private static string BuildGql(string accountId, string nrql)
     {
-        var escapedNrql = nrql.Replace("\\", "\\\\").Replace("\"", "\\\"");
-        return $"{{\"query\":\"{{ actor {{ account(id: {accountId}) {{ nrql(query: \\\"{escapedNrql}\\\") {{ results }} }} }} }}\"}}";
+        var query = $"query($nrql: Nrql!) {{ actor {{ account(id: {accountId}) {{ nrql(query: $nrql) {{ results }} }} }} }}";
+        return System.Text.Json.JsonSerializer.Serialize(new { query, variables = new { nrql } });
+    }) {{ nrql(query: \\\"{escapedNrql}\\\") {{ results }} }} }} }}\"}}";
     }
 
     // ── Helpers Prometheus ────────────────────────────────────────────────────
