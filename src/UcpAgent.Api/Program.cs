@@ -38,6 +38,8 @@ using UcpAgent.PriceWatcher.Channels;
 using UcpAgent.PriceWatcher.Hubs;
 using UcpAgent.Api.Cache;
 using Resend;
+using UcpAgent.Api.Middleware;
+using UcpAgent.Api.Workers;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddObservabilidade(builder.Configuration);
@@ -185,7 +187,7 @@ if (usarRabbitMq)
     var password = builder.Configuration["RabbitMq:Password"] ?? "guest";
     builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.INotificationPublisher>(
         _ => new UcpAgent.Infrastructure.Messaging.RabbitMqNotificationPublisher(host, user, password));
-    builder.Services.AddHostedService<UcpAgent.Infrastructure.Messaging.EmailNotificationWorker>();
+    builder.Services.AddHostedService<UcpAgent.Api.Workers.EmailNotificationWorker>();
 }
 else
 {
@@ -304,6 +306,7 @@ app.Use(async (ctx, next) =>
         clientIp,
         ua);
 });
+app.UseMiddleware<IdempotencyMiddleware>();
 app.UseRateLimiter();
 app.UseDefaultFiles();
 app.UseStaticFiles();
