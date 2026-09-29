@@ -541,8 +541,21 @@ jobs:
             docker rm -f comprai-api comprai-redis comprai-mcp comprai-dd-agent comprai-otel-collector || true
             docker compose -f deploy/docker-compose.yml --env-file .env build --no-cache
             docker compose -f deploy/docker-compose.yml --env-file .env --profile datadog --profile kafka --profile rabbitmq up -d --force-recreate
-            sleep 20
-            curl -f http://localhost:${{ env.API_PORT }}/health/live || exit 1
+            # Aguardar API subir — Kafka + RabbitMQ aumentam o tempo de inicialização
+            echo "Aguardando API iniciar..."
+            for i in $(seq 1 12); do
+              sleep 10
+              echo "Tentativa $i/12..."
+              if curl -sf http://localhost:${{ env.API_PORT }}/health/live > /dev/null 2>&1; then
+                echo "✅ API respondendo após $((i*10))s"
+                break
+              fi
+              if [ "$i" -eq 12 ]; then
+                echo "❌ API não respondeu em 120s"
+                docker logs comprai-api --tail 50
+                exit 1
+              fi
+            done
 
   # ── 4b. DEPLOY DASHBOARD ────────────────────────────────────────────────────
   deploy-dashboard:
