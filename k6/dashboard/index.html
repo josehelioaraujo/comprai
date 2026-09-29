@@ -3282,6 +3282,9 @@ function ptExportPDF() {
 
 
 // ── New Relic APM ────────────────────────────────────────────────────────
+var _nrData = null; // cache dos dados NR para uso no drill-down
+var _nrDrillActive = null; // qual card está expandido
+
 function loadNewRelicData() {
   var empty = document.getElementById('nr-empty');
   var kpi   = document.getElementById('nr-kpi-row');
@@ -3290,10 +3293,12 @@ function loadNewRelicData() {
   if (empty)  { empty.style.display = ''; empty.innerHTML = '<div style="font-size:32px;margin-bottom:8px">&#8987;</div><div style="font-size:13px">Carregando...</div>'; }
   if (kpi)    kpi.style.display   = 'none';
   if (errEl)  errEl.style.display = 'none';
+  nrCloseDrill();
 
   fetch('/api/observability/newrelic?_=' + Date.now())
     .then(function(r) { return r.json(); })
     .then(function(d) {
+      _nrData = d;
       if (empty) empty.style.display = 'none';
       if (!d.connected) {
         if (badge) { badge.innerHTML = '&#128308; Desconectado'; badge.style.cssText = 'background:rgba(239,68,68,.2);color:#ef4444;font-size:11px;font-weight:700;padding:3px 10px;border-radius:4px'; }
@@ -3318,6 +3323,162 @@ function loadNewRelicData() {
       if (badge) { badge.innerHTML = '&#128308; Erro'; badge.style.cssText = 'background:rgba(239,68,68,.2);color:#ef4444;font-size:11px;font-weight:700;padding:3px 10px;border-radius:4px'; }
       if (errEl) { errEl.style.display = ''; errEl.textContent = 'Erro: ' + e.message; }
     });
+}
+
+function nrCloseDrill() {
+  _nrDrillActive = null;
+  var p = document.getElementById('nr-drill-panel');
+  if (p) p.style.display = 'none';
+}
+
+function nrToggleDrill(type) {
+  if (_nrDrillActive === type) { nrCloseDrill(); return; }
+  _nrDrillActive = type;
+  var panel = document.getElementById('nr-drill-panel');
+  var title = document.getElementById('nr-drill-title');
+  var link  = document.getElementById('nr-drill-link');
+  var body  = document.getElementById('nr-drill-body');
+  if (!panel) return;
+  panel.style.display = '';
+  body.innerHTML = '<div style="text-align:center;color:var(--muted);padding:24px">&#8987; Carregando...</div>';
+
+  var linkMap = {
+    apdex:      'https://one.newrelic.com/apm?account=8559442',
+    error:      'https://one.newrelic.com/errors-inbox?account=8559442',
+    throughput: 'https://one.newrelic.com/apm?account=8559442',
+    p95:        'https://one.newrelic.com/distributed-tracing?account=8559442'
+  };
+  var titleMap = {
+    apdex:      '&#128270; Apdex — Satisfação do Usuário',
+    error:      '&#10060; Error % — Ocorrências de Erro',
+    throughput: '&#128200; Req/min — Throughput',
+    p95:        '&#9201; p95 — Latência (últimas 2h)'
+  };
+  if (title) title.innerHTML = titleMap[type] || 'Detalhes';
+  if (link)  link.href = linkMap[type] || '#';
+
+  // Scroll suave até o painel
+  setTimeout(function() { panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 100);
+
+  // Buscar dados de drill-down via proxy NerdGraph
+  fetch('/api/observability/newrelic/drill?type=' + type + '&_=' + Date.now())
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (_nrDrillActive !== type) return; // usuário trocou de card
+      nrRenderDrill(type, d);
+    })
+    .catch(function(e) {
+      if (_nrDrillActive !== type) return;
+      // Fallback: renderizar com dados em cache (_nrData) se o endpoint não existir ainda
+      nrRenderDrillFallback(type);
+    });
+}
+
+function nrRenderDrill(type, d) {
+  var body = document.getElementById('nr-drill-body');
+  if (!body) return;
+
+  if (type === 'apdex') {
+    // Linha do tempo Apdex + breakdown
+    var html = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">';
+    html += nrMini('Satisfeitos',  d.satisfied  || '—', '#22c55e', 'Requests < 500ms (T)');
+    html += nrMini('Tolerados',    d.tolerated  || '—', '#f59e0b', 'Requests 500ms–2s (4T)');
+    html += nrMini('Frustrados',   d.frustrated || '—', '#ef4444', 'Requests > 2s ou erro');
+    html += '</div>';
+    html += nrTimeline(d.timeline || [], 'Apdex', '#818cf8', 0, 1);
+    body.innerHTML = html;
+  }
+  else if (type === 'error') {
+    // Lista últimos erros
+    var errs = d.errors || [];
+    if (!errs.length) {
+      body.innerHTML = '<div style="text-align:center;color:#22c55e;padding:20px;font-size:13px">&#10004; Nenhum erro nas últimas 2h</div>';
+      return;
+    }
+    var html = '<div style="font-size:11px;color:var(--muted);margin-bottom:8px">' + errs.length + ' ocorrência(s) nas últimas 2h</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:6px">';
+    errs.forEach(function(e) {
+      html += '<div style="background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.2);border-radius:6px;padding:8px 10px">';
+      html += '<div style="font-size:12px;color:#ef4444;font-weight:600;margin-bottom:2px">' + nrEsc(e.name || e.message || 'Erro desconhecido') + '</div>';
+      html += '<div style="font-size:11px;color:var(--muted)">' + nrEsc(e.timestamp || '') + (e.count ? ' &nbsp;·&nbsp; ' + e.count + 'x' : '') + '</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+    body.innerHTML = html;
+  }
+  else if (type === 'throughput') {
+    var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">';
+    html += nrMini('Pico',  (d.peak || '—') + ' rpm', '#22c55e', 'Máximo nas últimas 2h');
+    html += nrMini('Média', (d.avg  || '—') + ' rpm', '#818cf8', 'Média nas últimas 2h');
+    html += '</div>';
+    html += nrTimeline(d.timeline || [], 'Req/min', '#22c55e', 0, null);
+    body.innerHTML = html;
+  }
+  else if (type === 'p95') {
+    var html = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">';
+    html += nrMini('p50',  (d.p50 || '—') + 'ms', '#22c55e', 'Mediana');
+    html += nrMini('p75',  (d.p75 || '—') + 'ms', '#818cf8', '75% abaixo');
+    html += nrMini('p95',  (d.p95 || '—') + 'ms', '#f59e0b', '95% abaixo');
+    html += nrMini('p99',  (d.p99 || '—') + 'ms', '#ef4444', 'Pior 1%');
+    html += '</div>';
+    html += nrTimeline(d.timeline || [], 'p95 (ms)', '#f59e0b', 0, null);
+    body.innerHTML = html;
+  }
+}
+
+function nrRenderDrillFallback(type) {
+  // Sem endpoint /drill ainda — exibir dados resumidos do cache + aviso
+  var body = document.getElementById('nr-drill-body');
+  if (!body) return;
+  var d = _nrData || {};
+  var msgMap = {
+    apdex:      'Apdex atual: <b style="color:#818cf8">' + (d.apdex||'—') + '</b> &nbsp;·&nbsp; Meta: > 0.94 (Excelente). Valores entre 0.7–0.93 = Razoável. Abaixo de 0.7 = Crítico.',
+    error:      'Taxa de erro atual: <b style="color:#ef4444">' + (d.errorRate||'—') + '%</b> &nbsp;·&nbsp; Meta: < 1%. Clique em "Ver no New Relic" para ver as ocorrências individuais.',
+    throughput: 'Throughput atual: <b style="color:#22c55e">' + (d.throughput||'—') + ' req/min</b> &nbsp;·&nbsp; Comparar com baseline após rodar testes de carga.',
+    p95:        'Latência p95 atual: <b style="color:#f59e0b">' + (d.p95||'—') + 'ms</b> &nbsp;·&nbsp; Meta: < 500ms. Valores altos indicam slow queries ou sobrecarga de rede.'
+  };
+  var colorMap = { apdex:'#818cf8', error:'#ef4444', throughput:'#22c55e', p95:'#f59e0b' };
+  body.innerHTML = '<div style="padding:10px 0">' +
+    '<div style="font-size:13px;color:var(--text);line-height:1.6">' + (msgMap[type]||'') + '</div>' +
+    '<div style="margin-top:12px;padding:10px 12px;background:rgba(129,140,248,.07);border:1px solid rgba(129,140,248,.2);border-radius:6px;font-size:11px;color:var(--muted)">' +
+    '&#128204; Para gráficos de série temporal, adicione o endpoint <code style="color:#818cf8">/api/observability/newrelic/drill</code> ao proxy NerdGraph.' +
+    '</div></div>';
+}
+
+function nrMini(label, value, color, hint) {
+  return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center" title="' + nrEsc(hint) + '">' +
+    '<div style="font-size:20px;font-weight:700;color:' + color + '">' + value + '</div>' +
+    '<div style="font-size:11px;color:var(--muted);margin-top:2px">' + label + '</div>' +
+    '</div>';
+}
+
+function nrTimeline(data, label, color, yMin, yMax) {
+  if (!data || !data.length) {
+    return '<div style="text-align:center;color:var(--muted);font-size:12px;padding:16px">Sem dados de série temporal disponíveis</div>';
+  }
+  // SVG sparkline simples
+  var W = 580, H = 80, pad = 10;
+  var vals = data.map(function(p) { return p.value || 0; });
+  var max = yMax !== null ? yMax : Math.max.apply(null, vals) * 1.1 || 1;
+  var min = yMin !== null ? yMin : Math.min.apply(null, vals) * 0.9;
+  var xStep = (W - pad*2) / Math.max(vals.length - 1, 1);
+  var pts = vals.map(function(v, i) {
+    var x = pad + i * xStep;
+    var y = H - pad - ((v - min) / (max - min || 1)) * (H - pad*2);
+    return x.toFixed(1) + ',' + y.toFixed(1);
+  }).join(' ');
+  var lastVal = vals[vals.length - 1];
+  var lastPt = (pad + (vals.length-1)*xStep).toFixed(1) + ',' + (H - pad - ((lastVal-min)/(max-min||1))*(H-pad*2)).toFixed(1);
+  var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:' + H + 'px;display:block">' +
+    '<polyline points="' + pts + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linejoin="round"/>' +
+    '<circle cx="' + lastPt.split(',')[0] + '" cy="' + lastPt.split(',')[1] + '" r="3" fill="' + color + '"/>' +
+    '<text x="' + (W-pad) + '" y="' + (H-2) + '" font-size="10" fill="var(--muted)" text-anchor="end">' + label + '</text>' +
+    '</svg>';
+  return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px;margin-top:4px">' + svg + '</div>';
+}
+
+function nrEsc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 
@@ -9170,24 +9331,45 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
       <div class="section-content">
         <div style="padding:16px">
-          <!-- KPI cards -->
+          <!-- KPI cards com drill-down -->
           <div id="nr-kpi-row" style="display:none;margin-bottom:16px">
             <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
-              <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center" title="Apdex — satisfacao do usuario. Meta: >0.94">
+              <!-- Apdex -->
+              <div class="nr-kpi-card" onclick="nrToggleDrill('apdex')" title="Clique para detalhes" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center;cursor:pointer;transition:border-color .2s" onmouseover="this.style.borderColor='#818cf8'" onmouseout="this.style.borderColor='var(--border)'">
                 <div id="nr-apdex" style="font-size:26px;font-weight:700;color:var(--text)">-</div>
                 <div style="font-size:11px;color:var(--muted);margin-top:2px">Apdex &#9432;</div>
+                <div style="font-size:10px;color:var(--muted);margin-top:4px;opacity:.6">&#9660; detalhes</div>
               </div>
-              <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center" title="Taxa de erro — percentual de requests com erro. Meta: <1%">
+              <!-- Error % -->
+              <div class="nr-kpi-card" onclick="nrToggleDrill('error')" title="Clique para detalhes" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center;cursor:pointer;transition:border-color .2s" onmouseover="this.style.borderColor='#ef4444'" onmouseout="this.style.borderColor='var(--border)'">
                 <div id="nr-error-rate" style="font-size:26px;font-weight:700;color:var(--text)">-</div>
                 <div style="font-size:11px;color:var(--muted);margin-top:2px">Error % &#9432;</div>
+                <div style="font-size:10px;color:var(--muted);margin-top:4px;opacity:.6">&#9660; detalhes</div>
               </div>
-              <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center" title="Throughput — requests por minuto nos ultimos 5 min">
+              <!-- Req/min -->
+              <div class="nr-kpi-card" onclick="nrToggleDrill('throughput')" title="Clique para detalhes" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center;cursor:pointer;transition:border-color .2s" onmouseover="this.style.borderColor='#22c55e'" onmouseout="this.style.borderColor='var(--border)'">
                 <div id="nr-throughput" style="font-size:26px;font-weight:700;color:var(--text)">-</div>
                 <div style="font-size:11px;color:var(--muted);margin-top:2px">Req/min &#9432;</div>
+                <div style="font-size:10px;color:var(--muted);margin-top:4px;opacity:.6">&#9660; detalhes</div>
               </div>
-              <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center" title="Latencia p95 — 95% dos requests abaixo deste valor. Meta: <500ms">
+              <!-- p95 -->
+              <div class="nr-kpi-card" onclick="nrToggleDrill('p95')" title="Clique para detalhes" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center;cursor:pointer;transition:border-color .2s" onmouseover="this.style.borderColor='#f59e0b'" onmouseout="this.style.borderColor='var(--border)'">
                 <div id="nr-p95" style="font-size:26px;font-weight:700;color:var(--text)">-</div>
                 <div style="font-size:11px;color:var(--muted);margin-top:2px">p95 ms &#9432;</div>
+                <div style="font-size:10px;color:var(--muted);margin-top:4px;opacity:.6">&#9660; detalhes</div>
+              </div>
+            </div>
+            <!-- Painel drill-down (expansível abaixo dos cards) -->
+            <div id="nr-drill-panel" style="display:none;margin-top:12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--surface2)">
+                <span id="nr-drill-title" style="font-size:13px;font-weight:600;color:var(--text)">Detalhes</span>
+                <div style="display:flex;gap:8px;align-items:center">
+                  <a id="nr-drill-link" href="#" target="_blank" style="font-size:11px;color:#818cf8;text-decoration:none">🔗 Ver no New Relic</a>
+                  <button onclick="nrCloseDrill()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;line-height:1">&#10005;</button>
+                </div>
+              </div>
+              <div id="nr-drill-body" style="padding:14px;min-height:120px">
+                <div style="text-align:center;color:var(--muted);padding:24px">&#8987; Carregando...</div>
               </div>
             </div>
           </div>
