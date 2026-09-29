@@ -1,0 +1,35 @@
+name: NR Debug Query
+on:
+  workflow_dispatch:
+
+jobs:
+  test-nr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test NerdGraph percentile keys
+        env:
+          NR_USER_KEY: ${{ secrets.NEW_RELIC_USER_KEY }}
+          NR_ACCOUNT_ID: ${{ secrets.NEW_RELIC_ACCOUNT_ID }}
+        run: |
+          echo "=== Query 1: percentile com alias FACET ==="
+          curl -s -X POST https://api.newrelic.com/graphql \
+            -H "Content-Type: application/json" \
+            -H "API-Key: $NR_USER_KEY" \
+            -d "{\"query\":\"query(\$nrql: Nrql!) { actor { account(id: $NR_ACCOUNT_ID) { nrql(query: \$nrql) { results } } } }\",\"variables\":{\"nrql\":\"SELECT count(*) as calls, average(duration.ms) as avgMs, percentile(duration.ms, 50) as p50, percentile(duration.ms, 90) as p90, percentile(duration.ms, 99) as p99 FROM Span WHERE service.name = 'comprai-api' SINCE 2 hours ago FACET http.route LIMIT 2\"}}" \
+            | python3 -m json.tool
+
+          echo ""
+          echo "=== Query 2: percentile multi-valor FACET ==="
+          curl -s -X POST https://api.newrelic.com/graphql \
+            -H "Content-Type: application/json" \
+            -H "API-Key: $NR_USER_KEY" \
+            -d "{\"query\":\"query(\$nrql: Nrql!) { actor { account(id: $NR_ACCOUNT_ID) { nrql(query: \$nrql) { results } } } }\",\"variables\":{\"nrql\":\"SELECT count(*) as calls, percentile(duration.ms, 50, 90, 99) FROM Span WHERE service.name = 'comprai-api' SINCE 2 hours ago FACET http.route LIMIT 2\"}}" \
+            | python3 -m json.tool
+
+          echo ""
+          echo "=== Query 3: sem FACET para comparar ==="
+          curl -s -X POST https://api.newrelic.com/graphql \
+            -H "Content-Type: application/json" \
+            -H "API-Key: $NR_USER_KEY" \
+            -d "{\"query\":\"query(\$nrql: Nrql!) { actor { account(id: $NR_ACCOUNT_ID) { nrql(query: \$nrql) { results } } } }\",\"variables\":{\"nrql\":\"SELECT count(*) as calls, percentile(duration.ms, 50) as p50, percentile(duration.ms, 90) as p90, percentile(duration.ms, 99) as p99 FROM Span WHERE service.name = 'comprai-api' AND http.route = '/api/health/status' SINCE 2 hours ago\"}}" \
+            | python3 -m json.tool
