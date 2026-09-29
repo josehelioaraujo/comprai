@@ -161,6 +161,22 @@ else
     builder.Services.AddSingleton<IEventPublisher, NullEventPublisher>();
 }
 
+// ── INotificationPublisher (RabbitMQ → email/push) ─────────────────────────
+if (usarRabbitMq)
+{
+    var host     = builder.Configuration["RabbitMq:Host"]     ?? "localhost";
+    var user     = builder.Configuration["RabbitMq:UserName"] ?? "guest";
+    var password = builder.Configuration["RabbitMq:Password"] ?? "guest";
+    builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.INotificationPublisher>(
+        _ => new UcpAgent.Infrastructure.Messaging.RabbitMqNotificationPublisher(host, user, password));
+    builder.Services.AddHostedService<UcpAgent.Infrastructure.Messaging.FakeEmailNotificationWorker>();
+}
+else
+{
+    builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.INotificationPublisher,
+        UcpAgent.Infrastructure.Messaging.NullNotificationPublisher>();
+}
+
 
 // ââ Payment ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 var paymentProvider = builder.Configuration["Features:PaymentProvider"] ?? "mock";

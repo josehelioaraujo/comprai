@@ -8,7 +8,8 @@ namespace UcpAgent.Infrastructure.Checkout;
 public sealed class RedisCheckoutAdapter(
     ICartPort cart,
     RedisOrderAdapter orders,
-    IEventPublisher events) : ICheckoutPort
+    IEventPublisher events,
+    INotificationPublisher notifications) : ICheckoutPort
 {
     public async Task<CheckoutResultDto> ProcessAsync(
         string sessionId, CustomerDto customer, CancellationToken ct = default)
@@ -18,7 +19,7 @@ public sealed class RedisCheckoutAdapter(
             return new CheckoutResultDto(string.Empty, false, "Carrinho vazio");
 
         var orderId = $"ORDER-{Guid.NewGuid().ToString("N")[..8].ToUpper()}";
-        var total = items.Sum(i => i.Subtotal);
+        var total   = items.Sum(i => i.Subtotal);
 
         var order = new OrderStatusDto(
             orderId, "Pending", total, customer,
@@ -27,9 +28,23 @@ public sealed class RedisCheckoutAdapter(
         await orders.SaveAsync(order);
         await cart.ClearAsync(sessionId, ct);
 
+        // Kafka — evento de domínio (fluxo UCP)
         await events.PublishAsync(
             UcpTopics.OrderCreated,
             new OrderCreatedEvent(orderId, sessionId, total, items.Count, DateTime.UtcNow),
+            ct);
+
+        // RabbitMQ — notificação ao usuário (email)
+        _ = notifications.PublishAsync(
+            NotificationQueues.OrderConfirmation,
+            new OrderConfirmationNotification(
+                orderId,
+                sessionId,
+                customer.Email,
+                customer.Name,
+                total,
+                items.Count,
+                DateTime.UtcNow),
             ct);
 
         return new CheckoutResultDto(orderId, true, null);

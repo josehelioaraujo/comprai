@@ -13,7 +13,7 @@
       Features__UsarMockDados: 'false'
       Features__UsarRedis:     'false'
       Features__UsarKafka:     'true'
-      Features__UsarRabbitMQ:  'false'
+      Features__UsarRabbitMQ:  'true'
       Redis__ConnectionString: redis:6379
       Kafka__BootstrapServers: comprai-kafka:9094
       RabbitMQ__Host:          rabbitmq
