@@ -492,10 +492,22 @@ jobs:
               && sed -i "s|^ConnectionStrings__Redis=.*|ConnectionStrings__Redis=comprai-redis:6379,connectTimeout=2000,syncTimeout=2000,abortConnect=false|" .env \
               || echo "ConnectionStrings__Redis=comprai-redis:6379,connectTimeout=2000,syncTimeout=2000,abortConnect=false" >> .env
 
+            # Feature flags — cenário real (sem mocks, com Redis, Kafka, RabbitMQ)
+            grep -q '^USAR_REDIS=' .env \
+              && sed -i "s|^USAR_REDIS=.*|USAR_REDIS=true|" .env \
+              || echo "USAR_REDIS=true" >> .env
+            grep -q '^USAR_KAFKA=' .env \
+              && sed -i "s|^USAR_KAFKA=.*|USAR_KAFKA=true|" .env \
+              || echo "USAR_KAFKA=true" >> .env
+            grep -q '^USAR_RABBITMQ=' .env \
+              && sed -i "s|^USAR_RABBITMQ=.*|USAR_RABBITMQ=true|" .env \
+              || echo "USAR_RABBITMQ=true" >> .env
+
             # Garantir Redis connection string correta
             grep -q '^ConnectionStrings__Redis=' .env \
               && sed -i "s|^ConnectionStrings__Redis=.*|ConnectionStrings__Redis=comprai-redis:6379,connectTimeout=2000,syncTimeout=2000,abortConnect=false|" .env \
               || echo "ConnectionStrings__Redis=comprai-redis:6379,connectTimeout=2000,syncTimeout=2000,abortConnect=false" >> .env
+
 
             # Garantir OTEL_ENDPOINT aponta para otel-collector (envia para Datadog + New Relic)
             grep -q '^OTEL_ENDPOINT=' .env \
