@@ -400,6 +400,7 @@ public static class ObservabilityEndpoints
         // ── Drill-down — série temporal + breakdown por card ─────────────────
         app.MapGet("/api/observability/newrelic/drill", async (
             string type,
+            string? window,
             IConfiguration config,
             IHttpClientFactory factory,
             CancellationToken ct) =>
@@ -414,19 +415,23 @@ public static class ObservabilityEndpoints
             client.DefaultRequestHeaders.Clear();
             client.DefaultRequestHeaders.Add("API-Key", userKey);
 
+            // Resolver janela de tempo e bucket TIMESERIES
+            var since = WindowToSince(window ?? "2h");
+            var bucket = WindowToBucket(window ?? "2h");
+
             return type switch
             {
-                "apdex"      => await DrillApdex(client, accountId, ct),
-                "error"      => await DrillErrors(client, accountId, ct),
-                "throughput" => await DrillThroughput(client, accountId, ct),
-                "p95"        => await DrillLatency(client, accountId, ct),
+                "apdex"      => await DrillApdex(client, accountId, since, bucket, ct),
+                "error"      => await DrillErrors(client, accountId, since, bucket, ct),
+                "throughput" => await DrillThroughput(client, accountId, since, bucket, ct),
+                "p95"        => await DrillLatency(client, accountId, since, bucket, ct),
                 _            => Results.Ok(new { error = $"tipo '{type}' desconhecido" })
             };
         }).WithTags("Observability").WithName("NrDrill").AllowAnonymous();
     }
 
     // ── Drill: Apdex breakdown + timeline ────────────────────────────────────
-    private static async Task<IResult> DrillApdex(HttpClient client, string accountId, CancellationToken ct)
+    private static async Task<IResult> DrillApdex(HttpClient client, string accountId, string since, string bucket, CancellationToken ct)
     {
         // Breakdown instantâneo
         var nrqlBreakdown =
@@ -434,12 +439,12 @@ public static class ObservabilityEndpoints
             "filter(count(*), WHERE duration.ms < 500) as satisfied, " +
             "filter(count(*), WHERE duration.ms >= 500 AND duration.ms < 2000) as tolerated, " +
             "filter(count(*), WHERE duration.ms >= 2000 OR otel.status_code = 'ERROR') as frustrated " +
-            "FROM Span WHERE service.name = 'comprai-api' SINCE 30 minutes ago";
+            "FROM Span WHERE service.name = 'comprai-api' " + since;
 
         // Série temporal Apdex (1 ponto por minuto, últimas 2h)
         var nrqlTimeline =
             "SELECT filter(count(*), WHERE duration.ms < 500) / count(*) as apdex " +
-            "FROM Span WHERE service.name = 'comprai-api' SINCE 2 hours ago TIMESERIES 1 minute";
+            "FROM Span WHERE service.name = 'comprai-api' " + since + " TIMESERIES " + bucket;
 
         var breakdown = await NrQuery(client, accountId, nrqlBreakdown, ct);
         var timeline  = await NrQueryTimeseries(client, accountId, nrqlTimeline, "apdex", ct);
@@ -458,16 +463,16 @@ public static class ObservabilityEndpoints
     }
 
     // ── Drill: Erros recentes ────────────────────────────────────────────────
-    private static async Task<IResult> DrillErrors(HttpClient client, string accountId, CancellationToken ct)
+    private static async Task<IResult> DrillErrors(HttpClient client, string accountId, string since, string bucket, CancellationToken ct)
     {
         var nrqlErrors =
             "SELECT error.message as name, timestamp, count(*) as count " +
             "FROM Span WHERE service.name = 'comprai-api' AND otel.status_code = 'ERROR' " +
-            "SINCE 2 hours ago FACET error.message LIMIT 10";
+            since + " FACET error.message LIMIT 10";
 
         var nrqlTimeline =
             "SELECT percentage(count(*), WHERE otel.status_code = 'ERROR') as errorRate " +
-            "FROM Span WHERE service.name = 'comprai-api' SINCE 2 hours ago TIMESERIES 1 minute";
+            "FROM Span WHERE service.name = 'comprai-api' " + since + " TIMESERIES " + bucket;
 
         var rawErrors = await NrQueryFacets(client, accountId, nrqlErrors, ct);
         var timeline  = await NrQueryTimeseries(client, accountId, nrqlTimeline, "errorRate", ct);
@@ -476,15 +481,15 @@ public static class ObservabilityEndpoints
     }
 
     // ── Drill: Throughput timeline + pico/média ───────────────────────────────
-    private static async Task<IResult> DrillThroughput(HttpClient client, string accountId, CancellationToken ct)
+    private static async Task<IResult> DrillThroughput(HttpClient client, string accountId, string since, string bucket, CancellationToken ct)
     {
         var nrqlTimeline =
             "SELECT rate(count(*), 1 minute) as rpm " +
-            "FROM Span WHERE service.name = 'comprai-api' SINCE 2 hours ago TIMESERIES 1 minute";
+            "FROM Span WHERE service.name = 'comprai-api' " + since + " TIMESERIES " + bucket;
 
         var nrqlSummary =
             "SELECT max(rate(count(*), 1 minute)) as peak, average(rate(count(*), 1 minute)) as avg " +
-            "FROM Span WHERE service.name = 'comprai-api' SINCE 2 hours ago";
+            "FROM Span WHERE service.name = 'comprai-api' " + since;
 
         var timeline = await NrQueryTimeseries(client, accountId, nrqlTimeline, "rpm", ct);
         var summary  = await NrQuery(client, accountId, nrqlSummary, ct);
@@ -500,15 +505,15 @@ public static class ObservabilityEndpoints
     }
 
     // ── Drill: Latência percentis + timeline p95 ─────────────────────────────
-    private static async Task<IResult> DrillLatency(HttpClient client, string accountId, CancellationToken ct)
+    private static async Task<IResult> DrillLatency(HttpClient client, string accountId, string since, string bucket, CancellationToken ct)
     {
         var nrqlPercentis =
             "SELECT percentile(duration.ms, 50, 75, 95, 99) " +
-            "FROM Span WHERE service.name = 'comprai-api' SINCE 2 hours ago";
+            "FROM Span WHERE service.name = 'comprai-api' " + since;
 
         var nrqlTimeline =
             "SELECT percentile(duration.ms, 95) as p95 " +
-            "FROM Span WHERE service.name = 'comprai-api' SINCE 2 hours ago TIMESERIES 1 minute";
+            "FROM Span WHERE service.name = 'comprai-api' " + since + " TIMESERIES " + bucket;
 
         var percentis = await NrQuery(client, accountId, nrqlPercentis, ct);
         var timeline  = await NrQueryTimeseries(client, accountId, nrqlTimeline, "p95", ct);
@@ -691,6 +696,33 @@ public static class ObservabilityEndpoints
         catch { return ([], []); }
     }
 
+
+    // ── Helpers de janela de tempo NR ────────────────────────────────────────
+    private static string WindowToSince(string window) => window switch
+    {
+        "5m"  => "SINCE 5 minutes ago",
+        "15m" => "SINCE 15 minutes ago",
+        "30m" => "SINCE 30 minutes ago",
+        "1h"  => "SINCE 1 hour ago",
+        "2h"  => "SINCE 2 hours ago",
+        "6h"  => "SINCE 6 hours ago",
+        "12h" => "SINCE 12 hours ago",
+        "24h" => "SINCE 1 day ago",
+        _     => "SINCE 2 hours ago"
+    };
+
+    private static string WindowToBucket(string window) => window switch
+    {
+        "5m"  => "30 seconds",
+        "15m" => "1 minute",
+        "30m" => "1 minute",
+        "1h"  => "2 minutes",
+        "2h"  => "2 minutes",
+        "6h"  => "5 minutes",
+        "12h" => "10 minutes",
+        "24h" => "30 minutes",
+        _     => "2 minutes"
+    };
     private static int RangeToSeconds(string range) => range switch { "15m" => 900, "1h" => 3600, "6h" => 21600, "24h" => 86400, _ => 900 };
     private static int RangeToStep(string range)    => range switch { "15m" => 30,  "1h" => 60,   "6h" => 300,   "24h" => 900,  _ => 30  };
 }

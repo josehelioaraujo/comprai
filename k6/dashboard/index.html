@@ -3379,13 +3379,85 @@ function nrRenderDrill(type, d) {
   if (!body) return;
 
   if (type === 'apdex') {
-    // Linha do tempo Apdex + breakdown
-    var html = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">';
-    html += nrMini('Satisfeitos',  d.satisfied  || '—', '#22c55e', 'Requests < 500ms (T)');
-    html += nrMini('Tolerados',    d.tolerated  || '—', '#f59e0b', 'Requests 500ms–2s (4T)');
-    html += nrMini('Frustrados',   d.frustrated || '—', '#ef4444', 'Requests > 2s ou erro');
+    var sat = d.satisfied  || 0;
+    var tol = d.tolerated  || 0;
+    var fru = d.frustrated || 0;
+    var tot = sat + tol + fru;
+    var score = _nrData ? (_nrData.apdex || 0) : 0;
+    var scoreColor = score >= 0.94 ? '#22c55e' : score >= 0.70 ? '#f59e0b' : '#ef4444';
+    var scoreLabel = score >= 0.94 ? 'Excelente' : score >= 0.85 ? 'Bom' : score >= 0.70 ? 'Razoável' : 'Crítico';
+    // Gauge SVG
+    var gaugePct = Math.min(Math.max(score, 0), 1);
+    var gaugeAngle = -140 + gaugePct * 280; // -140° a +140°
+    var gaugeRad = gaugeAngle * Math.PI / 180;
+    var cx = 80, cy = 72, r = 54;
+    var needleX = (cx + r * 0.78 * Math.sin(gaugeRad)).toFixed(1);
+    var needleY = (cy - r * 0.78 * Math.cos(gaugeRad)).toFixed(1);
+    // Fórmula
+    var formula = tot > 0
+      ? '(' + sat + ' + ' + tol + '×0.5) / ' + tot + ' = <b style="color:' + scoreColor + '">' + score.toFixed(2) + '</b>'
+      : 'Sem dados suficientes';
+    // Barras de proporção
+    var satPct = tot > 0 ? (sat/tot*100).toFixed(1) : 0;
+    var tolPct = tot > 0 ? (tol/tot*100).toFixed(1) : 0;
+    var fruPct = tot > 0 ? (fru/tot*100).toFixed(1) : 0;
+
+    var html = '';
+
+    // Header: gauge + cards lado a lado
+    html += '<div style="display:grid;grid-template-columns:180px 1fr;gap:16px;align-items:start;margin-bottom:16px">';
+
+    // Gauge SVG
+    html += '<div style="text-align:center">';
+    html += '<svg viewBox="0 0 160 100" style="width:160px;height:100px">';
+    // Trilha cinza de fundo
+    html += '<path d="M 18 80 A 62 62 0 1 1 142 80" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="10" stroke-linecap="round"/>';
+    // Zona crítica (vermelho)
+    html += '<path d="M 18 80 A 62 62 0 0 1 42 28" fill="none" stroke="#ef4444" stroke-width="10" stroke-linecap="round" opacity=".5"/>';
+    // Zona razoável (amarelo)
+    html += '<path d="M 42 28 A 62 62 0 0 1 80 15" fill="none" stroke="#f59e0b" stroke-width="10" stroke-linecap="round" opacity=".5"/>';
+    // Zona boa (verde claro)
+    html += '<path d="M 80 15 A 62 62 0 0 1 118 28" fill="none" stroke="#22c55e" stroke-width="10" stroke-linecap="round" opacity=".5"/>';
+    // Zona excelente (verde)
+    html += '<path d="M 118 28 A 62 62 0 0 1 142 80" fill="none" stroke="#22c55e" stroke-width="10" stroke-linecap="round" opacity=".9"/>';
+    // Ponteiro
+    html += '<line x1="' + cx + '" y1="' + cy + '" x2="' + needleX + '" y2="' + needleY + '" stroke="' + scoreColor + '" stroke-width="2.5" stroke-linecap="round"/>';
+    html += '<circle cx="' + cx + '" cy="' + cy + '" r="4" fill="' + scoreColor + '"/>';
+    // Score no centro
+    html += '<text x="' + cx + '" y="' + (cy+18) + '" text-anchor="middle" font-size="18" font-weight="700" fill="' + scoreColor + '">' + score.toFixed(2) + '</text>';
+    html += '<text x="' + cx + '" y="' + (cy+30) + '" text-anchor="middle" font-size="9" fill="rgba(255,255,255,.5)">' + scoreLabel + '</text>';
+    // Labels das zonas
+    html += '<text x="14" y="96" text-anchor="middle" font-size="8" fill="#ef4444">0</text>';
+    html += '<text x="146" y="96" text-anchor="middle" font-size="8" fill="#22c55e">1.0</text>';
+    html += '</svg>';
+    html += '<div style="font-size:10px;color:var(--muted);margin-top:-8px">Apdex Score</div>';
     html += '</div>';
-    html += nrTimeline(d.timeline || [], 'Apdex', '#818cf8', 0, 1);
+
+    // Cards + fórmula
+    html += '<div>';
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">';
+    html += nrMiniApdex('😊 Satisfied',  sat, '#22c55e', '< 500ms (T)', satPct);
+    html += nrMiniApdex('😐 Tolerating', tol, '#f59e0b', '500ms – 2s (4T)', tolPct);
+    html += nrMiniApdex('😠 Frustrated', fru, '#ef4444', '> 2s ou erro', fruPct);
+    html += '</div>';
+    // Barra de proporção
+    if (tot > 0) {
+      html += '<div style="border-radius:4px;overflow:hidden;height:6px;display:flex;margin-bottom:10px">';
+      html += '<div style="width:' + satPct + '%;background:#22c55e" title="Satisfied ' + satPct + '%"></div>';
+      html += '<div style="width:' + tolPct + '%;background:#f59e0b" title="Tolerating ' + tolPct + '%"></div>';
+      html += '<div style="width:' + fruPct + '%;background:#ef4444" title="Frustrated ' + fruPct + '%"></div>';
+      html += '</div>';
+    }
+    // Fórmula
+    html += '<div style="background:rgba(129,140,248,.07);border:1px solid rgba(129,140,248,.15);border-radius:6px;padding:8px 10px;font-size:11px;color:var(--muted)">';
+    html += '📐 <b style="color:var(--text)">Fórmula:</b> ' + formula;
+    html += '<span style="margin-left:12px;font-size:10px;opacity:.7">T=500ms</span>';
+    html += '</div>';
+    html += '</div>';
+    html += '</div>';
+
+    // Timeline com hover
+    html += nrTimelineInteractive(d.timeline || [], 'Apdex', '#818cf8', 0, 1, 'apdex');
     body.innerHTML = html;
   }
   else if (type === 'error') {
@@ -3452,29 +3524,138 @@ function nrMini(label, value, color, hint) {
     '</div>';
 }
 
+// nrTimeline legado — mantido para outros cards
 function nrTimeline(data, label, color, yMin, yMax) {
-  if (!data || !data.length) {
-    return '<div style="text-align:center;color:var(--muted);font-size:12px;padding:16px">Sem dados de série temporal disponíveis</div>';
+  return nrTimelineInteractive(data, label, color, yMin, yMax, 'generic');
+}
+
+// nrMiniApdex — card com % de proporção
+function nrMiniApdex(label, value, color, hint, pct) {
+  return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center" title="' + nrEsc(hint) + '">' +
+    '<div style="font-size:22px;font-weight:700;color:' + color + '">' + value + '</div>' +
+    '<div style="font-size:10px;color:' + color + ';opacity:.8;margin-top:1px">' + pct + '%</div>' +
+    '<div style="font-size:10px;color:var(--muted);margin-top:2px">' + label + '</div>' +
+    '<div style="font-size:9px;color:var(--muted);opacity:.6;margin-top:2px">' + nrEsc(hint) + '</div>' +
+    '</div>';
+}
+
+// Seletor de janela de tempo NR
+var _nrTimeWindow = '2h';
+function nrTimeWindowLabel(w) {
+  return {'5m':'5 min','15m':'15 min','30m':'30 min','1h':'1 hora','2h':'2 horas','6h':'6 horas','12h':'12 horas','24h':'24 horas'}[w] || w;
+}
+function nrChangeWindow(w) {
+  _nrTimeWindow = w;
+  // Destacar botão ativo
+  document.querySelectorAll('.nrw-btn').forEach(function(b) {
+    b.classList.remove('nrw-active');
+    if (b.id === 'nrw-' + w) b.classList.add('nrw-active');
+  });
+  // Recarregar o drill ativo com a nova janela
+  if (_nrDrillActive) {
+    var body = document.getElementById('nr-drill-body');
+    if (body) body.innerHTML = '<div style="text-align:center;color:var(--muted);padding:24px">&#8987; Atualizando...</div>';
+    fetch('/api/observability/newrelic/drill?type=' + _nrDrillActive + '&window=' + w + '&_=' + Date.now())
+      .then(function(r){ return r.json(); })
+      .then(function(d){ nrRenderDrill(_nrDrillActive, d); })
+      .catch(function(){ nrRenderDrillFallback(_nrDrillActive); });
   }
-  // SVG sparkline simples
-  var W = 580, H = 80, pad = 10;
-  var vals = data.map(function(p) { return p.value || 0; });
-  var max = yMax !== null ? yMax : Math.max.apply(null, vals) * 1.1 || 1;
-  var min = yMin !== null ? yMin : Math.min.apply(null, vals) * 0.9;
-  var xStep = (W - pad*2) / Math.max(vals.length - 1, 1);
-  var pts = vals.map(function(v, i) {
-    var x = pad + i * xStep;
-    var y = H - pad - ((v - min) / (max - min || 1)) * (H - pad*2);
-    return x.toFixed(1) + ',' + y.toFixed(1);
-  }).join(' ');
-  var lastVal = vals[vals.length - 1];
-  var lastPt = (pad + (vals.length-1)*xStep).toFixed(1) + ',' + (H - pad - ((lastVal-min)/(max-min||1))*(H-pad*2)).toFixed(1);
-  var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:' + H + 'px;display:block">' +
-    '<polyline points="' + pts + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linejoin="round"/>' +
-    '<circle cx="' + lastPt.split(',')[0] + '" cy="' + lastPt.split(',')[1] + '" r="3" fill="' + color + '"/>' +
-    '<text x="' + (W-pad) + '" y="' + (H-2) + '" font-size="10" fill="var(--muted)" text-anchor="end">' + label + '</text>' +
+}
+
+// Sparkline interativo com tooltip hover e área preenchida
+var _nrTooltipTimer = null;
+function nrTimelineInteractive(data, label, color, yMin, yMax, chartId) {
+  if (!data || !data.length) {
+    return '<div style="text-align:center;color:var(--muted);font-size:12px;padding:16px">Sem dados de série temporal — janela muito curta ou sem tráfego</div>';
+  }
+  var uid = 'nrtl_' + chartId + '_' + Date.now();
+  var W = 560, H = 90, padL = 36, padR = 12, padT = 10, padB = 22;
+  var vals  = data.map(function(p){ return typeof p.value === 'number' ? p.value : 0; });
+  var times = data.map(function(p){ return p.timestamp || ''; });
+  var maxV  = yMax !== null && yMax !== undefined ? yMax : (Math.max.apply(null,vals)||1)*1.08;
+  var minV  = yMin !== null && yMin !== undefined ? yMin : Math.max(0, Math.min.apply(null,vals)*0.92);
+  var rangeV = maxV - minV || 1;
+  var plotW = W - padL - padR;
+  var plotH = H - padT - padB;
+  var xStep = plotW / Math.max(vals.length - 1, 1);
+
+  function px(i) { return (padL + i * xStep).toFixed(1); }
+  function py(v) { return (padT + plotH - ((v - minV) / rangeV) * plotH).toFixed(1); }
+
+  // Polyline points
+  var linePts = vals.map(function(v,i){ return px(i) + ',' + py(v); }).join(' ');
+  // Área fechada
+  var areaPts = px(0) + ',' + (padT+plotH) + ' ' + linePts + ' ' + px(vals.length-1) + ',' + (padT+plotH);
+
+  // Grid Y (3 linhas)
+  var gridLines = '';
+  var gridLabels = '';
+  [0, 0.5, 1].forEach(function(f) {
+    var yv = minV + f * rangeV;
+    var ypos = py(yv);
+    gridLines += '<line x1="' + padL + '" y1="' + ypos + '" x2="' + (W-padR) + '" y2="' + ypos + '" stroke="rgba(255,255,255,.05)" stroke-dasharray="3,4"/>';
+    var lbl = yMax === 1 ? yv.toFixed(2) : Math.round(yv);
+    gridLabels += '<text x="' + (padL-4) + '" y="' + (parseFloat(ypos)+3.5) + '" font-size="8" fill="rgba(255,255,255,.3)" text-anchor="end">' + lbl + '</text>';
+  });
+
+  // Labels X (mostrar ~5 pontos)
+  var xLabels = '';
+  var step = Math.max(1, Math.floor(vals.length / 5));
+  for (var i = 0; i < vals.length; i += step) {
+    xLabels += '<text x="' + px(i) + '" y="' + (H-4) + '" font-size="8" fill="rgba(255,255,255,.3)" text-anchor="middle">' + times[i] + '</text>';
+  }
+
+  // Pontos de hover invisíveis (círculos para cada ponto)
+  var hoverPts = vals.map(function(v,i){
+    return '<circle cx="' + px(i) + '" cy="' + py(v) + '" r="12" fill="transparent" ' +
+      'onmouseenter="nrTip(this,\'' + label + '\',\'' + times[i] + '\',' + v.toFixed(3) + ',\'' + color + '\',\'' + chartId + '\')" ' +
+      'onmouseleave="nrTipHide(\'tt_' + uid + '\')" />';
+  }).join('');
+
+  // Tooltip div (posicionado no SVG)
+  var tooltipDiv = '<div id="tt_' + uid + '" style="display:none;position:absolute;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:11px;color:var(--text);pointer-events:none;z-index:999;box-shadow:0 4px 12px rgba(0,0,0,.4);white-space:nowrap"></div>';
+
+  var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:' + H + 'px;display:block;overflow:visible">' +
+    '<defs><linearGradient id="ng_' + chartId + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="' + color + '" stop-opacity=".25"/><stop offset="100%" stop-color="' + color + '" stop-opacity=".01"/></linearGradient></defs>' +
+    gridLines + gridLabels + xLabels +
+    '<polygon points="' + areaPts + '" fill="url(#ng_' + chartId + ')" />' +
+    '<polyline points="' + linePts + '" fill="none" stroke="' + color + '" stroke-width="1.8" stroke-linejoin="round"/>' +
+    hoverPts +
     '</svg>';
-  return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px;margin-top:4px">' + svg + '</div>';
+
+  return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 8px 4px;margin-top:12px;position:relative">' +
+    '<div style="font-size:10px;color:var(--muted);margin-bottom:4px;padding-left:4px">' + label + ' — últimas ' + nrTimeWindowLabel(_nrTimeWindow) + '</div>' +
+    tooltipDiv + svg + '</div>';
+}
+
+function nrTip(el, label, time, val, color, chartId) {
+  var svgEl = el.closest('svg');
+  if (!svgEl) return;
+  var wrap = svgEl.parentElement;
+  var tt = wrap ? wrap.querySelector('[id^="tt_"]') : null;
+  if (!tt) return;
+  // Formatar valor
+  var fmtVal = (label === 'Apdex') ? val.toFixed(3)
+    : (label.indexOf('ms') > -1 || label.indexOf('p9') > -1) ? Math.round(val) + ' ms'
+    : (label.indexOf('%') > -1 || label.indexOf('error') > -1 || label.indexOf('Rate') > -1) ? val.toFixed(2) + '%'
+    : val.toFixed(1) + ' rpm';
+  // Cor semântica para Apdex
+  var valColor = color;
+  if (label === 'Apdex') valColor = val >= 0.94 ? '#22c55e' : val >= 0.70 ? '#f59e0b' : '#ef4444';
+  tt.innerHTML = '<span style="color:var(--muted);font-size:10px">' + time + '</span><br><span style="color:' + valColor + ';font-weight:700;font-size:13px">' + fmtVal + '</span>';
+  // Posicionar relativo ao elemento
+  var rect = el.getBoundingClientRect();
+  var wrapRect = wrap.getBoundingClientRect();
+  var left = rect.left - wrapRect.left + rect.width/2;
+  var top  = rect.top  - wrapRect.top  - 48;
+  tt.style.left    = Math.max(0, left - 40) + 'px';
+  tt.style.top     = Math.max(0, top) + 'px';
+  tt.style.display = 'block';
+}
+
+function nrTipHide(id) {
+  var tt = document.getElementById(id);
+  if (tt) tt.style.display = 'none';
 }
 
 function nrEsc(s) {
@@ -6214,6 +6395,13 @@ tr:hover td { background: rgba(255,255,255,.02); }
   border: 5px solid transparent; border-top-color: var(--border);
 }
 .kpi-card:hover .kpi-hint { opacity: 1; }
+.nrw-btn {
+  background: none; border: none; color: var(--muted); cursor: pointer;
+  font-size: 10px; font-weight: 600; padding: 3px 7px; border-radius: 4px;
+  transition: background .15s, color .15s;
+}
+.nrw-btn:hover { background: rgba(129,140,248,.15); color: var(--text); }
+.nrw-active { background: rgba(129,140,248,.25) !important; color: #818cf8 !important; }
 /* ── Info hint para headers de secao ── */
 .info-hint-wrap { position: relative; display: inline-flex; align-items: center; margin-left: 8px; }
 .info-hint-btn {
@@ -9361,9 +9549,20 @@ tr:hover td { background: rgba(255,255,255,.02); }
             </div>
             <!-- Painel drill-down (expansível abaixo dos cards) -->
             <div id="nr-drill-panel" style="display:none;margin-top:12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden">
-              <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--surface2)">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--surface2);flex-wrap:wrap;gap:8px">
                 <span id="nr-drill-title" style="font-size:13px;font-weight:600;color:var(--text)">Detalhes</span>
-                <div style="display:flex;gap:8px;align-items:center">
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                  <!-- Seletor de janela de tempo -->
+                  <div style="display:flex;gap:3px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:2px">
+                    <button onclick="nrChangeWindow('5m')"  id="nrw-5m"  class="nrw-btn">5m</button>
+                    <button onclick="nrChangeWindow('15m')" id="nrw-15m" class="nrw-btn">15m</button>
+                    <button onclick="nrChangeWindow('30m')" id="nrw-30m" class="nrw-btn">30m</button>
+                    <button onclick="nrChangeWindow('1h')"  id="nrw-1h"  class="nrw-btn">1h</button>
+                    <button onclick="nrChangeWindow('2h')"  id="nrw-2h"  class="nrw-btn nrw-active">2h</button>
+                    <button onclick="nrChangeWindow('6h')"  id="nrw-6h"  class="nrw-btn">6h</button>
+                    <button onclick="nrChangeWindow('12h')" id="nrw-12h" class="nrw-btn">12h</button>
+                    <button onclick="nrChangeWindow('24h')" id="nrw-24h" class="nrw-btn">24h</button>
+                  </div>
                   <a id="nr-drill-link" href="#" target="_blank" style="font-size:11px;color:#818cf8;text-decoration:none">🔗 Ver no New Relic</a>
                   <button onclick="nrCloseDrill()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;line-height:1">&#10005;</button>
                 </div>
