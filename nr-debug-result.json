@@ -1,0 +1,56 @@
+{
+  "alias_facet": [
+    {
+      "facet": "/api/health/status",
+      "avgMs": 1599.3409999807689,
+      "calls": 104,
+      "http.route": "/api/health/status",
+      "p50": {
+        "50": 1808.0
+      },
+      "p90": {
+        "90": 2848.0
+      },
+      "p99": {
+        "99": 3805.8645500000002
+      }
+    },
+    {
+      "facet": "/api/cart/{sessionId}",
+      "avgMs": 8.16955,
+      "calls": 6,
+      "http.route": "/api/cart/{sessionId}",
+      "p50": {
+        "50": 3.453125
+      },
+      "p90": {
+        "90": 15.3565
+      },
+      "p99": {
+        "99": 15.3565
+      }
+    }
+  ],
+  "multival_facet": [
+    {
+      "facet": "/api/health/status",
+      "calls": 104,
+      "http.route": "/api/health/status",
+      "percentile.duration.ms": {
+        "50": 1808.0,
+        "90": 2848.0,
+        "99": 3805.8645500000002
+      }
+    },
+    {
+      "facet": "/api/cart/{sessionId}",
+      "calls": 6,
+      "http.route": "/api/cart/{sessionId}",
+      "percentile.duration.ms": {
+        "50": 3.453125,
+        "90": 15.3565,
+        "99": 15.3565
+      }
+    }
+  ]
+}
