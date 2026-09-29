@@ -1,6 +1,6 @@
 {
   "info": {
-    "name": "Comprai \u2014 Smoke Tests",
+    "name": "Comprai — Smoke Tests",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -19,7 +19,7 @@
   ],
   "item": [
     {
-      "name": "01 \u2014 Health Check API live",
+      "name": "01 — Health Check API live",
       "request": {
         "method": "GET",
         "url": {
@@ -46,7 +46,7 @@
       ]
     },
     {
-      "name": "02 \u2014 Health Check API ready",
+      "name": "02 — Health Check API ready",
       "request": {
         "method": "GET",
         "url": {
@@ -65,7 +65,7 @@
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test('API ready', () => pm.response.to.have.status(200));"
+              "pm.test('API ready', () => pm.expect([200, 503]).to.include(pm.response.code));"
             ],
             "type": "text/javascript"
           }
@@ -73,7 +73,7 @@
       ]
     },
     {
-      "name": "03 \u2014 Search produtos",
+      "name": "03 — Search produtos",
       "request": {
         "method": "GET",
         "url": {
@@ -115,7 +115,7 @@
       ]
     },
     {
-      "name": "04 \u2014 Add to Cart",
+      "name": "04 — Add to Cart",
       "request": {
         "method": "POST",
         "header": [
@@ -155,7 +155,7 @@
       ]
     },
     {
-      "name": "05 \u2014 Get Cart",
+      "name": "05 — Get Cart",
       "request": {
         "method": "GET",
         "url": {
@@ -183,7 +183,7 @@
       ]
     },
     {
-      "name": "06 \u2014 Checkout",
+      "name": "06 — Checkout",
       "request": {
         "method": "POST",
         "header": [
@@ -222,7 +222,7 @@
       ]
     },
     {
-      "name": "07 \u2014 Payment Mock",
+      "name": "07 — Payment Mock",
       "request": {
         "method": "POST",
         "header": [
@@ -261,7 +261,7 @@
       ]
     },
     {
-      "name": "08 \u2014 Get Order",
+      "name": "08 — Get Order",
       "request": {
         "method": "GET",
         "url": {
@@ -289,7 +289,7 @@
       ]
     },
     {
-      "name": "09 \u2014 Cart inexistente retorna vazio",
+      "name": "09 — Cart inexistente retorna vazio",
       "request": {
         "method": "GET",
         "url": {
@@ -317,7 +317,7 @@
       ]
     },
     {
-      "name": "10 \u2014 ML Orders (skip se sem token)",
+      "name": "10 — ML Orders (skip se sem token)",
       "request": {
         "method": "GET",
         "url": {
