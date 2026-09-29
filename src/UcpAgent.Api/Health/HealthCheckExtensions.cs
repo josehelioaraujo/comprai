@@ -11,6 +11,11 @@ public static class HealthCheckExtensions
         this IServiceCollection services,
         IConfiguration config)
     {
+        // Garante que IConnectionMultiplexer? resolve como null se não registrado
+        // (evita InvalidOperationException nos testes sem Redis)
+        if (!services.Any(s => s.ServiceType == typeof(IConnectionMultiplexer)))
+            services.AddSingleton<IConnectionMultiplexer?>(_ => null);
+
         services.AddHealthChecks()
             .AddCheck<RedisHealthCheck> ("redis",        tags: ["infra"])
             .AddCheck<OllamaHealthCheck>("ollama",       tags: ["ai"])
@@ -21,13 +26,11 @@ public static class HealthCheckExtensions
             .AddCheck("loki",         LokiCheck(),              tags: ["observability"])
             .AddCheck("jaeger",       JaegerCheck(),            tags: ["observability"]);
 
-        // Registra as classes de HC no DI para injeção
-        services.AddSingleton<OllamaHealthCheck>();
-
         return services;
     }
 
     // ── Redis: usa IConnectionMultiplexer singleton — sem nova conexão ───────
+    // IConnectionMultiplexer? (nullable) — retorna Degraded se não configurado
     public class RedisHealthCheck(IConnectionMultiplexer? mux) : IHealthCheck
     {
         public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken ct = default)
