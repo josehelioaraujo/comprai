@@ -11,15 +11,23 @@ public static class HealthCheckExtensions
         this IServiceCollection services,
         IConfiguration config)
     {
-        services.AddHealthChecks()
+        var usarKafka    = config.GetValue<bool>("Features:UsarKafka");
+        var usarRabbitMQ = config.GetValue<bool>("Features:UsarRabbitMQ");
+
+        var hc = services.AddHealthChecks()
             .AddCheck<RedisHealthCheck> ("redis",        tags: ["infra"])
             .AddCheck<OllamaHealthCheck>("ollama",       tags: ["ai"])
-            .AddCheck("rabbitmq",     RabbitMqCheck(config),    tags: ["messaging"])
-            .AddCheck("kafka",        KafkaCheck(config),       tags: ["messaging"])
-            .AddCheck("datadog-otel", DatadogCheck(),           tags: ["observability"])
-            .AddCheck("prometheus",   PrometheusCheck(),        tags: ["observability"])
-            .AddCheck("loki",         LokiCheck(),              tags: ["observability"])
-            .AddCheck("jaeger",       JaegerCheck(),            tags: ["observability"]);
+            .AddCheck("datadog-otel", DatadogCheck(),   tags: ["observability"])
+            .AddCheck("prometheus",   PrometheusCheck(), tags: ["observability"])
+            .AddCheck("loki",         LokiCheck(),       tags: ["observability"])
+            .AddCheck("jaeger",       JaegerCheck(),     tags: ["observability"]);
+
+        // Só checa o broker que está ativo pela feature flag
+        if (usarRabbitMQ)
+            hc.AddCheck("rabbitmq", RabbitMqCheck(config), tags: ["messaging"]);
+
+        if (usarKafka)
+            hc.AddCheck("kafka", KafkaCheck(config), tags: ["messaging"]);
 
         return services;
     }
@@ -87,9 +95,7 @@ public static class HealthCheckExtensions
     private static Func<HealthCheckResult> JaegerCheck() => () =>
         TcpCheck("comprai-jaeger", 16686, "Jaeger");
 
-    // ── TCP check assíncrono com timeout 500ms ────────────────────────────────
-    // Antes: WaitOne(2s) bloqueava thread do pool — 6 checks × 2s = p99 ~2s
-    // Agora: ConnectAsync com CancellationToken 500ms — libera thread imediatamente
+    // ── TCP check com timeout 500ms ───────────────────────────────────────────
     [ExcludeFromCodeCoverage(Justification = "Requer infra de rede em execução")]
     private static HealthCheckResult TcpCheck(string host, int port, string name)
     {
