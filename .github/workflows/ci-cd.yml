@@ -337,10 +337,11 @@ jobs:
           # Validar chave antes do scp
           ssh-keygen -y -f ~/.ssh/id_rsa > /dev/null || { echo "❌ Chave SSH inválida"; exit 1; }
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no root@2.25.122.11 \
-            "mkdir -p /var/www/html/k6/results/sonar"
+            "mkdir -p /var/www/html/k6/results/sonar && echo 'mkdir OK'" || { echo "❌ SSH mkdir falhou"; exit 1; }
           scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
-            sonar-metrics.json root@2.25.122.11:/var/www/html/k6/results/sonar/latest.json
-          echo "SonarCloud metrics publicados"
+            sonar-metrics.json root@2.25.122.11:/var/www/html/k6/results/sonar/latest.json \
+            && echo "✅ SonarCloud metrics publicados" \
+            || { echo "❌ SCP falhou"; exit 1; }
 
       - name: Append history.json — Evolução
         env:
