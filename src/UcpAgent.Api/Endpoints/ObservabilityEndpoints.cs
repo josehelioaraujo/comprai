@@ -481,10 +481,10 @@ public static class ObservabilityEndpoints
 
         var breakdown  = await NrQuery(client, accountId, nrqlBreakdown, ct);
         var timeline   = await NrQueryTimeseries(client, accountId, nrqlTimeline, "apdex", ct);
-        var routesSat  = await NrQueryRouteFacets(client, accountId, nrqlSat,     false, ct);
-        var routesTol  = await NrQueryRouteFacets(client, accountId, nrqlTol,     false, ct);
-        var routesSlow = await NrQueryRouteFacets(client, accountId, nrqlFruSlow, false, ct);
-        var routesErr  = await NrQueryRouteFacets(client, accountId, nrqlFruErr,  true,  ct);
+        var routesSat  = await NrQueryRouteFacets(client, accountId, nrqlSat,     false, since, ct);
+        var routesTol  = await NrQueryRouteFacets(client, accountId, nrqlTol,     false, since, ct);
+        var routesSlow = await NrQueryRouteFacets(client, accountId, nrqlFruSlow, false, since, ct);
+        var routesErr  = await NrQueryRouteFacets(client, accountId, nrqlFruErr,  true,  since, ct);
 
         if (breakdown is null) return Results.Ok(new { error = "sem dados" });
 
@@ -663,7 +663,7 @@ public static class ObservabilityEndpoints
 
     // Query FACET para rotas — retorna lista com percentis e req/s
     private static async Task<List<object>> NrQueryRouteFacets(
-        HttpClient client, string accountId, string nrql, bool isError, CancellationToken ct)
+        HttpClient client, string accountId, string nrql, bool isError, string since, CancellationToken ct)
     {
         var list = new List<object>();
         try
