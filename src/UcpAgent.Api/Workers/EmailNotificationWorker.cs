@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.Json;
 using RabbitMQ.Client;
@@ -8,13 +9,10 @@ using UcpAgent.SharedKernel.Events;
 namespace UcpAgent.Api.Workers;
 
 /// <summary>
-/// Worker que consome filas RabbitMQ e envia emails via Resend.
-/// Quando RESEND_API_KEY não está configurado, loga em modo fake (sem envio real).
-///
-/// Filas consumidas:
-///   notifications.order.confirmation → email "Pedido recebido"
-///   notifications.order.status       → email "Status atualizado"
+/// Consome filas RabbitMQ (v7) e envia emails via Resend.
+/// Sem RESEND_API_KEY opera em modo fake (log only).
 /// </summary>
+[ExcludeFromCodeCoverage]
 public sealed class EmailNotificationWorker : BackgroundService
 {
     private readonly ILogger<EmailNotificationWorker> _logger;
@@ -36,20 +34,19 @@ public sealed class EmailNotificationWorker : BackgroundService
         _hostName  = config["RabbitMq:Host"]     ?? "localhost";
         _userName  = config["RabbitMq:UserName"] ?? "guest";
         _password  = config["RabbitMq:Password"] ?? "guest";
-        _fakeMode  = string.IsNullOrEmpty(config["Resend:ApiKey"]);
+        _fakeMode  = string.IsNullOrEmpty(config["Resend:ApiKey"]
+                     ?? Environment.GetEnvironmentVariable("RESEND_API_KEY"));
 
         if (_fakeMode)
-            _logger.LogWarning("[EmailWorker] RESEND_API_KEY não configurado — modo FAKE ativo (sem envio real)");
+            _logger.LogWarning("[EmailWorker] RESEND_API_KEY não configurado — modo FAKE");
     }
 
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
-        // Aguarda RabbitMQ subir no docker compose
         await Task.Delay(TimeSpan.FromSeconds(5), ct);
 
         IConnection? connection = null;
-        IModel?      channel    = null;
-
+        IChannel?    channel    = null;
         try
         {
             var factory = new ConnectionFactory
@@ -59,38 +56,35 @@ public sealed class EmailNotificationWorker : BackgroundService
                 Password                   = _password,
                 RequestedConnectionTimeout = TimeSpan.FromSeconds(5),
             };
-            connection = factory.CreateConnection();
-            channel    = connection.CreateModel();
+            connection = await factory.CreateConnectionAsync(ct);
+            channel    = await connection.CreateChannelAsync(cancellationToken: ct);
 
             foreach (var queue in new[] { NotificationQueues.OrderConfirmation, NotificationQueues.OrderStatusUpdate })
-                channel.QueueDeclare(queue, durable: true, exclusive: false, autoDelete: false);
+                await channel.QueueDeclareAsync(queue, durable: true, exclusive: false, autoDelete: false, cancellationToken: ct);
 
-            channel.BasicQos(0, prefetchCount: 10, global: false);
+            await channel.BasicQosAsync(0, prefetchCount: 10, global: false, cancellationToken: ct);
 
-            var consumer = new EventingBasicConsumer(channel);
-            consumer.Received += (_, ea) => OnMessage(channel, ea);
+            var consumer = new AsyncEventingBasicConsumer(channel);
+            consumer.ReceivedAsync += (_, ea) => OnMessageAsync(channel, ea, ct);
 
-            channel.BasicConsume(NotificationQueues.OrderConfirmation, autoAck: false, consumer);
-            channel.BasicConsume(NotificationQueues.OrderStatusUpdate,  autoAck: false, consumer);
+            await channel.BasicConsumeAsync(NotificationQueues.OrderConfirmation, autoAck: false, consumer, ct);
+            await channel.BasicConsumeAsync(NotificationQueues.OrderStatusUpdate,  autoAck: false, consumer, ct);
 
             _logger.LogInformation("[EmailWorker] Aguardando mensagens — modo: {Mode}",
                 _fakeMode ? "FAKE" : "Resend");
 
             await Task.Delay(Timeout.Infinite, ct);
         }
-        catch (OperationCanceledException) { /* shutdown normal */ }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "[EmailWorker] Erro ao conectar no RabbitMQ");
-        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { _logger.LogError(ex, "[EmailWorker] Erro RabbitMQ"); }
         finally
         {
-            channel?.Dispose();
-            connection?.Dispose();
+            if (channel is not null) await channel.CloseAsync();
+            if (connection is not null) await connection.CloseAsync();
         }
     }
 
-    private void OnMessage(IModel channel, BasicDeliverEventArgs ea)
+    private async Task OnMessageAsync(IChannel channel, BasicDeliverEventArgs ea, CancellationToken ct)
     {
         try
         {
@@ -100,58 +94,38 @@ public sealed class EmailNotificationWorker : BackgroundService
             if (msgType == nameof(OrderConfirmationNotification))
             {
                 var n = JsonSerializer.Deserialize<OrderConfirmationNotification>(body);
-                if (n is not null) SendOrderConfirmation(n).GetAwaiter().GetResult();
+                if (n is not null) await SendOrderConfirmation(n);
             }
             else if (msgType == nameof(OrderStatusNotification))
             {
                 var n = JsonSerializer.Deserialize<OrderStatusNotification>(body);
-                if (n is not null) SendOrderStatus(n).GetAwaiter().GetResult();
+                if (n is not null) await SendOrderStatus(n);
             }
             else
             {
                 _logger.LogWarning("[EmailWorker] Tipo desconhecido: {Type}", msgType);
             }
 
-            channel.BasicAck(ea.DeliveryTag, multiple: false);
+            await channel.BasicAckAsync(ea.DeliveryTag, multiple: false, cancellationToken: ct);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "[EmailWorker] Erro ao processar mensagem");
-            channel.BasicNack(ea.DeliveryTag, multiple: false, requeue: false);
+            await channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: false, cancellationToken: ct);
         }
     }
 
     private async Task SendOrderConfirmation(OrderConfirmationNotification n)
     {
         var subject = $"✅ Pedido {n.OrderId} confirmado!";
-        var html = $"""
-            <h2>Olá, {n.CustomerName}!</h2>
-            <p>Seu pedido foi recebido com sucesso.</p>
-            <table>
-              <tr><td><b>Pedido:</b></td><td>{n.OrderId}</td></tr>
-              <tr><td><b>Itens:</b></td><td>{n.ItemCount}</td></tr>
-              <tr><td><b>Total:</b></td><td>R$ {n.Total:F2}</td></tr>
-              <tr><td><b>Data:</b></td><td>{n.CreatedAt:dd/MM/yyyy HH:mm}</td></tr>
-            </table>
-            <p>Acompanhe o status do seu pedido pelo Comprai.</p>
-            """;
-
+        var html = $"<h2>Olá, {n.CustomerName}!</h2><p>Pedido: <b>{n.OrderId}</b> | Total: R$ {n.Total:F2} | Itens: {n.ItemCount}</p>";
         await SendEmail(n.CustomerEmail, subject, html);
     }
 
     private async Task SendOrderStatus(OrderStatusNotification n)
     {
-        var subject = $"📦 Pedido {n.OrderId} atualizado: {n.NewStatus}";
-        var html = $"""
-            <h2>Atualização do seu pedido</h2>
-            <p>O status do pedido <b>{n.OrderId}</b> foi atualizado.</p>
-            <table>
-              <tr><td><b>Status anterior:</b></td><td>{n.OldStatus}</td></tr>
-              <tr><td><b>Novo status:</b></td><td><b>{n.NewStatus}</b></td></tr>
-              <tr><td><b>Data:</b></td><td>{n.UpdatedAt:dd/MM/yyyy HH:mm}</td></tr>
-            </table>
-            """;
-
+        var subject = $"📦 Pedido {n.OrderId}: {n.NewStatus}";
+        var html = $"<h2>Pedido {n.OrderId}</h2><p>Status: <b>{n.OldStatus}</b> → <b>{n.NewStatus}</b></p>";
         await SendEmail(n.CustomerEmail, subject, html);
     }
 
@@ -159,25 +133,15 @@ public sealed class EmailNotificationWorker : BackgroundService
     {
         if (_fakeMode || _resend is null)
         {
-            _logger.LogInformation("[FAKE EMAIL] Para: {To} | Assunto: {Subject}", to, subject);
+            _logger.LogInformation("[FAKE EMAIL] Para: {To} | {Subject}", to, subject);
             return;
         }
-
         try
         {
-            var message = new EmailMessage
-            {
-                From        = _fromEmail,
-                Subject     = subject,
-                HtmlBody    = html,
-            };
-            message.To.Add(to);
-            await _resend.EmailSendAsync(message);
-            _logger.LogInformation("[EmailWorker] Email enviado via Resend para {To}", to);
+            var msg = new EmailMessage { From = _fromEmail, Subject = subject, HtmlBody = html };
+            msg.To.Add(to);
+            await _resend.EmailSendAsync(msg);
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "[EmailWorker] Falha ao enviar email via Resend para {To}", to);
-        }
+        catch (Exception ex) { _logger.LogError(ex, "[EmailWorker] Falha Resend para {To}", to); }
     }
 }

@@ -5,14 +5,10 @@ using UcpAgent.SharedKernel.Ports;
 
 namespace UcpAgent.Infrastructure.Messaging;
 
-/// <summary>
-/// Publica notificações ao usuário via RabbitMQ (filas diretas, durable).
-/// Separado do KafkaEventPublisher — cada broker tem sua responsabilidade.
-/// </summary>
-public sealed class RabbitMqNotificationPublisher : INotificationPublisher, IDisposable
+public sealed class RabbitMqNotificationPublisher : INotificationPublisher, IAsyncDisposable
 {
     private readonly IConnection _connection;
-    private readonly IModel _channel;
+    private readonly IChannel    _channel;
 
     public RabbitMqNotificationPublisher(string hostName, string userName = "guest", string password = "guest")
     {
@@ -23,27 +19,29 @@ public sealed class RabbitMqNotificationPublisher : INotificationPublisher, IDis
             Password = password,
             RequestedConnectionTimeout = TimeSpan.FromSeconds(5),
         };
-        _connection = factory.CreateConnection();
-        _channel    = _connection.CreateModel();
+        _connection = factory.CreateConnectionAsync().GetAwaiter().GetResult();
+        _channel    = _connection.CreateChannelAsync().GetAwaiter().GetResult();
     }
 
-    public Task PublishAsync<T>(string queue, T notification, CancellationToken ct = default) where T : class
+    public async Task PublishAsync<T>(string queue, T notification, CancellationToken ct = default) where T : class
     {
-        // Fila durable — sobrevive a restart do RabbitMQ
-        _channel.QueueDeclare(queue, durable: true, exclusive: false, autoDelete: false);
+        await _channel.QueueDeclareAsync(queue, durable: true, exclusive: false, autoDelete: false, cancellationToken: ct);
         var body  = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(notification));
-        var props = _channel.CreateBasicProperties();
-        props.Persistent    = true;
-        props.ContentType   = "application/json";
-        props.Type          = typeof(T).Name;
-        props.Timestamp     = new AmqpTimestamp(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-        _channel.BasicPublish("", queue, props, body);
-        return Task.CompletedTask;
+        var props = new BasicProperties
+        {
+            Persistent  = true,
+            ContentType = "application/json",
+            Type        = typeof(T).Name,
+            Timestamp   = new AmqpTimestamp(DateTimeOffset.UtcNow.ToUnixTimeSeconds()),
+        };
+        await _channel.BasicPublishAsync("", queue, mandatory: false, basicProperties: props, body: body, cancellationToken: ct);
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        _channel?.Dispose();
-        _connection?.Dispose();
+        await _channel.CloseAsync();
+        await _connection.CloseAsync();
     }
+
+    public void Dispose() => DisposeAsync().GetAwaiter().GetResult();
 }
