@@ -37,10 +37,26 @@ using UcpAgent.PriceWatcher;
 using UcpAgent.PriceWatcher.Channels;
 using UcpAgent.PriceWatcher.Hubs;
 using UcpAgent.Api.Cache;
+using Resend;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddObservabilidade(builder.Configuration);
 builder.Services.AddSingleton<UcpMetrics>();
+
+// ── Resend (email) — modo fake quando RESEND_API_KEY não configurado ─────────
+var resendApiKey = builder.Configuration["Resend:ApiKey"]
+    ?? Environment.GetEnvironmentVariable("RESEND_API_KEY")
+    ?? string.Empty;
+if (!string.IsNullOrEmpty(resendApiKey))
+{
+    builder.Services.AddResend(o => { o.ApiToken = resendApiKey; });
+}
+else
+{
+    // Sem API key — EmailNotificationWorker opera em modo fake (log only)
+    builder.Services.AddSingleton<IResend>(_ =>
+        throw new InvalidOperationException("Resend não configurado"));
+}
 
 // Ã¢ââ¬Ã¢ââ¬ MediatR Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬
 builder.Services.AddMediatR(cfg =>
@@ -169,7 +185,7 @@ if (usarRabbitMq)
     var password = builder.Configuration["RabbitMq:Password"] ?? "guest";
     builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.INotificationPublisher>(
         _ => new UcpAgent.Infrastructure.Messaging.RabbitMqNotificationPublisher(host, user, password));
-    builder.Services.AddHostedService<UcpAgent.Infrastructure.Messaging.FakeEmailNotificationWorker>();
+    builder.Services.AddHostedService<UcpAgent.Infrastructure.Messaging.EmailNotificationWorker>();
 }
 else
 {
