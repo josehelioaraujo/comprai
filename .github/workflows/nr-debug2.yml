@@ -1,0 +1,56 @@
+name: NR Debug Query v2
+on:
+  workflow_dispatch:
+
+jobs:
+  test-nr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test NerdGraph percentile keys
+        env:
+          NR_USER_KEY: ${{ secrets.NEW_RELIC_USER_KEY }}
+          NR_ACCOUNT_ID: ${{ secrets.NEW_RELIC_ACCOUNT_ID }}
+        run: |
+          python3 << 'EOF'
+          import json, urllib.request, os
+
+          key = os.environ['NR_USER_KEY']
+          account_id = os.environ['NR_ACCOUNT_ID']
+
+          def nrql(query):
+              payload = json.dumps({
+                  "query": "query($nrql: Nrql!) { actor { account(id: " + account_id + ") { nrql(query: $nrql) { results } } } }",
+                  "variables": {"nrql": query}
+              }).encode()
+              req = urllib.request.Request("https://api.newrelic.com/graphql",
+                  data=payload,
+                  headers={"Content-Type": "application/json", "API-Key": key},
+                  method="POST")
+              with urllib.request.urlopen(req) as r:
+                  return json.loads(r.read())
+
+          results = {}
+
+          # Query 1: alias explicito com FACET
+          q1 = nrql("SELECT count(*) as calls, average(duration.ms) as avgMs, percentile(duration.ms, 50) as p50, percentile(duration.ms, 90) as p90, percentile(duration.ms, 99) as p99 FROM Span WHERE service.name = 'comprai-api' SINCE 2 hours ago FACET http.route LIMIT 2")
+          results['alias_facet'] = q1.get('data',{}).get('actor',{}).get('account',{}).get('nrql',{}).get('results',[])
+
+          # Query 2: multi-valor com FACET
+          q2 = nrql("SELECT count(*) as calls, percentile(duration.ms, 50, 90, 99) FROM Span WHERE service.name = 'comprai-api' SINCE 2 hours ago FACET http.route LIMIT 2")
+          results['multival_facet'] = q2.get('data',{}).get('actor',{}).get('account',{}).get('nrql',{}).get('results',[])
+
+          with open('nr-debug-result.json', 'w') as f:
+              json.dump(results, f, indent=2)
+          print("Salvo em nr-debug-result.json")
+          print(json.dumps(results, indent=2))
+          EOF
+
+      - name: Commit result
+        run: |
+          git config user.email "debug@nr.com"
+          git config user.name "NR Debug"
+          git add nr-debug-result.json
+          git commit -m "debug: resultado NerdGraph percentile keys" || echo "sem mudanças"
+          git push
