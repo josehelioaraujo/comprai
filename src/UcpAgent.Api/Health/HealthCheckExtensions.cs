@@ -11,11 +11,6 @@ public static class HealthCheckExtensions
         this IServiceCollection services,
         IConfiguration config)
     {
-        // Garante que IConnectionMultiplexer? resolve como null se não registrado
-        // (evita InvalidOperationException nos testes sem Redis)
-        if (!services.Any(s => s.ServiceType == typeof(IConnectionMultiplexer)))
-            services.AddSingleton<IConnectionMultiplexer?>(_ => null);
-
         services.AddHealthChecks()
             .AddCheck<RedisHealthCheck> ("redis",        tags: ["infra"])
             .AddCheck<OllamaHealthCheck>("ollama",       tags: ["ai"])
@@ -29,12 +24,13 @@ public static class HealthCheckExtensions
         return services;
     }
 
-    // ── Redis: usa IConnectionMultiplexer singleton — sem nova conexão ───────
-    // IConnectionMultiplexer? (nullable) — retorna Degraded se não configurado
-    public class RedisHealthCheck(IConnectionMultiplexer? mux) : IHealthCheck
+    // ── Redis: resolve IConnectionMultiplexer via IServiceProvider (opcional) ─
+    // Sem injeção no construtor — evita InvalidOperationException quando não registrado
+    public class RedisHealthCheck(IServiceProvider sp) : IHealthCheck
     {
         public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken ct = default)
         {
+            var mux = sp.GetService<IConnectionMultiplexer>();
             if (mux is null)
                 return Task.FromResult(HealthCheckResult.Degraded("Redis não configurado"));
             return Task.FromResult(mux.IsConnected
