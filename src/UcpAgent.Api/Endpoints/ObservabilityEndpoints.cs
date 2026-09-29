@@ -692,23 +692,15 @@ public static class ObservabilityEndpoints
                         : (facetEl.GetString() ?? "unknown");
                 }
 
-                // Helpers de leitura
+                // Helper numérico simples
                 double G(string k) => row.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.Number
                     ? Math.Round(v.GetDouble(), 2) : 0;
 
-                // NR gera "percentile.duration.ms.50", "percentile.duration.ms.90" etc.
-                // Busca por sufixo numérico exato na chave
-                double Pct(int p) {
-                    var suffix = "." + p;
-                    foreach (var prop in row.EnumerateObject())
-                        if (prop.Name.EndsWith(suffix) && prop.Value.ValueKind == JsonValueKind.Number)
-                            return Math.Round(prop.Value.GetDouble(), 0);
-                    // Fallback: busca parcial
-                    foreach (var prop in row.EnumerateObject())
-                        if (prop.Name.Contains("percentile") && prop.Name.Contains(p.ToString()) && prop.Value.ValueKind == JsonValueKind.Number)
-                            return Math.Round(prop.Value.GetDouble(), 0);
-                    return 0;
-                }
+                // NR gera "percentile.duration.ms.50" — busca por sufixo numérico
+                // Extraído como lambda para evitar local function com corpo dentro de foreach
+                var pct50 = ExtractPct(row, 50);
+                var pct90 = ExtractPct(row, 90);
+                var pct99 = ExtractPct(row, 99);
 
                 var calls  = (long)G("calls");
                 var avgMs  = Math.Round(G("avgMs"), 0);
@@ -722,12 +714,28 @@ public static class ObservabilityEndpoints
                 }
                 else
                 {
-                    list.Add(new { route, calls, rps, avgMs, p50 = Pct(50), p90 = Pct(90), p99 = Pct(99) });
+                    list.Add(new { route, calls, rps, avgMs, p50 = pct50, p90 = pct90, p99 = pct99 });
                 }
             }
         }
         catch { }
         return list;
+    }
+
+    // Extrai valor de percentil do resultado NerdGraph
+    // NR gera chave como "percentile.duration.ms.50" — busca por sufixo ".50"
+    private static double ExtractPct(JsonElement row, int p)
+    {
+        var suffix = "." + p;
+        foreach (var prop in row.EnumerateObject())
+            if (prop.Name.EndsWith(suffix) && prop.Value.ValueKind == JsonValueKind.Number)
+                return Math.Round(prop.Value.GetDouble(), 0);
+        // Fallback: qualquer chave contendo "percentile" e o número
+        var pStr = p.ToString();
+        foreach (var prop in row.EnumerateObject())
+            if (prop.Name.Contains("percentile") && prop.Name.Contains(pStr) && prop.Value.ValueKind == JsonValueKind.Number)
+                return Math.Round(prop.Value.GetDouble(), 0);
+        return 0;
     }
 
     // Monta o payload GraphQL usando variáveis — evita escaping manual da NRQL
