@@ -428,49 +428,6 @@ public static class ObservabilityEndpoints
                 _            => Results.Ok(new { error = $"tipo '{type}' desconhecido" })
             };
         }).WithTags("Observability").WithName("NrDrill").AllowAnonymous();
-
-        // ── Debug: retorna JSON raw do NerdGraph para inspecionar chaves reais ──
-        app.MapGet("/api/observability/newrelic/drill-debug", async (
-            IConfiguration config, IHttpClientFactory factory, CancellationToken ct) =>
-        {
-            var userKey   = config["NewRelic:UserKey"]   ?? Environment.GetEnvironmentVariable("NEW_RELIC_USER_KEY")   ?? "";
-            var accountId = config["NewRelic:AccountId"] ?? Environment.GetEnvironmentVariable("NEW_RELIC_ACCOUNT_ID") ?? "";
-            if (string.IsNullOrEmpty(userKey)) return Results.Ok(new { error = "sem credenciais" });
-
-            var nrql = "SELECT count(*) as calls, average(duration.ms) as avgMs, " +
-                       "percentile(duration.ms, 50) as p50, " +
-                       "percentile(duration.ms, 90) as p90, " +
-                       "percentile(duration.ms, 99) as p99 " +
-                       "FROM Span WHERE service.name = 'comprai-api' AND duration.ms < 500 " +
-                       "SINCE 2 hours ago FACET http.route LIMIT 3";
-
-            var client = factory.CreateClient("observability");
-            client.DefaultRequestHeaders.Clear();
-            client.DefaultRequestHeaders.Add("API-Key", userKey);
-
-            var payload = BuildGql(accountId, nrql);
-            var resp = await client.PostAsync("https://api.newrelic.com/graphql",
-                new StringContent(payload, System.Text.Encoding.UTF8, "application/json"), ct);
-
-            var rawJson = await resp.Content.ReadAsStringAsync(ct);
-            using var doc = JsonDocument.Parse(rawJson);
-
-            // Retornar o primeiro resultado com todas as suas chaves
-            try {
-                var results = doc.RootElement
-                    .GetProperty("data").GetProperty("actor")
-                    .GetProperty("account").GetProperty("nrql")
-                    .GetProperty("results");
-
-                var firstRow = results.EnumerateArray().FirstOrDefault();
-                var keys = new List<object>();
-                foreach (var prop in firstRow.EnumerateObject())
-                    keys.Add(new { key = prop.Name, value = prop.GetRawText(), kind = prop.Value.ValueKind.ToString() });
-
-                return Results.Ok(new { nrql, keys, rawFirst = firstRow.GetRawText() });
-            }
-            catch (Exception ex) { return Results.Ok(new { error = ex.Message, raw = rawJson[..Math.Min(500, rawJson.Length)] }); }
-        }).WithTags("Observability").WithName("NrDrillDebug").AllowAnonymous();
     }
 
     // ── Drill: Apdex breakdown + timeline ────────────────────────────────────
@@ -771,24 +728,37 @@ public static class ObservabilityEndpoints
         return list;
     }
 
-    // Extrai valor de percentil — alias explícito (p50/p90/p99) ou chave gerada pelo NR
+    // Extrai valor de percentil do resultado NerdGraph
+    // NR com alias "as p50" retorna: "p50": { "50": 1808.0 }  (objeto aninhado, não número!)
+    // NR multi-valor retorna: "percentile.duration.ms": { "50": 1808.0, "90": 2848.0 }
     private static double ExtractPct(JsonElement row, int p)
     {
-        // 1. Alias explícito: "p50", "p90", "p99"
-        var alias = "p" + p;
-        if (row.TryGetProperty(alias, out var direct) && direct.ValueKind == JsonValueKind.Number)
-            return Math.Round(direct.GetDouble(), 0);
+        var pStr = p.ToString();
 
-        // 2. Chave gerada: "percentile.duration.ms.50" — EndsWith exato
+        // 1. Alias explícito "p50" → objeto aninhado { "50": valor }
+        var alias = "p" + p;
+        if (row.TryGetProperty(alias, out var aliasEl))
+        {
+            if (aliasEl.ValueKind == JsonValueKind.Number)
+                return Math.Round(aliasEl.GetDouble(), 0);
+            if (aliasEl.ValueKind == JsonValueKind.Object && aliasEl.TryGetProperty(pStr, out var nested) && nested.ValueKind == JsonValueKind.Number)
+                return Math.Round(nested.GetDouble(), 0);
+        }
+
+        // 2. Chave "percentile.duration.ms" → objeto { "50": valor, "90": valor, "99": valor }
+        foreach (var prop in row.EnumerateObject())
+        {
+            if (prop.Name.StartsWith("percentile") && prop.Value.ValueKind == JsonValueKind.Object)
+            {
+                if (prop.Value.TryGetProperty(pStr, out var pv) && pv.ValueKind == JsonValueKind.Number)
+                    return Math.Round(pv.GetDouble(), 0);
+            }
+        }
+
+        // 3. Fallback: número direto com sufixo ".50"
         var suffix = "." + p;
         foreach (var prop in row.EnumerateObject())
             if (prop.Name.EndsWith(suffix) && prop.Value.ValueKind == JsonValueKind.Number)
-                return Math.Round(prop.Value.GetDouble(), 0);
-
-        // 3. Fallback amplo: qualquer chave numérica com "percentile"
-        var pStr = p.ToString();
-        foreach (var prop in row.EnumerateObject())
-            if (prop.Name.Contains("percentile") && prop.Name.Contains(pStr) && prop.Value.ValueKind == JsonValueKind.Number)
                 return Math.Round(prop.Value.GetDouble(), 0);
 
         return 0;
