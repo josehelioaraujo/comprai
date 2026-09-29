@@ -452,7 +452,9 @@ public static class ObservabilityEndpoints
         var nrqlSat =
             "SELECT count(*) as calls, " +
             "average(duration.ms) as avgMs, " +
-            "percentile(duration.ms, 50, 90, 99) " +
+            "percentile(duration.ms, 50) as p50, " +
+            "percentile(duration.ms, 90) as p90, " +
+            "percentile(duration.ms, 99) as p99 " +
             "FROM Span WHERE service.name = 'comprai-api' AND duration.ms < 500 " +
             since + " FACET http.route LIMIT 10";
 
@@ -460,7 +462,9 @@ public static class ObservabilityEndpoints
         var nrqlTol =
             "SELECT count(*) as calls, " +
             "average(duration.ms) as avgMs, " +
-            "percentile(duration.ms, 50, 90, 99) " +
+            "percentile(duration.ms, 50) as p50, " +
+            "percentile(duration.ms, 90) as p90, " +
+            "percentile(duration.ms, 99) as p99 " +
             "FROM Span WHERE service.name = 'comprai-api' AND duration.ms >= 500 AND duration.ms < 2000 " +
             since + " FACET http.route LIMIT 10";
 
@@ -468,7 +472,9 @@ public static class ObservabilityEndpoints
         var nrqlFruSlow =
             "SELECT count(*) as calls, " +
             "average(duration.ms) as avgMs, " +
-            "percentile(duration.ms, 50, 90, 99) " +
+            "percentile(duration.ms, 50) as p50, " +
+            "percentile(duration.ms, 90) as p90, " +
+            "percentile(duration.ms, 99) as p99 " +
             "FROM Span WHERE service.name = 'comprai-api' AND duration.ms >= 2000 AND otel.status_code != 'ERROR' " +
             since + " FACET http.route LIMIT 10";
 
@@ -722,19 +728,26 @@ public static class ObservabilityEndpoints
         return list;
     }
 
-    // Extrai valor de percentil do resultado NerdGraph
-    // NR gera chave como "percentile.duration.ms.50" — busca por sufixo ".50"
+    // Extrai valor de percentil — alias explícito (p50/p90/p99) ou chave gerada pelo NR
     private static double ExtractPct(JsonElement row, int p)
     {
+        // 1. Alias explícito: "p50", "p90", "p99"
+        var alias = "p" + p;
+        if (row.TryGetProperty(alias, out var direct) && direct.ValueKind == JsonValueKind.Number)
+            return Math.Round(direct.GetDouble(), 0);
+
+        // 2. Chave gerada: "percentile.duration.ms.50" — EndsWith exato
         var suffix = "." + p;
         foreach (var prop in row.EnumerateObject())
             if (prop.Name.EndsWith(suffix) && prop.Value.ValueKind == JsonValueKind.Number)
                 return Math.Round(prop.Value.GetDouble(), 0);
-        // Fallback: qualquer chave contendo "percentile" e o número
+
+        // 3. Fallback amplo: qualquer chave numérica com "percentile"
         var pStr = p.ToString();
         foreach (var prop in row.EnumerateObject())
             if (prop.Name.Contains("percentile") && prop.Name.Contains(pStr) && prop.Value.ValueKind == JsonValueKind.Number)
                 return Math.Round(prop.Value.GetDouble(), 0);
+
         return 0;
     }
 
