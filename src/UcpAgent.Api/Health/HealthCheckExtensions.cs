@@ -13,7 +13,7 @@ public static class HealthCheckExtensions
     {
         services.AddHealthChecks()
             .AddCheck<RedisHealthCheck> ("redis",        tags: ["infra"])
-            .AddCheck("ollama",       OllamaCheck(config),      tags: ["ai"])
+            .AddCheck<OllamaHealthCheck>("ollama",       tags: ["ai"])
             .AddCheck("rabbitmq",     RabbitMqCheck(config),    tags: ["messaging"])
             .AddCheck("kafka",        KafkaCheck(config),       tags: ["messaging"])
             .AddCheck("datadog-otel", DatadogCheck(),           tags: ["observability"])
@@ -21,10 +21,13 @@ public static class HealthCheckExtensions
             .AddCheck("loki",         LokiCheck(),              tags: ["observability"])
             .AddCheck("jaeger",       JaegerCheck(),            tags: ["observability"]);
 
+        // Registra as classes de HC no DI para injeção
+        services.AddSingleton<OllamaHealthCheck>();
+
         return services;
     }
 
-    // ── Redis: usa o IConnectionMultiplexer singleton (sem nova conexão) ─────
+    // ── Redis: usa IConnectionMultiplexer singleton — sem nova conexão ───────
     public class RedisHealthCheck(IConnectionMultiplexer? mux) : IHealthCheck
     {
         public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken ct = default)
@@ -37,21 +40,25 @@ public static class HealthCheckExtensions
         }
     }
 
+    // ── Ollama: async real, sem sync-over-async ───────────────────────────────
     [ExcludeFromCodeCoverage(Justification = "Requer Ollama em execução")]
-    private static Func<IHealthCheck> OllamaCheck(IConfiguration config) => () =>
-        new AsyncFuncHealthCheck(async ct =>
+    public class OllamaHealthCheck(IConfiguration config, IHttpClientFactory factory) : IHealthCheck
+    {
+        public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken ct = default)
         {
             try
             {
                 var baseUrl = config["Ollama__BaseUrl"] ?? config["Ollama:BaseUrl"] ?? "http://localhost:11434";
-                using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
-                var res = await http.GetAsync($"{baseUrl.TrimEnd('/')}/api/tags", ct);
+                var client  = factory.CreateClient();
+                client.Timeout = TimeSpan.FromSeconds(2);
+                var res = await client.GetAsync($"{baseUrl.TrimEnd('/')}/api/tags", ct);
                 return res.IsSuccessStatusCode
                     ? HealthCheckResult.Healthy()
                     : HealthCheckResult.Degraded($"HTTP {(int)res.StatusCode}");
             }
             catch (Exception ex) { return HealthCheckResult.Degraded(ex.Message); }
-        });
+        }
+    }
 
     [ExcludeFromCodeCoverage(Justification = "Requer RabbitMQ em execução")]
     private static Func<HealthCheckResult> RabbitMqCheck(IConfiguration config) => () =>
@@ -94,12 +101,5 @@ public static class HealthCheckExtensions
             return HealthCheckResult.Degraded($"{name} porta {port} inacessível");
         }
         catch { return HealthCheckResult.Degraded($"{name} não disponível"); }
-    }
-
-    // ── Wrapper async para Func<IHealthCheck> inline ─────────────────────────
-    private sealed class AsyncFuncHealthCheck(Func<CancellationToken, Task<HealthCheckResult>> fn) : IHealthCheck
-    {
-        public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken ct = default)
-            => fn(ct);
     }
 }
