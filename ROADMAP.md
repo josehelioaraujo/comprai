@@ -87,6 +87,38 @@
 
 ## 🛍️ Demo Pública Web — Chat de Compras (WebSocket + SignalR)
 
+
+### Arquitetura Hexagonal — Canal como Porta Plugável
+
+> Mesmo padrão dos plugins de catálogo — canal (Web/WhatsApp/ZAP) é adaptador de entrada, core UCP imutável.
+
+```
+Domain / Application (core UCP — imutável)
+         │
+         ▼
+   IChannelPort  ←── interface do canal de saída
+         │
+    ┌────┴────────────────┐
+    │                     │
+WebChatAdapter       WhatsAppAdapter
+(SignalR Hub)        (Meta Webhook / Baileys)
+```
+
+**Porta de domínio:** `UcpAgent.Domain/Ports/IChannelPort.cs`
+- `SendMessageAsync`, `SendProductListAsync`, `SendCartSummaryAsync`, `SendOrderConfirmationAsync`, `SendPaymentLinkAsync`
+- `ChannelType` enum: `WebChat | WhatsApp | Zap`
+
+**Adaptadores:** `UcpAgent.Api/Adapters/`
+- `WebChatChannelAdapter` — `IHubContext<ChatHub>` → `SendAsync` ao grupo SignalR
+- `WhatsAppChannelAdapter` — `IWhatsAppClient` → texto/lista/botão via Meta API
+- `ZapChannelAdapter` — futuro, em `src/plugins/UcpAgent.Zap/`
+
+**Handler:** `SendMessageHandler` resolve `IChannelPort` por `[FromKeyedServices(ChannelType)]`
+— não sabe se está no Web ou WhatsApp, só chama a porta certa.
+
+**Adicionar canal novo:** criar adaptador + registrar em `Program.cs` — zero mudança no core.
+
+
 **Stack:** Next.js 15 + Tailwind + shadcn/ui + SignalR (WebSocket bidirecional)
 
 > WebSocket via SignalR (não SSE) — bidirecional: servidor dá push de eventos (pagamento confirmado, status pedido) sem o cliente pedir. `IHubContext<T>` injetável em qualquer serviço, inclusive webhooks Stripe/Efi.
