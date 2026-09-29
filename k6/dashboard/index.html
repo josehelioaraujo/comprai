@@ -3588,13 +3588,27 @@ function nrShowBucket(key) {
   if (!cfg) return;
 
   var panelId = 'nrbp_' + key;
-  var html = '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-top:0">';
-  html += '<div onclick="nrToggleTable('' + panelId + '')" style="padding:8px 12px;border-bottom:1px solid var(--border);background:rgba(0,0,0,.15);display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none" ' +
-    'onmouseover="this.style.background='rgba(0,0,0,.25)'" onmouseout="this.style.background='rgba(0,0,0,.15)'">';
-  html += '<span id="' + panelId + '_chv" style="font-size:11px;transition:transform .2s;display:inline-block;color:' + cfg.color + '">▼</span>';
-  html += '<span style="font-size:12px;font-weight:600;color:' + cfg.color + '">' + cfg.label + '</span>';
-  html += '</div>';
-  html += '<div id="' + panelId + '">';
+  // Usar createElement para evitar aspas problemáticas em onclick/onmouseover
+  var outerDiv = document.createElement('div');
+  outerDiv.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-top:0';
+
+  var headerDiv = document.createElement('div');
+  headerDiv.setAttribute('onclick', 'nrToggleTable(' + JSON.stringify(panelId) + ')');
+  headerDiv.style.cssText = 'padding:8px 12px;border-bottom:1px solid var(--border);background:rgba(0,0,0,.15);display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none';
+  headerDiv.onmouseover = function(){ this.style.background = 'rgba(0,0,0,.25)'; };
+  headerDiv.onmouseout  = function(){ this.style.background = 'rgba(0,0,0,.15)'; };
+  headerDiv.innerHTML =
+    '<span id="' + panelId + '_chv" style="font-size:11px;transition:transform .2s;display:inline-block;color:' + cfg.color + '">&#9660;</span>' +
+    '<span style="font-size:12px;font-weight:600;color:' + cfg.color + '">' + cfg.label + '</span>';
+
+  var bodyDiv = document.createElement('div');
+  bodyDiv.id = panelId;
+
+  outerDiv.appendChild(headerDiv);
+  outerDiv.appendChild(bodyDiv);
+
+  var html = '';  // html vai dentro de bodyDiv.innerHTML
+  var html_outer = outerDiv.outerHTML.replace('<div id="' + panelId + '"></div>', '<div id="' + panelId + '">{{BODY}}</div>');
 
   if (key === 'frustrated') {
     // Duas sub-tabelas: lentos + erros
@@ -3618,9 +3632,8 @@ function nrShowBucket(key) {
       html += nrRouteTable(rows, false, cfg.color, null);
     }
   }
-  html += '</div>'; // fecha colapsável
-  html += '</div>'; // fecha card externo
-  panel.innerHTML = html;
+  html_outer = html_outer.replace('{{BODY}}', html);
+  panel.innerHTML = html_outer;
 }
 
 // ID único para seções colapsáveis de rotas
@@ -3631,17 +3644,18 @@ function nrRouteTable(rows, isErr, color, subtitle) {
   var tid = 'nrrt_' + (++_nrRouteTableId);
   var html = '';
 
-  // ── Subtítulo com chevron colapsável ─────────────────────────────────
+  // ── Subtítulo com chevron colapsável (createElement evita aspas problemáticas) ──
   if (subtitle) {
-    html += '<div onclick="nrToggleTable('' + tid + '')" ' +
-      'style="padding:7px 12px;font-size:10px;font-weight:700;color:' + color + ';text-transform:uppercase;' +
-      'letter-spacing:.05em;border-bottom:1px solid var(--border);cursor:pointer;display:flex;align-items:center;gap:6px;' +
-      'user-select:none;transition:background .15s" ' +
-      'onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="this.style.background=''">' +
-      '<span id="' + tid + '_chv" style="font-size:10px;transition:transform .2s;display:inline-block">▼</span>' +
+    var subHdr = document.createElement('div');
+    subHdr.setAttribute('onclick', 'nrToggleTable(' + JSON.stringify(tid) + ')');
+    subHdr.style.cssText = 'padding:7px 12px;font-size:10px;font-weight:700;color:' + color + ';text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);cursor:pointer;display:flex;align-items:center;gap:6px;user-select:none;transition:background .15s';
+    subHdr.onmouseover = function(){ this.style.background = 'rgba(255,255,255,.03)'; };
+    subHdr.onmouseout  = function(){ this.style.background = ''; };
+    subHdr.innerHTML =
+      '<span id="' + tid + '_chv" style="font-size:10px;transition:transform .2s;display:inline-block">&#9660;</span>' +
       subtitle +
-      '<span style="margin-left:auto;font-size:9px;opacity:.5;font-weight:400">' + rows.length + ' rota(s)</span>' +
-      '</div>';
+      '<span style="margin-left:auto;font-size:9px;opacity:.5;font-weight:400">' + rows.length + ' rota(s)</span>';
+    html += subHdr.outerHTML;
   }
 
   html += '<div id="' + tid + '">';
