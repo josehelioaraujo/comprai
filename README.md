@@ -816,7 +816,7 @@ O **OpsWatch** é um portal operacional integrado ao pipeline CI/CD que consolid
 |---|---|
 | 🧪 **Testes** | Smoke · Load · Stress · Spike · Soak · Integrados |
 | ⭐ **Qualidade** | Quality Score · Quality Trend · Correlação K6×Mutation · **Métricas de Código** (Complexidade Ciclomática + Dependências Ca/Ce) |
-| 📡 **Observabilidade** | Métricas (Funil UCP · Plugins · Cache Redis · LLM/Ollama) · Logs · Traces · Erros · Acesso · **New Relic APM** (Apdex · Error% · Req/min · p95) |
+| 📡 **Observabilidade** | Métricas (Funil UCP · Plugins · Cache Redis · LLM/Ollama) · Logs · Traces · Erros · Acesso · **New Relic APM** (Apdex · Error% · Req/min · p95 · drill-down por bucket · Satisfied/Tolerating/Frustrated · sparkline · tooltip hover · seletor 5m–24h) |
 | 🛡️ **Segurança** | Dependency Scanner (CVEs NuGet) |
 | 🔥 **Análise K6** | Resultados detalhados por cenário |
 | ⚙️ **Infra** | Status Page · Health Map · Monitor de Containers · Admin Restart |
@@ -851,13 +851,15 @@ O **OpsWatch** é um portal operacional integrado ao pipeline CI/CD que consolid
 | **V035** | OpsWatch — Painel Testes de Carga: VUs slider, Duração, Rounds sequenciais com progress dots, botão Parar, `populate-metrics.yml` |
 | **V036** | OpsWatch — Métricas de Código: Complexidade Ciclomática (Python regex, modal com código + marcadores SonarCloud) + Dependências Ca/Ce (Robert C. Martin, pills Ca/Ce, Ca reverso); Code Review automático em PRs via Groq AI; nova dinâmica de branches/PRs |
 | **V037–V039** | Observabilidade Dual — New Relic via OTel Collector: pipeline `HttpProtobuf :4318`, painel APM no OpsWatch (Apdex/Error%/Req/min/p95), 93 spans confirmados, collector exporta para Datadog + New Relic simultaneamente |
+| **V040** | OpsWatch — New Relic APM Drill-Down Interativo: gauge SVG Apdex, cards Satisfied/Tolerating/Frustrated clicáveis com tabela de rotas (p50/p90/p99/Avg/Req/s), sparkline com tooltip hover, seletor de janela 5m–24h, chevron colapsável universal, fix NerdGraph percentis como objeto aninhado |
 
 ### 🔜 Próximas Versões
 
 | Fase | Descrição | Versão |
 |------|-----------|--------|
-| **LLM Diagnóstico** | `/api/ai/analyze` — Ollama analisa p95 + logs + mutation score e gera diagnóstico em PT-BR; botão "Analisar" no OpsWatch | V037 |
-| **Notificações Slack/Teams** | Mensagem gerada por LLM ao detectar degradação; webhook simples, alto impacto em demo | V037 |
+| **Gargalo p95/p99** | Investigar `/api/health/status` (avg 2843ms) e `/api/search` (avg 12110ms) — health check síncrono + Ollama sem timeout; circuit breaker e separação live/ready | V041 |
+| **LLM Diagnóstico** | `/api/ai/analyze` — Ollama analisa p95 + logs + mutation score e gera diagnóstico em PT-BR; botão "Analisar" no OpsWatch | V041 |
+| **Notificações Slack/Teams** | Mensagem gerada por LLM ao detectar degradação; webhook simples, alto impacto em demo | V041 |
 | **Locust — segunda engine** | OpsWatch orquestra K6 e Locust: seletor de engine, proxy `/api/locust/*`, métricas ao vivo sem pipeline | V038 |
 | **Hermes Orchestrator** | NousResearch Hermes-3 via Ollama — agente autônomo que decide sequência de tools (search, cart, checkout, diagnose) | V038 |
 | **Pentest OWASP ZAP** | DAST dinâmico via Docker: `pentest.yml` semanal + sob demanda, findings por severidade com referência OWASP Top 10 | V037 |

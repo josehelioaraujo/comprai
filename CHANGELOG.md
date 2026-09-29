@@ -1,3 +1,51 @@
+## [4.6.0] - 2026-09-29
+
+### Added
+
+- **OpsWatch — New Relic APM Drill-Down Interativo (V040)**
+  - Cards Apdex / Error% / Req/min / p95 clicáveis — expande painel inline sem sair do OpsWatch
+  - **Gauge SVG do Apdex**: semicírculo com 4 zonas coloridas (Crítico/Razoável/Bom/Excelente), ponteiro dinâmico, score e label no centro
+  - **Cards Satisfied / Tolerating / Frustrated** clicáveis com contagem, % do total e hint de threshold (< 500ms · 500ms–2s · > 2s ou erro)
+  - **Barra de proporção** colorida em 3 segmentos (verde/amarelo/vermelho) entre os cards e a fórmula
+  - **Fórmula Apdex dinâmica**: `(Satisfied + Tolerating×0.5) / Total = score` com valores reais
+  - **Sparkline interativo** com área preenchida (gradiente), grid Y/X, tooltip hover `HH:mm → valor colorido semanticamente`
+  - **Seletor de janela de tempo**: 5m · 15m · 30m · 1h · 2h · 6h · 12h · 24h — botão ativo destacado, backend atualiza `SINCE` e bucket `TIMESERIES` automaticamente
+  - **Drill por bucket** (Satisfied/Tolerating/Frustrated): tabela inline com Rota · Calls · Req/s · Avg · p50 · p90 · p99 · barra de volume
+  - p99 colorido semanticamente (verde < 800ms / amarelo < 1.5s / vermelho ≥ 1.5s)
+  - Bucket **Frustrated** dividido em 2 sub-tabelas: 🐢 Lentos (> 2s) e 💥 Erros (`otel.status_code = ERROR`) com `latest(error.message)`
+  - **Chevron colapsável** em todas as seções de detalhe — regra geral: toda seção com conteúdo expandível tem `▼/▶`
+  - Drill-down **Req/min**: Pico e Média calculados do TIMESERIES (peak = max do array, avg = count/período) + sparkline throughput
+  - Drill-down **p95**: cards p50 · p75 · p95 · p99 + sparkline latência últimas 2h
+  - Links externos "🔗 Ver no New Relic" por card apontando para seção correta (APM / Errors Inbox / Traces)
+  - `nrUpdateBucketCards()` — atualiza bordas dos cards sem re-render do DOM (evita destruir painel)
+  - Cache global `window._nrRoutesCache` e `window._nrLastDataCache` — persistem entre renders
+
+- **Backend — `/api/observability/newrelic/drill`**
+  - Parâmetro `?window=` (5m→24h) com `WindowToSince()` e `WindowToBucket()` helpers
+  - `WindowPeriodSeconds()` para cálculo de Req/s sem `rate()` com FACET
+  - `NrQueryRouteFacets()`: `FACET http.route` com `count()`, `average(duration.ms)`, `percentile(duration.ms, 50) as p50/p90/p99`
+  - `ExtractPct()`: método estático com 3 níveis de fallback para o formato aninhado do NR (`"p50": {"50": 1808.0}`)
+  - `DrillApdex`: 4 queries paralelas (breakdown + timeline + rotas por bucket satisfied/tolerating/slow/error)
+  - `DrillThroughput`: peak/avg calculados do TIMESERIES via re-serialize JSON (sem `max(rate())` — não suportado pelo NR)
+  - `DrillLatency GetP()`: lê objeto aninhado `"percentile.duration.ms": {"50": X, "95": Y}`
+
+### Fixed
+
+- `nrMiniApdexClick()`: refatorado para `createElement` + `setAttribute` — elimina `SyntaxError` de aspas simples em `onmouseover`
+- `nrShowBucket()`: cache movido de propriedade DOM (`body._nrRoutes`) para `window._nrRoutesCache` — evita perda ao reconstruir `innerHTML`
+- `nrRouteTable()` subtítulo e `nrShowBucket()` header: refatorados para `createElement` — mesmo problema de aspas em `rgba()`
+- `BuildGql()`: substituído raw string literal por `JsonSerializer.Serialize` com variáveis GraphQL (`query($nrql: Nrql!)`) — elimina HTTP 400 por escaping de aspas na NRQL
+- `ExtractPct()`: corrigido para ler objeto aninhado `{ "50": 1808.0 }` em vez de número direto — percentis estavam sempre zerados
+- `NrQueryRouteFacets`: adicionado parâmetro `since` ausente que causava `CS0103`
+- `local function Pct()` dentro de `foreach` causava erro de compilação — extraído para método estático `ExtractPct()`
+- `JsonElement?` nullable com `.TryGetProperty()` sem `.Value` causava `CS1061`
+
+### Discovered
+
+- `/api/health/status` no bucket Frustrated com p99 ~3836ms e avg ~2843ms — health check com dependências síncronas lentas
+- `/api/search` no bucket Frustrated com p99 ~18485ms e avg ~12110ms — Ollama/LLM sem timeout agressivo
+- Gap p50 (3ms) vs p95 (2016ms) confirma minoria de requests sofrendo — investigar na V041
+
 ## [4.5.0] - 2026-09-28
 
 ### Added
