@@ -11,12 +11,20 @@ processors:
     timeout: 2s
     send_batch_size: 256
 
+  resource:
+    attributes:
+      - action: upsert
+        key: service.name
+        value: comprai-api
+
 exporters:
+  # ── Datadog ────────────────────────────────────────────────────────────────
   datadog:
     api:
       site: datadoghq.com
       key: ${DD_API_KEY}
 
+  # ── New Relic (traces + metrics + logs) ────────────────────────────────────
   otlphttp/newrelic:
     endpoint: https://otlp.nr-data.net:4318
     headers:
@@ -24,17 +32,32 @@ exporters:
     tls:
       insecure: false
 
+  # ── Loki (logs) ────────────────────────────────────────────────────────────
+  loki:
+    endpoint: http://comprai-loki:3100/loki/api/v1/push
+    default_labels_enabled:
+      exporter: false
+      job: true
+    labels:
+      resource:
+        service.name: "service_name"
+      attributes:
+        level: "level"
+
 service:
   pipelines:
     traces:
-      receivers: [otlp]
+      receivers:  [otlp]
       processors: [batch]
-      exporters: [datadog, otlphttp/newrelic]
+      exporters:  [datadog, otlphttp/newrelic]
+
     metrics:
-      receivers: [otlp]
+      receivers:  [otlp]
       processors: [batch]
-      exporters: [datadog, otlphttp/newrelic]
+      exporters:  [datadog, otlphttp/newrelic]
+
+    # Logs → Datadog + New Relic + Loki (todos os observability backends)
     logs:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [datadog, otlphttp/newrelic]
+      receivers:  [otlp]
+      processors: [resource, batch]
+      exporters:  [datadog, otlphttp/newrelic, loki]
