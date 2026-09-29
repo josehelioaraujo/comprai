@@ -531,21 +531,36 @@ public static class ObservabilityEndpoints
             "SELECT rate(count(*), 1 minute) as rpm " +
             "FROM Span WHERE service.name = 'comprai-api' " + since + " TIMESERIES " + bucket;
 
+        // Summary: count total / periodo para avg rpm; usar TIMESERIES para peak
         var nrqlSummary =
-            "SELECT max(rate(count(*), 1 minute)) as peak, average(rate(count(*), 1 minute)) as avg " +
+            "SELECT count(*) as total " +
             "FROM Span WHERE service.name = 'comprai-api' " + since;
 
         var timeline = await NrQueryTimeseries(client, accountId, nrqlTimeline, "rpm", ct);
         var summary  = await NrQuery(client, accountId, nrqlSummary, ct);
 
-        double GetV(string k) => summary is not null && summary.Value.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.Number ? Math.Round(v.GetDouble(), 1) : 0;
+        // avg rpm = total / periodo em minutos
+        var periodMins = WindowPeriodSeconds(since) / 60.0;
+        double total = 0;
+        if (summary is not null && summary.Value.TryGetProperty("total", out var tv) && tv.ValueKind == JsonValueKind.Number)
+            total = tv.GetDouble();
+        var avg = periodMins > 0 ? Math.Round(total / periodMins, 1) : 0;
 
-        return Results.Ok(new
+        // peak: extrair do timeline via JSON (NrQueryTimeseries retorna anonymous — serializar e re-parsear)
+        var timelineJson = System.Text.Json.JsonSerializer.Serialize(timeline);
+        using var tlDoc = System.Text.Json.JsonDocument.Parse(timelineJson);
+        var peak = 0.0;
+        foreach (var pt in tlDoc.RootElement.EnumerateArray())
         {
-            peak     = GetV("peak"),
-            avg      = GetV("avg"),
-            timeline
-        });
+            if (pt.TryGetProperty("value", out var vEl) && vEl.ValueKind == JsonValueKind.Number)
+            {
+                var v = vEl.GetDouble();
+                if (v > peak) peak = v;
+            }
+        }
+        peak = Math.Round(peak, 1);
+
+        return Results.Ok(new { peak, avg, timeline });
     }
 
     // ── Drill: Latência percentis + timeline p95 ─────────────────────────────
@@ -562,13 +577,23 @@ public static class ObservabilityEndpoints
         var percentis = await NrQuery(client, accountId, nrqlPercentis, ct);
         var timeline  = await NrQueryTimeseries(client, accountId, nrqlTimeline, "p95", ct);
 
-        // percentile(x, 50, 75, 95, 99) retorna chaves como "percentile.duration.ms.50" etc.
+        // NR retorna percentile() multi-valor como objeto aninhado:
+        // "percentile.duration.ms": { "50": 1808.0, "75": 2100.0, "95": 3000.0, "99": 3800.0 }
         double GetP(string key)
         {
             if (percentis is null) return 0;
             foreach (var prop in percentis.Value.EnumerateObject())
+            {
+                // Objeto aninhado: { "50": valor }
+                if (prop.Name.StartsWith("percentile") && prop.Value.ValueKind == JsonValueKind.Object)
+                {
+                    if (prop.Value.TryGetProperty(key, out var nested) && nested.ValueKind == JsonValueKind.Number)
+                        return Math.Round(nested.GetDouble(), 0);
+                }
+                // Número direto com sufixo
                 if (prop.Name.EndsWith("." + key) && prop.Value.ValueKind == JsonValueKind.Number)
                     return Math.Round(prop.Value.GetDouble(), 0);
+            }
             return 0;
         }
 
