@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-
 using System.Diagnostics.CodeAnalysis;
 
 namespace UcpAgent.Api.Health;
@@ -35,10 +34,33 @@ public static class HealthStatusEndpoint
 
     public static void MapHealthStatusEndpoint(this WebApplication app)
     {
-        app.MapGet("/api/health/status", async (HealthCheckService healthCheckService) =>
+        // ── /health/live: só processo — ultra-rápido para liveness probe ─────
+        app.MapGet("/health/live", () => Results.Ok(new { status = "alive" }))
+           .WithTags("Health")
+           .WithName("HealthLive")
+           .AllowAnonymous();
+
+        // ── /health/ready: depende de Redis — para readiness probe ────────────
+        app.MapGet("/health/ready", async (HealthCheckService healthCheckService, CancellationToken ct) =>
+        {
+            // Filtra apenas dependências críticas para o processo funcionar
+            var report = await healthCheckService.CheckHealthAsync(
+                hc => hc.Tags.Contains("infra"), ct);
+            return report.Status == HealthStatus.Healthy
+                ? Results.Ok(new { status = "ready" })
+                : Results.StatusCode(503);
+        })
+        .WithTags("Health")
+        .WithName("HealthReady")
+        .AllowAnonymous();
+
+        // ── /api/health/status: completo — todas as dependências ─────────────
+        app.MapGet("/api/health/status", async (HealthCheckService healthCheckService, CancellationToken ct) =>
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            var report = await healthCheckService.CheckHealthAsync();
+
+            // Roda todos os checks em paralelo (comportamento padrão do ASP.NET)
+            var report = await healthCheckService.CheckHealthAsync(ct);
             sw.Stop();
 
             // API sempre aparece como primeiro componente (self)

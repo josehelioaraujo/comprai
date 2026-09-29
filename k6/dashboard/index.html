@@ -3525,7 +3525,7 @@ function nrMiniApdex(label, value, color, hint, pct) {
     '<div style="font-size:22px;font-weight:700;color:' + color + '">' + value + '</div>' +
     '<div style="font-size:10px;color:' + color + ';opacity:.8;margin-top:1px">' + pct + '%</div>' +
     '<div style="font-size:10px;color:var(--muted);margin-top:2px">' + label + '</div>' +
-    '<div style="font-size:9px;color:var(--muted);opacity:.6;margin-top:2px">' + nrEsc(hint) + '</div>' +
+    '<div style="font-size:10px;color:var(--muted);opacity:.85;margin-top:2px;letter-spacing:.01em">' + nrEsc(hint) + '</div>' +
     '</div>';
 }
 
@@ -3545,8 +3545,8 @@ function nrMiniApdexClick(label, value, color, hint, pct, bucketKey) {
     '<div style="font-size:22px;font-weight:700;color:' + color + '">' + value + '</div>' +
     '<div style="font-size:10px;color:' + color + ';opacity:.8;margin-top:1px">' + pct + '%</div>' +
     '<div style="font-size:10px;color:var(--muted);margin-top:2px">' + label + '</div>' +
-    '<div style="font-size:9px;color:var(--muted);opacity:.6;margin-top:2px">' + nrEsc(hint) + '</div>' +
-    '<div class="bucket-hint" style="font-size:9px;color:' + color + ';opacity:.7;margin-top:4px">&#9660; rotas</div>';
+    '<div style="font-size:10px;color:var(--muted);opacity:.85;margin-top:2px;letter-spacing:.01em">' + nrEsc(hint) + '</div>' +
+    '<div class="bucket-hint" style="font-size:10px;font-weight:600;color:' + color + ';opacity:.9;margin-top:4px;letter-spacing:.02em">&#9660; clique para rotas</div>';
   return el.outerHTML;
 }
 
