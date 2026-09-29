@@ -428,6 +428,49 @@ public static class ObservabilityEndpoints
                 _            => Results.Ok(new { error = $"tipo '{type}' desconhecido" })
             };
         }).WithTags("Observability").WithName("NrDrill").AllowAnonymous();
+
+        // ── Debug: retorna JSON raw do NerdGraph para inspecionar chaves reais ──
+        app.MapGet("/api/observability/newrelic/drill-debug", async (
+            IConfiguration config, IHttpClientFactory factory, CancellationToken ct) =>
+        {
+            var userKey   = config["NewRelic:UserKey"]   ?? Environment.GetEnvironmentVariable("NEW_RELIC_USER_KEY")   ?? "";
+            var accountId = config["NewRelic:AccountId"] ?? Environment.GetEnvironmentVariable("NEW_RELIC_ACCOUNT_ID") ?? "";
+            if (string.IsNullOrEmpty(userKey)) return Results.Ok(new { error = "sem credenciais" });
+
+            var nrql = "SELECT count(*) as calls, average(duration.ms) as avgMs, " +
+                       "percentile(duration.ms, 50) as p50, " +
+                       "percentile(duration.ms, 90) as p90, " +
+                       "percentile(duration.ms, 99) as p99 " +
+                       "FROM Span WHERE service.name = 'comprai-api' AND duration.ms < 500 " +
+                       "SINCE 2 hours ago FACET http.route LIMIT 3";
+
+            var client = factory.CreateClient("observability");
+            client.DefaultRequestHeaders.Clear();
+            client.DefaultRequestHeaders.Add("API-Key", userKey);
+
+            var payload = BuildGql(accountId, nrql);
+            var resp = await client.PostAsync("https://api.newrelic.com/graphql",
+                new StringContent(payload, System.Text.Encoding.UTF8, "application/json"), ct);
+
+            var rawJson = await resp.Content.ReadAsStringAsync(ct);
+            using var doc = JsonDocument.Parse(rawJson);
+
+            // Retornar o primeiro resultado com todas as suas chaves
+            try {
+                var results = doc.RootElement
+                    .GetProperty("data").GetProperty("actor")
+                    .GetProperty("account").GetProperty("nrql")
+                    .GetProperty("results");
+
+                var firstRow = results.EnumerateArray().FirstOrDefault();
+                var keys = new List<object>();
+                foreach (var prop in firstRow.EnumerateObject())
+                    keys.Add(new { key = prop.Name, value = prop.GetRawText(), kind = prop.Value.ValueKind.ToString() });
+
+                return Results.Ok(new { nrql, keys, rawFirst = firstRow.GetRawText() });
+            }
+            catch (Exception ex) { return Results.Ok(new { error = ex.Message, raw = rawJson[..Math.Min(500, rawJson.Length)] }); }
+        }).WithTags("Observability").WithName("NrDrillDebug").AllowAnonymous();
     }
 
     // ── Drill: Apdex breakdown + timeline ────────────────────────────────────
