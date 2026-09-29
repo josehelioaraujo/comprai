@@ -82,6 +82,75 @@
 
 ---
 
+
+---
+
+## 🛍️ Demo Pública Web — Chat de Compras (WebSocket + SignalR)
+
+**Stack:** Next.js 15 + Tailwind + shadcn/ui + SignalR (WebSocket bidirecional)
+
+> WebSocket via SignalR (não SSE) — bidirecional: servidor dá push de eventos (pagamento confirmado, status pedido) sem o cliente pedir. `IHubContext<T>` injetável em qualquer serviço, inclusive webhooks Stripe/Efi.
+
+### Fase 1 — Shell & SignalR Hub (V_DEMO_001)
+- SignalR Hub no Comprai API (`ChatHub`) — reconexão automática, fallback SSE/long-polling
+- Next.js 15 com `@microsoft/signalr` — `useEffect` para conexão + handlers de eventos
+- Layout: sidebar histórico + área central chat + painel carrinho flutuante
+- Bubble usuário vs agente, typing indicator animado
+- Sessão por `connectionId` SignalR (Redis TTL 30min)
+
+### Fase 2 — Fluxo UCP Integrado (V_DEMO_002)
+- `Search` → cards de produto (imagem, preço, botão "Adicionar") enviados via `hub.SendAsync`
+- `Cart` → painel lateral atualizado em tempo real via push do servidor
+- `Checkout` → formulário endereço inline step-by-step no chat
+- `Payment` → Stripe/Pix — webhook confirma pagamento → `IHubContext` faz push imediato ao chat
+- `Order` → confirmação com número + status em tempo real
+
+### Fase 3 — UX & Polish (V_DEMO_003)
+- Chips de sugestão rápida: "Ver carrinho", "Finalizar compra", "Rastrear pedido"
+- Histórico de sessão (localStorage)
+- Modo escuro/claro, PWA (manifest + service worker)
+- Deploy: Vercel (edge) ou VPS Nginx
+
+---
+
+## 📱 WhatsApp Bot — Compras via Chat (V_WA_001 → V_WA_003)
+
+**Stack:** Node.js + Meta Cloud API oficial (produção) ou Baileys (dev/test)
+**Sessão:** Redis por número de telefone (TTL 30min) — já existe na infra
+
+> Mesmo SignalR Hub do Web Chat — webhook WhatsApp → HTTP → Hub → UCP handlers. Reutiliza 100% do core.
+
+### Fase 1 — Conexão & Intent (V_WA_001)
+- Webhook recebe mensagem WhatsApp → `/api/intent` → resposta texto simples
+- Sessão por número no Redis, estado da conversa persistido
+- Fluxo básico: pesquisa em lista numerada, responde número para adicionar
+
+### Fase 2 — Fluxo UCP Completo (V_WA_002)
+- `Search` → lista numerada máx 5 produtos com emoji e preço
+- `Cart` → resumo com *finalizar* para continuar
+- `Checkout` → coleta endereço em etapas (CEP → confirma → confirma)
+- `Payment` → link Stripe ou chave Pix gerada e enviada
+- `Order` → confirmação com número e previsão de entrega
+
+### Fase 3 — UX Avançado (V_WA_003)
+- Botões interativos (List Messages + Reply Buttons) via Meta API oficial
+- Notificações proativas: pedido saiu para entrega 🚚
+- Handoff para atendente: `/falar com atendente`
+- Painel OpsWatch: pedidos via WA por dia
+
+### Decisões de Arquitetura
+
+| Decisão | Escolha | Motivo |
+|---------|---------|--------|
+| Comunicação Web | **WebSocket (SignalR)** | Bidirecional — push de pagamento/status sem polling |
+| WhatsApp API | **Meta Cloud API** (prod) / Baileys (dev) | Meta é oficial e suporta botões interativos |
+| Auth Web | Sem auth (demo) → magic link futuro | Foco no fluxo UCP |
+| Deploy Web | **Vercel** (grátis, edge) | CDN global, zero config Next.js |
+| Sessão | **Redis** (já existe) | TTL 30min por connectionId/telefone |
+
+
+---
+
 ## 📌 Itens Backlog (sem versão definida)
 
 - MercadoPago: bloqueado por loop de SMS no token
