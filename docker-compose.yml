@@ -12,10 +12,10 @@
       ASPNETCORE_URLS: 'http://+:5020'
       Features__UsarMockDados: 'false'
       Features__UsarRedis:     'false'
-      Features__UsarKafka:     'false'
+      Features__UsarKafka:     'true'
       Features__UsarRabbitMQ:  'false'
       Redis__ConnectionString: redis:6379
-      Kafka__BootstrapServers: kafka:9094
+      Kafka__BootstrapServers: comprai-kafka:9094
       RabbitMQ__Host:          rabbitmq
       OTEL_EXPORTER_OTLP_ENDPOINT: http://comprai-jaeger:4317
       OTEL_SERVICE_NAME: comprai-api
