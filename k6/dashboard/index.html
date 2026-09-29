@@ -3445,9 +3445,10 @@ function nrRenderDrill(type, d) {
     // ── Timeline ─────────────────────────────────────────────────────────
     html += nrTimelineInteractive(d.timeline || [], 'Apdex', '#818cf8', 0, 1, 'apdex');
     body.innerHTML = html;
-    body._nrRoutes   = routes;
-    body._nrLastData = d;
-    _nrActiveBucket  = null;
+    // Guardar em variáveis globais (body.innerHTML apaga propriedades do DOM)
+    window._nrRoutesCache   = routes;
+    window._nrLastDataCache = d;
+    _nrActiveBucket = null;
   }
   else if (type === 'error') {
     // Lista últimos erros
@@ -3535,37 +3536,49 @@ function nrMiniApdexClick(label, value, color, hint, pct, bucketKey) {
   var borderColor = isActive ? color : 'var(--border)';
   var el = document.createElement('div');
   el.setAttribute('onclick', 'nrShowBucket(' + JSON.stringify(bucketKey) + ')');
+  el.setAttribute('data-bucket-key',   bucketKey);
+  el.setAttribute('data-bucket-color', color);
   el.style.cssText = 'background:var(--surface2);border:2px solid ' + borderColor + ';border-radius:8px;padding:10px;text-align:center;cursor:pointer;transition:border-color .15s';
   el.onmouseover = function(){ this.style.borderColor = color; };
-  el.onmouseout  = function(){ this.style.borderColor = isActive ? color : 'var(--border)'; };
+  el.onmouseout  = function(){ this.style.borderColor = (_nrActiveBucket === bucketKey) ? color : 'var(--border)'; };
   el.innerHTML =
     '<div style="font-size:22px;font-weight:700;color:' + color + '">' + value + '</div>' +
     '<div style="font-size:10px;color:' + color + ';opacity:.8;margin-top:1px">' + pct + '%</div>' +
     '<div style="font-size:10px;color:var(--muted);margin-top:2px">' + label + '</div>' +
     '<div style="font-size:9px;color:var(--muted);opacity:.6;margin-top:2px">' + nrEsc(hint) + '</div>' +
-    '<div style="font-size:9px;color:' + color + ';opacity:.7;margin-top:4px">&#9660; rotas</div>';
+    '<div class="bucket-hint" style="font-size:9px;color:' + color + ';opacity:.7;margin-top:4px">&#9660; rotas</div>';
   return el.outerHTML;
+}
+
+// Atualiza apenas a borda dos cards sem re-render completo do drill
+function nrUpdateBucketCards() {
+  var cards = document.querySelectorAll('[data-bucket-key]');
+  cards.forEach(function(card) {
+    var bk = card.getAttribute('data-bucket-key');
+    var color = card.getAttribute('data-bucket-color');
+    var isActive = _nrActiveBucket === bk;
+    card.style.borderColor = isActive ? color : 'var(--border)';
+    var hint = card.querySelector('.bucket-hint');
+    if (hint) hint.style.opacity = isActive ? '1' : '0.7';
+  });
 }
 
 function nrShowBucket(key) {
   var panel = document.getElementById('nr-bucket-panel');
   if (!panel) return;
-  var body = document.getElementById('nr-drill-body');
-  var routes = body ? body._nrRoutes : null;
+  var routes = window._nrRoutesCache || null;
 
   // Toggle: clicar no mesmo fecha
   if (_nrActiveBucket === key) {
     _nrActiveBucket = null;
     panel.innerHTML = '';
-    // Re-render cards sem ativo
-    nrRenderDrill('apdex', body._nrLastData);
+    nrUpdateBucketCards(); // apenas atualiza bordas, sem re-render completo
     return;
   }
   _nrActiveBucket = key;
-  // Re-render cards para atualizar borda ativa
-  if (body && body._nrLastData) nrRenderDrill('apdex', body._nrLastData);
+  nrUpdateBucketCards(); // atualiza borda ativa sem destruir o painel
 
-  if (!routes) { panel.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px">Sem dados de rota disponíveis</div>'; return; }
+  if (!routes) { panel.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px">Sem dados de rota disponíveis — aguarde o carregamento</div>'; return; }
 
   var cfg = {
     satisfied:  { label: '😊 Satisfied — Top Rotas (< 500ms)',       color: '#22c55e', data: routes.satisfied  || [], isErr: false },
