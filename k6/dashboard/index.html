@@ -35,7 +35,18 @@
         </div>
       </div>
 
-      <!-- Seção 2: Serviços -->
+      <!-- Seção 2: Mensageria -->
+      <div class="drawer-section" id="ds-messaging">
+        <div class="drawer-section-header" onclick="toggleDrawerSection('messaging')">
+          <span style="display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:50%;background:#22c55e;display:inline-block" id="dot-messaging"></span>&#128232; Mensageria</span>
+          <span class="drawer-section-chevron open" id="dsc-messaging">&#9660;</span>
+        </div>
+        <div class="drawer-section-body" id="dsb-messaging" style="max-height:1000px">
+          <div id="drawer-comps-messaging"></div>
+        </div>
+      </div>
+
+      <!-- Seção 3: Serviços -->
       <div class="drawer-section" id="ds-services">
         <div class="drawer-section-header" onclick="toggleDrawerSection('services')">
           <span>&#9881; Serviços &amp; Observabilidade</span>
@@ -2167,8 +2178,9 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
     major_outage:   { cls:'maj', icon:'🔴', label:'Major System Outage'     },
   };
 
-  const GROUP_INFRA     = ['api','redis'];
-  const GROUP_SERVICES  = ['ollama','rabbitmq','kafka','datadog-otel'];
+  const GROUP_INFRA       = ['api','redis'];
+  const GROUP_MESSAGING   = ['kafka','rabbitmq'];
+  const GROUP_SERVICES    = ['ollama','datadog-otel','prometheus','loki','jaeger'];
 
   const COMP_HINTS = {
     api: {
@@ -2182,10 +2194,11 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       ]
     },
     redis: {
-      ok:      'Cache ativo — buscas rápidas.',
-      fail:    'Cache offline — buscas mais lentas até a recuperação.',
+      ok:      'Cache ativo — buscas e sessões rápidas.',
+      fail:    'Cache offline — buscas mais lentas. Verifique se Features__UsarRedis=true no compose.',
       actions: [
         'Verificar container: docker ps | grep redis',
+        'Verificar flag: grep UsarRedis /home/projetos/comprai/.env',
         'Reiniciar Redis: docker restart comprai-redis',
         'Testar conexão: docker exec comprai-redis redis-cli ping',
         'Verificar memória: docker stats comprai-redis --no-stream',
@@ -2223,16 +2236,16 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       ]
     },
     'datadog-otel': {
-      ok:      'Telemetria enviando para o Datadog.',
-      fail:    'OTel Collector offline — traces não estão sendo enviados.',
+      ok:      'OTel Collector ativo — traces e logs sendo enviados.',
+      fail:    'OTel Collector offline — traces não enviados para Datadog/New Relic.',
       actions: [
-        'Verificar agent: docker ps | grep dd-agent',
-        'Reiniciar: docker restart comprai-dd-agent',
-        'Verificar API Key: echo $DATADOG_API_KEY | head -c 8',
-        'Checar porta OTel: nc -zv localhost 4317',
-        'Logs do agent: docker logs comprai-dd-agent --tail 30',
+        'Verificar profile: deve subir com --profile datadog',
+        'Ver container: docker ps | grep otel-collector',
+        'Ver logs: docker logs comprai-otel-collector --tail 30',
+        'Restart: docker restart comprai-otel-collector',
+        'Checar config: cat /home/projetos/comprai/observability/otel-collector-config.yaml',
       ]
-    },
+    },,
   };
 
   function buildContextHint(components) {
@@ -2355,11 +2368,13 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
 
     // Componentes — split por grupo
     const comps = data.components ?? [];
-    const infraComps    = comps.filter(c => GROUP_INFRA.includes(c.id));
-    const serviceComps  = comps.filter(c => GROUP_SERVICES.includes(c.id));
+    const infraComps     = comps.filter(c => GROUP_INFRA.includes(c.id));
+    const messagingComps = comps.filter(c => GROUP_MESSAGING.includes(c.id));
+    const serviceComps   = comps.filter(c => GROUP_SERVICES.includes(c.id));
 
-    renderCompGroup('infra',    infraComps,   comps);
-    renderCompGroup('services', serviceComps, comps);
+    renderCompGroup('infra',     infraComps,     comps);
+    renderCompGroup('messaging', messagingComps, comps);
+    renderCompGroup('services',  serviceComps,   comps);
     renderUptimeDrawer(comps);
   }
 
