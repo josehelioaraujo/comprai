@@ -300,10 +300,10 @@ jobs:
         run: dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
 
 
-      - name: Publicar metricas SonarCloud na VPS
+      - name: Buscar métricas SonarCloud
+        id: sonar_fetch
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          VPS_SSH_KEY: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
           RUN_NUMBER: ${{ github.run_number }}
           RUN_SHA: ${{ github.sha }}
         run: |
@@ -315,46 +315,46 @@ jobs:
             "https://sonarcloud.io/api/measures/component?component=josehelioaraujo_comprai&metricKeys=$METRICS" \
             -o sonar-raw.json
 
-          # Validar se o curl retornou JSON válido
           if ! python3 -c "import json,sys; json.load(open('sonar-raw.json'))" 2>/dev/null; then
             echo "❌ SonarCloud retornou resposta inválida:"
             cat sonar-raw.json
             exit 1
           fi
 
-          # Injetar run (como número), sha e timestamp via python3
           RUN_INT=$(echo "$RUN_NUMBER" | tr -d '[:space:]')
-          python3 -c "import json; d=json.load(open('sonar-raw.json')); d.update({'run':int('$RUN_INT'),'sha':'$SHORT_SHA','timestamp':'$TIMESTAMP'}); json.dump(d,open('sonar-metrics.json','w')); print('sonar-metrics.json gerado')"
+          python3 -c "
+          import json
+          d = json.load(open('sonar-raw.json'))
+          d.update({'run': int('$RUN_INT'), 'sha': '$SHORT_SHA', 'timestamp': '$TIMESTAMP'})
+          json.dump(d, open('sonar-metrics.json', 'w'))
+          print('sonar-metrics.json gerado')
+          "
+          # Expor conteúdo como output para o step SSH
+          echo "SONAR_JSON=$(cat sonar-metrics.json)" >> $GITHUB_OUTPUT
 
-
-          # Copiar para VPS
-          mkdir -p ~/.ssh
-          # echo preserva quebras de linha do PEM (printf '%s' colapsa em espaço)
-          echo "$VPS_SSH_KEY" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H 2.25.122.11 >> ~/.ssh/known_hosts 2>/dev/null
-          # Validar chave PEM
-          ssh-keygen -y -f ~/.ssh/id_rsa > /dev/null || { echo "❌ Chave SSH inválida"; exit 1; }
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o ConnectTimeout=15 root@2.25.122.11 \
-            "mkdir -p /var/www/html/k6/results/sonar && echo 'mkdir OK'" \
-            && echo "✅ SSH mkdir OK" \
-            || { echo "❌ SSH mkdir falhou"; exit 1; }
-          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o ConnectTimeout=15 \
-            sonar-metrics.json root@2.25.122.11:/var/www/html/k6/results/sonar/latest.json \
-            && echo "✅ SonarCloud metrics publicados" \
-            || { echo "❌ SCP falhou"; exit 1; }
+      - name: Publicar métricas SonarCloud na VPS
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          SONAR_JSON: ${{ steps.sonar_fetch.outputs.SONAR_JSON }}
+        with:
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          envs: SONAR_JSON
+          script: |
+            mkdir -p /var/www/html/k6/results/sonar
+            echo "$SONAR_JSON" > /var/www/html/k6/results/sonar/latest.json
+            echo "✅ sonar/latest.json publicado"
 
       - name: Append history.json — Evolução
         env:
-          VPS_SSH_KEY: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
           RUN_NUMBER: ${{ github.run_number }}
           RUN_SHA: ${{ github.sha }}
         run: |
           python3 << 'PYEOF'
-          import json, os, subprocess
+          import json, os
           from datetime import datetime, timezone
 
-          # Extrair métricas do sonar-metrics.json
           try:
               sm = json.load(open('sonar-metrics.json'))
               measures = {m['metric']: m.get('value','0') for m in sm.get('component',{}).get('measures',[])}
@@ -363,56 +363,60 @@ jobs:
               measures = {}
 
           entry = {
-              "run":       int(os.environ.get("RUN_NUMBER", 0)),
-              "sha":       os.environ.get("RUN_SHA", "")[:7],
-              "date":      datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-              "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-              "source":    "sonar",
-              "coverage":  float(measures.get("coverage", 0)),
-              "bugs":      int(measures.get("bugs", 0)),
-              "smells":    int(measures.get("code_smells", 0)),
+              "run":         int(os.environ.get("RUN_NUMBER", 0)),
+              "sha":         os.environ.get("RUN_SHA", "")[:7],
+              "date":        datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+              "timestamp":   datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "source":      "sonar",
+              "coverage":    float(measures.get("coverage", 0)),
+              "bugs":        int(measures.get("bugs", 0)),
+              "smells":      int(measures.get("code_smells", 0)),
               "duplication": float(measures.get("duplicated_lines_density", 0))
           }
           json.dump(entry, open('history-entry.json','w'))
-          print(f"✅ history entry: run#{entry['run']} coverage={entry['coverage']}% bugs={entry['bugs']} smells={entry['smells']}")
+          print(f"✅ entry: run#{entry['run']} coverage={entry['coverage']}%")
           PYEOF
 
-          # Append na VPS via SSH
-          mkdir -p ~/.ssh
-          printf '%s' "$VPS_SSH_KEY" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          echo "" >> ~/.ssh/id_rsa
-          ssh-keyscan -H 2.25.122.11 >> ~/.ssh/known_hosts 2>/dev/null
+      - name: Publicar history.json na VPS
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          HISTORY_ENTRY: ${{ toJSON(fromJSON(steps.sonar_fetch.outputs.SONAR_JSON || '{}')) }}
+          RUN_NUMBER: ${{ github.run_number }}
+          RUN_SHA: ${{ github.sha }}
+        with:
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          envs: RUN_NUMBER,RUN_SHA
+          script: |
+            python3 << 'PYEOF'
+            import json, os
+            from pathlib import Path
+            from datetime import datetime, timezone
 
-          # Enviar entry para VPS e fazer append no history.json
-          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
-            history-entry.json root@2.25.122.11:/tmp/history-entry-sonar.json
+            HISTORY = Path("/var/www/html/k6/results/history.json")
+            history = json.loads(HISTORY.read_text()) if HISTORY.exists() else []
 
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no root@2.25.122.11 << 'SSHEOF'
-          python3 << 'PYEOF2'
-          import json, os
-          from pathlib import Path
+            # Ler entry do arquivo temporário se existir, senão criar vazio
+            entry = {
+                "run":    int(os.environ.get("RUN_NUMBER", 0)),
+                "sha":    os.environ.get("RUN_SHA", "")[:7],
+                "date":   datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+                "source": "sonar"
+            }
 
-          HISTORY = Path("/var/www/html/k6/results/history.json")
-          ENTRY   = Path("/tmp/history-entry-sonar.json")
+            existing = next((i for i,e in enumerate(history)
+                if e.get("run") == entry["run"] and e.get("source") == "sonar"), None)
+            if existing is not None:
+                history[existing].update(entry)
+            else:
+                history.append(entry)
 
-          history = json.loads(HISTORY.read_text()) if HISTORY.exists() else []
-          entry   = json.loads(ENTRY.read_text())
-
-          # Atualizar ou inserir por run+source
-          existing = next((i for i,e in enumerate(history) if e.get("run") == entry["run"] and e.get("source") == entry["source"]), None)
-          if existing is not None:
-              history[existing].update(entry)
-          else:
-              history.append(entry)
-
-          # Manter últimos 50 runs
-          history = sorted(history, key=lambda x: x.get("run", 0))[-50:]
-          HISTORY.parent.mkdir(parents=True, exist_ok=True)
-          HISTORY.write_text(json.dumps(history, indent=2))
-          print(f"✅ history.json atualizado: {len(history)} entradas")
-          PYEOF2
-          SSHEOF
+            history = sorted(history, key=lambda x: x.get("run", 0))[-50:]
+            HISTORY.parent.mkdir(parents=True, exist_ok=True)
+            HISTORY.write_text(json.dumps(history, indent=2))
+            print(f"✅ history.json: {len(history)} entradas")
+            PYEOF
 
   # ── 4. DEPLOY VPS ───────────────────────────────────────────────────────────
   deploy:
