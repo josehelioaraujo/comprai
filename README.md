@@ -816,7 +816,7 @@ O **OpsWatch** é um portal operacional integrado ao pipeline CI/CD que consolid
 |---|---|
 | 🧪 **Testes** | Smoke · Load · Stress · Spike · Soak · Integrados |
 | ⭐ **Qualidade** | Quality Score · Quality Trend · Correlação K6×Mutation · **Métricas de Código** (Complexidade Ciclomática + Dependências Ca/Ce) |
-| 📡 **Observabilidade** | Métricas (Funil UCP · Plugins · Cache Redis · LLM/Ollama) · Logs · Traces · Erros · Acesso |
+| 📡 **Observabilidade** | Métricas (Funil UCP · Plugins · Cache Redis · LLM/Ollama) · Logs · Traces · Erros · Acesso · **New Relic APM** (Apdex · Error% · Req/min · p95) |
 | 🛡️ **Segurança** | Dependency Scanner (CVEs NuGet) |
 | 🔥 **Análise K6** | Resultados detalhados por cenário |
 | ⚙️ **Infra** | Status Page · Health Map · Monitor de Containers · Admin Restart |
@@ -850,6 +850,7 @@ O **OpsWatch** é um portal operacional integrado ao pipeline CI/CD que consolid
 | **V034-cont** | Cache Strategy (TTL/Aside/Read-Through/Hybrid), Access Log com aba Acesso completa (filtros, paginação, drill-down, rotas mais chamadas), versionamento SemVer automático no CI |
 | **V035** | OpsWatch — Painel Testes de Carga: VUs slider, Duração, Rounds sequenciais com progress dots, botão Parar, `populate-metrics.yml` |
 | **V036** | OpsWatch — Métricas de Código: Complexidade Ciclomática (Python regex, modal com código + marcadores SonarCloud) + Dependências Ca/Ce (Robert C. Martin, pills Ca/Ce, Ca reverso); Code Review automático em PRs via Groq AI; nova dinâmica de branches/PRs |
+| **V037–V039** | Observabilidade Dual — New Relic via OTel Collector: pipeline `HttpProtobuf :4318`, painel APM no OpsWatch (Apdex/Error%/Req/min/p95), 93 spans confirmados, collector exporta para Datadog + New Relic simultaneamente |
 
 ### 🔜 Próximas Versões
 
@@ -861,7 +862,7 @@ O **OpsWatch** é um portal operacional integrado ao pipeline CI/CD que consolid
 | **Hermes Orchestrator** | NousResearch Hermes-3 via Ollama — agente autônomo que decide sequência de tools (search, cart, checkout, diagnose) | V038 |
 | **Pentest OWASP ZAP** | DAST dinâmico via Docker: `pentest.yml` semanal + sob demanda, findings por severidade com referência OWASP Top 10 | V037 |
 | **GROQ_MODEL_SELECTOR** | Seletor de modelo no `workflow_dispatch` do code-review — escolha de modelo sem editar o workflow | V037 |
-| **ELK Stack / New Relic** | Traces waterfall com correlação log↔trace; ELK exige upgrade VPS KVM4; New Relic free permanente com 1 NuGet | Futuro |
+| **ELK Stack** | Traces waterfall com correlação log↔trace; exige upgrade VPS KVM4 | Futuro |
 | **Alertas ntfy.sh** | Push quando qualquer suite falha — ntfy já na VPS | Futuro |
 | **DAST com OWASP ZAP** | Análise dinâmica contra API em staging — fecha gap do SonarCloud estático | Futuro |
 | **Padrão Saga** | 3 implementações chaveáveis (Wolverine, MassTransit, Nativo) via feature flag | Futuro |

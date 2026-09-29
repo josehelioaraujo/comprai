@@ -1,3 +1,29 @@
+## [4.5.0] - 2026-09-28
+
+### Added
+
+- **Observabilidade Dual — New Relic via OTel Collector (V037–V039)**
+  - Pipeline final: `comprai-api` → `otlphttp` (HttpProtobuf) → `comprai-otel-collector:4318` → Datadog + New Relic simultaneamente
+  - `OtelExtensions.cs`: protocolo migrado de `OtlpExportProtocol.Grpc` para `HttpProtobuf` com endpoint explícito `/v1/traces`
+  - `otel-collector-config.yaml`: exporter `otlphttp/newrelic` com `https://otlp.nr-data.net:4318` (TLS automático)
+  - Painel **New Relic APM** no OpsWatch: Apdex, Error%, Req/min, p95 — 93 spans confirmados no primeiro deploy
+  - `comprai-api` visível em **APM & Services → Services - OpenTelemetry** no New Relic
+  - `DOTNET_SYSTEM_NET_HTTP_SOCKETSHTTPHANDLER_HTTP2UNENCRYPTEDSUPORT=1` no compose para gRPC sem TLS
+  - `scripts/monitor_otel.py`: monitor de containers e logs do collector a cada 5s
+  - `scripts/recreate_env.py`: script para recriar `.env` na VPS quando corrompido
+
+### Fixed
+
+- `ci-cd.yml`: `OTEL_ENDPOINT` corrigido de `comprai-dd-agent:4317` para `comprai-otel-collector:4318`
+- `ci-cd.yml`: `docker rm` inclui `comprai-otel-collector` para evitar conflito de nome no recreate
+- `deploy/docker-compose.yml`: `OTEL_EXPORTER_OTLP_ENDPOINT` atualizado para porta `4318`
+- Secret `NEW_RELIC_LICENSE_KEY` no GitHub atualizado para chave INGEST-LICENSE (`...NRAL`) — hash hex anterior era inválido
+
+### Infrastructure
+
+- OTel pipeline validado end-to-end: API → Collector → New Relic (HTTP 200 confirmado via `curl`)
+- Collector recebe dados via `otlp gRPC :4317` da API e exporta via `otlphttp` para ambos os destinos
+
 ## [4.4.0] - 2026-09-27
 
 ### Added
