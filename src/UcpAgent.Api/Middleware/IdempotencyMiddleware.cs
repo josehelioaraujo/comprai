@@ -5,12 +5,9 @@ namespace UcpAgent.Api.Middleware;
 /// <summary>
 /// Garante idempotência nos endpoints de escrita via header X-Idempotency-Key.
 /// Segunda chamada com mesmo key retorna resposta cacheada sem reprocessar.
-/// TTL: 24h no Redis.
+/// TTL: 24h no Redis. Sem Redis configurado, passa adiante sem cachear.
 /// </summary>
-public sealed class IdempotencyMiddleware(
-    RequestDelegate next,
-    IConnectionMultiplexer? redis,
-    ILogger<IdempotencyMiddleware> logger)
+public sealed class IdempotencyMiddleware(RequestDelegate next, IServiceProvider sp, ILogger<IdempotencyMiddleware> logger)
 {
     private static readonly string[] _idempotentPaths = ["/api/cart", "/api/checkout", "/api/payment"];
     private static readonly TimeSpan _ttl = TimeSpan.FromHours(24);
@@ -18,8 +15,7 @@ public sealed class IdempotencyMiddleware(
     public async Task InvokeAsync(HttpContext ctx)
     {
         if (ctx.Request.Method != HttpMethods.Post
-            || !_idempotentPaths.Any(p => ctx.Request.Path.StartsWithSegments(p))
-            || redis is null)
+            || !_idempotentPaths.Any(p => ctx.Request.Path.StartsWithSegments(p)))
         {
             await next(ctx);
             return;
@@ -27,6 +23,14 @@ public sealed class IdempotencyMiddleware(
 
         var key = ctx.Request.Headers["X-Idempotency-Key"].FirstOrDefault();
         if (string.IsNullOrWhiteSpace(key))
+        {
+            await next(ctx);
+            return;
+        }
+
+        // Redis opcional — sem Redis passa adiante sem cachear
+        var redis = sp.GetService<IConnectionMultiplexer>();
+        if (redis is null)
         {
             await next(ctx);
             return;
