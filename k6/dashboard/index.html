@@ -3587,10 +3587,14 @@ function nrShowBucket(key) {
   }[key];
   if (!cfg) return;
 
+  var panelId = 'nrbp_' + key;
   var html = '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-top:0">';
-  html += '<div style="padding:8px 12px;border-bottom:1px solid var(--border);background:rgba(0,0,0,.15);display:flex;align-items:center;gap:8px">';
+  html += '<div onclick="nrToggleTable('' + panelId + '')" style="padding:8px 12px;border-bottom:1px solid var(--border);background:rgba(0,0,0,.15);display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none" ' +
+    'onmouseover="this.style.background='rgba(0,0,0,.25)'" onmouseout="this.style.background='rgba(0,0,0,.15)'">';
+  html += '<span id="' + panelId + '_chv" style="font-size:11px;transition:transform .2s;display:inline-block;color:' + cfg.color + '">▼</span>';
   html += '<span style="font-size:12px;font-weight:600;color:' + cfg.color + '">' + cfg.label + '</span>';
   html += '</div>';
+  html += '<div id="' + panelId + '">';
 
   if (key === 'frustrated') {
     // Duas sub-tabelas: lentos + erros
@@ -3614,68 +3618,106 @@ function nrShowBucket(key) {
       html += nrRouteTable(rows, false, cfg.color, null);
     }
   }
-  html += '</div>';
+  html += '</div>'; // fecha colapsável
+  html += '</div>'; // fecha card externo
   panel.innerHTML = html;
 }
 
+// ID único para seções colapsáveis de rotas
+var _nrRouteTableId = 0;
+
 function nrRouteTable(rows, isErr, color, subtitle) {
   var maxCalls = Math.max.apply(null, rows.map(function(r){ return r.calls || 0; })) || 1;
+  var tid = 'nrrt_' + (++_nrRouteTableId);
   var html = '';
+
+  // ── Subtítulo com chevron colapsável ─────────────────────────────────
   if (subtitle) {
-    html += '<div style="padding:6px 12px;font-size:10px;font-weight:700;color:' + color + ';text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);opacity:.8">' + subtitle + '</div>';
+    html += '<div onclick="nrToggleTable('' + tid + '')" ' +
+      'style="padding:7px 12px;font-size:10px;font-weight:700;color:' + color + ';text-transform:uppercase;' +
+      'letter-spacing:.05em;border-bottom:1px solid var(--border);cursor:pointer;display:flex;align-items:center;gap:6px;' +
+      'user-select:none;transition:background .15s" ' +
+      'onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="this.style.background=''">' +
+      '<span id="' + tid + '_chv" style="font-size:10px;transition:transform .2s;display:inline-block">▼</span>' +
+      subtitle +
+      '<span style="margin-left:auto;font-size:9px;opacity:.5;font-weight:400">' + rows.length + ' rota(s)</span>' +
+      '</div>';
   }
+
+  html += '<div id="' + tid + '">';
   html += '<table style="width:100%;border-collapse:collapse;font-size:11px">';
+
   // Header
   if (isErr) {
-    html += '<tr style="border-bottom:1px solid var(--border)">' +
-      '<th style="padding:6px 12px;text-align:left;color:var(--muted);font-weight:600">Rota</th>' +
-      '<th style="padding:6px 8px;text-align:right;color:var(--muted);font-weight:600">Calls</th>' +
-      '<th style="padding:6px 8px;text-align:right;color:var(--muted);font-weight:600">Req/s</th>' +
-      '<th style="padding:6px 12px;text-align:left;color:var(--muted);font-weight:600">Último erro</th>' +
+    html += '<tr style="border-bottom:1px solid var(--border);background:rgba(0,0,0,.1)">' +
+      '<th style="padding:6px 12px;text-align:left;color:var(--muted);font-weight:600;font-size:10px">Rota</th>' +
+      '<th style="padding:6px 8px;text-align:right;color:var(--muted);font-weight:600;font-size:10px">Calls</th>' +
+      '<th style="padding:6px 8px;text-align:right;color:var(--muted);font-weight:600;font-size:10px">Req/s</th>' +
+      '<th style="padding:6px 12px;text-align:left;color:var(--muted);font-weight:600;font-size:10px">Último erro</th>' +
       '</tr>';
   } else {
-    html += '<tr style="border-bottom:1px solid var(--border)">' +
-      '<th style="padding:6px 12px;text-align:left;color:var(--muted);font-weight:600">Rota</th>' +
-      '<th style="padding:6px 8px;text-align:right;color:var(--muted);font-weight:600">Calls</th>' +
-      '<th style="padding:6px 8px;text-align:right;color:var(--muted);font-weight:600">Req/s</th>' +
-      '<th style="padding:6px 8px;text-align:right;color:var(--muted);font-weight:600">p50</th>' +
-      '<th style="padding:6px 8px;text-align:right;color:var(--muted);font-weight:600">p90</th>' +
-      '<th style="padding:6px 8px;text-align:right;color:var(--muted);font-weight:600">p99</th>' +
-      '<th style="padding:6px 12px;text-align:left;color:var(--muted);font-weight:600" colspan="2">Volume</th>' +
+    html += '<tr style="border-bottom:1px solid var(--border);background:rgba(0,0,0,.1)">' +
+      '<th style="padding:6px 12px;text-align:left;color:var(--muted);font-weight:600;font-size:10px">Rota</th>' +
+      '<th style="padding:6px 8px;text-align:right;color:var(--muted);font-weight:600;font-size:10px">Calls</th>' +
+      '<th style="padding:6px 8px;text-align:right;color:var(--muted);font-weight:600;font-size:10px">Req/s</th>' +
+      '<th style="padding:6px 8px;text-align:right;color:var(--muted);font-weight:600;font-size:10px">Avg</th>' +
+      '<th style="padding:6px 8px;text-align:right;color:var(--muted);font-weight:600;font-size:10px">p50</th>' +
+      '<th style="padding:6px 8px;text-align:right;color:var(--muted);font-weight:600;font-size:10px">p90</th>' +
+      '<th style="padding:6px 8px;text-align:right;color:var(--muted);font-weight:600;font-size:10px" title="p99 — pior 1% das requisições">p99 ⚑</th>' +
+      '<th style="padding:6px 12px;text-align:left;color:var(--muted);font-weight:600;font-size:10px" colspan="2">Volume</th>' +
       '</tr>';
   }
+
   rows.forEach(function(r, i) {
     var bgStyle = i % 2 === 0 ? '' : 'background:rgba(255,255,255,.02)';
-    var barPct = Math.round((r.calls || 0) / maxCalls * 100);
-    var route = r.route || 'unknown';
-    // Abreviar rota longa
-    var routeShort = route.length > 38 ? route.substring(0, 36) + '…' : route;
+    var barPct  = Math.round((r.calls || 0) / maxCalls * 100);
+    var route   = r.route || 'unknown';
+    var routeShort = route.length > 40 ? route.substring(0, 38) + '…' : route;
+
     if (isErr) {
       html += '<tr style="border-bottom:1px solid rgba(255,255,255,.04);' + bgStyle + '">' +
         '<td style="padding:6px 12px;color:var(--text);font-family:monospace;font-size:10px" title="' + nrEsc(route) + '">' + nrEsc(routeShort) + '</td>' +
         '<td style="padding:6px 8px;text-align:right;color:' + color + ';font-weight:600">' + (r.calls||0) + '</td>' +
         '<td style="padding:6px 8px;text-align:right;color:var(--muted)">' + (r.rps||0).toFixed(3) + '</td>' +
-        '<td style="padding:6px 12px;color:var(--muted);font-size:10px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + nrEsc(r.lastError||'') + '">' + nrEsc((r.lastError||'—').substring(0,60)) + '</td>' +
+        '<td style="padding:6px 12px;color:var(--muted);font-size:10px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + nrEsc(r.lastError||'') + '">' + nrEsc((r.lastError||'—').substring(0,80)) + '</td>' +
         '</tr>';
     } else {
-      // Cor semântica para p99
-      var p99Color = (r.p99||0) > 1500 ? '#ef4444' : (r.p99||0) > 800 ? '#f59e0b' : '#22c55e';
-      html += '<tr style="border-bottom:1px solid rgba(255,255,255,.04);' + bgStyle + '">' +
+      var avg    = r.avgMs || 0;
+      var p50    = r.p50   || 0;
+      var p90    = r.p90   || 0;
+      var p99    = r.p99   || 0;
+      // Cor semântica p99
+      var p99Color = p99 > 1500 ? '#ef4444' : p99 > 800 ? '#f59e0b' : p99 > 0 ? '#22c55e' : 'var(--muted)';
+      // Tooltip explicativo
+      var pctTip = 'p50=' + p50 + 'ms  p90=' + p90 + 'ms  p99=' + p99 + 'ms  avg=' + avg + 'ms';
+      html += '<tr style="border-bottom:1px solid rgba(255,255,255,.04);' + bgStyle + '" title="' + pctTip + '">' +
         '<td style="padding:6px 12px;color:var(--text);font-family:monospace;font-size:10px" title="' + nrEsc(route) + '">' + nrEsc(routeShort) + '</td>' +
         '<td style="padding:6px 8px;text-align:right;color:' + color + ';font-weight:600">' + (r.calls||0) + '</td>' +
-        '<td style="padding:6px 8px;text-align:right;color:var(--muted)">' + (r.rps||0).toFixed(3) + '</td>' +
-        '<td style="padding:6px 8px;text-align:right;color:var(--muted)">' + (r.p50||0) + 'ms</td>' +
-        '<td style="padding:6px 8px;text-align:right;color:var(--muted)">' + (r.p90||0) + 'ms</td>' +
-        '<td style="padding:6px 8px;text-align:right;color:' + p99Color + ';font-weight:600">' + (r.p99||0) + 'ms</td>' +
-        '<td style="padding:6px 6px 6px 12px;width:80px">' +
+        '<td style="padding:6px 8px;text-align:right;color:var(--muted);font-size:10px">' + (r.rps||0).toFixed(3) + '</td>' +
+        '<td style="padding:6px 8px;text-align:right;color:var(--muted);font-size:10px">' + (avg > 0 ? avg + 'ms' : '—') + '</td>' +
+        '<td style="padding:6px 8px;text-align:right;color:var(--muted);font-size:10px">' + (p50 > 0 ? p50 + 'ms' : '—') + '</td>' +
+        '<td style="padding:6px 8px;text-align:right;color:var(--muted);font-size:10px">' + (p90 > 0 ? p90 + 'ms' : '—') + '</td>' +
+        '<td style="padding:6px 8px;text-align:right;color:' + p99Color + ';font-weight:700;font-size:10px">' + (p99 > 0 ? p99 + 'ms' : '—') + '</td>' +
+        '<td style="padding:6px 6px 6px 10px;width:70px">' +
           '<div style="background:rgba(255,255,255,.06);border-radius:3px;height:4px">' +
-          '<div style="width:' + barPct + '%;background:' + color + ';border-radius:3px;height:4px;opacity:.7"></div></div></td>' +
-        '<td style="padding:6px 6px;color:var(--muted);font-size:10px;white-space:nowrap">' + barPct + '%</td>' +
+          '<div style="width:' + barPct + '%;background:' + color + ';border-radius:3px;height:4px;opacity:.75"></div></div></td>' +
+        '<td style="padding:6px 4px;color:var(--muted);font-size:10px;white-space:nowrap">' + barPct + '%</td>' +
         '</tr>';
     }
   });
   html += '</table>';
+  html += '</div>'; // fim do colapsável
   return html;
+}
+
+// Colapsar/expandir tabela de rotas
+function nrToggleTable(tid) {
+  var el  = document.getElementById(tid);
+  var chv = document.getElementById(tid + '_chv');
+  if (!el) return;
+  var collapsed = el.style.display === 'none';
+  el.style.display  = collapsed ? '' : 'none';
+  if (chv) chv.style.transform = collapsed ? 'rotate(0deg)' : 'rotate(-90deg)';
 }
 
 // Seletor de janela de tempo NR

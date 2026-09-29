@@ -446,40 +446,35 @@ public static class ObservabilityEndpoints
             "SELECT filter(count(*), WHERE duration.ms < 500) / count(*) as apdex " +
             "FROM Span WHERE service.name = 'comprai-api' " + since + " TIMESERIES " + bucket;
 
-        // Top rotas Satisfied (< 500ms) — count, req/s, p50, p90, p99
+        // Top rotas Satisfied (< 500ms) — count, p50, p90, p99, avg
+        // Nota: NR com FACET retorna alias de percentile() como "percentile.duration.ms.50"
+        // Usamos average(duration.ms) como proxy confiável além dos percentis
         var nrqlSat =
             "SELECT count(*) as calls, " +
-            "rate(count(*), 1 second) as rps, " +
-            "percentile(duration.ms, 50) as p50, " +
-            "percentile(duration.ms, 90) as p90, " +
-            "percentile(duration.ms, 99) as p99 " +
+            "average(duration.ms) as avgMs, " +
+            "percentile(duration.ms, 50, 90, 99) " +
             "FROM Span WHERE service.name = 'comprai-api' AND duration.ms < 500 " +
             since + " FACET http.route LIMIT 10";
 
         // Top rotas Tolerating (500ms–2s)
         var nrqlTol =
             "SELECT count(*) as calls, " +
-            "rate(count(*), 1 second) as rps, " +
-            "percentile(duration.ms, 50) as p50, " +
-            "percentile(duration.ms, 90) as p90, " +
-            "percentile(duration.ms, 99) as p99 " +
+            "average(duration.ms) as avgMs, " +
+            "percentile(duration.ms, 50, 90, 99) " +
             "FROM Span WHERE service.name = 'comprai-api' AND duration.ms >= 500 AND duration.ms < 2000 " +
             since + " FACET http.route LIMIT 10";
 
         // Top rotas Frustrated lentas (>= 2s, sem erro)
         var nrqlFruSlow =
             "SELECT count(*) as calls, " +
-            "rate(count(*), 1 second) as rps, " +
-            "percentile(duration.ms, 50) as p50, " +
-            "percentile(duration.ms, 90) as p90, " +
-            "percentile(duration.ms, 99) as p99 " +
+            "average(duration.ms) as avgMs, " +
+            "percentile(duration.ms, 50, 90, 99) " +
             "FROM Span WHERE service.name = 'comprai-api' AND duration.ms >= 2000 AND otel.status_code != 'ERROR' " +
             since + " FACET http.route LIMIT 10";
 
         // Top rotas Frustrated com erro
         var nrqlFruErr =
             "SELECT count(*) as calls, " +
-            "rate(count(*), 1 second) as rps, " +
             "latest(error.message) as lastError " +
             "FROM Span WHERE service.name = 'comprai-api' AND otel.status_code = 'ERROR' " +
             since + " FACET http.route LIMIT 10";
@@ -683,19 +678,42 @@ public static class ObservabilityEndpoints
                 .GetProperty("account").GetProperty("nrql")
                 .GetProperty("results");
 
+            // Calcular duração do período para req/s
+            var periodSeconds = WindowPeriodSeconds(since);
+
             foreach (var row in results.EnumerateArray())
             {
-                var route = row.TryGetProperty("facet", out var f) ? f.GetString() ?? "unknown" : "unknown";
-                double G(string k) => row.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.Number ? Math.Round(v.GetDouble(), 1) : 0;
-                // percentile retorna chave como "percentile.duration.ms.50" etc.
+                // facet pode ser string ou array — normalizar
+                string route = "unknown";
+                if (row.TryGetProperty("facet", out var facetEl))
+                {
+                    route = facetEl.ValueKind == JsonValueKind.Array
+                        ? (facetEl.EnumerateArray().FirstOrDefault().GetString() ?? "unknown")
+                        : (facetEl.GetString() ?? "unknown");
+                }
+
+                // Helpers de leitura
+                double G(string k) => row.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.Number
+                    ? Math.Round(v.GetDouble(), 2) : 0;
+
+                // NR gera "percentile.duration.ms.50", "percentile.duration.ms.90" etc.
+                // Busca por sufixo numérico exato na chave
                 double Pct(int p) {
+                    var suffix = "." + p;
                     foreach (var prop in row.EnumerateObject())
-                        if (prop.Name.Contains("." + p) && prop.Value.ValueKind == JsonValueKind.Number)
+                        if (prop.Name.EndsWith(suffix) && prop.Value.ValueKind == JsonValueKind.Number)
+                            return Math.Round(prop.Value.GetDouble(), 0);
+                    // Fallback: busca parcial
+                    foreach (var prop in row.EnumerateObject())
+                        if (prop.Name.Contains("percentile") && prop.Name.Contains(p.ToString()) && prop.Value.ValueKind == JsonValueKind.Number)
                             return Math.Round(prop.Value.GetDouble(), 0);
                     return 0;
                 }
-                var calls = (long)G("calls");
-                var rps   = Math.Round(G("rps"), 3);
+
+                var calls  = (long)G("calls");
+                var avgMs  = Math.Round(G("avgMs"), 0);
+                // req/s calculado a partir do count e duração da janela
+                var rps    = periodSeconds > 0 ? Math.Round((double)calls / periodSeconds, 3) : 0;
 
                 if (isError)
                 {
@@ -704,7 +722,7 @@ public static class ObservabilityEndpoints
                 }
                 else
                 {
-                    list.Add(new { route, calls, rps, p50 = Pct(50), p90 = Pct(90), p99 = Pct(99) });
+                    list.Add(new { route, calls, rps, avgMs, p50 = Pct(50), p90 = Pct(90), p99 = Pct(99) });
                 }
             }
         }
@@ -787,6 +805,20 @@ public static class ObservabilityEndpoints
 
 
     // ── Helpers de janela de tempo NR ────────────────────────────────────────
+    // Converte janela em segundos para cálculo de req/s
+    private static double WindowPeriodSeconds(string since) => since switch
+    {
+        "SINCE 5 minutes ago"  => 300,
+        "SINCE 15 minutes ago" => 900,
+        "SINCE 30 minutes ago" => 1800,
+        "SINCE 1 hour ago"     => 3600,
+        "SINCE 2 hours ago"    => 7200,
+        "SINCE 6 hours ago"    => 21600,
+        "SINCE 12 hours ago"   => 43200,
+        "SINCE 1 day ago"      => 86400,
+        _                      => 7200
+    };
+
     private static string WindowToSince(string window) => window switch
     {
         "5m"  => "SINCE 5 minutes ago",
