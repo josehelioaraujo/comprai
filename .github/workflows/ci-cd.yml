@@ -329,21 +329,20 @@ jobs:
 
           # Copiar para VPS
           mkdir -p ~/.ssh
-          printf '%s' "$VPS_SSH_KEY" > ~/.ssh/id_rsa
+          # echo preserva quebras de linha do PEM (printf '%s' colapsa em espaço)
+          echo "$VPS_SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          # Garantir newline final obrigatório no PEM
-          echo "" >> ~/.ssh/id_rsa
           ssh-keyscan -H 2.25.122.11 >> ~/.ssh/known_hosts 2>/dev/null
-          # Validar chave antes do scp
+          # Validar chave PEM
           ssh-keygen -y -f ~/.ssh/id_rsa > /dev/null || { echo "❌ Chave SSH inválida"; exit 1; }
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@2.25.122.11 \
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o ConnectTimeout=15 root@2.25.122.11 \
             "mkdir -p /var/www/html/k6/results/sonar && echo 'mkdir OK'" \
             && echo "✅ SSH mkdir OK" \
-            || { echo "❌ SSH mkdir falhou — verificar VPS e chave SSH"; exit 1; }
-          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o ConnectTimeout=10 \
+            || { echo "❌ SSH mkdir falhou"; exit 1; }
+          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o ConnectTimeout=15 \
             sonar-metrics.json root@2.25.122.11:/var/www/html/k6/results/sonar/latest.json \
             && echo "✅ SonarCloud metrics publicados" \
-            || { echo "❌ SCP falhou — arquivo: $(ls -la sonar-metrics.json 2>/dev/null || echo 'não existe')"; exit 1; }
+            || { echo "❌ SCP falhou"; exit 1; }
 
       - name: Append history.json — Evolução
         env:
