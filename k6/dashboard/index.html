@@ -3532,15 +3532,19 @@ function nrMiniApdex(label, value, color, hint, pct) {
 var _nrActiveBucket = null;
 function nrMiniApdexClick(label, value, color, hint, pct, bucketKey) {
   var isActive = _nrActiveBucket === bucketKey;
-  return '<div onclick="nrShowBucket('' + bucketKey + '')" ' +
-    'style="background:var(--surface2);border:2px solid ' + (isActive ? color : 'var(--border)') + ';border-radius:8px;padding:10px;text-align:center;cursor:pointer;transition:border-color .15s" ' +
-    'onmouseover="this.style.borderColor='' + color + ''" onmouseout="this.style.borderColor='' + (isActive ? color : 'var(--border)') + ''">' +
+  var borderColor = isActive ? color : 'var(--border)';
+  var el = document.createElement('div');
+  el.setAttribute('onclick', 'nrShowBucket(' + JSON.stringify(bucketKey) + ')');
+  el.style.cssText = 'background:var(--surface2);border:2px solid ' + borderColor + ';border-radius:8px;padding:10px;text-align:center;cursor:pointer;transition:border-color .15s';
+  el.onmouseover = function(){ this.style.borderColor = color; };
+  el.onmouseout  = function(){ this.style.borderColor = isActive ? color : 'var(--border)'; };
+  el.innerHTML =
     '<div style="font-size:22px;font-weight:700;color:' + color + '">' + value + '</div>' +
     '<div style="font-size:10px;color:' + color + ';opacity:.8;margin-top:1px">' + pct + '%</div>' +
     '<div style="font-size:10px;color:var(--muted);margin-top:2px">' + label + '</div>' +
     '<div style="font-size:9px;color:var(--muted);opacity:.6;margin-top:2px">' + nrEsc(hint) + '</div>' +
-    '<div style="font-size:9px;color:' + color + ';opacity:.7;margin-top:4px">▼ rotas</div>' +
-    '</div>';
+    '<div style="font-size:9px;color:' + color + ';opacity:.7;margin-top:4px">&#9660; rotas</div>';
+  return el.outerHTML;
 }
 
 function nrShowBucket(key) {
