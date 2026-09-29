@@ -623,7 +623,7 @@ public static class ObservabilityEndpoints
     {
         var query = $"query($nrql: Nrql!) {{ actor {{ account(id: {accountId}) {{ nrql(query: $nrql) {{ results }} }} }} }}";
         return System.Text.Json.JsonSerializer.Serialize(new { query, variables = new { nrql } });
-    }) {{ nrql(query: \\\"{escapedNrql}\\\") {{ results }} }} }} }}\"}}";
+
     }
 
     // ── Helpers Prometheus ────────────────────────────────────────────────────
