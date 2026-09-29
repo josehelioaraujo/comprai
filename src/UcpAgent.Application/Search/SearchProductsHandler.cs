@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using MediatR;
 using UcpAgent.SharedKernel;
+using UcpAgent.SharedKernel.Events;
 using UcpAgent.SharedKernel.Models;
 using UcpAgent.SharedKernel.Ports;
 
@@ -8,6 +9,7 @@ namespace UcpAgent.Application.Search;
 
 public sealed class SearchProductsHandler(
     IEnumerable<IProductCatalogPort> catalogs,
+    IEventPublisher events,
     UcpMetrics metrics)
     : IRequestHandler<SearchProductsQuery, Result<SearchResult>>
 {
@@ -53,9 +55,9 @@ public sealed class SearchProductsHandler(
         var seen  = new HashSet<string>();
         var items = results
             .SelectMany(r => r.Items)
-            .Where(p => seen.Add($"{p.Source}:{p.Id}"))   // deduplicação
-            .OrderByDescending(p => p.AvailableQuantity > 0) // disponíveis primeiro
-            .ThenBy(p => p.Price)                            // menor preço
+            .Where(p => seen.Add($"{p.Source}:{p.Id}"))
+            .OrderByDescending(p => p.AvailableQuantity > 0)
+            .ThenBy(p => p.Price)
             .ToList();
 
         var total = results.Sum(r => r.TotalItems);
@@ -63,6 +65,12 @@ public sealed class SearchProductsHandler(
         sw.Stop();
         metrics.SearchDurationMs.Record(sw.Elapsed.TotalMilliseconds);
         metrics.SearchResultsCount.Record(items.Count);
+
+        // Publica evento de busca (fire-and-forget — nunca bloqueia o fluxo)
+        _ = events.PublishAsync(
+            UcpTopics.SearchQueried,
+            new SearchQueryLoggedEvent(request.Query, items.Count, "aggregated", DateTime.UtcNow),
+            cancellationToken);
 
         return Result<SearchResult>.Ok(
             new SearchResult(items, total, request.Page, request.PageSize, "aggregated"));

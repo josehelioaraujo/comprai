@@ -28,7 +28,7 @@ public sealed class RedisCheckoutAdapter(
         await cart.ClearAsync(sessionId, ct);
 
         await events.PublishAsync(
-            "order.created",
+            UcpTopics.OrderCreated,
             new OrderCreatedEvent(orderId, sessionId, total, items.Count, DateTime.UtcNow),
             ct);
 
