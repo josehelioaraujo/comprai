@@ -1,4 +1,4 @@
-// V041 — health checks reais, Redis/Kafka/RabbitMQ condicionais
+// V041 — health checks reais, Redis/Kafka/RabbitMQ condicionais | Sonar via appleboy
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using StackExchange.Redis;
