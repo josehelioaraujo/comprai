@@ -433,7 +433,7 @@ public static class ObservabilityEndpoints
     // ── Drill: Apdex breakdown + timeline ────────────────────────────────────
     private static async Task<IResult> DrillApdex(HttpClient client, string accountId, string since, string bucket, CancellationToken ct)
     {
-        // Breakdown instantâneo
+        // Breakdown total
         var nrqlBreakdown =
             "SELECT " +
             "filter(count(*), WHERE duration.ms < 500) as satisfied, " +
@@ -441,13 +441,55 @@ public static class ObservabilityEndpoints
             "filter(count(*), WHERE duration.ms >= 2000 OR otel.status_code = 'ERROR') as frustrated " +
             "FROM Span WHERE service.name = 'comprai-api' " + since;
 
-        // Série temporal Apdex (1 ponto por minuto, últimas 2h)
+        // Timeline Apdex
         var nrqlTimeline =
             "SELECT filter(count(*), WHERE duration.ms < 500) / count(*) as apdex " +
             "FROM Span WHERE service.name = 'comprai-api' " + since + " TIMESERIES " + bucket;
 
-        var breakdown = await NrQuery(client, accountId, nrqlBreakdown, ct);
-        var timeline  = await NrQueryTimeseries(client, accountId, nrqlTimeline, "apdex", ct);
+        // Top rotas Satisfied (< 500ms) — count, req/s, p50, p90, p99
+        var nrqlSat =
+            "SELECT count(*) as calls, " +
+            "rate(count(*), 1 second) as rps, " +
+            "percentile(duration.ms, 50) as p50, " +
+            "percentile(duration.ms, 90) as p90, " +
+            "percentile(duration.ms, 99) as p99 " +
+            "FROM Span WHERE service.name = 'comprai-api' AND duration.ms < 500 " +
+            since + " FACET http.route LIMIT 10";
+
+        // Top rotas Tolerating (500ms–2s)
+        var nrqlTol =
+            "SELECT count(*) as calls, " +
+            "rate(count(*), 1 second) as rps, " +
+            "percentile(duration.ms, 50) as p50, " +
+            "percentile(duration.ms, 90) as p90, " +
+            "percentile(duration.ms, 99) as p99 " +
+            "FROM Span WHERE service.name = 'comprai-api' AND duration.ms >= 500 AND duration.ms < 2000 " +
+            since + " FACET http.route LIMIT 10";
+
+        // Top rotas Frustrated lentas (>= 2s, sem erro)
+        var nrqlFruSlow =
+            "SELECT count(*) as calls, " +
+            "rate(count(*), 1 second) as rps, " +
+            "percentile(duration.ms, 50) as p50, " +
+            "percentile(duration.ms, 90) as p90, " +
+            "percentile(duration.ms, 99) as p99 " +
+            "FROM Span WHERE service.name = 'comprai-api' AND duration.ms >= 2000 AND otel.status_code != 'ERROR' " +
+            since + " FACET http.route LIMIT 10";
+
+        // Top rotas Frustrated com erro
+        var nrqlFruErr =
+            "SELECT count(*) as calls, " +
+            "rate(count(*), 1 second) as rps, " +
+            "latest(error.message) as lastError " +
+            "FROM Span WHERE service.name = 'comprai-api' AND otel.status_code = 'ERROR' " +
+            since + " FACET http.route LIMIT 10";
+
+        var breakdown  = await NrQuery(client, accountId, nrqlBreakdown, ct);
+        var timeline   = await NrQueryTimeseries(client, accountId, nrqlTimeline, "apdex", ct);
+        var routesSat  = await NrQueryRouteFacets(client, accountId, nrqlSat,     false, ct);
+        var routesTol  = await NrQueryRouteFacets(client, accountId, nrqlTol,     false, ct);
+        var routesSlow = await NrQueryRouteFacets(client, accountId, nrqlFruSlow, false, ct);
+        var routesErr  = await NrQueryRouteFacets(client, accountId, nrqlFruErr,  true,  ct);
 
         if (breakdown is null) return Results.Ok(new { error = "sem dados" });
 
@@ -458,7 +500,8 @@ public static class ObservabilityEndpoints
             satisfied  = (long)GetV("satisfied"),
             tolerated  = (long)GetV("tolerated"),
             frustrated = (long)GetV("frustrated"),
-            timeline
+            timeline,
+            routes = new { satisfied = routesSat, tolerating = routesTol, slowRoutes = routesSlow, errorRoutes = routesErr }
         });
     }
 
@@ -617,6 +660,52 @@ public static class ObservabilityEndpoints
                 var count = row.TryGetProperty("count", out var c)  && c.ValueKind == JsonValueKind.Number ? (long)c.GetDouble() : 1;
                 var ts    = row.TryGetProperty("timestamp", out var t) ? DateTimeOffset.FromUnixTimeMilliseconds(t.GetInt64()).UtcDateTime.ToString("HH:mm:ss dd/MM") : "";
                 list.Add(new { name, count, timestamp = ts });
+            }
+        }
+        catch { }
+        return list;
+    }
+
+    // Query FACET para rotas — retorna lista com percentis e req/s
+    private static async Task<List<object>> NrQueryRouteFacets(
+        HttpClient client, string accountId, string nrql, bool isError, CancellationToken ct)
+    {
+        var list = new List<object>();
+        try
+        {
+            var payload = BuildGql(accountId, nrql);
+            var resp = await client.PostAsync("https://api.newrelic.com/graphql",
+                new StringContent(payload, System.Text.Encoding.UTF8, "application/json"), ct);
+            if (!resp.IsSuccessStatusCode) return list;
+            using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(ct));
+            var results = doc.RootElement
+                .GetProperty("data").GetProperty("actor")
+                .GetProperty("account").GetProperty("nrql")
+                .GetProperty("results");
+
+            foreach (var row in results.EnumerateArray())
+            {
+                var route = row.TryGetProperty("facet", out var f) ? f.GetString() ?? "unknown" : "unknown";
+                double G(string k) => row.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.Number ? Math.Round(v.GetDouble(), 1) : 0;
+                // percentile retorna chave como "percentile.duration.ms.50" etc.
+                double Pct(int p) {
+                    foreach (var prop in row.EnumerateObject())
+                        if (prop.Name.Contains("." + p) && prop.Value.ValueKind == JsonValueKind.Number)
+                            return Math.Round(prop.Value.GetDouble(), 0);
+                    return 0;
+                }
+                var calls = (long)G("calls");
+                var rps   = Math.Round(G("rps"), 3);
+
+                if (isError)
+                {
+                    var lastErr = row.TryGetProperty("lastError", out var le) ? le.GetString() ?? "" : "";
+                    list.Add(new { route, calls, rps, lastError = lastErr });
+                }
+                else
+                {
+                    list.Add(new { route, calls, rps, p50 = Pct(50), p90 = Pct(90), p99 = Pct(99) });
+                }
             }
         }
         catch { }

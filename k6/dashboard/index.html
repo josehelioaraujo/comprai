@@ -3386,69 +3386,52 @@ function nrRenderDrill(type, d) {
     var score = _nrData ? (_nrData.apdex || 0) : 0;
     var scoreColor = score >= 0.94 ? '#22c55e' : score >= 0.70 ? '#f59e0b' : '#ef4444';
     var scoreLabel = score >= 0.94 ? 'Excelente' : score >= 0.85 ? 'Bom' : score >= 0.70 ? 'Razoável' : 'Crítico';
-    // Gauge SVG
     var gaugePct = Math.min(Math.max(score, 0), 1);
-    var gaugeAngle = -140 + gaugePct * 280; // -140° a +140°
+    var gaugeAngle = -140 + gaugePct * 280;
     var gaugeRad = gaugeAngle * Math.PI / 180;
     var cx = 80, cy = 72, r = 54;
     var needleX = (cx + r * 0.78 * Math.sin(gaugeRad)).toFixed(1);
     var needleY = (cy - r * 0.78 * Math.cos(gaugeRad)).toFixed(1);
-    // Fórmula
     var formula = tot > 0
       ? '(' + sat + ' + ' + tol + '×0.5) / ' + tot + ' = <b style="color:' + scoreColor + '">' + score.toFixed(2) + '</b>'
       : 'Sem dados suficientes';
-    // Barras de proporção
     var satPct = tot > 0 ? (sat/tot*100).toFixed(1) : 0;
     var tolPct = tot > 0 ? (tol/tot*100).toFixed(1) : 0;
     var fruPct = tot > 0 ? (fru/tot*100).toFixed(1) : 0;
+    var routes = d.routes || {};
 
     var html = '';
-
-    // Header: gauge + cards lado a lado
-    html += '<div style="display:grid;grid-template-columns:180px 1fr;gap:16px;align-items:start;margin-bottom:16px">';
-
-    // Gauge SVG
+    // ── Gauge + cards ────────────────────────────────────────────────────
+    html += '<div style="display:grid;grid-template-columns:180px 1fr;gap:16px;align-items:start;margin-bottom:14px">';
     html += '<div style="text-align:center">';
     html += '<svg viewBox="0 0 160 100" style="width:160px;height:100px">';
-    // Trilha cinza de fundo
     html += '<path d="M 18 80 A 62 62 0 1 1 142 80" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="10" stroke-linecap="round"/>';
-    // Zona crítica (vermelho)
     html += '<path d="M 18 80 A 62 62 0 0 1 42 28" fill="none" stroke="#ef4444" stroke-width="10" stroke-linecap="round" opacity=".5"/>';
-    // Zona razoável (amarelo)
     html += '<path d="M 42 28 A 62 62 0 0 1 80 15" fill="none" stroke="#f59e0b" stroke-width="10" stroke-linecap="round" opacity=".5"/>';
-    // Zona boa (verde claro)
     html += '<path d="M 80 15 A 62 62 0 0 1 118 28" fill="none" stroke="#22c55e" stroke-width="10" stroke-linecap="round" opacity=".5"/>';
-    // Zona excelente (verde)
     html += '<path d="M 118 28 A 62 62 0 0 1 142 80" fill="none" stroke="#22c55e" stroke-width="10" stroke-linecap="round" opacity=".9"/>';
-    // Ponteiro
     html += '<line x1="' + cx + '" y1="' + cy + '" x2="' + needleX + '" y2="' + needleY + '" stroke="' + scoreColor + '" stroke-width="2.5" stroke-linecap="round"/>';
     html += '<circle cx="' + cx + '" cy="' + cy + '" r="4" fill="' + scoreColor + '"/>';
-    // Score no centro
     html += '<text x="' + cx + '" y="' + (cy+18) + '" text-anchor="middle" font-size="18" font-weight="700" fill="' + scoreColor + '">' + score.toFixed(2) + '</text>';
     html += '<text x="' + cx + '" y="' + (cy+30) + '" text-anchor="middle" font-size="9" fill="rgba(255,255,255,.5)">' + scoreLabel + '</text>';
-    // Labels das zonas
     html += '<text x="14" y="96" text-anchor="middle" font-size="8" fill="#ef4444">0</text>';
     html += '<text x="146" y="96" text-anchor="middle" font-size="8" fill="#22c55e">1.0</text>';
     html += '</svg>';
     html += '<div style="font-size:10px;color:var(--muted);margin-top:-8px">Apdex Score</div>';
     html += '</div>';
-
-    // Cards + fórmula
     html += '<div>';
-    html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">';
-    html += nrMiniApdex('😊 Satisfied',  sat, '#22c55e', '< 500ms (T)', satPct);
-    html += nrMiniApdex('😐 Tolerating', tol, '#f59e0b', '500ms – 2s (4T)', tolPct);
-    html += nrMiniApdex('😠 Frustrated', fru, '#ef4444', '> 2s ou erro', fruPct);
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">';
+    html += nrMiniApdexClick('😊 Satisfied',  sat, '#22c55e', '< 500ms (T)',     satPct, 'satisfied');
+    html += nrMiniApdexClick('😐 Tolerating', tol, '#f59e0b', '500ms – 2s (4T)', tolPct, 'tolerating');
+    html += nrMiniApdexClick('😠 Frustrated', fru, '#ef4444', '> 2s ou erro',    fruPct, 'frustrated');
     html += '</div>';
-    // Barra de proporção
     if (tot > 0) {
-      html += '<div style="border-radius:4px;overflow:hidden;height:6px;display:flex;margin-bottom:10px">';
+      html += '<div style="border-radius:4px;overflow:hidden;height:6px;display:flex;margin-bottom:8px">';
       html += '<div style="width:' + satPct + '%;background:#22c55e" title="Satisfied ' + satPct + '%"></div>';
       html += '<div style="width:' + tolPct + '%;background:#f59e0b" title="Tolerating ' + tolPct + '%"></div>';
       html += '<div style="width:' + fruPct + '%;background:#ef4444" title="Frustrated ' + fruPct + '%"></div>';
       html += '</div>';
     }
-    // Fórmula
     html += '<div style="background:rgba(129,140,248,.07);border:1px solid rgba(129,140,248,.15);border-radius:6px;padding:8px 10px;font-size:11px;color:var(--muted)">';
     html += '📐 <b style="color:var(--text)">Fórmula:</b> ' + formula;
     html += '<span style="margin-left:12px;font-size:10px;opacity:.7">T=500ms</span>';
@@ -3456,9 +3439,15 @@ function nrRenderDrill(type, d) {
     html += '</div>';
     html += '</div>';
 
-    // Timeline com hover
+    // ── Painel de rotas por bucket (abre ao clicar nos cards) ────────────
+    html += '<div id="nr-bucket-panel" style="margin-bottom:12px"></div>';
+
+    // ── Timeline ─────────────────────────────────────────────────────────
     html += nrTimelineInteractive(d.timeline || [], 'Apdex', '#818cf8', 0, 1, 'apdex');
     body.innerHTML = html;
+    body._nrRoutes   = routes;
+    body._nrLastData = d;
+    _nrActiveBucket  = null;
   }
   else if (type === 'error') {
     // Lista últimos erros
@@ -3537,6 +3526,139 @@ function nrMiniApdex(label, value, color, hint, pct) {
     '<div style="font-size:10px;color:var(--muted);margin-top:2px">' + label + '</div>' +
     '<div style="font-size:9px;color:var(--muted);opacity:.6;margin-top:2px">' + nrEsc(hint) + '</div>' +
     '</div>';
+}
+
+// Card clicável com drill por bucket
+var _nrActiveBucket = null;
+function nrMiniApdexClick(label, value, color, hint, pct, bucketKey) {
+  var isActive = _nrActiveBucket === bucketKey;
+  return '<div onclick="nrShowBucket('' + bucketKey + '')" ' +
+    'style="background:var(--surface2);border:2px solid ' + (isActive ? color : 'var(--border)') + ';border-radius:8px;padding:10px;text-align:center;cursor:pointer;transition:border-color .15s" ' +
+    'onmouseover="this.style.borderColor='' + color + ''" onmouseout="this.style.borderColor='' + (isActive ? color : 'var(--border)') + ''">' +
+    '<div style="font-size:22px;font-weight:700;color:' + color + '">' + value + '</div>' +
+    '<div style="font-size:10px;color:' + color + ';opacity:.8;margin-top:1px">' + pct + '%</div>' +
+    '<div style="font-size:10px;color:var(--muted);margin-top:2px">' + label + '</div>' +
+    '<div style="font-size:9px;color:var(--muted);opacity:.6;margin-top:2px">' + nrEsc(hint) + '</div>' +
+    '<div style="font-size:9px;color:' + color + ';opacity:.7;margin-top:4px">▼ rotas</div>' +
+    '</div>';
+}
+
+function nrShowBucket(key) {
+  var panel = document.getElementById('nr-bucket-panel');
+  if (!panel) return;
+  var body = document.getElementById('nr-drill-body');
+  var routes = body ? body._nrRoutes : null;
+
+  // Toggle: clicar no mesmo fecha
+  if (_nrActiveBucket === key) {
+    _nrActiveBucket = null;
+    panel.innerHTML = '';
+    // Re-render cards sem ativo
+    nrRenderDrill('apdex', body._nrLastData);
+    return;
+  }
+  _nrActiveBucket = key;
+  // Re-render cards para atualizar borda ativa
+  if (body && body._nrLastData) nrRenderDrill('apdex', body._nrLastData);
+
+  if (!routes) { panel.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px">Sem dados de rota disponíveis</div>'; return; }
+
+  var cfg = {
+    satisfied:  { label: '😊 Satisfied — Top Rotas (< 500ms)',       color: '#22c55e', data: routes.satisfied  || [], isErr: false },
+    tolerating: { label: '😐 Tolerating — Rotas em Risco (500ms–2s)', color: '#f59e0b', data: routes.tolerating || [], isErr: false },
+    frustrated: { label: '😠 Frustrated — Lentos & Erros',            color: '#ef4444', data: null, isErr: true }
+  }[key];
+  if (!cfg) return;
+
+  var html = '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-top:0">';
+  html += '<div style="padding:8px 12px;border-bottom:1px solid var(--border);background:rgba(0,0,0,.15);display:flex;align-items:center;gap:8px">';
+  html += '<span style="font-size:12px;font-weight:600;color:' + cfg.color + '">' + cfg.label + '</span>';
+  html += '</div>';
+
+  if (key === 'frustrated') {
+    // Duas sub-tabelas: lentos + erros
+    var slow = routes.slowRoutes  || [];
+    var errs = routes.errorRoutes || [];
+
+    if (slow.length) {
+      html += nrRouteTable(slow, false, '#ef4444', '🐢 Lentos (> 2s)');
+    }
+    if (errs.length) {
+      html += nrRouteTable(errs, true,  '#ef4444', '💥 Erros (otel.status_code = ERROR)');
+    }
+    if (!slow.length && !errs.length) {
+      html += '<div style="padding:16px;text-align:center;color:#22c55e;font-size:12px">✅ Nenhuma rota frustrada</div>';
+    }
+  } else {
+    var rows = cfg.data;
+    if (!rows || !rows.length) {
+      html += '<div style="padding:16px;text-align:center;color:var(--muted);font-size:12px">Sem dados para este bucket</div>';
+    } else {
+      html += nrRouteTable(rows, false, cfg.color, null);
+    }
+  }
+  html += '</div>';
+  panel.innerHTML = html;
+}
+
+function nrRouteTable(rows, isErr, color, subtitle) {
+  var maxCalls = Math.max.apply(null, rows.map(function(r){ return r.calls || 0; })) || 1;
+  var html = '';
+  if (subtitle) {
+    html += '<div style="padding:6px 12px;font-size:10px;font-weight:700;color:' + color + ';text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);opacity:.8">' + subtitle + '</div>';
+  }
+  html += '<table style="width:100%;border-collapse:collapse;font-size:11px">';
+  // Header
+  if (isErr) {
+    html += '<tr style="border-bottom:1px solid var(--border)">' +
+      '<th style="padding:6px 12px;text-align:left;color:var(--muted);font-weight:600">Rota</th>' +
+      '<th style="padding:6px 8px;text-align:right;color:var(--muted);font-weight:600">Calls</th>' +
+      '<th style="padding:6px 8px;text-align:right;color:var(--muted);font-weight:600">Req/s</th>' +
+      '<th style="padding:6px 12px;text-align:left;color:var(--muted);font-weight:600">Último erro</th>' +
+      '</tr>';
+  } else {
+    html += '<tr style="border-bottom:1px solid var(--border)">' +
+      '<th style="padding:6px 12px;text-align:left;color:var(--muted);font-weight:600">Rota</th>' +
+      '<th style="padding:6px 8px;text-align:right;color:var(--muted);font-weight:600">Calls</th>' +
+      '<th style="padding:6px 8px;text-align:right;color:var(--muted);font-weight:600">Req/s</th>' +
+      '<th style="padding:6px 8px;text-align:right;color:var(--muted);font-weight:600">p50</th>' +
+      '<th style="padding:6px 8px;text-align:right;color:var(--muted);font-weight:600">p90</th>' +
+      '<th style="padding:6px 8px;text-align:right;color:var(--muted);font-weight:600">p99</th>' +
+      '<th style="padding:6px 12px;text-align:left;color:var(--muted);font-weight:600" colspan="2">Volume</th>' +
+      '</tr>';
+  }
+  rows.forEach(function(r, i) {
+    var bgStyle = i % 2 === 0 ? '' : 'background:rgba(255,255,255,.02)';
+    var barPct = Math.round((r.calls || 0) / maxCalls * 100);
+    var route = r.route || 'unknown';
+    // Abreviar rota longa
+    var routeShort = route.length > 38 ? route.substring(0, 36) + '…' : route;
+    if (isErr) {
+      html += '<tr style="border-bottom:1px solid rgba(255,255,255,.04);' + bgStyle + '">' +
+        '<td style="padding:6px 12px;color:var(--text);font-family:monospace;font-size:10px" title="' + nrEsc(route) + '">' + nrEsc(routeShort) + '</td>' +
+        '<td style="padding:6px 8px;text-align:right;color:' + color + ';font-weight:600">' + (r.calls||0) + '</td>' +
+        '<td style="padding:6px 8px;text-align:right;color:var(--muted)">' + (r.rps||0).toFixed(3) + '</td>' +
+        '<td style="padding:6px 12px;color:var(--muted);font-size:10px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + nrEsc(r.lastError||'') + '">' + nrEsc((r.lastError||'—').substring(0,60)) + '</td>' +
+        '</tr>';
+    } else {
+      // Cor semântica para p99
+      var p99Color = (r.p99||0) > 1500 ? '#ef4444' : (r.p99||0) > 800 ? '#f59e0b' : '#22c55e';
+      html += '<tr style="border-bottom:1px solid rgba(255,255,255,.04);' + bgStyle + '">' +
+        '<td style="padding:6px 12px;color:var(--text);font-family:monospace;font-size:10px" title="' + nrEsc(route) + '">' + nrEsc(routeShort) + '</td>' +
+        '<td style="padding:6px 8px;text-align:right;color:' + color + ';font-weight:600">' + (r.calls||0) + '</td>' +
+        '<td style="padding:6px 8px;text-align:right;color:var(--muted)">' + (r.rps||0).toFixed(3) + '</td>' +
+        '<td style="padding:6px 8px;text-align:right;color:var(--muted)">' + (r.p50||0) + 'ms</td>' +
+        '<td style="padding:6px 8px;text-align:right;color:var(--muted)">' + (r.p90||0) + 'ms</td>' +
+        '<td style="padding:6px 8px;text-align:right;color:' + p99Color + ';font-weight:600">' + (r.p99||0) + 'ms</td>' +
+        '<td style="padding:6px 6px 6px 12px;width:80px">' +
+          '<div style="background:rgba(255,255,255,.06);border-radius:3px;height:4px">' +
+          '<div style="width:' + barPct + '%;background:' + color + ';border-radius:3px;height:4px;opacity:.7"></div></div></td>' +
+        '<td style="padding:6px 6px;color:var(--muted);font-size:10px;white-space:nowrap">' + barPct + '%</td>' +
+        '</tr>';
+    }
+  });
+  html += '</table>';
+  return html;
 }
 
 // Seletor de janela de tempo NR
