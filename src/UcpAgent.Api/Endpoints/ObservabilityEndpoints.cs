@@ -76,7 +76,6 @@ public static class ObservabilityEndpoints
             var baseUrl = config["Observability:PrometheusUrl"] ?? "http://comprai-prometheus:9090";
             var client  = factory.CreateClient("observability");
 
-            // Buscar totais por plugin (label: plugin)
             var totalByPlugin   = await QueryLabeled(client, baseUrl, "sum by (plugin)(ucp_plugin_search_requests_total)",   "plugin", ct);
             var errorsByPlugin  = await QueryLabeled(client, baseUrl, "sum by (plugin)(ucp_plugin_fallback_events_total)",    "plugin", ct);
             var fallbackByPlugin= await QueryLabeled(client, baseUrl, "sum by (plugin)(ucp_plugin_fallback_events_total)", "plugin", ct);
@@ -128,7 +127,6 @@ public static class ObservabilityEndpoints
             var avgLatencyMs  = await QueryInstant(client, baseUrl,
                 "sum(rate(ucp_ollama_duration_milliseconds_sum[5m])) / sum(rate(ucp_ollama_duration_milliseconds_count[5m]))", ct);
 
-            // Distribuição de intenções por label
             var intentDist = await QueryLabeled(client, baseUrl, "sum by (intent)(ucp_intent_detected_requests_total)", "intent", ct);
 
             return Results.Ok(new { totalIntents, ollamaCalls, ollamaErrors, avgLatencyMs, intentDistribution = intentDist });
@@ -338,10 +336,10 @@ public static class ObservabilityEndpoints
         .WithTags("Observability").WithName("ObsAccessLogs").AllowAnonymous();
     }
 
-    // ── Helpers Prometheus ────────────────────────────────────────────────────
-    // ── New Relic APM — NerdGraph proxy ─────────────────────────────────────
+    // ── New Relic APM — NerdGraph proxy ──────────────────────────────────────
     public static void MapNewRelicEndpoints(this WebApplication app)
     {
+        // Endpoint principal — KPIs resumidos
         app.MapGet("/api/observability/newrelic", async (IConfiguration config, IHttpClientFactory factory, CancellationToken ct) =>
         {
             var userKey   = config["NewRelic:UserKey"]   ?? Environment.GetEnvironmentVariable("NEW_RELIC_USER_KEY")   ?? "";
@@ -357,7 +355,7 @@ public static class ObservabilityEndpoints
                        $"percentile(duration.ms, 95) as p95 " +
                        $"FROM Span WHERE service.name = 'comprai-api' SINCE 5 minutes ago";
 
-            var gqlQuery = $$"""{"query":"{ actor { account(id: {{accountId}}) { nrql(query: \"{{nrql}}\") { results } } } }"}""";
+            var gqlQuery = $$"""{\"query\":\"{ actor { account(id: {{accountId}}) { nrql(query: \\\"{{nrql}}\\\") { results } } } }\"}""";
 
             try
             {
@@ -391,16 +389,244 @@ public static class ObservabilityEndpoints
                     apdex      = Math.Round(GetVal("apdex"), 2),
                     errorRate  = Math.Round(GetVal("errorRate"), 2),
                     throughput = Math.Round(GetVal("throughput"), 1),
-                    p95        = Math.Round(GetVal("p95") * 1000, 0), // s → ms
+                    p95        = Math.Round(GetVal("p95") * 1000, 0),
                 });
             }
             catch (Exception ex)
             {
                 return Results.Ok(new { connected = false, error = ex.Message });
             }
-        }).WithTags("Observability");
+        }).WithTags("Observability").WithName("NrKpis").AllowAnonymous();
+
+        // ── Drill-down — série temporal + breakdown por card ─────────────────
+        app.MapGet("/api/observability/newrelic/drill", async (
+            string type,
+            IConfiguration config,
+            IHttpClientFactory factory,
+            CancellationToken ct) =>
+        {
+            var userKey   = config["NewRelic:UserKey"]   ?? Environment.GetEnvironmentVariable("NEW_RELIC_USER_KEY")   ?? "";
+            var accountId = config["NewRelic:AccountId"] ?? Environment.GetEnvironmentVariable("NEW_RELIC_ACCOUNT_ID") ?? "";
+
+            if (string.IsNullOrEmpty(userKey) || string.IsNullOrEmpty(accountId))
+                return Results.Ok(new { error = "credenciais ausentes" });
+
+            var client = factory.CreateClient("observability");
+            client.DefaultRequestHeaders.Clear();
+            client.DefaultRequestHeaders.Add("API-Key", userKey);
+
+            return type switch
+            {
+                "apdex"      => await DrillApdex(client, accountId, ct),
+                "error"      => await DrillErrors(client, accountId, ct),
+                "throughput" => await DrillThroughput(client, accountId, ct),
+                "p95"        => await DrillLatency(client, accountId, ct),
+                _            => Results.Ok(new { error = $"tipo '{type}' desconhecido" })
+            };
+        }).WithTags("Observability").WithName("NrDrill").AllowAnonymous();
     }
 
+    // ── Drill: Apdex breakdown + timeline ────────────────────────────────────
+    private static async Task<IResult> DrillApdex(HttpClient client, string accountId, CancellationToken ct)
+    {
+        // Breakdown instantâneo
+        var nrqlBreakdown =
+            "SELECT " +
+            "filter(count(*), WHERE duration.ms < 500) as satisfied, " +
+            "filter(count(*), WHERE duration.ms >= 500 AND duration.ms < 2000) as tolerated, " +
+            "filter(count(*), WHERE duration.ms >= 2000 OR otel.status_code = 'ERROR') as frustrated " +
+            "FROM Span WHERE service.name = 'comprai-api' SINCE 30 minutes ago";
+
+        // Série temporal Apdex (1 ponto por minuto, últimas 2h)
+        var nrqlTimeline =
+            "SELECT filter(count(*), WHERE duration.ms < 500) / count(*) as apdex " +
+            "FROM Span WHERE service.name = 'comprai-api' SINCE 2 hours ago TIMESERIES 1 minute";
+
+        var breakdown = await NrQuery(client, accountId, nrqlBreakdown, ct);
+        var timeline  = await NrQueryTimeseries(client, accountId, nrqlTimeline, "apdex", ct);
+
+        if (breakdown is null) return Results.Ok(new { error = "sem dados" });
+
+        double GetV(string k) => breakdown.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : 0;
+
+        return Results.Ok(new
+        {
+            satisfied  = (long)GetV("satisfied"),
+            tolerated  = (long)GetV("tolerated"),
+            frustrated = (long)GetV("frustrated"),
+            timeline
+        });
+    }
+
+    // ── Drill: Erros recentes ────────────────────────────────────────────────
+    private static async Task<IResult> DrillErrors(HttpClient client, string accountId, CancellationToken ct)
+    {
+        var nrqlErrors =
+            "SELECT error.message as name, timestamp, count(*) as count " +
+            "FROM Span WHERE service.name = 'comprai-api' AND otel.status_code = 'ERROR' " +
+            "SINCE 2 hours ago FACET error.message LIMIT 10";
+
+        var nrqlTimeline =
+            "SELECT percentage(count(*), WHERE otel.status_code = 'ERROR') as errorRate " +
+            "FROM Span WHERE service.name = 'comprai-api' SINCE 2 hours ago TIMESERIES 1 minute";
+
+        var rawErrors = await NrQueryFacets(client, accountId, nrqlErrors, ct);
+        var timeline  = await NrQueryTimeseries(client, accountId, nrqlTimeline, "errorRate", ct);
+
+        return Results.Ok(new { errors = rawErrors, timeline });
+    }
+
+    // ── Drill: Throughput timeline + pico/média ───────────────────────────────
+    private static async Task<IResult> DrillThroughput(HttpClient client, string accountId, CancellationToken ct)
+    {
+        var nrqlTimeline =
+            "SELECT rate(count(*), 1 minute) as rpm " +
+            "FROM Span WHERE service.name = 'comprai-api' SINCE 2 hours ago TIMESERIES 1 minute";
+
+        var nrqlSummary =
+            "SELECT max(rate(count(*), 1 minute)) as peak, average(rate(count(*), 1 minute)) as avg " +
+            "FROM Span WHERE service.name = 'comprai-api' SINCE 2 hours ago";
+
+        var timeline = await NrQueryTimeseries(client, accountId, nrqlTimeline, "rpm", ct);
+        var summary  = await NrQuery(client, accountId, nrqlSummary, ct);
+
+        double GetV(string k) => summary is not null && summary.Value.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.Number ? Math.Round(v.GetDouble(), 1) : 0;
+
+        return Results.Ok(new
+        {
+            peak     = GetV("peak"),
+            avg      = GetV("avg"),
+            timeline
+        });
+    }
+
+    // ── Drill: Latência percentis + timeline p95 ─────────────────────────────
+    private static async Task<IResult> DrillLatency(HttpClient client, string accountId, CancellationToken ct)
+    {
+        var nrqlPercentis =
+            "SELECT percentile(duration.ms, 50, 75, 95, 99) " +
+            "FROM Span WHERE service.name = 'comprai-api' SINCE 2 hours ago";
+
+        var nrqlTimeline =
+            "SELECT percentile(duration.ms, 95) as p95 " +
+            "FROM Span WHERE service.name = 'comprai-api' SINCE 2 hours ago TIMESERIES 1 minute";
+
+        var percentis = await NrQuery(client, accountId, nrqlPercentis, ct);
+        var timeline  = await NrQueryTimeseries(client, accountId, nrqlTimeline, "p95", ct);
+
+        // percentile(x, 50, 75, 95, 99) retorna chaves como "percentile.duration.ms.50" etc.
+        double GetP(string key)
+        {
+            if (percentis is null) return 0;
+            foreach (var prop in percentis.Value.EnumerateObject())
+                if (prop.Name.EndsWith("." + key) && prop.Value.ValueKind == JsonValueKind.Number)
+                    return Math.Round(prop.Value.GetDouble(), 0);
+            return 0;
+        }
+
+        return Results.Ok(new
+        {
+            p50      = GetP("50"),
+            p75      = GetP("75"),
+            p95      = GetP("95"),
+            p99      = GetP("99"),
+            timeline
+        });
+    }
+
+    // ── NerdGraph helpers ─────────────────────────────────────────────────────
+
+    // Query simples — retorna o primeiro resultado como JsonElement
+    private static async Task<JsonElement?> NrQuery(HttpClient client, string accountId, string nrql, CancellationToken ct)
+    {
+        try
+        {
+            var payload = BuildGql(accountId, nrql);
+            var resp = await client.PostAsync("https://api.newrelic.com/graphql",
+                new StringContent(payload, System.Text.Encoding.UTF8, "application/json"), ct);
+            if (!resp.IsSuccessStatusCode) return null;
+            using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(ct));
+            var results = doc.RootElement
+                .GetProperty("data").GetProperty("actor")
+                .GetProperty("account").GetProperty("nrql")
+                .GetProperty("results");
+            if (results.GetArrayLength() == 0) return null;
+            // Precisa fazer clone para retornar após o using
+            return JsonDocument.Parse(results[0].GetRawText()).RootElement;
+        }
+        catch { return null; }
+    }
+
+    // Query TIMESERIES — retorna lista de {timestamp, value}
+    private static async Task<List<object>> NrQueryTimeseries(
+        HttpClient client, string accountId, string nrql, string valueKey, CancellationToken ct)
+    {
+        var pts = new List<object>();
+        try
+        {
+            var payload = BuildGql(accountId, nrql);
+            var resp = await client.PostAsync("https://api.newrelic.com/graphql",
+                new StringContent(payload, System.Text.Encoding.UTF8, "application/json"), ct);
+            if (!resp.IsSuccessStatusCode) return pts;
+            using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(ct));
+            var results = doc.RootElement
+                .GetProperty("data").GetProperty("actor")
+                .GetProperty("account").GetProperty("nrql")
+                .GetProperty("results");
+
+            foreach (var point in results.EnumerateArray())
+            {
+                // beginTimeSeconds está sempre presente em TIMESERIES
+                var ts = point.TryGetProperty("beginTimeSeconds", out var bt)
+                    ? DateTimeOffset.FromUnixTimeSeconds(bt.GetInt64()).UtcDateTime.ToString("HH:mm")
+                    : "";
+                double val = 0;
+                if (point.TryGetProperty(valueKey, out var vEl) && vEl.ValueKind == JsonValueKind.Number)
+                    val = Math.Round(vEl.GetDouble(), 3);
+                pts.Add(new { timestamp = ts, value = val });
+            }
+        }
+        catch { }
+        return pts;
+    }
+
+    // Query FACET — retorna lista de {name, count, timestamp}
+    private static async Task<List<object>> NrQueryFacets(
+        HttpClient client, string accountId, string nrql, CancellationToken ct)
+    {
+        var list = new List<object>();
+        try
+        {
+            var payload = BuildGql(accountId, nrql);
+            var resp = await client.PostAsync("https://api.newrelic.com/graphql",
+                new StringContent(payload, System.Text.Encoding.UTF8, "application/json"), ct);
+            if (!resp.IsSuccessStatusCode) return list;
+            using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(ct));
+            var results = doc.RootElement
+                .GetProperty("data").GetProperty("actor")
+                .GetProperty("account").GetProperty("nrql")
+                .GetProperty("results");
+
+            foreach (var row in results.EnumerateArray())
+            {
+                var name  = row.TryGetProperty("facet", out var f)  ? f.GetString()  ?? "desconhecido" : "desconhecido";
+                var count = row.TryGetProperty("count", out var c)  && c.ValueKind == JsonValueKind.Number ? (long)c.GetDouble() : 1;
+                var ts    = row.TryGetProperty("timestamp", out var t) ? DateTimeOffset.FromUnixTimeMilliseconds(t.GetInt64()).UtcDateTime.ToString("HH:mm:ss dd/MM") : "";
+                list.Add(new { name, count, timestamp = ts });
+            }
+        }
+        catch { }
+        return list;
+    }
+
+    // Monta o payload GraphQL escapado corretamente
+    private static string BuildGql(string accountId, string nrql)
+    {
+        var escapedNrql = nrql.Replace("\\", "\\\\").Replace("\"", "\\\"");
+        return $"{{\"query\":\"{{ actor {{ account(id: {accountId}) {{ nrql(query: \\\"{escapedNrql}\\\") {{ results }} }} }} }}\"}}";
+    }
+
+    // ── Helpers Prometheus ────────────────────────────────────────────────────
     private static async Task<double?> QueryInstant(HttpClient client, string baseUrl, string query, CancellationToken ct)
     {
         try
@@ -418,7 +644,6 @@ public static class ObservabilityEndpoints
         catch { return null; }
     }
 
-    // Retorna dict<labelValue, metricValue> para queries com groupby
     private static async Task<Dictionary<string, double>> QueryLabeled(HttpClient client, string baseUrl, string query, string labelName, CancellationToken ct)
     {
         var result = new Dictionary<string, double>();
@@ -469,6 +694,3 @@ public static class ObservabilityEndpoints
     private static int RangeToSeconds(string range) => range switch { "15m" => 900, "1h" => 3600, "6h" => 21600, "24h" => 86400, _ => 900 };
     private static int RangeToStep(string range)    => range switch { "15m" => 30,  "1h" => 60,   "6h" => 300,   "24h" => 900,  _ => 30  };
 }
-
-
-
