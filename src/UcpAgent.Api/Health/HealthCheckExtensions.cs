@@ -24,8 +24,7 @@ public static class HealthCheckExtensions
         return services;
     }
 
-    // ── Redis: resolve IConnectionMultiplexer via IServiceProvider (opcional) ─
-    // Sem injeção no construtor — evita InvalidOperationException quando não registrado
+    // ── Redis: resolve via IServiceProvider (opcional — sem exception sem Redis) ─
     public class RedisHealthCheck(IServiceProvider sp) : IHealthCheck
     {
         public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken ct = default)
@@ -39,7 +38,7 @@ public static class HealthCheckExtensions
         }
     }
 
-    // ── Ollama: async real, sem sync-over-async ───────────────────────────────
+    // ── Ollama: async real, timeout 2s ────────────────────────────────────────
     [ExcludeFromCodeCoverage(Justification = "Requer Ollama em execução")]
     public class OllamaHealthCheck(IConfiguration config, IHttpClientFactory factory) : IHealthCheck
     {
@@ -88,17 +87,23 @@ public static class HealthCheckExtensions
     private static Func<HealthCheckResult> JaegerCheck() => () =>
         TcpCheck("comprai-jaeger", 16686, "Jaeger");
 
+    // ── TCP check assíncrono com timeout 500ms ────────────────────────────────
+    // Antes: WaitOne(2s) bloqueava thread do pool — 6 checks × 2s = p99 ~2s
+    // Agora: ConnectAsync com CancellationToken 500ms — libera thread imediatamente
     [ExcludeFromCodeCoverage(Justification = "Requer infra de rede em execução")]
     private static HealthCheckResult TcpCheck(string host, int port, string name)
     {
         try
         {
-            using var tcp    = new TcpClient();
-            var       result = tcp.BeginConnect(host, port, null, null);
-            var       ok     = result.AsyncWaitHandle.WaitOne(TimeSpan.FromSeconds(2));
-            if (ok && tcp.Connected) { tcp.EndConnect(result); return HealthCheckResult.Healthy(); }
-            return HealthCheckResult.Degraded($"{name} porta {port} inacessível");
+            using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
+            using var tcp = new TcpClient();
+            var task = tcp.ConnectAsync(host, port, cts.Token).AsTask();
+            task.Wait(cts.Token);
+            return tcp.Connected
+                ? HealthCheckResult.Healthy()
+                : HealthCheckResult.Degraded($"{name} porta {port} inacessível");
         }
+        catch (OperationCanceledException) { return HealthCheckResult.Degraded($"{name} timeout"); }
         catch { return HealthCheckResult.Degraded($"{name} não disponível"); }
     }
 }
