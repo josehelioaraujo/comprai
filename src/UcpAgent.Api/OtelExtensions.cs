@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using OpenTelemetry.Exporter;
+using OpenTelemetry.Logs;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
@@ -12,14 +13,14 @@ public static class OtelExtensions
         this IServiceCollection services,
         IConfiguration config)
     {
-        // Usa OTEL_EXPORTER_OTLP_ENDPOINT se definido, senão localhost:4318
         var endpointBase = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT")
                         ?? config["Otel:Endpoint"]
                         ?? "http://localhost:4318";
 
-        // Garante endpoint HTTP para traces
-        var traceEndpoint = endpointBase.TrimEnd('/')
-            .Replace(":4317", ":4318") + "/v1/traces";
+        var baseUrl = endpointBase.TrimEnd('/').Replace(":4317", ":4318");
+
+        var traceEndpoint = baseUrl + "/v1/traces";
+        var logEndpoint   = baseUrl + "/v1/logs";
 
         var servico = Environment.GetEnvironmentVariable("OTEL_SERVICE_NAME")
                    ?? config["Otel:ServiceName"]
@@ -33,6 +34,12 @@ public static class OtelExtensions
                 .AddOtlpExporter(o =>
                 {
                     o.Endpoint = new Uri(traceEndpoint);
+                    o.Protocol = OtlpExportProtocol.HttpProtobuf;
+                }))
+            .WithLogging(logging => logging
+                .AddOtlpExporter(o =>
+                {
+                    o.Endpoint = new Uri(logEndpoint);
                     o.Protocol = OtlpExportProtocol.HttpProtobuf;
                 }));
 

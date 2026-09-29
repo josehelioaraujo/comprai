@@ -42,6 +42,11 @@ using UcpAgent.Api.Middleware;
 using UcpAgent.Api.Workers;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Logging.AddOpenTelemetry(logging =>
+{
+    logging.IncludeFormattedMessage = true;
+    logging.IncludeScopes          = true;
+});
 builder.Services.AddObservabilidade(builder.Configuration);
 builder.Services.AddSingleton<UcpMetrics>();
 
