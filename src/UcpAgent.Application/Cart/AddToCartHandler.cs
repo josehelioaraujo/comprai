@@ -19,7 +19,7 @@ public sealed class AddToCartHandler(ICartPort cart, IEventPublisher events, Ucp
             new CartItemAddedEvent(
                 request.SessionId,
                 request.Product.Id,
-                request.Product.Name,
+                request.Product.Title,
                 request.Quantity,
                 request.Product.Price,
                 DateTime.UtcNow),
