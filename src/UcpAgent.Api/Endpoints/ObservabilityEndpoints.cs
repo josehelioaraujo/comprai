@@ -447,7 +447,7 @@ public static class ObservabilityEndpoints
 
         if (breakdown is null) return Results.Ok(new { error = "sem dados" });
 
-        double GetV(string k) => breakdown.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : 0;
+        double GetV(string k) => breakdown.Value.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : 0;
 
         return Results.Ok(new
         {
