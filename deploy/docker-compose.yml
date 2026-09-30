@@ -1,9 +1,7 @@
 services:
 
   comprai-api:
-    build:
-      context: ..
-      dockerfile: src/UcpAgent.Api/Dockerfile
+    image: ghcr.io/josehelioaraujo/comprai-api:latest
     container_name: comprai-api
     ports:
       - "5020:5020"

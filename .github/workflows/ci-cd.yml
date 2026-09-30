@@ -427,6 +427,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build e Push imagem para GHCR
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/UcpAgent.Api/Dockerfile
+          push: true
+          tags: ghcr.io/josehelioaraujo/comprai-api:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.2.0
         env:
@@ -538,7 +555,8 @@ jobs:
 
             docker compose -f deploy/docker-compose.yml --env-file .env --profile datadog --profile kafka --profile rabbitmq down --remove-orphans --volumes || true
             docker rm -f comprai-api comprai-redis comprai-mcp comprai-dd-agent comprai-otel-collector comprai-kafka comprai-kafka-ui comprai-rabbitmq 2>/dev/null || true
-            docker compose -f deploy/docker-compose.yml --env-file .env build
+            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker compose -f deploy/docker-compose.yml --env-file .env pull comprai-api
             docker compose -f deploy/docker-compose.yml --env-file .env --profile datadog --profile kafka --profile rabbitmq up -d
             # Aguardar API subir — Kafka + RabbitMQ aumentam o tempo de inicialização
             echo "Aguardando API iniciar..."
