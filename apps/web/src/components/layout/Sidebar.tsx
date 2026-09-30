@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import type { UcpStep, Cart } from '@/types/ucp'
 import { useTheme } from '@/lib/theme'
 
@@ -11,27 +12,26 @@ interface Props {
 
 const VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? '0.1.0'
 
+const UCP_STEPS = [
+  { key: 'search',   icon: '🔍', label: 'Busca',     desc: 'Encontre produtos por texto livre' },
+  { key: 'cart',     icon: '🛒', label: 'Carrinho',  desc: 'Adicione e gerencie itens' },
+  { key: 'checkout', icon: '📋', label: 'Pedido',    desc: 'Informe dados e endereço' },
+  { key: 'payment',  icon: '💳', label: 'Pagamento', desc: 'Pix ou cartão de crédito' },
+  { key: 'order',    icon: '📦', label: 'Entrega',   desc: 'Acompanhe o status do pedido' },
+]
+
 function formatPrice(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
 export default function Sidebar({ step, cart, sessionId }: Props) {
   const { theme, toggle } = useTheme()
-
-  const steps: { key: UcpStep; label: string; icon: string }[] = [
-    { key: 'search',   label: 'Busca',     icon: '🔍' },
-    { key: 'cart',     label: 'Carrinho',  icon: '🛒' },
-    { key: 'checkout', label: 'Pedido',    icon: '📋' },
-    { key: 'payment',  label: 'Pagamento', icon: '💳' },
-    { key: 'order',    label: 'Entrega',   icon: '📦' },
-  ]
-
-  const order: UcpStep[] = ['idle', 'search', 'cart', 'checkout', 'payment', 'order']
-  const currentIndex = order.indexOf(step)
+  const [showUcpInfo, setShowUcpInfo] = useState(false)
 
   return (
     <aside className="w-56 flex-shrink-0 flex flex-col h-full"
       style={{ background: 'var(--panel)', borderRight: '1px solid var(--border)' }}>
+
       {/* logo + version + theme toggle */}
       <div className="px-4 py-3 flex items-center justify-between"
         style={{ borderBottom: '1px solid var(--border)' }}>
@@ -70,41 +70,69 @@ export default function Sidebar({ step, cart, sessionId }: Props) {
         </button>
       </div>
 
-      {/* funil UCP */}
-      <div className="px-3 py-3 flex-1" style={{ borderBottom: '1px solid var(--border)' }}>
-        <p className="text-[10px] uppercase tracking-widest mb-3" style={{ color: 'var(--muted)' }}>Fluxo UCP</p>
-        <div className="flex flex-col gap-1">
-          {steps.map((s, i) => {
-            const sIndex = order.indexOf(s.key)
-            const done = sIndex < currentIndex
-            const active = s.key === step
-            return (
-              <div key={s.key} className="flex items-center gap-2">
-                <div className="flex flex-col items-center">
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs flex-shrink-0"
-                    style={{
-                      background: active ? 'var(--accent)' : done ? 'rgba(34,197,94,0.2)' : 'var(--surface)',
-                      color: active ? '#fff' : done ? 'var(--accent)' : 'var(--muted)',
-                      boxShadow: active ? '0 0 0 2px rgba(34,197,94,0.3)' : 'none',
-                    }}>
-                    {done ? '✓' : s.icon}
-                  </div>
-                  {i < steps.length - 1 && (
-                    <div className="w-px h-4" style={{ background: sIndex < currentIndex ? 'var(--accent)' : 'var(--border)' }} />
-                  )}
-                </div>
-                <span className="text-xs" style={{ color: active ? 'var(--accent)' : 'var(--muted)', fontWeight: active ? 600 : 400 }}>
-                  {s.label}
-                </span>
-              </div>
-            )
-          })}
+      {/* Fluxo UCP — ícone info com tooltip */}
+      <div className="px-3 py-3 relative" style={{ borderBottom: '1px solid var(--border)' }}>
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Fluxo UCP</p>
+          <button
+            onClick={() => setShowUcpInfo(v => !v)}
+            className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors"
+            style={{
+              background: showUcpInfo ? 'var(--accent)' : 'var(--surface)',
+              border: '1px solid var(--border)',
+              color: showUcpInfo ? '#fff' : 'var(--muted)',
+            }}
+            title="Sobre o fluxo UCP">
+            ℹ
+          </button>
         </div>
+
+        {/* step atual */}
+        <div className="mt-2 flex items-center gap-2 px-2 py-1.5 rounded-lg"
+          style={{ background: 'var(--surface)' }}>
+          <span className="text-sm">
+            {UCP_STEPS.find(s => s.key === step)?.icon ?? '🔍'}
+          </span>
+          <span className="text-xs font-medium" style={{ color: 'var(--accent)' }}>
+            {UCP_STEPS.find(s => s.key === step)?.label ?? 'Busca'}
+          </span>
+        </div>
+
+        {/* tooltip com descrição do fluxo */}
+        {showUcpInfo && (
+          <div className="absolute left-3 right-3 z-50 mt-2 rounded-xl p-3 shadow-2xl"
+            style={{ background: 'var(--panel)', border: '1px solid var(--border)', top: '100%' }}>
+            <p className="text-[10px] font-semibold mb-2" style={{ color: 'var(--text)' }}>
+              Universal Commerce Protocol
+            </p>
+            <p className="text-[10px] mb-3" style={{ color: 'var(--muted)' }}>
+              Fluxo conversacional de compras em 5 etapas, do pedido à entrega.
+            </p>
+            <div className="flex flex-col gap-1.5">
+              {UCP_STEPS.map(s => (
+                <div key={s.key} className="flex items-start gap-2">
+                  <span className="text-sm flex-shrink-0">{s.icon}</span>
+                  <div>
+                    <p className="text-[10px] font-medium" style={{ color: step === s.key ? 'var(--accent)' : 'var(--text)' }}>
+                      {s.label} {step === s.key && '← atual'}
+                    </p>
+                    <p className="text-[9px]" style={{ color: 'var(--muted)' }}>{s.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setShowUcpInfo(false)}
+              className="mt-3 w-full text-[10px] py-1 rounded"
+              style={{ background: 'var(--surface)', color: 'var(--muted)' }}>
+              Fechar
+            </button>
+          </div>
+        )}
       </div>
 
       {/* carrinho resumido */}
       {cart && cart.items.length > 0 && (
-        <div className="px-3 py-3" style={{ borderTop: '1px solid var(--border)' }}>
+        <div className="px-3 py-3 flex-1" style={{ borderBottom: '1px solid var(--border)' }}>
           <p className="text-[10px] uppercase tracking-widest mb-2" style={{ color: 'var(--muted)' }}>Carrinho</p>
           {cart.items.slice(0, 3).map(item => (
             <div key={item.productId} className="flex justify-between text-xs mb-1">
@@ -112,7 +140,9 @@ export default function Sidebar({ step, cart, sessionId }: Props) {
               <span className="font-mono flex-shrink-0" style={{ color: 'var(--muted)' }}>{formatPrice(item.price)}</span>
             </div>
           ))}
-          {cart.items.length > 3 && <p className="text-[10px]" style={{ color: 'var(--muted)' }}>+{cart.items.length - 3} itens</p>}
+          {cart.items.length > 3 && (
+            <p className="text-[10px]" style={{ color: 'var(--muted)' }}>+{cart.items.length - 3} itens</p>
+          )}
           <div className="flex justify-between mt-1 pt-1" style={{ borderTop: '1px solid var(--border)' }}>
             <span className="text-xs" style={{ color: 'var(--muted)' }}>Total</span>
             <span className="text-xs font-bold font-mono" style={{ color: 'var(--accent)' }}>{formatPrice(cart.total)}</span>
@@ -121,7 +151,7 @@ export default function Sidebar({ step, cart, sessionId }: Props) {
       )}
 
       {/* session footer */}
-      <div className="px-3 py-2" style={{ borderTop: '1px solid var(--border)' }}>
+      <div className="px-3 py-2 mt-auto" style={{ borderTop: '1px solid var(--border)' }}>
         <p className="text-[10px] font-mono truncate" style={{ color: 'var(--border)' }}>{sessionId.slice(0,16)}...</p>
       </div>
     </aside>
