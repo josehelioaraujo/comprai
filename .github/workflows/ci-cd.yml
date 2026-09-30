@@ -424,6 +424,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [integration-tests, sonar]
     if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
 
