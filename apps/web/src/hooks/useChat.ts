@@ -12,7 +12,6 @@ import type {
   Address,
   PaymentMethod,
   PaymentProvider,
-  Cart,
 } from '@/types/ucp'
 
 function makeId() {
@@ -40,7 +39,6 @@ export function useChat() {
   const [isTyping, setIsTyping] = useState(false)
   const sessionRef = useRef<string>('')
 
-  // ─── inicializa sessionId lazy ───────────────────────────────────────────
   const getOrCreateSession = useCallback((): string => {
     if (!sessionRef.current) {
       sessionRef.current = getSessionId()
@@ -49,57 +47,50 @@ export function useChat() {
     return sessionRef.current
   }, [])
 
-  // ─── adiciona mensagem na lista ──────────────────────────────────────────
   const pushMessage = useCallback((msg: Omit<ChatMessage, 'id' | 'timestamp'>) => {
     const full: ChatMessage = { ...msg, id: makeId(), timestamp: new Date() }
     setMessages((prev) => [...prev, full])
     return full
   }, [])
 
-  // ─── avança o step do funil UCP ──────────────────────────────────────────
   const advanceStep = useCallback((step: UcpStep) => {
     setSession((s) => ({ ...s, step }))
   }, [])
 
-  // ─── ENVIAR MENSAGEM (entrada principal) ─────────────────────────────────
+  // ─── ENVIAR MENSAGEM ──────────────────────────────────────────────────────
   const sendMessage = useCallback(
     async (text: string) => {
       const sessionId = getOrCreateSession()
-      const idempotencyKey = newIdempotencyKey() // nova ação = novo key
+      const idempotencyKey = newIdempotencyKey()
 
-      // 1. mostra mensagem do usuário imediatamente
       pushMessage({ role: 'user', text, idempotencyKey })
       setIsTyping(true)
 
       try {
-        // 2. chama /api/intent
         const res = await postIntent(text, sessionId, idempotencyKey)
 
-        // 3. atualiza step do funil conforme intent
         const stepMap: Partial<Record<string, UcpStep>> = {
-          search: 'search',
-          cart_add: 'cart',
-          cart_view: 'cart',
-          cart_remove: 'cart',
-          checkout: 'checkout',
-          payment_pix: 'payment',
+          search:       'search',
+          cart_add:     'cart',
+          cart_view:    'cart',
+          cart_remove:  'cart',
+          checkout:     'checkout',
+          payment_pix:  'payment',
           payment_card: 'payment',
           payment_mock: 'payment',
           order_status: 'order',
-          order_list: 'order',
+          order_list:   'order',
         }
         const nextStep = stepMap[res.intent]
         if (nextStep) advanceStep(nextStep)
 
-        // 4. atualiza carrinho no estado se vier no response
         if (res.data?.type === 'cart') {
-          setSession((s) => ({ ...s, cart: res.data!.type === 'cart' ? (res.data as any).cart : s.cart }))
+          setSession((s) => ({ ...s, cart: (res.data as any).cart }))
         }
         if (res.data?.type === 'order') {
-          setSession((s) => ({ ...s, currentOrder: res.data!.type === 'order' ? (res.data as any).order : s.currentOrder }))
+          setSession((s) => ({ ...s, currentOrder: (res.data as any).order }))
         }
 
-        // 5. adiciona resposta do bot com data para o IntentRenderer
         pushMessage({
           role: 'bot',
           text: res.response,
@@ -109,10 +100,7 @@ export function useChat() {
         })
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Erro desconhecido'
-        pushMessage({
-          role: 'bot',
-          text: `Ops! Algo deu errado: ${msg}. Tente novamente.`,
-        })
+        pushMessage({ role: 'bot', text: `Ops! Algo deu errado: ${msg}. Tente novamente.` })
       } finally {
         setIsTyping(false)
       }
@@ -120,39 +108,41 @@ export function useChat() {
     [getOrCreateSession, pushMessage, advanceStep],
   )
 
-  // ─── ADD TO CART (ação direta do ProductCarousel) ────────────────────────
+  // ─── ADD TO CART (direto do ProductCarousel) ──────────────────────────────
   const handleAddToCart = useCallback(
     async (product: Product) => {
       const sessionId = getOrCreateSession()
-      // idempotency estável: retry do mesmo produto = mesmo key
       const idempotencyKey = getIdempotencyKey(cartAddKey(sessionId, product.id))
 
-      pushMessage({ role: 'user', text: `Adicionar: ${product.title}` })
+      pushMessage({ role: 'user', text: `Adicionar: ${product.title}`, idempotencyKey })
       setIsTyping(true)
 
       try {
-        const res = await addToCart(
-          sessionId,
-          {
-            productId: product.id,
-            title: product.title,
-            price: product.price,
-            quantity: 1,
-            image: product.image,
-          },
-          idempotencyKey,
-        )
+        // addToCart agora recebe Product completo — alinhado com a assinatura do backend
+        await addToCart(sessionId, product, idempotencyKey)
 
-        setSession((s) => ({ ...s, cart: res.cart, step: 'cart' }))
+        // busca carrinho atualizado
+        const { getCart } = await import('@/lib/api')
+        const cartData = await getCart(sessionId)
+
+        const cart = {
+          sessionId,
+          items: (cartData as any).items ?? [],
+          total: (cartData as any).total ?? product.price,
+        }
+
+        setSession((s) => ({ ...s, cart, step: 'cart' }))
 
         pushMessage({
           role: 'bot',
           text: `✅ **${product.title}** adicionado ao carrinho!`,
           intent: 'cart_add',
-          data: { type: 'cart', cart: res.cart },
+          data: { type: 'cart', cart },
+          idempotencyKey,
         })
-      } catch {
-        pushMessage({ role: 'bot', text: 'Não consegui adicionar ao carrinho. Tente novamente.' })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Erro'
+        pushMessage({ role: 'bot', text: `Não consegui adicionar ao carrinho: ${msg}` })
       } finally {
         setIsTyping(false)
       }
@@ -160,7 +150,7 @@ export function useChat() {
     [getOrCreateSession, pushMessage],
   )
 
-  // ─── CHECKOUT (ação do CartCard) ─────────────────────────────────────────
+  // ─── CHECKOUT ─────────────────────────────────────────────────────────────
   const handleCheckout = useCallback(
     async (address: Address, shippingMethod: 'standard' | 'express') => {
       const sessionId = getOrCreateSession()
@@ -175,11 +165,11 @@ export function useChat() {
 
         pushMessage({
           role: 'bot',
-          text: `Pedido criado! Como você quer pagar?`,
+          text: 'Pedido criado! Como você quer pagar?',
           intent: 'checkout',
-          data: { type: 'checkout', checkout: res.checkout },
+          data: { type: 'checkout', checkout: (res as any).checkout ?? res },
         })
-      } catch {
+      } catch (err) {
         pushMessage({ role: 'bot', text: 'Erro ao criar pedido. Verifique o endereço e tente novamente.' })
       } finally {
         setIsTyping(false)
@@ -188,7 +178,7 @@ export function useChat() {
     [getOrCreateSession, pushMessage, advanceStep],
   )
 
-  // ─── PAYMENT (ação do CheckoutCard) ──────────────────────────────────────
+  // ─── PAYMENT ──────────────────────────────────────────────────────────────
   const handlePayment = useCallback(
     async (orderId: string, provider: PaymentProvider, method: PaymentMethod) => {
       const idempotencyKey = getIdempotencyKey(paymentKey(orderId, method))
@@ -207,9 +197,9 @@ export function useChat() {
             ? 'Escaneie o QR Code para pagar. Expira em 15 minutos.'
             : 'Insira os dados do cartão abaixo.',
           intent,
-          data: { type: 'payment', payment: res.payment },
+          data: { type: 'payment', payment: (res as any).payment ?? res },
         })
-      } catch {
+      } catch (err) {
         pushMessage({ role: 'bot', text: 'Erro ao iniciar pagamento. Tente novamente.' })
       } finally {
         setIsTyping(false)
@@ -218,7 +208,7 @@ export function useChat() {
     [pushMessage, advanceStep],
   )
 
-  // ─── CONFIRMAR PAGAMENTO (mock / callback) ───────────────────────────────
+  // ─── PAYMENT CONFIRMED ────────────────────────────────────────────────────
   const handlePaymentConfirmed = useCallback(
     (orderId: string) => {
       advanceStep('order')
