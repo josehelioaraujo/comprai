@@ -444,6 +444,7 @@ jobs:
           username: ${{ env.VPS_USER }}
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
           envs: DATADOG_API_KEY,BUILD_VERSION,GH_PAT,ADMIN_RESTART_PASSWORD,ML_CLIENT_ID,ML_CLIENT_SECRET,NEW_RELIC_LICENSE_KEY,NEW_RELIC_USER_KEY,NEW_RELIC_ACCOUNT_ID
+          command_timeout: 15m
           script: |
             set -e
             cd ${{ env.VPS_PATH }}
@@ -509,12 +510,6 @@ jobs:
               && sed -i "s|^USAR_RABBITMQ=.*|USAR_RABBITMQ=true|" .env \
               || echo "USAR_RABBITMQ=true" >> .env
 
-            # Garantir Redis connection string correta
-            grep -q '^ConnectionStrings__Redis=' .env \
-              && sed -i "s|^ConnectionStrings__Redis=.*|ConnectionStrings__Redis=comprai-redis:6379,connectTimeout=2000,syncTimeout=2000,abortConnect=false|" .env \
-              || echo "ConnectionStrings__Redis=comprai-redis:6379,connectTimeout=2000,syncTimeout=2000,abortConnect=false" >> .env
-
-
             # Garantir OTEL_ENDPOINT aponta para otel-collector (envia para Datadog + New Relic)
             grep -q '^OTEL_ENDPOINT=' .env \
               && sed -i "s|^OTEL_ENDPOINT=.*|OTEL_ENDPOINT=http://comprai-otel-collector:4318|" .env \
@@ -543,7 +538,7 @@ jobs:
 
             docker compose -f deploy/docker-compose.yml --env-file .env --profile datadog --profile kafka --profile rabbitmq down --remove-orphans --volumes || true
             docker rm -f comprai-api comprai-redis comprai-mcp comprai-dd-agent comprai-otel-collector comprai-kafka comprai-kafka-ui comprai-rabbitmq 2>/dev/null || true
-            docker compose -f deploy/docker-compose.yml --env-file .env build --no-cache
+            docker compose -f deploy/docker-compose.yml --env-file .env build
             docker compose -f deploy/docker-compose.yml --env-file .env --profile datadog --profile kafka --profile rabbitmq up -d
             # Aguardar API subir — Kafka + RabbitMQ aumentam o tempo de inicialização
             echo "Aguardando API iniciar..."
