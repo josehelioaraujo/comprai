@@ -32,18 +32,6 @@ exporters:
     tls:
       insecure: false
 
-  # ── Loki (logs) ────────────────────────────────────────────────────────────
-  loki:
-    endpoint: http://comprai-loki:3100/loki/api/v1/push
-    default_labels_enabled:
-      exporter: false
-      job: true
-    labels:
-      resource:
-        service.name: "service_name"
-      attributes:
-        level: "level"
-
 service:
   pipelines:
     traces:
@@ -56,8 +44,9 @@ service:
       processors: [batch]
       exporters:  [datadog, otlphttp/newrelic]
 
-    # Logs → Datadog + New Relic + Loki (todos os observability backends)
+    # Loki removido — exporter não disponível nessa versão do collector-contrib
+    # Logs chegam no Loki via Promtail (Docker log driver)
     logs:
       receivers:  [otlp]
       processors: [resource, batch]
-      exporters:  [datadog, otlphttp/newrelic, loki]
+      exporters:  [datadog, otlphttp/newrelic]
