@@ -39,12 +39,32 @@ export default function PixCard({ payment, onConfirmed }: Props) {
     }
   }, [payment.status, confirmed, onConfirmed])
 
-  const handleCopy = useCallback(async () => {
+  const handleCopy = useCallback(() => {
     if (!payment.pixCopyPaste) return
-    await navigator.clipboard.writeText(payment.pixCopyPaste)
+    try {
+      // tenta clipboard API (HTTPS)
+      navigator.clipboard.writeText(payment.pixCopyPaste).then(() => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      }).catch(() => fallbackCopy(payment.pixCopyPaste!))
+    } catch {
+      fallbackCopy(payment.pixCopyPaste)
+    }
+  }, [payment.pixCopyPaste])
+
+  function fallbackCopy(text: string) {
+    const el = document.createElement('textarea')
+    el.value = text
+    el.style.position = 'fixed'
+    el.style.opacity = '0'
+    document.body.appendChild(el)
+    el.focus()
+    el.select()
+    try { document.execCommand('copy') } catch {}
+    document.body.removeChild(el)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
-  }, [payment.pixCopyPaste])
+  }
 
   const expired = seconds <= 0
 
