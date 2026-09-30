@@ -212,14 +212,6 @@ export default function CartCard({ cart, onCheckout, onQuantityChange }: Props) 
             Confirmar pedido →
           </button>
         </div>
-      ) : (
-        <div className="px-4 pb-4 pt-3">
-          <button onClick={() => setShowForm(true)}
-            className="w-full py-2.5 rounded-lg text-sm font-semibold"
-            style={{ background:'var(--accent)', color:'#fff' }}>
-            Finalizar compra →
-          </button>
-        </div>
       )}
     </div>
   )
