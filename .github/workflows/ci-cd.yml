@@ -512,10 +512,13 @@ jobs:
               && sed -i "s|^ML_CLIENT_SECRET=.*|ML_CLIENT_SECRET=${ML_CLIENT_SECRET}|" .env \
               || echo "ML_CLIENT_SECRET=${ML_CLIENT_SECRET}" >> .env
 
-            # Injetar RESEND_API_KEY no .env
+            # Injetar RESEND_API_KEY e FROM_EMAIL no .env
             grep -q '^RESEND_API_KEY=' .env \
               && sed -i "s|^RESEND_API_KEY=.*|RESEND_API_KEY=${RESEND_API_KEY}|" .env \
               || echo "RESEND_API_KEY=${RESEND_API_KEY}" >> .env
+            grep -q '^Resend__FromEmail=' .env \
+              && sed -i "s|^Resend__FromEmail=.*|Resend__FromEmail=helioandrade@hotmail.com|" .env \
+              || echo "Resend__FromEmail=helioandrade@hotmail.com" >> .env
 
             # Garantir Redis connection string correta
             grep -q '^ConnectionStrings__Redis=' .env \
