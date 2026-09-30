@@ -8,6 +8,7 @@ import type {
   Address,
   PaymentMethod,
   PaymentProvider,
+  Product,
 } from '@/types/ucp'
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5020'
@@ -45,9 +46,6 @@ export class ApiError extends Error {
 }
 
 // ─── Intent ───────────────────────────────────────────────────────────────────
-// Backend espera: { text: string, sessionId: string }
-// Backend retorna: { intent, success, data, message }
-// Mapeamos para o IntentResponse do front
 
 export async function postIntent(
   message: string,
@@ -61,7 +59,6 @@ export async function postIntent(
     message: string | null
   }>('/api/intent', { text: message, sessionId }, idempotencyKey)
 
-  // mapeia intent do backend (PascalCase) para o front (camelCase/snake)
   const intentMap: Record<string, string> = {
     SearchProducts: 'search',
     AddToCart:      'cart_add',
@@ -74,22 +71,19 @@ export async function postIntent(
 
   const intent = (intentMap[raw.intent] ?? 'unknown') as IntentResponse['intent']
 
-  // monta data no formato que o IntentRenderer espera
   let data: IntentResponse['data'] | undefined = undefined
 
   if (raw.success && raw.data) {
     if (intent === 'search' && raw.data.items !== undefined) {
-      // backend retorna { items, totalItems, page, pageSize, source }
-      // mapeamos items → products
       data = {
         type: 'search',
         products: (raw.data.items ?? []).map((item: any) => ({
-          id:            item.id ?? item.productId ?? String(Math.random()),
+          id:            item.id ?? String(Math.random()),
           title:         item.title ?? item.name ?? 'Produto',
           price:         item.price ?? 0,
           originalPrice: item.originalPrice,
           image:         item.imageUrl ?? item.image ?? '',
-          source:        item.source ?? raw.data.source ?? 'catalog',
+          source:        item.source ?? 'catalog',
           url:           item.url,
           rating:        item.rating,
           available:     item.available !== false,
@@ -128,31 +122,45 @@ function messageForIntent(intent: string, success: boolean): string {
 // ─── Search ───────────────────────────────────────────────────────────────────
 
 export async function searchProducts(query: string, sessionId: string) {
-  return get<{ products: import('@/types/ucp').Product[] }>(
+  return get<{ products: Product[] }>(
     `/api/search?q=${encodeURIComponent(query)}&sessionId=${sessionId}`,
   )
 }
 
 // ─── Cart ─────────────────────────────────────────────────────────────────────
+// Backend espera: { Product: { id, title, price, imageUrl, url, category, source }, Quantity: 1 }
 
-export async function getCart(sessionId: string): Promise<{ cart: Cart }> {
+export async function getCart(sessionId: string): Promise<{ items: CartItem[]; total: number }> {
   return get(`/api/cart/${sessionId}`)
 }
 
 export async function addToCart(
   sessionId: string,
-  item: Pick<CartItem, 'productId' | 'title' | 'price' | 'quantity'> & { image?: string },
+  product: Product,
   idempotencyKey: string,
-): Promise<{ cart: Cart }> {
-  return post(`/api/cart/${sessionId}/items`, item, idempotencyKey)
+): Promise<{ itemId: string }> {
+  return post(`/api/cart/${sessionId}/items`, {
+    product: {
+      id:           product.id,
+      title:        product.title,
+      price:        product.price,
+      imageUrl:     product.image,
+      url:          product.url ?? '',
+      category:     product.source,
+      source:       product.source,
+      originalPrice: product.originalPrice ?? null,
+      availableQuantity: null,
+    },
+    quantity: 1,
+  }, idempotencyKey)
 }
 
 export async function removeFromCart(
   sessionId: string,
-  productId: string,
+  itemId: string,
   idempotencyKey: string,
-): Promise<{ cart: Cart }> {
-  return post(`/api/cart/${sessionId}/remove`, { productId }, idempotencyKey)
+): Promise<void> {
+  await post(`/api/cart/${sessionId}/items/${itemId}`, {}, idempotencyKey)
 }
 
 // ─── Checkout ─────────────────────────────────────────────────────────────────
