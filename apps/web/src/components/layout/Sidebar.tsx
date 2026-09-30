@@ -166,15 +166,20 @@ export default function Sidebar({ step, cart, sessionId, version = '0.1.0', gitS
             <div className="flex items-center gap-2 mb-3 px-2 py-1 rounded-lg"
               style={{ background:'rgba(34,197,94,0.1)', border:'1px solid rgba(34,197,94,0.2)' }}>
               <span className="text-xs font-bold" style={{ color:'var(--accent)' }}>⚡ Universal Commerce Protocol</span>
+              <button onClick={() => setShowAbout(false)}
+                className="w-6 h-6 rounded-full flex items-center justify-center text-xs ml-auto"
+                style={{ background:'var(--surface)', border:'1px solid var(--border)', color:'var(--muted)' }}>
+                ✕
+              </button>
             </div>
 
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center justify-between mb-3"><div className="flex items-center gap-3">
               <span className="text-3xl">🛍️</span>
               <div>
                 <h2 className="text-base font-bold" style={{ color:'var(--text)' }}>Comprai</h2>
                 <p className="text-[10px] font-mono" style={{ color:'var(--muted)' }}>v{version} · {gitSha}</p>
               </div>
-            </div>
+            </div></div>
 
             <p className="text-xs mb-4" style={{ color:'var(--muted)', lineHeight:1.6 }}>
               Assistente de compras com IA que guia do pedido à entrega em linguagem natural, usando o fluxo UCP de 5 etapas.
@@ -198,11 +203,7 @@ export default function Sidebar({ step, cart, sessionId, version = '0.1.0', gitS
               ))}
             </div>
 
-            <button onClick={() => setShowAbout(false)}
-              className="w-full py-2 rounded-xl text-sm font-semibold"
-              style={{ background:'var(--accent)', color:'#fff' }}>
-              Fechar
-            </button>
+
           </div>
         </div>
       )}
