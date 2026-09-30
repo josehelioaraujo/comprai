@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import type { UcpStep, Cart } from '@/types/ucp'
 import { useTheme } from '@/lib/theme'
 
@@ -29,10 +29,19 @@ function formatPrice(v: number) {
 export default function Sidebar({ step, cart, sessionId, version = '0.1.0', gitSha = 'dev', collapsed = false, onToggleCollapse }: Props) {
   const { theme, toggle } = useTheme()
   const [showAbout, setShowAbout] = useState(false)
+  const logoRef = useRef<HTMLButtonElement>(null)
+  const [modalPos, setModalPos] = useState({ top: 0, left: 0 })
 
   const currentStep = UCP_STEPS.find(s => s.key === step)
 
-  // modo colapsado — só ícones
+  function handleLogoClick() {
+    if (logoRef.current) {
+      const rect = logoRef.current.getBoundingClientRect()
+      setModalPos({ top: rect.bottom + 8, left: rect.left })
+    }
+    setShowAbout(true)
+  }
+
   if (collapsed) {
     return (
       <aside className="flex-shrink-0 flex flex-col items-center py-3 gap-3 h-full transition-all"
@@ -53,136 +62,150 @@ export default function Sidebar({ step, cart, sessionId, version = '0.1.0', gitS
   }
 
   return (
-    <aside className="w-56 flex-shrink-0 flex flex-col h-full transition-all"
-      style={{ background:'var(--panel)', borderRight:'1px solid var(--border)' }}>
+    <>
+      <aside className="w-56 flex-shrink-0 flex flex-col h-full transition-all"
+        style={{ background:'var(--panel)', borderRight:'1px solid var(--border)' }}>
 
-      {/* header — logo clicável + dark mode + colapsar */}
-      <div className="px-3 py-3 flex items-center gap-2"
-        style={{ borderBottom:'1px solid var(--border)' }}>
-
-        {/* logo — abre modal sobre a solução */}
-        <button onClick={() => setShowAbout(true)} className="flex items-center gap-2 flex-1 text-left min-w-0"
-          title="Sobre o Comprai">
-          <span className="text-xl flex-shrink-0">🛍️</span>
-          <div className="min-w-0">
-            <p className="text-sm font-bold truncate" style={{ color:'var(--text)' }}>Comprai</p>
-            <p className="text-[10px] font-mono truncate" style={{ color:'var(--muted)' }}>
-              v{version} · {gitSha}
-            </p>
-          </div>
-        </button>
-
-        {/* dark mode */}
-        <button onClick={toggle}
-          className="w-7 h-7 flex-shrink-0 rounded-lg flex items-center justify-center text-sm"
-          style={{ background:'var(--surface)', border:'1px solid var(--border)' }}>
-          {theme === 'dark' ? '☀️' : '🌙'}
-        </button>
-
-        {/* colapsar */}
-        <button onClick={onToggleCollapse}
-          className="w-7 h-7 flex-shrink-0 rounded-lg flex items-center justify-center text-sm"
-          style={{ background:'var(--surface)', border:'1px solid var(--border)', color:'var(--muted)' }}
-          title="Retrair sidebar">
-          ‹
-        </button>
-      </div>
-
-      {/* canal */}
-      <div className="px-3 py-3" style={{ borderBottom:'1px solid var(--border)' }}>
-        <p className="text-[10px] uppercase tracking-widest mb-2" style={{ color:'var(--muted)' }}>Canal</p>
-        <button className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left"
-          style={{ background:'var(--surface)', border:'1px solid var(--border)' }}>
-          <span>💬</span>
-          <div>
-            <p className="text-xs font-medium" style={{ color:'var(--text)' }}>Web Chat</p>
-            <p className="text-[10px]" style={{ color:'var(--accent)' }}>● Online</p>
-          </div>
-        </button>
-        <button className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg mt-1 text-left opacity-40 cursor-not-allowed" disabled>
-          <span>📱</span>
-          <div>
-            <p className="text-xs" style={{ color:'var(--muted)' }}>WhatsApp</p>
-            <p className="text-[10px]" style={{ color:'var(--muted)' }}>Em breve</p>
-          </div>
-        </button>
-      </div>
-
-      {/* step atual — sem label técnica */}
-      <div className="px-3 py-3" style={{ borderBottom:'1px solid var(--border)' }}>
-        <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg"
-          style={{ background:'var(--surface)' }}>
-          <span className="text-sm">{currentStep?.icon ?? '🔍'}</span>
-          <span className="text-xs font-medium" style={{ color:'var(--accent)' }}>
-            {currentStep?.label ?? 'Busca'}
-          </span>
-        </div>
-      </div>
-
-      {/* carrinho resumido */}
-      {cart && cart.items.length > 0 && (
-        <div className="px-3 py-3 flex-1" style={{ borderBottom:'1px solid var(--border)' }}>
-          <p className="text-[10px] uppercase tracking-widest mb-2" style={{ color:'var(--muted)' }}>Carrinho</p>
-          {cart.items.slice(0, 3).map(item => (
-            <div key={item.productId} className="flex justify-between text-xs mb-1">
-              <span className="truncate flex-1 mr-1" style={{ color:'var(--muted)' }}>{item.title}</span>
-              <span className="font-mono flex-shrink-0" style={{ color:'var(--muted)' }}>{formatPrice(item.price)}</span>
+        {/* header */}
+        <div className="px-3 py-3 flex items-center gap-2"
+          style={{ borderBottom:'1px solid var(--border)' }}>
+          <button ref={logoRef} onClick={handleLogoClick}
+            className="flex items-center gap-2 flex-1 text-left min-w-0 rounded-lg px-1 py-0.5 transition-colors"
+            style={{ color:'inherit' }} title="Sobre o Comprai">
+            <span className="text-xl flex-shrink-0">🛍️</span>
+            <div className="min-w-0">
+              <p className="text-sm font-bold truncate" style={{ color:'var(--text)' }}>Comprai</p>
+              <p className="text-[10px] font-mono truncate" style={{ color:'var(--muted)' }}>
+                v{version} · {gitSha}
+              </p>
             </div>
-          ))}
-          {cart.items.length > 3 && <p className="text-[10px]" style={{ color:'var(--muted)' }}>+{cart.items.length-3} itens</p>}
-          <div className="flex justify-between mt-1 pt-1" style={{ borderTop:'1px solid var(--border)' }}>
-            <span className="text-xs" style={{ color:'var(--muted)' }}>Total</span>
-            <span className="text-xs font-bold font-mono" style={{ color:'var(--accent)' }}>{formatPrice(cart.total)}</span>
+          </button>
+          <button onClick={toggle}
+            className="w-7 h-7 flex-shrink-0 rounded-lg flex items-center justify-center text-sm"
+            style={{ background:'var(--surface)', border:'1px solid var(--border)' }}>
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
+          <button onClick={onToggleCollapse}
+            className="w-7 h-7 flex-shrink-0 rounded-lg flex items-center justify-center text-sm"
+            style={{ background:'var(--surface)', border:'1px solid var(--border)', color:'var(--muted)' }}
+            title="Retrair">
+            ‹
+          </button>
+        </div>
+
+        {/* canal */}
+        <div className="px-3 py-3" style={{ borderBottom:'1px solid var(--border)' }}>
+          <p className="text-[10px] uppercase tracking-widest mb-2" style={{ color:'var(--muted)' }}>Canal</p>
+          <button className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left"
+            style={{ background:'var(--surface)', border:'1px solid var(--border)' }}>
+            <span>💬</span>
+            <div>
+              <p className="text-xs font-medium" style={{ color:'var(--text)' }}>Web Chat</p>
+              <p className="text-[10px]" style={{ color:'var(--accent)' }}>● Online</p>
+            </div>
+          </button>
+          <button className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg mt-1 text-left opacity-40 cursor-not-allowed" disabled>
+            <span>📱</span>
+            <div>
+              <p className="text-xs" style={{ color:'var(--muted)' }}>WhatsApp</p>
+              <p className="text-[10px]" style={{ color:'var(--muted)' }}>Em breve</p>
+            </div>
+          </button>
+        </div>
+
+        {/* step atual — indicador simples, sem aparência de botão */}
+        <div className="px-3 py-3" style={{ borderBottom:'1px solid var(--border)' }}>
+          <div className="flex items-center gap-2 px-2 py-1">
+            <span className="text-sm">{currentStep?.icon ?? '🔍'}</span>
+            <span className="text-xs" style={{ color:'var(--muted)' }}>
+              Etapa atual:
+            </span>
+            <span className="text-xs font-semibold" style={{ color:'var(--accent)' }}>
+              {currentStep?.label ?? 'Busca'}
+            </span>
           </div>
         </div>
-      )}
 
-      {/* footer */}
-      <div className="px-3 py-2 mt-auto" style={{ borderTop:'1px solid var(--border)' }}>
-        <p className="text-[10px] font-mono truncate" style={{ color:'var(--border)' }}>{sessionId.slice(0,16)}...</p>
-      </div>
+        {/* carrinho */}
+        {cart && cart.items.length > 0 && (
+          <div className="px-3 py-3 flex-1" style={{ borderBottom:'1px solid var(--border)' }}>
+            <p className="text-[10px] uppercase tracking-widest mb-2" style={{ color:'var(--muted)' }}>Carrinho</p>
+            {cart.items.slice(0, 3).map(item => (
+              <div key={item.productId} className="flex justify-between text-xs mb-1">
+                <span className="truncate flex-1 mr-1" style={{ color:'var(--muted)' }}>{item.title}</span>
+                <span className="font-mono flex-shrink-0" style={{ color:'var(--muted)' }}>{formatPrice(item.price)}</span>
+              </div>
+            ))}
+            {cart.items.length > 3 && <p className="text-[10px]" style={{ color:'var(--muted)' }}>+{cart.items.length-3} itens</p>}
+            <div className="flex justify-between mt-1 pt-1" style={{ borderTop:'1px solid var(--border)' }}>
+              <span className="text-xs" style={{ color:'var(--muted)' }}>Total</span>
+              <span className="text-xs font-bold font-mono" style={{ color:'var(--accent)' }}>{formatPrice(cart.total)}</span>
+            </div>
+          </div>
+        )}
 
-      {/* modal sobre a solução */}
+        {/* footer */}
+        <div className="px-3 py-2 mt-auto" style={{ borderTop:'1px solid var(--border)' }}>
+          <p className="text-[10px] font-mono truncate" style={{ color:'var(--border)' }}>{sessionId.slice(0,16)}...</p>
+        </div>
+      </aside>
+
+      {/* modal — posicionada próxima ao logo */}
       {showAbout && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background:'rgba(0,0,0,0.6)' }}
-          onClick={() => setShowAbout(false)}>
-          <div className="rounded-2xl p-6 max-w-sm w-full shadow-2xl"
-            style={{ background:'var(--panel)', border:'1px solid var(--border)' }}
+        <div className="fixed inset-0 z-50" onClick={() => setShowAbout(false)}>
+          <div className="absolute rounded-2xl p-5 w-72 shadow-2xl"
+            style={{
+              top: Math.min(modalPos.top, window.innerHeight - 480),
+              left: Math.min(modalPos.left, window.innerWidth - 300),
+              background:'var(--panel)',
+              border:'1px solid var(--border)',
+            }}
             onClick={e => e.stopPropagation()}>
-            <div className="flex items-center gap-3 mb-4">
-              <span className="text-4xl">🛍️</span>
+
+            {/* badge UCP */}
+            <div className="flex items-center gap-2 mb-3 px-2 py-1 rounded-lg"
+              style={{ background:'rgba(34,197,94,0.1)', border:'1px solid rgba(34,197,94,0.2)' }}>
+              <span className="text-xs font-bold" style={{ color:'var(--accent)' }}>⚡ Universal Commerce Protocol</span>
+            </div>
+
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-3xl">🛍️</span>
               <div>
-                <h2 className="text-lg font-bold" style={{ color:'var(--text)' }}>Comprai</h2>
-                <p className="text-xs font-mono" style={{ color:'var(--muted)' }}>v{version} · {gitSha}</p>
+                <h2 className="text-base font-bold" style={{ color:'var(--text)' }}>Comprai</h2>
+                <p className="text-[10px] font-mono" style={{ color:'var(--muted)' }}>v{version} · {gitSha}</p>
               </div>
             </div>
-            <p className="text-sm mb-4" style={{ color:'var(--muted)', lineHeight:1.6 }}>
-              Assistente de compras com Inteligência Artificial que guia você do pedido à entrega em linguagem natural.
+
+            <p className="text-xs mb-4" style={{ color:'var(--muted)', lineHeight:1.6 }}>
+              Assistente de compras com IA que guia do pedido à entrega em linguagem natural, usando o fluxo UCP de 5 etapas.
             </p>
-            <div className="flex flex-col gap-2 mb-4">
+
+            <div className="flex flex-col gap-1.5 mb-4">
               {UCP_STEPS.map(s => (
-                <div key={s.key} className="flex items-center gap-3 p-2 rounded-lg"
-                  style={{ background: step===s.key ? 'rgba(34,197,94,0.1)' : 'var(--surface)',
-                    border: step===s.key ? '1px solid rgba(34,197,94,0.3)' : '1px solid transparent' }}>
-                  <span className="text-lg">{s.icon}</span>
+                <div key={s.key} className="flex items-center gap-2.5 p-2 rounded-lg"
+                  style={{
+                    background: step===s.key ? 'rgba(34,197,94,0.1)' : 'var(--surface)',
+                    border: step===s.key ? '1px solid rgba(34,197,94,0.3)' : '1px solid transparent',
+                  }}>
+                  <span className="text-base">{s.icon}</span>
                   <div>
-                    <p className="text-xs font-medium" style={{ color: step===s.key ? 'var(--accent)' : 'var(--text)' }}>
-                      {s.label} {step===s.key ? '← você está aqui' : ''}
+                    <p className="text-[11px] font-medium" style={{ color: step===s.key ? 'var(--accent)' : 'var(--text)' }}>
+                      {s.label}{step===s.key ? ' ← você está aqui' : ''}
                     </p>
-                    <p className="text-[10px]" style={{ color:'var(--muted)' }}>{s.desc}</p>
+                    <p className="text-[9px]" style={{ color:'var(--muted)' }}>{s.desc}</p>
                   </div>
                 </div>
               ))}
             </div>
+
             <button onClick={() => setShowAbout(false)}
-              className="w-full py-2.5 rounded-xl text-sm font-semibold"
+              className="w-full py-2 rounded-xl text-sm font-semibold"
               style={{ background:'var(--accent)', color:'#fff' }}>
               Fechar
             </button>
           </div>
         </div>
       )}
-    </aside>
+    </>
   )
 }
