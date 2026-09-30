@@ -12,6 +12,7 @@ interface Props {
   onCheckout: (customer: CustomerDto, shipping: 'standard' | 'express') => void
   onPayment: (orderId: string, provider: PaymentProvider, method: PaymentMethod) => void
   onPaymentConfirmed: (orderId: string) => void
+  onQuantityChange?: (productId: string, qty: number) => void
 }
 
 function formatTime(date: Date) {
@@ -108,7 +109,8 @@ export default function ChatWindow({ messages, isTyping, onAddToCart, onCheckout
           {msg.role === 'bot' && (
             <div className="w-full max-w-[90%]">
               <IntentRenderer message={msg} onAddToCart={onAddToCart}
-                onCheckout={onCheckout} onPayment={onPayment} onPaymentConfirmed={onPaymentConfirmed} />
+                onCheckout={onCheckout} onPayment={onPayment} onPaymentConfirmed={onPaymentConfirmed}
+                onQuantityChange={onQuantityChange} />
             </div>
           )}
           <span className="text-[10px] text-zinc-600 mt-1 px-1">
