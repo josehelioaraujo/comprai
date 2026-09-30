@@ -13,7 +13,7 @@ const GIT_SHA = process.env.NEXT_PUBLIC_GIT_SHA ?? 'dev'
 
 export default function ChatPage() {
   const { messages, session, cartCount, isTyping, sendMessage,
-    handleAddToCart, handleViewCart, handleCheckout, handlePayment, handlePaymentConfirmed } = useChat()
+    handleAddToCart, handleViewCart, handleCheckout, handlePayment, handlePaymentConfirmed, handleQuantityChange } = useChat()
   const { theme, toggle } = useTheme()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
@@ -55,7 +55,8 @@ export default function ChatPage() {
         <UcpProgressBar step={session.step} cartCount={cartCount} />
         <ChatWindow messages={messages} isTyping={isTyping}
           onAddToCart={handleAddToCart} onCheckout={handleCheckout}
-          onPayment={handlePayment} onPaymentConfirmed={handlePaymentConfirmed} />
+          onPayment={handlePayment} onPaymentConfirmed={handlePaymentConfirmed}
+          onQuantityChange={handleQuantityChange} />
         <ChatInput onSend={sendMessage} disabled={isTyping}
           cartCount={cartCount} onViewCart={handleViewCart} />
       </div>
