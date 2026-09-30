@@ -12,13 +12,17 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-ARG NEXT_PUBLIC_API_URL=https://comprai.2.25.122.11.nip.io
+# ARGs devem ser declarados ANTES de serem usados no ENV
+ARG NEXT_PUBLIC_API_URL=http://localhost:5020
+ARG NEXT_PUBLIC_APP_VERSION=0.1.0
+ARG NEXT_PUBLIC_GIT_SHA=dev
+
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_APP_VERSION=$NEXT_PUBLIC_APP_VERSION
+ENV NEXT_PUBLIC_GIT_SHA=$NEXT_PUBLIC_GIT_SHA
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# garante que public existe
 RUN mkdir -p public
-
 RUN npm run build
 
 # ── runner ────────────────────────────────────────────────────────────────────
