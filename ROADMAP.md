@@ -91,6 +91,47 @@
 
 ---
 
+## 🔜 V042 — Demo Web Chat + WhatsApp Bot (UCP Conversacional)
+
+**Palavra mágica: V042_UCP_COMPRAS**
+
+### Arquitetura — Canal como Porta Plugável
+
+```
+IChannelPort (Domain)
+├── WebChatChannelAdapter  → SignalR Hub (IHubContext<ChatHub>)
+├── WhatsAppChannelAdapter → Meta Cloud API / Baileys (dev)
+└── ZapChannelAdapter      → plugin futuro (src/plugins/)
+```
+
+- `SendMessageAsync`, `SendProductListAsync`, `SendCartSummaryAsync`, `SendOrderConfirmationAsync`, `SendPaymentLinkAsync`
+- `AddKeyedScoped<IChannelPort, WebChatChannelAdapter>(ChannelType.WebChat)` no Program.cs
+- Adicionar canal novo = criar adaptador + registrar — zero mudança no core UCP
+- Sessão: Redis TTL 30min por `connectionId` (web) ou número de telefone (WhatsApp)
+
+### Fases
+
+| Fase | Descrição | Canal |
+|------|-----------|-------|
+| **V_DEMO_001** | Shell Next.js 15 + Tailwind + shadcn/ui + Hub SignalR + `IChannelPort` | Web |
+| **V_DEMO_002** | Fluxo UCP completo via chat: Search → Cart → Checkout → Payment → Order | Web |
+| **V_DEMO_003** | UX polish + PWA + push notification de status de pedido | Web |
+| **V_WA_001** | Conexão Meta Cloud API + intent detection + sessão Redis | WhatsApp |
+| **V_WA_002** | Fluxo UCP completo + link de pagamento Stripe/Efi via WA | WhatsApp |
+| **V_WA_003** | Botões interativos + notificações proativas + painel OpsWatch WA | WhatsApp |
+
+### Decisões Técnicas
+
+| Item | Decisão | Motivo |
+|------|---------|--------|
+| Protocol web | **SignalR** (não SSE) | Bidirecional — push de pagamento confirmado sem polling |
+| WhatsApp dev | **Baileys** | Sem aprovação Meta; prod usa Meta Cloud API oficial |
+| Deploy web | **Vercel** | Edge, grátis, zero config |
+| Sessão | **Redis TTL 30min** | Já existe na infra; `connectionId` (web) ou número (WA) |
+| Reutilização | **100% core UCP** | Mesmos Handlers MediatR, mesmos Ports — só o adaptador muda |
+
+---
+
 ## 🔜 V042–V043 — Infraestrutura & Escala
 
 | Item | Descrição | Impacto |
