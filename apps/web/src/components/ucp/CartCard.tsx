@@ -27,23 +27,23 @@ function formatPrice(v: number) {
 }
 
 function formatPhone(v: string) {
-  const d = v.replace(/\D/g, '').slice(0,11)
-  if (d.length <= 2) return d
-  if (d.length <= 7) return `(${d.slice(0,2)}) ${d.slice(2)}`
+  const d = v.replace(/\D/g,'').slice(0,11)
+  if (d.length<=2) return d
+  if (d.length<=7) return `(${d.slice(0,2)}) ${d.slice(2)}`
   return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`
 }
 
 function formatCPF(v: string) {
-  const d = v.replace(/\D/g, '').slice(0,11)
-  if (d.length <= 3) return d
-  if (d.length <= 6) return `${d.slice(0,3)}.${d.slice(3)}`
-  if (d.length <= 9) return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6)}`
+  const d = v.replace(/\D/g,'').slice(0,11)
+  if (d.length<=3) return d
+  if (d.length<=6) return `${d.slice(0,3)}.${d.slice(3)}`
+  if (d.length<=9) return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6)}`
   return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`
 }
 
 function formatCEP(v: string) {
-  const d = v.replace(/\D/g, '').slice(0,8)
-  if (d.length <= 5) return d
+  const d = v.replace(/\D/g,'').slice(0,8)
+  if (d.length<=5) return d
   return `${d.slice(0,5)}-${d.slice(5)}`
 }
 
@@ -54,140 +54,161 @@ export default function CartCard({ cart, onCheckout }: Props) {
   const [cep, setCep] = useState('')
   const [uf, setUf] = useState('')
   const [loadingCep, setLoadingCep] = useState(false)
+  const [quantities, setQuantities] = useState<Record<string, number>>({})
 
   if (cart.items.length === 0) {
     return (
-      <div className="mt-2 bg-zinc-800 border border-zinc-700 rounded-xl p-4 text-sm text-zinc-400">
+      <div className="mt-2 rounded-xl p-4 text-sm" style={{ background:'var(--panel)', border:'1px solid var(--border)', color:'var(--muted)' }}>
         Seu carrinho está vazio.
       </div>
     )
   }
 
+  function getQty(productId: string, defaultQty: number) {
+    return quantities[productId] ?? defaultQty
+  }
+
+  function setQty(productId: string, qty: number) {
+    if (qty < 1) return // nunca abaixo de 1
+    setQuantities(q => ({ ...q, [productId]: qty }))
+  }
+
+  const total = cart.items.reduce((sum, item) => {
+    return sum + item.price * getQty(item.productId, item.quantity)
+  }, 0)
+
   function setField(field: keyof CustomerDto, value: string) {
     setCustomer(c => ({ ...c, [field]: value }))
   }
 
-  // preparado para API de CEP (ViaCEP)
   async function handleCepBlur() {
-    const digits = cep.replace(/\D/g, '')
+    const digits = cep.replace(/\D/g,'')
     if (digits.length !== 8) return
     setLoadingCep(true)
     try {
       const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`)
       const data = await res.json()
-      if (!data.erro) {
-        setUf(data.uf ?? '')
-        // cidade disponível: data.localidade — pode preencher campo cidade quando adicionarmos
-      }
+      if (!data.erro) setUf(data.uf ?? '')
     } catch {}
     finally { setLoadingCep(false) }
   }
 
   const isValid = customer.name && customer.email && customer.phone && customer.document
 
+  const isFreteGratis = total < 300 // frete grátis acima de R$ 300 ou sempre grátis no mock
+
   return (
-    <div className="mt-2 bg-zinc-800 border border-zinc-700 rounded-xl overflow-hidden">
+    <div className="mt-2 rounded-xl overflow-hidden" style={{ background:'var(--panel)', border:'1px solid var(--border)' }}>
       {/* header */}
-      <div className="px-4 py-3 border-b border-zinc-700 flex items-center justify-between">
-        <span className="text-sm font-semibold text-zinc-200">🛒 Seu carrinho</span>
-        <span className="text-xs text-zinc-400">{cart.items.length} {cart.items.length === 1 ? 'item' : 'itens'}</span>
+      <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom:'1px solid var(--border)' }}>
+        <span className="text-sm font-semibold" style={{ color:'var(--text)' }}>🛒 Seu carrinho</span>
+        <span className="text-xs" style={{ color:'var(--muted)' }}>{cart.items.length} {cart.items.length===1?'item':'itens'}</span>
       </div>
 
-      {/* itens */}
-      <div className="divide-y divide-zinc-700/50">
-        {cart.items.map((item) => (
-          <div key={item.productId} className="px-4 py-3 flex items-center justify-between gap-2">
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-zinc-200 truncate">{item.title}</p>
-              <p className="text-[10px] text-zinc-500">Qtd: {item.quantity}</p>
+      {/* itens com +/- */}
+      <div style={{ borderBottom:'1px solid var(--border)' }}>
+        {cart.items.map(item => {
+          const qty = getQty(item.productId, item.quantity)
+          return (
+            <div key={item.productId} className="px-4 py-3 flex items-center gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs truncate" style={{ color:'var(--text)' }}>{item.title}</p>
+              </div>
+              {/* controles de quantidade */}
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button onClick={() => setQty(item.productId, qty - 1)}
+                  disabled={qty <= 1}
+                  className="w-6 h-6 rounded flex items-center justify-center text-sm font-bold transition-colors"
+                  style={{ background:'var(--surface)', color: qty<=1 ? 'var(--border)' : 'var(--text)',
+                    cursor: qty<=1 ? 'not-allowed' : 'pointer' }}>
+                  −
+                </button>
+                <span className="text-xs w-4 text-center font-mono" style={{ color:'var(--text)' }}>{qty}</span>
+                <button onClick={() => setQty(item.productId, qty + 1)}
+                  className="w-6 h-6 rounded flex items-center justify-center text-sm font-bold transition-colors"
+                  style={{ background:'var(--surface)', color:'var(--text)' }}>
+                  +
+                </button>
+              </div>
+              <span className="text-sm font-bold font-mono flex-shrink-0" style={{ color:'var(--accent)' }}>
+                {formatPrice(item.price * qty)}
+              </span>
             </div>
-            <span className="text-sm font-bold text-green-400 font-mono flex-shrink-0">
-              {formatPrice(item.price * item.quantity)}
-            </span>
-          </div>
-        ))}
+          )
+        })}
+      </div>
+
+      {/* frete radio */}
+      <div className="px-4 py-3" style={{ borderBottom:'1px solid var(--border)' }}>
+        <p className="text-[10px] mb-2 uppercase tracking-wide" style={{ color:'var(--muted)' }}>Frete</p>
+        <div className="flex flex-col gap-1.5">
+          {[
+            { value:'standard', label:'Padrão (5–8 dias)', price: isFreteGratis ? 0 : 15.90 },
+            { value:'express', label:'Expresso (1–2 dias)', price: isFreteGratis ? 9.90 : 29.90 },
+          ].map(opt => (
+            <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+              <div onClick={() => setShipping(opt.value as any)}
+                className="w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0"
+                style={{ borderColor:'var(--accent)',
+                  background: shipping===opt.value ? 'var(--accent)' : 'transparent' }}>
+                {shipping===opt.value && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+              </div>
+              <span className="text-xs flex-1" style={{ color:'var(--text)' }}>
+                {opt.label}
+              </span>
+              <span className="text-xs font-bold font-mono" style={{ color: opt.price===0 ? 'var(--accent)' : 'var(--muted)' }}>
+                {opt.price===0 ? 'GRÁTIS' : formatPrice(opt.price)}
+              </span>
+            </label>
+          ))}
+        </div>
       </div>
 
       {/* total */}
-      <div className="px-4 py-3 border-t border-zinc-700 flex items-center justify-between">
-        <span className="text-sm text-zinc-400">Total</span>
-        <span className="text-base font-bold text-green-400 font-mono">{formatPrice(cart.total)}</span>
+      <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom:'1px solid var(--border)' }}>
+        <span className="text-sm" style={{ color:'var(--muted)' }}>Total</span>
+        <span className="text-base font-bold font-mono" style={{ color:'var(--accent)' }}>{formatPrice(total)}</span>
       </div>
 
       {showForm ? (
-        <div className="px-4 pb-4 border-t border-zinc-700 pt-3 flex flex-col gap-2">
-          <p className="text-xs font-semibold text-zinc-300 mb-1">👤 Seus dados</p>
-
+        <div className="px-4 pb-4 pt-3 flex flex-col gap-2">
+          <p className="text-xs font-semibold mb-1" style={{ color:'var(--text)' }}>👤 Seus dados</p>
           <input className="input-field" placeholder="Nome completo"
             value={customer.name} onChange={e => setField('name', e.target.value)} />
           <input className="input-field" placeholder="E-mail" type="email"
             value={customer.email} onChange={e => setField('email', e.target.value)} />
           <input className="input-field" placeholder="Telefone (11) 99999-9999"
-            value={customer.phone}
-            onChange={e => setField('phone', formatPhone(e.target.value))} />
+            value={customer.phone} onChange={e => setField('phone', formatPhone(e.target.value))} />
           <input className="input-field" placeholder="CPF 000.000.000-00"
-            value={customer.document}
-            onChange={e => setField('document', formatCPF(e.target.value))} />
+            value={customer.document} onChange={e => setField('document', formatCPF(e.target.value))} />
 
-          <p className="text-xs font-semibold text-zinc-300 mt-2 mb-1">📦 Endereço de entrega</p>
-
-          {/* CEP com busca automática (ViaCEP) */}
+          <p className="text-xs font-semibold mt-2 mb-1" style={{ color:'var(--text)' }}>📦 Entrega</p>
           <div className="flex gap-2 items-center">
             <input className="input-field flex-1" placeholder="CEP 00000-000"
-              value={cep}
-              onChange={e => setCep(formatCEP(e.target.value))}
-              onBlur={handleCepBlur} />
-            {loadingCep && <span className="text-[10px] text-zinc-500 animate-pulse">buscando...</span>}
+              value={cep} onChange={e => setCep(formatCEP(e.target.value))} onBlur={handleCepBlur} />
+            {loadingCep && <span className="text-[10px] animate-pulse" style={{ color:'var(--muted)' }}>buscando...</span>}
           </div>
-          <p className="text-[10px] text-zinc-600">Digite o CEP para preencher UF automaticamente</p>
-
-          {/* UF dropdown */}
-          <select
-            className="input-field"
-            value={uf}
-            onChange={e => setUf(e.target.value)}
-          >
-            <option value="">Selecione o estado (UF)</option>
+          <select className="input-field" value={uf} onChange={e => setUf(e.target.value)}>
+            <option value="">Estado (UF)</option>
             {UF_LIST.map(u => <option key={u} value={u}>{u}</option>)}
           </select>
 
-          {/* frete */}
-          <div className="flex gap-2 mt-1">
-            <button onClick={() => setShipping('standard')}
-              className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${
-                shipping === 'standard'
-                  ? 'border-blue-500 bg-blue-500/10 text-blue-400'
-                  : 'border-zinc-600 text-zinc-400 hover:border-zinc-500'}`}>
-              📦 Padrão (5–8 dias)
-            </button>
-            <button onClick={() => setShipping('express')}
-              className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${
-                shipping === 'express'
-                  ? 'border-blue-500 bg-blue-500/10 text-blue-400'
-                  : 'border-zinc-600 text-zinc-400 hover:border-zinc-500'}`}>
-              ⚡ Expresso (1–2 dias)
-            </button>
-          </div>
-
-          <div className="flex gap-2 mt-2">
-            <button onClick={() => setShowForm(false)}
-              className="flex-1 py-2 rounded-lg text-xs text-zinc-400 border border-zinc-600
-                hover:border-zinc-400 hover:text-zinc-200 transition-colors">
-              ← Voltar
-            </button>
-            <button onClick={() => onCheckout(customer, shipping)}
-              disabled={!isValid}
-              className="flex-1 py-2 rounded-lg text-xs font-semibold bg-green-600 hover:bg-green-500
-                disabled:bg-zinc-700 disabled:text-zinc-500 disabled:cursor-not-allowed
-                text-white transition-colors">
-              Confirmar pedido →
-            </button>
-          </div>
+          <button onClick={() => onCheckout(customer, shipping)}
+            disabled={!isValid}
+            className="mt-2 w-full py-2.5 rounded-lg text-sm font-semibold transition-colors"
+            style={{
+              background: isValid ? 'var(--accent)' : 'var(--surface)',
+              color: isValid ? '#fff' : 'var(--muted)',
+              cursor: isValid ? 'pointer' : 'not-allowed'
+            }}>
+            Confirmar pedido →
+          </button>
         </div>
       ) : (
-        <div className="px-4 pb-4">
+        <div className="px-4 pb-4 pt-3">
           <button onClick={() => setShowForm(true)}
-            className="w-full py-2.5 rounded-lg text-sm font-semibold bg-green-600 hover:bg-green-500 text-white transition-colors">
+            className="w-full py-2.5 rounded-lg text-sm font-semibold transition-colors"
+            style={{ background:'var(--accent)', color:'#fff' }}>
             Finalizar compra →
           </button>
         </div>

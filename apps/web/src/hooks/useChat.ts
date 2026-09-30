@@ -4,21 +4,18 @@ import { useState, useCallback, useRef } from 'react'
 import { getSessionId } from '@/lib/session'
 import { newIdempotencyKey, getIdempotencyKey, cartAddKey, checkoutKey, paymentKey } from '@/lib/idempotency'
 import { postIntent, addToCart, getCart, createCheckout, createPayment } from '@/lib/api'
-import type {
-  ChatMessage, SessionState, UcpStep, Product,
-  PaymentMethod, PaymentProvider, Cart,
-} from '@/types/ucp'
+import type { ChatMessage, SessionState, UcpStep, Product, PaymentMethod, PaymentProvider, Cart } from '@/types/ucp'
 import type { CustomerDto } from '@/components/ucp/CartCard'
 
 function makeId() { return Math.random().toString(36).slice(2) }
 
 const INITIAL_SESSION: SessionState = {
-  sessionId: '', step: 'idle', cart: null, currentOrder: null, lastIdempotencyKey: null,
+  sessionId:'', step:'idle', cart:null, currentOrder:null, lastIdempotencyKey:null,
 }
 
 const WELCOME: ChatMessage = {
-  id: 'welcome', role: 'bot',
-  text: 'Olá! Sou o Comprai 🛍️ — seu assistente de compras com IA. O que você quer encontrar hoje?',
+  id:'welcome', role:'bot',
+  text:'Olá! Sou o Comprai 🛍️ — seu assistente de compras com IA. O que você quer encontrar hoje?',
   timestamp: new Date(),
 }
 
@@ -31,19 +28,19 @@ export function useChat() {
   const getOrCreateSession = useCallback((): string => {
     if (!sessionRef.current) {
       sessionRef.current = getSessionId()
-      setSession((s) => ({ ...s, sessionId: sessionRef.current }))
+      setSession(s => ({ ...s, sessionId: sessionRef.current }))
     }
     return sessionRef.current
   }, [])
 
-  const pushMessage = useCallback((msg: Omit<ChatMessage, 'id' | 'timestamp'>) => {
+  const pushMessage = useCallback((msg: Omit<ChatMessage, 'id'|'timestamp'>) => {
     const full: ChatMessage = { ...msg, id: makeId(), timestamp: new Date() }
-    setMessages((prev) => [...prev, full])
+    setMessages(prev => [...prev, full])
     return full
   }, [])
 
   const advanceStep = useCallback((step: UcpStep) => {
-    setSession((s) => ({ ...s, step }))
+    setSession(s => ({ ...s, step }))
   }, [])
 
   function normalizeCart(raw: any, sessionId: string): Cart {
@@ -63,7 +60,7 @@ export function useChat() {
   const sendMessage = useCallback(async (text: string) => {
     const sessionId = getOrCreateSession()
     const idempotencyKey = newIdempotencyKey()
-    pushMessage({ role: 'user', text, idempotencyKey })
+    pushMessage({ role:'user', text, idempotencyKey })
     setIsTyping(true)
     try {
       const res = await postIntent(text, sessionId, idempotencyKey)
@@ -74,9 +71,15 @@ export function useChat() {
       }
       const nextStep = stepMap[res.intent]
       if (nextStep) advanceStep(nextStep)
-      if (res.data?.type === 'cart') setSession((s) => ({ ...s, cart: (res.data as any).cart }))
-      if (res.data?.type === 'order') setSession((s) => ({ ...s, currentOrder: (res.data as any).order }))
-      pushMessage({ role:'bot', text:res.response, intent:res.intent, data:res.data, idempotencyKey })
+      if (res.data?.type === 'cart') setSession(s => ({ ...s, cart:(res.data as any).cart }))
+      if (res.data?.type === 'order') setSession(s => ({ ...s, currentOrder:(res.data as any).order }))
+
+      // sem produtos → mensagem amigável
+      const text2 = res.intent === 'search' && res.data?.type === 'search' && res.data.products.length === 0
+        ? 'Produto não encontrado. Tente outro termo de busca.'
+        : res.response
+
+      pushMessage({ role:'bot', text:text2, intent:res.intent, data:res.data, idempotencyKey })
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erro desconhecido'
       pushMessage({ role:'bot', text:`Ops! Algo deu errado: ${msg}. Tente novamente.`, idempotencyKey })
@@ -92,7 +95,7 @@ export function useChat() {
       await addToCart(sessionId, product, idempotencyKey)
       const raw = await getCart(sessionId)
       const cart = normalizeCart(raw, sessionId)
-      setSession((s) => ({ ...s, cart, step: 'cart' }))
+      setSession(s => ({ ...s, cart, step:'cart' }))
       pushMessage({ role:'bot', text:`✅ **${product.title}** adicionado ao carrinho!`,
         intent:'cart_add', data:{ type:'cart', cart }, idempotencyKey })
     } catch (err) {
@@ -101,7 +104,6 @@ export function useChat() {
     } finally { setIsTyping(false) }
   }, [getOrCreateSession, pushMessage])
 
-  // handleCheckout agora recebe CustomerDto
   const handleCheckout = useCallback(async (customer: CustomerDto, shippingMethod: 'standard' | 'express') => {
     const sessionId = getOrCreateSession()
     const idempotencyKey = getIdempotencyKey(checkoutKey(sessionId))
@@ -110,25 +112,33 @@ export function useChat() {
     try {
       const res = await createCheckout(sessionId, customer, shippingMethod, idempotencyKey)
       advanceStep('checkout')
-      const orderId = (res as any).orderId ?? (res as any).checkout?.orderId ?? ''
+      const orderId = (res as any).orderId ?? ''
+      // monta CheckoutData para o card mesmo sem items do backend
+      const checkoutData = {
+        orderId,
+        sessionId,
+        items: session.cart?.items ?? [],
+        total: session.cart?.total ?? 0,
+        shippingMethod,
+      }
       pushMessage({ role:'bot', text:`Pedido **${orderId}** criado! Como você quer pagar?`,
-        intent:'checkout', data:{ type:'checkout', checkout:(res as any).checkout ?? res }, idempotencyKey })
+        intent:'checkout', data:{ type:'checkout', checkout: checkoutData }, idempotencyKey })
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erro'
       pushMessage({ role:'bot', text:`Erro ao criar pedido: ${msg}`, idempotencyKey })
     } finally { setIsTyping(false) }
-  }, [getOrCreateSession, pushMessage, advanceStep])
+  }, [getOrCreateSession, pushMessage, advanceStep, session.cart])
 
   const handlePayment = useCallback(async (orderId: string, provider: PaymentProvider, method: PaymentMethod) => {
     const idempotencyKey = getIdempotencyKey(paymentKey(orderId, method))
-    pushMessage({ role:'user', text: method === 'pix' ? 'Pagar com Pix' : 'Pagar com cartão', idempotencyKey })
+    pushMessage({ role:'user', text: method==='pix' ? 'Pagar com Pix' : 'Pagar com cartão', idempotencyKey })
     setIsTyping(true)
     try {
       const res = await createPayment(orderId, provider, method, idempotencyKey)
       advanceStep('payment')
-      const intent = method === 'pix' ? 'payment_pix' : 'payment_card'
+      const intent = method==='pix' ? 'payment_pix' : 'payment_card'
       pushMessage({ role:'bot',
-        text: method === 'pix' ? 'Escaneie o QR Code. Expira em 15 minutos.' : 'Insira os dados do cartão.',
+        text: method==='pix' ? 'Escaneie o QR Code. Expira em 15 minutos.' : 'Insira os dados do cartão.',
         intent, data:{ type:'payment', payment:(res as any).payment ?? res }, idempotencyKey })
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erro'
@@ -138,10 +148,9 @@ export function useChat() {
 
   const handlePaymentConfirmed = useCallback((orderId: string) => {
     advanceStep('order')
-    setSession((s) => ({ ...s, cart:null, step:'order',
+    setSession(s => ({ ...s, cart:null, step:'order',
       currentOrder: s.currentOrder ? { ...s.currentOrder, status:'payment_confirmed' } : null }))
-    pushMessage({ role:'bot',
-      text:`🎉 Pagamento confirmado! Seu pedido **#${orderId}** está sendo preparado.`,
+    pushMessage({ role:'bot', text:`🎉 Pagamento confirmado! Seu pedido **#${orderId}** está sendo preparado.`,
       intent:'order_status' })
   }, [pushMessage, advanceStep])
 
