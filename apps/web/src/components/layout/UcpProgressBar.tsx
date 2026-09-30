@@ -2,9 +2,7 @@
 
 import type { UcpStep } from '@/types/ucp'
 
-interface Props {
-  step: UcpStep
-}
+interface Props { step: UcpStep }
 
 const STEPS: { key: UcpStep; label: string; icon: string }[] = [
   { key: 'search',   label: 'Busca',     icon: '🔍' },
@@ -20,8 +18,8 @@ export default function UcpProgressBar({ step }: Props) {
   const currentIndex = ORDER.indexOf(step)
 
   return (
-    <div className="px-3 py-2 border-b border-zinc-800 bg-zinc-900/50">
-      <div className="flex items-center justify-center gap-1">
+    <div className="px-3 py-2" style={{ borderBottom:'1px solid var(--border)', background:'var(--panel)' }}>
+      <div className="flex items-center justify-start gap-1">
         {STEPS.map((s, i) => {
           const stepIndex = ORDER.indexOf(s.key)
           const done = stepIndex < currentIndex
@@ -30,18 +28,23 @@ export default function UcpProgressBar({ step }: Props) {
           return (
             <div key={s.key} className="flex items-center">
               <div className="flex flex-col items-center gap-0.5">
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs transition-all
-                  ${active ? 'bg-green-600 ring-2 ring-green-500/30 scale-110' :
-                    done  ? 'bg-green-900/60 text-green-600' :
-                            'bg-zinc-800 text-zinc-600'}`}>
+                <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs transition-all"
+                  style={{
+                    background: active ? 'var(--accent)' : done ? 'rgba(34,197,94,0.2)' : 'var(--surface)',
+                    color: active ? '#fff' : done ? 'var(--accent)' : 'var(--muted)',
+                    boxShadow: active ? '0 0 0 2px rgba(34,197,94,0.3)' : 'none',
+                    transform: active ? 'scale(1.1)' : 'scale(1)',
+                  }}>
                   {done ? '✓' : s.icon}
                 </div>
-                <span className={`text-[9px] leading-none ${active ? 'text-green-400' : done ? 'text-zinc-500' : 'text-zinc-700'}`}>
+                <span className="text-[9px] leading-none hidden sm:block"
+                  style={{ color: active ? 'var(--accent)' : 'var(--muted)' }}>
                   {s.label}
                 </span>
               </div>
               {i < STEPS.length - 1 && (
-                <div className={`h-px w-6 mx-1 mb-3 ${stepIndex < currentIndex ? 'bg-green-700' : 'bg-zinc-800'}`} />
+                <div className="h-px w-5 mx-1 mb-3"
+                  style={{ background: stepIndex < currentIndex ? 'var(--accent)' : 'var(--border)' }} />
               )}
             </div>
           )
