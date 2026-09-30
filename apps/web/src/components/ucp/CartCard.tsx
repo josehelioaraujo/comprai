@@ -115,13 +115,10 @@ export default function CartCard({ cart, onCheckout, onQuantityChange }: Props) 
             <div key={item.productId} className="px-4 py-3 flex items-center gap-2">
               <div className="flex-1 min-w-0">
                 <p className="text-xs truncate" style={{ color:'var(--text)' }}>{item.title}</p>
-                <p className="text-[10px]" style={{ color:'var(--muted)' }}>
-                  {formatPrice(item.price)} / un
-                </p>
+                <p className="text-[10px]" style={{ color:'var(--muted)' }}>{formatPrice(item.price)} / un</p>
               </div>
               <div className="flex items-center gap-1 flex-shrink-0">
-                <button onClick={() => setQty(item.productId, qty - 1)}
-                  disabled={qty <= 1}
+                <button onClick={() => setQty(item.productId, qty - 1)} disabled={qty <= 1}
                   className="w-6 h-6 rounded flex items-center justify-center text-sm font-bold"
                   style={{ background:'var(--surface)', color: qty<=1 ? 'var(--border)' : 'var(--text)',
                     cursor: qty<=1 ? 'not-allowed' : 'pointer' }}>
@@ -142,7 +139,7 @@ export default function CartCard({ cart, onCheckout, onQuantityChange }: Props) 
         })}
       </div>
 
-      {/* frete radio */}
+      {/* frete */}
       <div className="px-4 py-3" style={{ borderBottom:'1px solid var(--border)' }}>
         <p className="text-[10px] mb-2 uppercase tracking-wide" style={{ color:'var(--muted)' }}>Frete</p>
         <div className="flex flex-col gap-1.5">
@@ -181,6 +178,7 @@ export default function CartCard({ cart, onCheckout, onQuantityChange }: Props) 
         </div>
       </div>
 
+      {/* form de dados / botão finalizar */}
       {showForm ? (
         <div className="px-4 pb-4 pt-3 flex flex-col gap-2">
           <p className="text-xs font-semibold mb-1" style={{ color:'var(--text)' }}>👤 Seus dados</p>
@@ -192,7 +190,6 @@ export default function CartCard({ cart, onCheckout, onQuantityChange }: Props) 
             value={customer.phone} onChange={e => setField('phone', formatPhone(e.target.value))} />
           <input className="input-field" placeholder="CPF 000.000.000-00"
             value={customer.document} onChange={e => setField('document', formatCPF(e.target.value))} />
-
           <p className="text-xs font-semibold mt-2 mb-1" style={{ color:'var(--text)' }}>📦 Entrega</p>
           <div className="flex gap-2 items-center">
             <input className="input-field flex-1" placeholder="CEP 00000-000"
@@ -203,13 +200,19 @@ export default function CartCard({ cart, onCheckout, onQuantityChange }: Props) 
             <option value="">Estado (UF)</option>
             {UF_LIST.map(u => <option key={u} value={u}>{u}</option>)}
           </select>
-
-          <button onClick={() => onCheckout(customer, shipping)}
-            disabled={!isValid}
+          <button onClick={() => onCheckout(customer, shipping)} disabled={!isValid}
             className="mt-2 w-full py-2.5 rounded-lg text-sm font-semibold transition-colors"
             style={{ background: isValid ? 'var(--accent)' : 'var(--surface)',
               color: isValid ? '#fff' : 'var(--muted)', cursor: isValid ? 'pointer' : 'not-allowed' }}>
             Confirmar pedido →
+          </button>
+        </div>
+      ) : (
+        <div className="px-4 pb-4 pt-3">
+          <button onClick={() => setShowForm(true)}
+            className="w-full py-2.5 rounded-lg text-sm font-semibold"
+            style={{ background:'var(--accent)', color:'#fff' }}>
+            Finalizar compra →
           </button>
         </div>
       )}
