@@ -57,7 +57,6 @@ export function useChat() {
     }
   }
 
-  // total de itens no carrinho (soma quantidades)
   const cartCount = session.cart?.items.reduce((s, i) => s + i.quantity, 0) ?? 0
 
   const sendMessage = useCallback(async (text: string) => {
@@ -87,24 +86,37 @@ export function useChat() {
 
   const handleAddToCart = useCallback(async (product: Product) => {
     const sessionId = getOrCreateSession()
-    // permite adicionar múltiplos produtos — key por produto+sessão
     const idempotencyKey = getIdempotencyKey(cartAddKey(sessionId, product.id))
-    pushMessage({ role:'user', text:`Adicionar: ${product.title}`, idempotencyKey })
     setIsTyping(true)
     try {
       await addToCart(sessionId, product, idempotencyKey)
       const raw = await getCart(sessionId)
       const cart = normalizeCart(raw, sessionId)
-      setSession(s => ({ ...s, cart, step:'cart' }))
+      setSession(s => ({ ...s, cart, step:'search' })) // mantém step em search
       const count = cart.items.reduce((s, i) => s + i.quantity, 0)
+      // só texto — sem CartCard automático
       pushMessage({ role:'bot',
-        text:`✅ **${product.title}** adicionado! Carrinho: ${count} ${count===1?'item':'itens'}.`,
-        intent:'cart_add', data:{ type:'cart', cart }, idempotencyKey })
+        text:`✅ **${product.title}** adicionado! ${count} ${count===1?'item':'itens'} no carrinho.`,
+        intent:'cart_add', idempotencyKey })
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erro'
       pushMessage({ role:'bot', text:`Não consegui adicionar ao carrinho: ${msg}`, idempotencyKey })
     } finally { setIsTyping(false) }
   }, [getOrCreateSession, pushMessage])
+
+  // abre carrinho explicitamente (botão "Fechar pedido")
+  const handleViewCart = useCallback(() => {
+    const sessionId = getOrCreateSession()
+    if (!session.cart || session.cart.items.length === 0) {
+      pushMessage({ role:'bot', text:'Seu carrinho está vazio. Busque produtos para adicionar!' })
+      return
+    }
+    advanceStep('cart')
+    pushMessage({
+      role:'bot', text:'Aqui está seu carrinho:',
+      intent:'cart_view', data:{ type:'cart', cart: session.cart }
+    })
+  }, [getOrCreateSession, pushMessage, advanceStep, session.cart])
 
   const handleCheckout = useCallback(async (customer: CustomerDto, shippingMethod: 'standard' | 'express') => {
     const sessionId = getOrCreateSession()
@@ -134,12 +146,10 @@ export function useChat() {
     pushMessage({ role:'user', text: method==='pix' ? 'Pagar com Pix' : 'Pagar com cartão', idempotencyKey })
     setIsTyping(true)
     try {
-      // passa amount do carrinho atual
       const amount = session.cart?.total ?? 0
       const res = await createPayment(orderId, method, amount, idempotencyKey)
       advanceStep('payment')
       const intent = method==='pix' ? 'payment_pix' : 'payment_card'
-      // monta PaymentResult mock se o backend não retornar completo
       const payment = {
         paymentId: (res as any).paymentId ?? `pay-${Date.now()}`,
         orderId,
@@ -169,5 +179,5 @@ export function useChat() {
   }, [pushMessage, advanceStep])
 
   return { messages, session, cartCount, isTyping, sendMessage,
-    handleAddToCart, handleCheckout, handlePayment, handlePaymentConfirmed }
+    handleAddToCart, handleViewCart, handleCheckout, handlePayment, handlePaymentConfirmed }
 }
