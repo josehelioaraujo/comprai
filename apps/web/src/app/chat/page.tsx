@@ -23,7 +23,8 @@ export default function ChatPage() {
         <Sidebar step={session.step} cart={session.cart} sessionId={session.sessionId}
           version={VERSION} gitSha={GIT_SHA}
           collapsed={sidebarCollapsed}
-          onToggleCollapse={() => setSidebarCollapsed(c => !c)} />
+          onToggleCollapse={() => setSidebarCollapsed(c => !c)}
+          onViewCart={handleViewCart} />
       </div>
       <div className="flex flex-col flex-1 min-w-0">
         {/* header mobile */}
