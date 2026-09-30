@@ -1,4 +1,4 @@
-// V041 — health checks reais | ghcr GHCR_TOKEN
+// V041 — health checks reais | deploy safe pull-before-down
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using StackExchange.Redis;
