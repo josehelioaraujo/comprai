@@ -1,0 +1,100 @@
+name: Deploy Web
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/web/**'
+      - '.github/workflows/deploy-web.yml'
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: comprai-web
+  DEPLOY_PATH: /home/projetos/comprai-web
+
+jobs:
+  build-and-deploy:
+    name: Build & Deploy Web
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # ── checkout ────────────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── build Docker ────────────────────────────────────────────────────────
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/web
+          file: ./apps/web/Dockerfile
+          push: false
+          load: true
+          tags: ${{ env.IMAGE_NAME }}:latest
+          build-args: |
+            NEXT_PUBLIC_API_URL=https://comprai.2.25.122.11.nip.io
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ── salva imagem como tar ───────────────────────────────────────────────
+      - name: Save image tar
+        run: docker save ${{ env.IMAGE_NAME }}:latest | gzip > /tmp/comprai-web.tar.gz
+
+      # ── envia para VPS ──────────────────────────────────────────────────────
+      - name: Copy image to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: 2.25.122.11
+          username: root
+          key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          source: /tmp/comprai-web.tar.gz
+          target: /tmp/
+
+      # ── deploy na VPS ───────────────────────────────────────────────────────
+      - name: Deploy on VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 2.25.122.11
+          username: root
+          key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          script: |
+            set -e
+
+            # carrega imagem
+            docker load < /tmp/comprai-web.tar.gz
+
+            # para e remove container anterior
+            docker stop comprai-web 2>/dev/null || true
+            docker rm   comprai-web 2>/dev/null || true
+
+            # sobe novo container
+            docker run -d \
+              --name comprai-web \
+              --restart unless-stopped \
+              --network comprai-network \
+              -p 3002:3002 \
+              -e NODE_ENV=production \
+              -e NEXT_PUBLIC_API_URL=https://comprai.2.25.122.11.nip.io \
+              ${{ env.IMAGE_NAME }}:latest
+
+            # smoke test
+            sleep 5
+            curl -sf http://localhost:3002/ || exit 1
+
+            echo "✅ comprai-web deployed on :3002"
+
+            # limpa tar
+            rm -f /tmp/comprai-web.tar.gz
+
+      # ── notifica resultado ──────────────────────────────────────────────────
+      - name: Summary
+        run: |
+          echo "## 🚀 Deploy Web" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL:** http://2.25.122.11:3002" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image:** ${{ env.IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY

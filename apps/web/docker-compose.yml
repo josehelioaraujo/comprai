@@ -1,0 +1,16 @@
+services:
+  comprai-web:
+    image: comprai-web:latest
+    container_name: comprai-web
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=https://comprai.2.25.122.11.nip.io
+    networks:
+      - comprai-network
+
+networks:
+  comprai-network:
+    external: true          # mesma rede do comprai-api

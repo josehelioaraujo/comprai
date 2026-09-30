@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+:root {
+  --font-inter: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* scrollbar fina para webkit */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 2px; }
+
+/* remove scrollbar mas mantém scroll */
+.scrollbar-none::-webkit-scrollbar { display: none; }
+.scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* input padrão dos formulários */
+.input-field {
+  @apply w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2
+         text-sm text-zinc-200 placeholder-zinc-600
+         focus:outline-none focus:border-zinc-500
+         transition-colors;
+}
+
+/* fonte mono para preços e códigos */
+.font-mono {
+  font-family: var(--font-mono), monospace;
+}
