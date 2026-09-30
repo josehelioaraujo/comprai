@@ -137,7 +137,7 @@ else
     builder.Services.Configure<ShopifyOptions>(builder.Configuration.GetSection("Shopify"));
     builder.Services.AddHttpClient<ShopifyPlugin>(c => { c.Timeout = TimeSpan.FromSeconds(15); })
         .AddCatalogResilience(builder.Configuration);
-    builder.Services.AddTransient<IProductCatalogPort, ShopifyPlugin>();
+    builder.Services.AddScoped<IProductCatalogPort, ShopifyPlugin>();
     builder.Services.AddSingleton<IProductCatalogPort, OpenFoodFactsPlugin>();
 
     if (usarRedis)
