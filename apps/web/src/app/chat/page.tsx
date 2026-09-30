@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useChat } from '@/hooks/useChat'
 import { useTheme } from '@/lib/theme'
 import Sidebar from '@/components/layout/Sidebar'
@@ -14,12 +15,15 @@ export default function ChatPage() {
   const { messages, session, cartCount, isTyping, sendMessage,
     handleAddToCart, handleViewCart, handleCheckout, handlePayment, handlePaymentConfirmed } = useChat()
   const { theme, toggle } = useTheme()
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background:'var(--bg)', color:'var(--text)' }}>
       <div className="hidden md:flex">
         <Sidebar step={session.step} cart={session.cart} sessionId={session.sessionId}
-          version={VERSION} gitSha={GIT_SHA} />
+          version={VERSION} gitSha={GIT_SHA}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(c => !c)} />
       </div>
       <div className="flex flex-col flex-1 min-w-0">
         {/* header mobile */}
@@ -29,7 +33,7 @@ export default function ChatPage() {
             <span className="text-xl">🛍️</span>
             <div>
               <span className="text-sm font-bold" style={{ color:'var(--text)' }}>Comprai</span>
-              <span className="text-[10px] ml-2" style={{ color:'var(--muted)' }}>v{VERSION}</span>
+              <span className="text-[10px] ml-2 font-mono" style={{ color:'var(--muted)' }}>v{VERSION}</span>
             </div>
           </div>
           <div className="flex items-center gap-2">

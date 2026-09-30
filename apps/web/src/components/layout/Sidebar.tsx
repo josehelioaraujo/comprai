@@ -10,6 +10,8 @@ interface Props {
   sessionId: string
   version?: string
   gitSha?: string
+  collapsed?: boolean
+  onToggleCollapse?: () => void
 }
 
 const UCP_STEPS = [
@@ -24,30 +26,65 @@ function formatPrice(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
-export default function Sidebar({ step, cart, sessionId, version = '0.1.0', gitSha = 'dev' }: Props) {
+export default function Sidebar({ step, cart, sessionId, version = '0.1.0', gitSha = 'dev', collapsed = false, onToggleCollapse }: Props) {
   const { theme, toggle } = useTheme()
-  const [showUcpInfo, setShowUcpInfo] = useState(false)
+  const [showAbout, setShowAbout] = useState(false)
 
-  return (
-    <aside className="w-56 flex-shrink-0 flex flex-col h-full"
-      style={{ background:'var(--panel)', borderRight:'1px solid var(--border)' }}>
+  const currentStep = UCP_STEPS.find(s => s.key === step)
 
-      {/* logo */}
-      <div className="px-4 py-3 flex items-center justify-between"
-        style={{ borderBottom:'1px solid var(--border)' }}>
-        <div className="flex items-center gap-2">
-          <span className="text-xl">🛍️</span>
-          <div>
-            <p className="text-sm font-bold" style={{ color:'var(--text)' }}>Comprai</p>
-            <p className="text-[10px] font-mono" style={{ color:'var(--muted)' }}>
-              v{version} <span style={{ color:'var(--border)' }}>·</span> {gitSha}
-            </p>
-          </div>
-        </div>
-        <button onClick={toggle}
-          className="w-7 h-7 rounded-lg flex items-center justify-center text-sm"
+  // modo colapsado — só ícones
+  if (collapsed) {
+    return (
+      <aside className="flex-shrink-0 flex flex-col items-center py-3 gap-3 h-full transition-all"
+        style={{ width:52, background:'var(--panel)', borderRight:'1px solid var(--border)' }}>
+        <button onClick={onToggleCollapse} title="Expandir"
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-sm"
+          style={{ background:'var(--surface)', border:'1px solid var(--border)', color:'var(--muted)' }}>
+          ›
+        </button>
+        <span className="text-lg" title="Comprai">🛍️</span>
+        <div className="flex-1" />
+        <button onClick={toggle} className="w-8 h-8 rounded-lg flex items-center justify-center text-sm"
           style={{ background:'var(--surface)', border:'1px solid var(--border)' }}>
           {theme === 'dark' ? '☀️' : '🌙'}
+        </button>
+      </aside>
+    )
+  }
+
+  return (
+    <aside className="w-56 flex-shrink-0 flex flex-col h-full transition-all"
+      style={{ background:'var(--panel)', borderRight:'1px solid var(--border)' }}>
+
+      {/* header — logo clicável + dark mode + colapsar */}
+      <div className="px-3 py-3 flex items-center gap-2"
+        style={{ borderBottom:'1px solid var(--border)' }}>
+
+        {/* logo — abre modal sobre a solução */}
+        <button onClick={() => setShowAbout(true)} className="flex items-center gap-2 flex-1 text-left min-w-0"
+          title="Sobre o Comprai">
+          <span className="text-xl flex-shrink-0">🛍️</span>
+          <div className="min-w-0">
+            <p className="text-sm font-bold truncate" style={{ color:'var(--text)' }}>Comprai</p>
+            <p className="text-[10px] font-mono truncate" style={{ color:'var(--muted)' }}>
+              v{version} · {gitSha}
+            </p>
+          </div>
+        </button>
+
+        {/* dark mode */}
+        <button onClick={toggle}
+          className="w-7 h-7 flex-shrink-0 rounded-lg flex items-center justify-center text-sm"
+          style={{ background:'var(--surface)', border:'1px solid var(--border)' }}>
+          {theme === 'dark' ? '☀️' : '🌙'}
+        </button>
+
+        {/* colapsar */}
+        <button onClick={onToggleCollapse}
+          className="w-7 h-7 flex-shrink-0 rounded-lg flex items-center justify-center text-sm"
+          style={{ background:'var(--surface)', border:'1px solid var(--border)', color:'var(--muted)' }}
+          title="Retrair sidebar">
+          ‹
         </button>
       </div>
 
@@ -71,47 +108,18 @@ export default function Sidebar({ step, cart, sessionId, version = '0.1.0', gitS
         </button>
       </div>
 
-      {/* Fluxo UCP */}
-      <div className="px-3 py-3 relative" style={{ borderBottom:'1px solid var(--border)' }}>
-        <div className="flex items-center justify-between">
-          <p className="text-[10px] uppercase tracking-widest" style={{ color:'var(--muted)' }}>Fluxo UCP</p>
-          <button onClick={() => setShowUcpInfo(v => !v)}
-            className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"
-            style={{ background: showUcpInfo ? 'var(--accent)' : 'var(--surface)',
-              border:'1px solid var(--border)', color: showUcpInfo ? '#fff' : 'var(--muted)' }}>
-            ℹ
-          </button>
-        </div>
-        <div className="mt-2 flex items-center gap-2 px-2 py-1.5 rounded-lg"
+      {/* step atual — sem label técnica */}
+      <div className="px-3 py-3" style={{ borderBottom:'1px solid var(--border)' }}>
+        <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg"
           style={{ background:'var(--surface)' }}>
-          <span className="text-sm">{UCP_STEPS.find(s => s.key === step)?.icon ?? '🔍'}</span>
+          <span className="text-sm">{currentStep?.icon ?? '🔍'}</span>
           <span className="text-xs font-medium" style={{ color:'var(--accent)' }}>
-            {UCP_STEPS.find(s => s.key === step)?.label ?? 'Busca'}
+            {currentStep?.label ?? 'Busca'}
           </span>
         </div>
-        {showUcpInfo && (
-          <div className="absolute left-3 right-3 z-50 mt-2 rounded-xl p-3 shadow-2xl"
-            style={{ background:'var(--panel)', border:'1px solid var(--border)', top:'100%' }}>
-            <p className="text-[10px] font-semibold mb-1" style={{ color:'var(--text)' }}>Universal Commerce Protocol</p>
-            <p className="text-[10px] mb-2" style={{ color:'var(--muted)' }}>Fluxo conversacional de compras em 5 etapas.</p>
-            {UCP_STEPS.map(s => (
-              <div key={s.key} className="flex items-start gap-2 mb-1.5">
-                <span className="text-sm flex-shrink-0">{s.icon}</span>
-                <div>
-                  <p className="text-[10px] font-medium" style={{ color: step===s.key ? 'var(--accent)' : 'var(--text)' }}>
-                    {s.label}{step===s.key ? ' ← atual' : ''}
-                  </p>
-                  <p className="text-[9px]" style={{ color:'var(--muted)' }}>{s.desc}</p>
-                </div>
-              </div>
-            ))}
-            <button onClick={() => setShowUcpInfo(false)} className="mt-2 w-full text-[10px] py-1 rounded"
-              style={{ background:'var(--surface)', color:'var(--muted)' }}>Fechar</button>
-          </div>
-        )}
       </div>
 
-      {/* carrinho */}
+      {/* carrinho resumido */}
       {cart && cart.items.length > 0 && (
         <div className="px-3 py-3 flex-1" style={{ borderBottom:'1px solid var(--border)' }}>
           <p className="text-[10px] uppercase tracking-widest mb-2" style={{ color:'var(--muted)' }}>Carrinho</p>
@@ -133,6 +141,48 @@ export default function Sidebar({ step, cart, sessionId, version = '0.1.0', gitS
       <div className="px-3 py-2 mt-auto" style={{ borderTop:'1px solid var(--border)' }}>
         <p className="text-[10px] font-mono truncate" style={{ color:'var(--border)' }}>{sessionId.slice(0,16)}...</p>
       </div>
+
+      {/* modal sobre a solução */}
+      {showAbout && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background:'rgba(0,0,0,0.6)' }}
+          onClick={() => setShowAbout(false)}>
+          <div className="rounded-2xl p-6 max-w-sm w-full shadow-2xl"
+            style={{ background:'var(--panel)', border:'1px solid var(--border)' }}
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-4xl">🛍️</span>
+              <div>
+                <h2 className="text-lg font-bold" style={{ color:'var(--text)' }}>Comprai</h2>
+                <p className="text-xs font-mono" style={{ color:'var(--muted)' }}>v{version} · {gitSha}</p>
+              </div>
+            </div>
+            <p className="text-sm mb-4" style={{ color:'var(--muted)', lineHeight:1.6 }}>
+              Assistente de compras com Inteligência Artificial que guia você do pedido à entrega em linguagem natural.
+            </p>
+            <div className="flex flex-col gap-2 mb-4">
+              {UCP_STEPS.map(s => (
+                <div key={s.key} className="flex items-center gap-3 p-2 rounded-lg"
+                  style={{ background: step===s.key ? 'rgba(34,197,94,0.1)' : 'var(--surface)',
+                    border: step===s.key ? '1px solid rgba(34,197,94,0.3)' : '1px solid transparent' }}>
+                  <span className="text-lg">{s.icon}</span>
+                  <div>
+                    <p className="text-xs font-medium" style={{ color: step===s.key ? 'var(--accent)' : 'var(--text)' }}>
+                      {s.label} {step===s.key ? '← você está aqui' : ''}
+                    </p>
+                    <p className="text-[10px]" style={{ color:'var(--muted)' }}>{s.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setShowAbout(false)}
+              className="w-full py-2.5 rounded-xl text-sm font-semibold"
+              style={{ background:'var(--accent)', color:'#fff' }}>
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
     </aside>
   )
 }
