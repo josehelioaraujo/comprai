@@ -31,7 +31,10 @@ function isErrorMsg(text: string) {
     text.toLowerCase().startsWith('não consegui')
 }
 
-export default function ChatWindow({ messages, isTyping, onAddToCart, onCheckout, onPayment, onPaymentConfirmed }: Props) {
+export default function ChatWindow({
+  messages, isTyping,
+  onAddToCart, onCheckout, onPayment, onPaymentConfirmed, onQuantityChange,
+}: Props) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const [mounted, setMounted] = useState(false)
   const [showLogs, setShowLogs] = useState(false)
@@ -47,50 +50,51 @@ export default function ChatWindow({ messages, isTyping, onAddToCart, onCheckout
     <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4 relative">
       {/* botão logs */}
       <button onClick={() => setShowLogs(v => !v)}
-        className="fixed bottom-20 right-4 z-50 w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700
-          text-zinc-500 hover:text-zinc-300 hover:border-zinc-500 text-xs flex items-center justify-center
-          transition-all shadow-lg" title="Logs">
+        className="fixed bottom-20 right-4 z-50 w-8 h-8 rounded-full flex items-center justify-center text-xs shadow-lg transition-all"
+        style={{ background:'var(--surface)', border:'1px solid var(--border)', color:'var(--muted)' }}>
         🔍
       </button>
 
       {/* painel de logs */}
       {showLogs && (
-        <div className="fixed bottom-28 right-4 z-50 w-96 max-h-96 bg-zinc-900 border border-zinc-700
-          rounded-xl overflow-hidden shadow-2xl flex flex-col">
-          <div className="px-3 py-2 border-b border-zinc-800 flex items-center justify-between">
-            <span className="text-xs font-semibold text-zinc-300">🔍 Request / Response Logs</span>
-            <button onClick={() => setShowLogs(false)} className="text-zinc-500 hover:text-zinc-300 text-xs">✕</button>
+        <div className="fixed bottom-28 right-4 z-50 w-96 max-h-96 rounded-xl overflow-hidden shadow-2xl flex flex-col"
+          style={{ background:'var(--panel)', border:'1px solid var(--border)' }}>
+          <div className="px-3 py-2 flex items-center justify-between" style={{ borderBottom:'1px solid var(--border)' }}>
+            <span className="text-xs font-semibold" style={{ color:'var(--text)' }}>🔍 Request / Response Logs</span>
+            <button onClick={() => setShowLogs(false)} className="text-xs" style={{ color:'var(--muted)' }}>✕</button>
           </div>
           <div className="overflow-y-auto p-3 flex flex-col gap-3 text-[10px] font-mono">
-            {logMessages.length === 0 && <p className="text-zinc-600">Nenhuma requisição ainda.</p>}
+            {logMessages.length === 0 && <p style={{ color:'var(--muted)' }}>Nenhuma requisição ainda.</p>}
             {logMessages.map(m => {
               const isError = m.role === 'bot' && isErrorMsg(m.text)
               return (
-                <div key={m.id} className={`rounded-lg p-2 border ${
-                  isError ? 'bg-red-950/40 border-red-800/40' :
-                  m.role === 'user' ? 'bg-blue-950/40 border-blue-800/40' : 'bg-zinc-800 border-zinc-700'}`}>
+                <div key={m.id} className="rounded-lg p-2" style={{
+                  background: isError ? 'rgba(127,29,29,0.3)' : m.role === 'user' ? 'rgba(37,99,235,0.15)' : 'var(--surface)',
+                  border: `1px solid ${isError ? 'rgba(153,27,27,0.5)' : m.role === 'user' ? 'rgba(37,99,235,0.3)' : 'var(--border)'}`,
+                }}>
                   <div className="flex items-center justify-between mb-1">
-                    <span className={isError ? 'text-red-400' : m.role === 'user' ? 'text-blue-400' : 'text-green-400'}>
+                    <span style={{ color: isError ? '#f87171' : m.role === 'user' ? '#60a5fa' : 'var(--accent)' }}>
                       {isError ? '❌ ERROR' : m.role === 'user' ? '→ REQUEST' : '← RESPONSE'}
                     </span>
-                    <span className="text-zinc-600">{formatTime(m.timestamp)}</span>
+                    <span style={{ color:'var(--muted)' }}>{formatTime(m.timestamp)}</span>
                   </div>
                   {m.role === 'user' && (
-                    <div className="text-zinc-400">
-                      <span className="text-zinc-500">text: </span>"{m.text}"<br/>
-                      <span className="text-zinc-500">key: </span><span className="text-zinc-600">{m.idempotencyKey?.slice(0,16)}...</span>
+                    <div style={{ color:'var(--muted)' }}>
+                      <span style={{ color:'var(--border)' }}>text: </span>"{m.text}"<br/>
+                      <span style={{ color:'var(--border)' }}>key: </span>{m.idempotencyKey?.slice(0,16)}...
                     </div>
                   )}
                   {m.role === 'bot' && !isError && (
-                    <div className="text-zinc-400">
-                      <span className="text-zinc-500">intent: </span><span className="text-yellow-400">{m.intent ?? 'unknown'}</span><br/>
-                      <span className="text-zinc-500">msg: </span>"{m.text?.slice(0,60)}"
-                      {m.data && (<><br/><span className="text-zinc-500">data: </span>
-                        <span className="text-green-400">{m.data.type}</span>
+                    <div style={{ color:'var(--muted)' }}>
+                      <span style={{ color:'var(--border)' }}>intent: </span>
+                      <span style={{ color:'#fbbf24' }}>{m.intent ?? 'unknown'}</span><br/>
+                      <span style={{ color:'var(--border)' }}>msg: </span>"{m.text?.slice(0,60)}"
+                      {m.data && (<><br/><span style={{ color:'var(--border)' }}>data: </span>
+                        <span style={{ color:'var(--accent)' }}>{m.data.type}</span>
                         {m.data.type === 'search' && <> ({m.data.products.length} produtos)</>}</>)}
                     </div>
                   )}
-                  {isError && <div className="text-red-300">{m.text}</div>}
+                  {isError && <div style={{ color:'#fca5a5' }}>{m.text}</div>}
                 </div>
               )
             })}
@@ -100,34 +104,45 @@ export default function ChatWindow({ messages, isTyping, onAddToCart, onCheckout
 
       {messages.map((msg) => (
         <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-          <div className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
-            msg.role === 'user' ? 'bg-blue-600 text-white rounded-br-sm' :
-            isErrorMsg(msg.text) ? 'bg-red-950/40 border border-red-800/40 text-red-300 rounded-bl-sm' :
-            'bg-zinc-800 text-zinc-200 rounded-bl-sm border border-zinc-700'}`}>
+          <div className="max-w-[80%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed"
+            style={{
+              background: msg.role === 'user' ? 'var(--user-msg)' :
+                isErrorMsg(msg.text) ? 'rgba(127,29,29,0.3)' : 'var(--surface)',
+              color: msg.role === 'user' ? '#fff' : isErrorMsg(msg.text) ? '#fca5a5' : 'var(--text)',
+              border: msg.role === 'bot' ? `1px solid ${isErrorMsg(msg.text) ? 'rgba(153,27,27,0.5)' : 'var(--border)'}` : 'none',
+              borderRadius: msg.role === 'user' ? '1rem 1rem 0.25rem 1rem' : '1rem 1rem 1rem 0.25rem',
+            }}>
             {renderText(msg.text)}
           </div>
           {msg.role === 'bot' && (
             <div className="w-full max-w-[90%]">
-              <IntentRenderer message={msg} onAddToCart={onAddToCart}
-                onCheckout={onCheckout} onPayment={onPayment} onPaymentConfirmed={onPaymentConfirmed}
-                onQuantityChange={onQuantityChange} />
+              <IntentRenderer
+                message={msg}
+                onAddToCart={onAddToCart}
+                onCheckout={onCheckout}
+                onPayment={onPayment}
+                onPaymentConfirmed={onPaymentConfirmed}
+                onQuantityChange={onQuantityChange}
+              />
             </div>
           )}
-          <span className="text-[10px] text-zinc-600 mt-1 px-1">
+          <span className="text-[10px] mt-1 px-1" style={{ color:'var(--muted)' }}>
             {formatTime(msg.timestamp)}
             {msg.idempotencyKey && msg.role === 'user' && (
-              <span className="ml-1 text-zinc-700" title={`Key: ${msg.idempotencyKey}`}>· 🔑</span>)}
+              <span className="ml-1" style={{ color:'var(--border)' }} title={`Key: ${msg.idempotencyKey}`}>· 🔑</span>
+            )}
           </span>
         </div>
       ))}
 
       {isTyping && (
         <div className="flex items-start">
-          <div className="bg-zinc-800 border border-zinc-700 rounded-2xl rounded-bl-sm px-4 py-3">
+          <div className="rounded-2xl rounded-bl-sm px-4 py-3"
+            style={{ background:'var(--surface)', border:'1px solid var(--border)' }}>
             <div className="flex gap-1 items-center h-4">
-              <span className="w-2 h-2 rounded-full bg-zinc-500 animate-bounce [animation-delay:0ms]" />
-              <span className="w-2 h-2 rounded-full bg-zinc-500 animate-bounce [animation-delay:150ms]" />
-              <span className="w-2 h-2 rounded-full bg-zinc-500 animate-bounce [animation-delay:300ms]" />
+              <span className="w-2 h-2 rounded-full animate-bounce [animation-delay:0ms]" style={{ background:'var(--muted)' }} />
+              <span className="w-2 h-2 rounded-full animate-bounce [animation-delay:150ms]" style={{ background:'var(--muted)' }} />
+              <span className="w-2 h-2 rounded-full animate-bounce [animation-delay:300ms]" style={{ background:'var(--muted)' }} />
             </div>
           </div>
         </div>
