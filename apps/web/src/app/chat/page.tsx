@@ -52,7 +52,7 @@ export default function ChatPage() {
             </button>
           </div>
         </div>
-        <UcpProgressBar step={session.step} cartCount={cartCount} />
+        <UcpProgressBar step={session.step} cartCount={cartCount} onCartClick={handleViewCart} />
         <ChatWindow messages={messages} isTyping={isTyping}
           onAddToCart={handleAddToCart} onCheckout={handleCheckout}
           onPayment={handlePayment} onPaymentConfirmed={handlePaymentConfirmed}
