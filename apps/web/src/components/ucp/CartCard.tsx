@@ -6,6 +6,7 @@ import type { Cart } from '@/types/ucp'
 interface Props {
   cart: Cart
   onCheckout: (customer: CustomerDto, shipping: 'standard' | 'express') => void
+  onQuantityChange?: (productId: string, qty: number) => void
 }
 
 export interface CustomerDto {
@@ -47,7 +48,7 @@ function formatCEP(v: string) {
   return `${d.slice(0,5)}-${d.slice(5)}`
 }
 
-export default function CartCard({ cart, onCheckout }: Props) {
+export default function CartCard({ cart, onCheckout, onQuantityChange }: Props) {
   const [showForm, setShowForm] = useState(false)
   const [customer, setCustomer] = useState<CustomerDto>(EMPTY)
   const [shipping, setShipping] = useState<'standard' | 'express'>('standard')
@@ -69,13 +70,16 @@ export default function CartCard({ cart, onCheckout }: Props) {
   }
 
   function setQty(productId: string, qty: number) {
-    if (qty < 1) return // nunca abaixo de 1
+    if (qty < 1) return
     setQuantities(q => ({ ...q, [productId]: qty }))
+    onQuantityChange?.(productId, qty)
   }
 
   const total = cart.items.reduce((sum, item) => {
     return sum + item.price * getQty(item.productId, item.quantity)
   }, 0)
+
+  const shippingCost = shipping === 'express' ? 29.90 : 15.90
 
   function setField(field: keyof CustomerDto, value: string) {
     setCustomer(c => ({ ...c, [field]: value }))
@@ -95,8 +99,6 @@ export default function CartCard({ cart, onCheckout }: Props) {
 
   const isValid = customer.name && customer.email && customer.phone && customer.document
 
-  const isFreteGratis = total < 300 // frete grátis acima de R$ 300 ou sempre grátis no mock
-
   return (
     <div className="mt-2 rounded-xl overflow-hidden" style={{ background:'var(--panel)', border:'1px solid var(--border)' }}>
       {/* header */}
@@ -113,24 +115,26 @@ export default function CartCard({ cart, onCheckout }: Props) {
             <div key={item.productId} className="px-4 py-3 flex items-center gap-2">
               <div className="flex-1 min-w-0">
                 <p className="text-xs truncate" style={{ color:'var(--text)' }}>{item.title}</p>
+                <p className="text-[10px]" style={{ color:'var(--muted)' }}>
+                  {formatPrice(item.price)} / un
+                </p>
               </div>
-              {/* controles de quantidade */}
               <div className="flex items-center gap-1 flex-shrink-0">
                 <button onClick={() => setQty(item.productId, qty - 1)}
                   disabled={qty <= 1}
-                  className="w-6 h-6 rounded flex items-center justify-center text-sm font-bold transition-colors"
+                  className="w-6 h-6 rounded flex items-center justify-center text-sm font-bold"
                   style={{ background:'var(--surface)', color: qty<=1 ? 'var(--border)' : 'var(--text)',
                     cursor: qty<=1 ? 'not-allowed' : 'pointer' }}>
                   −
                 </button>
-                <span className="text-xs w-4 text-center font-mono" style={{ color:'var(--text)' }}>{qty}</span>
+                <span className="text-xs w-5 text-center font-mono" style={{ color:'var(--text)' }}>{qty}</span>
                 <button onClick={() => setQty(item.productId, qty + 1)}
-                  className="w-6 h-6 rounded flex items-center justify-center text-sm font-bold transition-colors"
-                  style={{ background:'var(--surface)', color:'var(--text)' }}>
+                  className="w-6 h-6 rounded flex items-center justify-center text-sm font-bold"
+                  style={{ background:'var(--surface)', color:'var(--text)', cursor:'pointer' }}>
                   +
                 </button>
               </div>
-              <span className="text-sm font-bold font-mono flex-shrink-0" style={{ color:'var(--accent)' }}>
+              <span className="text-sm font-bold font-mono flex-shrink-0 w-20 text-right" style={{ color:'var(--accent)' }}>
                 {formatPrice(item.price * qty)}
               </span>
             </div>
@@ -143,31 +147,38 @@ export default function CartCard({ cart, onCheckout }: Props) {
         <p className="text-[10px] mb-2 uppercase tracking-wide" style={{ color:'var(--muted)' }}>Frete</p>
         <div className="flex flex-col gap-1.5">
           {[
-            { value:'standard', label:'Padrão (5–8 dias)', price: isFreteGratis ? 0 : 15.90 },
-            { value:'express', label:'Expresso (1–2 dias)', price: isFreteGratis ? 9.90 : 29.90 },
+            { value:'standard', label:'Padrão (5–8 dias)', price: 15.90 },
+            { value:'express',  label:'Expresso (1–2 dias)', price: 29.90 },
           ].map(opt => (
             <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
               <div onClick={() => setShipping(opt.value as any)}
                 className="w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0"
-                style={{ borderColor:'var(--accent)',
-                  background: shipping===opt.value ? 'var(--accent)' : 'transparent' }}>
+                style={{ borderColor:'var(--accent)', background: shipping===opt.value ? 'var(--accent)' : 'transparent' }}>
                 {shipping===opt.value && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
               </div>
-              <span className="text-xs flex-1" style={{ color:'var(--text)' }}>
-                {opt.label}
-              </span>
-              <span className="text-xs font-bold font-mono" style={{ color: opt.price===0 ? 'var(--accent)' : 'var(--muted)' }}>
-                {opt.price===0 ? 'GRÁTIS' : formatPrice(opt.price)}
-              </span>
+              <span className="text-xs flex-1" style={{ color:'var(--text)' }}>{opt.label}</span>
+              <span className="text-xs font-mono" style={{ color:'var(--muted)' }}>{formatPrice(opt.price)}</span>
             </label>
           ))}
         </div>
       </div>
 
       {/* total */}
-      <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom:'1px solid var(--border)' }}>
-        <span className="text-sm" style={{ color:'var(--muted)' }}>Total</span>
-        <span className="text-base font-bold font-mono" style={{ color:'var(--accent)' }}>{formatPrice(total)}</span>
+      <div className="px-4 py-3 flex flex-col gap-1" style={{ borderBottom:'1px solid var(--border)' }}>
+        <div className="flex items-center justify-between">
+          <span className="text-xs" style={{ color:'var(--muted)' }}>Subtotal</span>
+          <span className="text-xs font-mono" style={{ color:'var(--muted)' }}>{formatPrice(total)}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-xs" style={{ color:'var(--muted)' }}>Frete</span>
+          <span className="text-xs font-mono" style={{ color:'var(--muted)' }}>{formatPrice(shippingCost)}</span>
+        </div>
+        <div className="flex items-center justify-between mt-1">
+          <span className="text-sm font-semibold" style={{ color:'var(--text)' }}>Total</span>
+          <span className="text-base font-bold font-mono" style={{ color:'var(--accent)' }}>
+            {formatPrice(total + shippingCost)}
+          </span>
+        </div>
       </div>
 
       {showForm ? (
@@ -196,18 +207,15 @@ export default function CartCard({ cart, onCheckout }: Props) {
           <button onClick={() => onCheckout(customer, shipping)}
             disabled={!isValid}
             className="mt-2 w-full py-2.5 rounded-lg text-sm font-semibold transition-colors"
-            style={{
-              background: isValid ? 'var(--accent)' : 'var(--surface)',
-              color: isValid ? '#fff' : 'var(--muted)',
-              cursor: isValid ? 'pointer' : 'not-allowed'
-            }}>
+            style={{ background: isValid ? 'var(--accent)' : 'var(--surface)',
+              color: isValid ? '#fff' : 'var(--muted)', cursor: isValid ? 'pointer' : 'not-allowed' }}>
             Confirmar pedido →
           </button>
         </div>
       ) : (
         <div className="px-4 pb-4 pt-3">
           <button onClick={() => setShowForm(true)}
-            className="w-full py-2.5 rounded-lg text-sm font-semibold transition-colors"
+            className="w-full py-2.5 rounded-lg text-sm font-semibold"
             style={{ background:'var(--accent)', color:'#fff' }}>
             Finalizar compra →
           </button>

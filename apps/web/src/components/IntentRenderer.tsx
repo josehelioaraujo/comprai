@@ -15,9 +15,10 @@ interface Props {
   onCheckout: (customer: CustomerDto, shipping: 'standard' | 'express') => void
   onPayment: (orderId: string, provider: PaymentProvider, method: PaymentMethod) => void
   onPaymentConfirmed: (orderId: string) => void
+  onQuantityChange?: (productId: string, qty: number) => void
 }
 
-export default function IntentRenderer({ message, onAddToCart, onCheckout, onPayment, onPaymentConfirmed }: Props) {
+export default function IntentRenderer({ message, onAddToCart, onCheckout, onPayment, onPaymentConfirmed, onQuantityChange }: Props) {
   const { intent, data } = message
   if (!intent || !data) return null
 
@@ -28,7 +29,7 @@ export default function IntentRenderer({ message, onAddToCart, onCheckout, onPay
       return null
     case 'cart_add': case 'cart_view': case 'cart_remove':
       if (data.type === 'cart')
-        return <CartCard cart={data.cart} onCheckout={onCheckout} />
+        return <CartCard cart={data.cart} onCheckout={onCheckout} onQuantityChange={onQuantityChange} />
       return null
     case 'checkout':
       if (data.type === 'checkout')
