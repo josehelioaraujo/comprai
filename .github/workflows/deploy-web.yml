@@ -9,73 +9,81 @@ on:
   workflow_dispatch:
 
 env:
-  IMAGE_NAME: comprai-web
+  IMAGE: ghcr.io/josehelioaraujo/comprai-web
+  VPS_HOST: 2.25.122.11
+  VPS_USER: root
+  WEB_PORT: 3002
+  API_URL: http://2.25.122.11:5020
 
 jobs:
-  build-and-deploy:
-    name: Build & Deploy Web
+  deploy:
+    name: 🚀 Build & Deploy Web
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Setup Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build image
-        uses: docker/build-push-action@v5
+      - name: Build e Push imagem para GHCR
+        uses: docker/build-push-action@v6
         with:
-          context: ./apps/web
-          file: ./apps/web/Dockerfile
-          push: false
-          load: true
-          tags: ${{ env.IMAGE_NAME }}:latest
+          context: apps/web
+          file: apps/web/Dockerfile
+          push: true
+          tags: ${{ env.IMAGE }}:latest
           build-args: |
-            NEXT_PUBLIC_API_URL=http://2.25.122.11:5020
+            NEXT_PUBLIC_API_URL=${{ env.API_URL }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Save image tar
-        run: |
-          docker save ${{ env.IMAGE_NAME }}:latest | gzip > ${{ github.workspace }}/comprai-web.tar.gz
-          ls -lh ${{ github.workspace }}/comprai-web.tar.gz
-
-      - name: Copy image to VPS
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: 2.25.122.11
-          username: root
-          key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
-          source: comprai-web.tar.gz
-          target: /tmp/
-
-      - name: Deploy on VPS
+      - name: Deploy na VPS
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: 2.25.122.11
-          username: root
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
           script: |
             set -e
-            docker load < /tmp/comprai-web.tar.gz
+
+            # login GHCR
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u josehelioaraujo --password-stdin
+
+            # pull nova imagem antes de derrubar
+            docker pull ${{ env.IMAGE }}:latest && echo "✅ Pull OK" || { echo "❌ Pull falhou"; exit 1; }
+
+            # para e remove container anterior
             docker stop comprai-web 2>/dev/null || true
             docker rm   comprai-web 2>/dev/null || true
+
+            # sobe novo container
             docker run -d \
               --name comprai-web \
               --restart unless-stopped \
               --network comprai-network \
-              -p 3002:3002 \
+              -p ${{ env.WEB_PORT }}:${{ env.WEB_PORT }} \
               -e NODE_ENV=production \
-              ${{ env.IMAGE_NAME }}:latest
+              ${{ env.IMAGE }}:latest
+
+            # smoke test
             sleep 8
-            curl -sf http://localhost:3002/ || exit 1
-            echo "✅ comprai-web deployed on :3002"
-            rm -f /tmp/comprai-web.tar.gz
+            curl -sf http://localhost:${{ env.WEB_PORT }}/ && echo "✅ comprai-web OK" || { echo "❌ Smoke test falhou"; docker logs comprai-web --tail 30; exit 1; }
 
       - name: Summary
         run: |
           echo "## 🚀 Deploy Web" >> $GITHUB_STEP_SUMMARY
-          echo "- **URL:** http://2.25.122.11:3002" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL:** http://${{ env.VPS_HOST }}:${{ env.WEB_PORT }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image:** ${{ env.IMAGE }}:latest" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
