@@ -12,6 +12,7 @@ interface Props {
   gitSha?: string
   collapsed?: boolean
   onToggleCollapse?: () => void
+  onViewCart?: () => void
 }
 
 const UCP_STEPS = [
@@ -26,7 +27,7 @@ function formatPrice(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
-export default function Sidebar({ step, cart, sessionId, version = '0.1.0', gitSha = 'dev', collapsed = false, onToggleCollapse }: Props) {
+export default function Sidebar({ step, cart, sessionId, version = '0.1.0', gitSha = 'dev', collapsed = false, onToggleCollapse, onViewCart }: Props) {
   const { theme, toggle } = useTheme()
   const [showAbout, setShowAbout] = useState(false)
   const logoRef = useRef<HTMLButtonElement>(null)
@@ -141,6 +142,17 @@ export default function Sidebar({ step, cart, sessionId, version = '0.1.0', gitS
               <span className="text-xs" style={{ color:'var(--muted)' }}>Total</span>
               <span className="text-xs font-bold font-mono" style={{ color:'var(--accent)' }}>{formatPrice(cart.total)}</span>
             </div>
+          </div>
+        )}
+
+        {/* botão fechar pedido na sidebar */}
+        {cart && cart.items.length > 0 && onViewCart && (
+          <div className="px-3 pb-3">
+            <button onClick={onViewCart}
+              className="w-full py-2 rounded-lg text-xs font-semibold transition-colors"
+              style={{ background:'var(--accent)', color:'#fff' }}>
+              🛒 Fechar pedido
+            </button>
           </div>
         )}
 
