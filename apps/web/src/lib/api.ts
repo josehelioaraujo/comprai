@@ -10,7 +10,7 @@ import type {
   PaymentProvider,
 } from '@/types/ucp'
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://comprai.2.25.122.11.nip.io'
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5020'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -28,7 +28,7 @@ async function post<T>(path: string, body: unknown, idempotencyKey: string): Pro
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-Idempotency-Key': idempotencyKey,  // ← rastreabilidade em TODA escrita
+      'X-Idempotency-Key': idempotencyKey,
     },
     body: JSON.stringify(body),
     cache: 'no-store',
@@ -44,14 +44,85 @@ export class ApiError extends Error {
   }
 }
 
-// ─── Intent (entrada principal do chat) ──────────────────────────────────────
+// ─── Intent ───────────────────────────────────────────────────────────────────
+// Backend espera: { text: string, sessionId: string }
+// Backend retorna: { intent, success, data, message }
+// Mapeamos para o IntentResponse do front
 
 export async function postIntent(
   message: string,
   sessionId: string,
   idempotencyKey: string,
 ): Promise<IntentResponse> {
-  return post<IntentResponse>('/api/intent', { message, sessionId }, idempotencyKey)
+  const raw = await post<{
+    intent: string
+    success: boolean
+    data: any
+    message: string | null
+  }>('/api/intent', { text: message, sessionId }, idempotencyKey)
+
+  // mapeia intent do backend (PascalCase) para o front (camelCase/snake)
+  const intentMap: Record<string, string> = {
+    SearchProducts: 'search',
+    AddToCart:      'cart_add',
+    RemoveFromCart: 'cart_remove',
+    ViewCart:       'cart_view',
+    Checkout:       'checkout',
+    GetOrder:       'order_status',
+    Unknown:        'unknown',
+  }
+
+  const intent = (intentMap[raw.intent] ?? 'unknown') as IntentResponse['intent']
+
+  // monta data no formato que o IntentRenderer espera
+  let data: IntentResponse['data'] | undefined = undefined
+
+  if (raw.success && raw.data) {
+    if (intent === 'search' && raw.data.items !== undefined) {
+      // backend retorna { items, totalItems, page, pageSize, source }
+      // mapeamos items → products
+      data = {
+        type: 'search',
+        products: (raw.data.items ?? []).map((item: any) => ({
+          id:            item.id ?? item.productId ?? String(Math.random()),
+          title:         item.title ?? item.name ?? 'Produto',
+          price:         item.price ?? 0,
+          originalPrice: item.originalPrice,
+          image:         item.imageUrl ?? item.image ?? '',
+          source:        item.source ?? raw.data.source ?? 'catalog',
+          url:           item.url,
+          rating:        item.rating,
+          available:     item.available !== false,
+        })),
+      }
+    } else if (intent === 'cart_add' || intent === 'cart_view' || intent === 'cart_remove') {
+      data = { type: 'cart', cart: raw.data }
+    } else if (intent === 'checkout') {
+      data = { type: 'checkout', checkout: raw.data }
+    } else if (intent === 'order_status') {
+      data = { type: 'order', order: raw.data }
+    }
+  }
+
+  return {
+    intent,
+    sessionId,
+    response: raw.message ?? messageForIntent(intent, raw.success),
+    data,
+  }
+}
+
+function messageForIntent(intent: string, success: boolean): string {
+  if (!success) return 'Não entendi. Tente: buscar produto, ver carrinho, finalizar pedido.'
+  const msgs: Record<string, string> = {
+    search:      'Encontrei esses produtos para você:',
+    cart_add:    'Produto adicionado ao carrinho!',
+    cart_view:   'Aqui está seu carrinho:',
+    cart_remove: 'Produto removido do carrinho.',
+    checkout:    'Pedido criado! Como você quer pagar?',
+    order_status:'Aqui está o status do seu pedido:',
+  }
+  return msgs[intent] ?? 'Ok!'
 }
 
 // ─── Search ───────────────────────────────────────────────────────────────────
