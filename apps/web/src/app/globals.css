@@ -7,43 +7,81 @@
   --font-mono: 'JetBrains Mono', monospace;
 }
 
-* {
-  box-sizing: border-box;
+/* ── Dark theme (default) ── */
+[data-theme="dark"] {
+  --bg:        #09090b;
+  --panel:     #18181b;
+  --surface:   #27272a;
+  --border:    #3f3f46;
+  --text:      #f4f4f5;
+  --muted:     #a1a1aa;
+  --accent:    #22c55e;
+  --user-msg:  #2563eb;
+  --error:     #7f1d1d;
+  --error-border: #991b1b;
 }
 
-html, body {
-  height: 100%;
-  margin: 0;
-  padding: 0;
+/* ── Light theme ── */
+[data-theme="light"] {
+  --bg:        #f9fafb;
+  --panel:     #ffffff;
+  --surface:   #f3f4f6;
+  --border:    #e5e7eb;
+  --text:      #111827;
+  --muted:     #6b7280;
+  --accent:    #16a34a;
+  --user-msg:  #1d4ed8;
+  --error:     #fef2f2;
+  --error-border: #fca5a5;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; padding: 0; }
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-inter), sans-serif;
 }
 
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 2px; }
-
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 .scrollbar-none::-webkit-scrollbar { display: none; }
 .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
 
 .input-field {
   width: 100%;
-  background-color: #18181b;
-  border: 1px solid #3f3f46;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 0.5rem;
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
-  color: #e4e4e7;
+  color: var(--text);
   outline: none;
   transition: border-color 0.15s;
 }
+.input-field::placeholder { color: var(--muted); }
+.input-field:focus { border-color: var(--accent); }
+.font-mono { font-family: var(--font-mono), monospace; }
 
-.input-field::placeholder {
-  color: #52525b;
+/* ── Widget embed mode ── */
+.comprai-widget {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 9999;
 }
 
-.input-field:focus {
-  border-color: #71717a;
-}
-
-.font-mono {
-  font-family: var(--font-mono), monospace;
+.comprai-widget-panel {
+  position: fixed;
+  bottom: 5rem;
+  right: 1.5rem;
+  width: min(420px, calc(100vw - 2rem));
+  height: min(680px, calc(100vh - 6rem));
+  z-index: 9998;
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: 0 25px 50px rgba(0,0,0,0.4);
+  border: 1px solid var(--border);
 }
