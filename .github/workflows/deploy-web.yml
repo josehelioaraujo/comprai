@@ -20,12 +20,39 @@ jobs:
     name: 🚀 Build & Deploy Web
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_PAT }}
+          fetch-depth: 0
+
+      # incrementa patch version no package.json e commita
+      - name: Bump patch version
+        id: version
+        run: |
+          cd apps/web
+          OLD=$(node -p "require('./package.json').version")
+          NEW=$(node -e "
+            const [major,minor,patch] = '$OLD'.split('.').map(Number);
+            console.log(major + '.' + minor + '.' + (patch+1));
+          ")
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json','utf8'));
+            pkg.version = '$NEW';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json
+          git commit -m "chore(web): bump version $OLD → $NEW [skip ci]"
+          git push
+          echo "version=$NEW" >> $GITHUB_OUTPUT
+          echo "Versão: $NEW"
 
       - name: Login GHCR
         uses: docker/login-action@v3
@@ -43,9 +70,12 @@ jobs:
           context: apps/web
           file: apps/web/Dockerfile
           push: true
-          tags: ${{ env.IMAGE }}:latest
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ steps.version.outputs.version }}
           build-args: |
             NEXT_PUBLIC_API_URL=${{ env.API_URL }}
+            NEXT_PUBLIC_APP_VERSION=${{ steps.version.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -57,18 +87,10 @@ jobs:
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
           script: |
             set -e
-
-            # login GHCR
             echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u josehelioaraujo --password-stdin
-
-            # pull nova imagem antes de derrubar
             docker pull ${{ env.IMAGE }}:latest && echo "✅ Pull OK" || { echo "❌ Pull falhou"; exit 1; }
-
-            # para e remove container anterior
             docker stop comprai-web 2>/dev/null || true
             docker rm   comprai-web 2>/dev/null || true
-
-            # sobe novo container
             docker run -d \
               --name comprai-web \
               --restart unless-stopped \
@@ -76,14 +98,13 @@ jobs:
               -p ${{ env.WEB_PORT }}:${{ env.WEB_PORT }} \
               -e NODE_ENV=production \
               ${{ env.IMAGE }}:latest
-
-            # smoke test
             sleep 8
-            curl -sf http://localhost:${{ env.WEB_PORT }}/ && echo "✅ comprai-web OK" || { echo "❌ Smoke test falhou"; docker logs comprai-web --tail 30; exit 1; }
+            curl -sf http://localhost:${{ env.WEB_PORT }}/ && echo "✅ comprai-web ${{ steps.version.outputs.version }} OK" || { echo "❌ Smoke test falhou"; docker logs comprai-web --tail 30; exit 1; }
 
       - name: Summary
         run: |
-          echo "## 🚀 Deploy Web" >> $GITHUB_STEP_SUMMARY
+          echo "## 🚀 Deploy Web ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "- **URL:** http://${{ env.VPS_HOST }}:${{ env.WEB_PORT }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Image:** ${{ env.IMAGE }}:latest" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image:** ${{ env.IMAGE }}:${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY

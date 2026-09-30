@@ -9,7 +9,7 @@ interface Props {
   sessionId: string
 }
 
-const VERSION = 'v0.1.0'
+const VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? '0.1.0'
 
 function formatPrice(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -30,51 +30,48 @@ export default function Sidebar({ step, cart, sessionId }: Props) {
   const currentIndex = order.indexOf(step)
 
   return (
-    <aside className="w-64 flex-shrink-0 flex flex-col h-full"
+    <aside className="w-56 flex-shrink-0 flex flex-col h-full"
       style={{ background: 'var(--panel)', borderRight: '1px solid var(--border)' }}>
       {/* logo + version + theme toggle */}
-      <div className="px-5 py-4 flex items-center justify-between"
+      <div className="px-4 py-3 flex items-center justify-between"
         style={{ borderBottom: '1px solid var(--border)' }}>
         <div className="flex items-center gap-2">
-          <span className="text-2xl">🛍️</span>
+          <span className="text-xl">🛍️</span>
           <div>
             <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>Comprai</p>
-            <p className="text-[10px]" style={{ color: 'var(--muted)' }}>{VERSION}</p>
+            <p className="text-[10px]" style={{ color: 'var(--muted)' }}>v{VERSION}</p>
           </div>
         </div>
         <button onClick={toggle}
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-sm transition-colors"
-          style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--muted)' }}
+          className="w-7 h-7 rounded-lg flex items-center justify-center text-sm transition-colors"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
           title={theme === 'dark' ? 'Modo claro' : 'Modo escuro'}>
           {theme === 'dark' ? '☀️' : '🌙'}
         </button>
       </div>
 
       {/* canal */}
-      <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
+      <div className="px-3 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
         <p className="text-[10px] uppercase tracking-widest mb-2" style={{ color: 'var(--muted)' }}>Canal</p>
-        <button className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left"
+        <button className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left"
           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <span className="text-base">💬</span>
+          <span>💬</span>
           <div>
             <p className="text-xs font-medium" style={{ color: 'var(--text)' }}>Web Chat</p>
-            <p className="text-[10px] flex items-center gap-1" style={{ color: 'var(--accent)' }}>
-              <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: 'var(--accent)' }} />
-              Online
-            </p>
+            <p className="text-[10px]" style={{ color: 'var(--accent)' }}>● Online</p>
           </div>
         </button>
-        <button className="w-full flex items-center gap-2 px-3 py-2 rounded-lg mt-1 text-left opacity-40 cursor-not-allowed" disabled>
-          <span className="text-base">📱</span>
+        <button className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg mt-1 text-left opacity-40 cursor-not-allowed" disabled>
+          <span>📱</span>
           <div>
-            <p className="text-xs font-medium" style={{ color: 'var(--muted)' }}>WhatsApp</p>
+            <p className="text-xs" style={{ color: 'var(--muted)' }}>WhatsApp</p>
             <p className="text-[10px]" style={{ color: 'var(--muted)' }}>Em breve</p>
           </div>
         </button>
       </div>
 
       {/* funil UCP */}
-      <div className="px-4 py-3 flex-1" style={{ borderBottom: '1px solid var(--border)' }}>
+      <div className="px-3 py-3 flex-1" style={{ borderBottom: '1px solid var(--border)' }}>
         <p className="text-[10px] uppercase tracking-widest mb-3" style={{ color: 'var(--muted)' }}>Fluxo UCP</p>
         <div className="flex flex-col gap-1">
           {steps.map((s, i) => {
@@ -82,7 +79,7 @@ export default function Sidebar({ step, cart, sessionId }: Props) {
             const done = sIndex < currentIndex
             const active = s.key === step
             return (
-              <div key={s.key} className="flex items-center gap-3">
+              <div key={s.key} className="flex items-center gap-2">
                 <div className="flex flex-col items-center">
                   <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs flex-shrink-0"
                     style={{
@@ -93,10 +90,10 @@ export default function Sidebar({ step, cart, sessionId }: Props) {
                     {done ? '✓' : s.icon}
                   </div>
                   {i < steps.length - 1 && (
-                    <div className="w-px h-5" style={{ background: sIndex < currentIndex ? 'var(--accent)' : 'var(--border)' }} />
+                    <div className="w-px h-4" style={{ background: sIndex < currentIndex ? 'var(--accent)' : 'var(--border)' }} />
                   )}
                 </div>
-                <span className="text-xs" style={{ color: active ? 'var(--accent)' : done ? 'var(--muted)' : 'var(--muted)', fontWeight: active ? 600 : 400 }}>
+                <span className="text-xs" style={{ color: active ? 'var(--accent)' : 'var(--muted)', fontWeight: active ? 600 : 400 }}>
                   {s.label}
                 </span>
               </div>
@@ -107,7 +104,7 @@ export default function Sidebar({ step, cart, sessionId }: Props) {
 
       {/* carrinho resumido */}
       {cart && cart.items.length > 0 && (
-        <div className="px-4 py-3" style={{ borderTop: '1px solid var(--border)' }}>
+        <div className="px-3 py-3" style={{ borderTop: '1px solid var(--border)' }}>
           <p className="text-[10px] uppercase tracking-widest mb-2" style={{ color: 'var(--muted)' }}>Carrinho</p>
           {cart.items.slice(0, 3).map(item => (
             <div key={item.productId} className="flex justify-between text-xs mb-1">
@@ -123,11 +120,9 @@ export default function Sidebar({ step, cart, sessionId }: Props) {
         </div>
       )}
 
-      {/* session + version footer */}
-      <div className="px-4 py-2" style={{ borderTop: '1px solid var(--border)' }}>
-        <p className="text-[10px] font-mono truncate" style={{ color: 'var(--border)' }} title={sessionId}>
-          {sessionId.slice(0, 20)}...
-        </p>
+      {/* session footer */}
+      <div className="px-3 py-2" style={{ borderTop: '1px solid var(--border)' }}>
+        <p className="text-[10px] font-mono truncate" style={{ color: 'var(--border)' }}>{sessionId.slice(0,16)}...</p>
       </div>
     </aside>
   )
