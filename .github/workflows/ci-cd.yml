@@ -572,11 +572,18 @@ jobs:
             fi
             echo "Ollama status: $(systemctl is-active ollama)"
 
-            docker compose -f deploy/docker-compose.yml --env-file .env --profile datadog --profile kafka --profile rabbitmq down --remove-orphans --volumes || true
-            docker rm -f comprai-api comprai-redis comprai-mcp comprai-dd-agent comprai-otel-collector comprai-kafka comprai-kafka-ui comprai-rabbitmq 2>/dev/null || true
+            # Login GHCR
             echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
-            docker compose -f deploy/docker-compose.yml --env-file .env pull comprai-api
-            docker compose -f deploy/docker-compose.yml --env-file .env --profile datadog --profile kafka --profile rabbitmq up -d
+
+            # Pull da nova imagem ANTES de derrubar a atual
+            docker pull ghcr.io/josehelioaraujo/comprai-api:latest               && echo "✅ Pull OK"               || { echo "❌ Pull falhou — abortando deploy, API continua rodando"; exit 1; }
+
+            # Só derruba depois que o pull garantiu a nova imagem
+            docker compose -f deploy/docker-compose.yml --env-file .env --profile datadog --profile kafka --profile rabbitmq down --remove-orphans || true
+            docker rm -f comprai-api comprai-redis comprai-mcp comprai-dd-agent comprai-otel-collector comprai-kafka comprai-kafka-ui comprai-rabbitmq 2>/dev/null || true
+
+            # Subir com a imagem já baixada (sem --volumes para preservar dados)
+            docker compose -f deploy/docker-compose.yml --env-file .env --profile datadog --profile kafka --profile rabbitmq up -d               && echo "✅ Containers up"               || { echo "❌ Up falhou"; exit 1; }
             # Aguardar API subir — Kafka + RabbitMQ aumentam o tempo de inicialização
             echo "Aguardando API iniciar..."
             for i in $(seq 1 12); do
