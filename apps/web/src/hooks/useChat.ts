@@ -178,6 +178,17 @@ export function useChat() {
       intent:'order_status' })
   }, [pushMessage, advanceStep])
 
+  const handleQuantityChange = useCallback((productId: string, qty: number) => {
+    setSession(s => {
+      if (!s.cart) return s
+      const items = s.cart.items.map(i =>
+        i.productId === productId ? { ...i, quantity: qty } : i
+      )
+      const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
+      return { ...s, cart: { ...s.cart, items, total } }
+    })
+  }, [])
+
   return { messages, session, cartCount, isTyping, sendMessage,
-    handleAddToCart, handleViewCart, handleCheckout, handlePayment, handlePaymentConfirmed }
+    handleAddToCart, handleViewCart, handleCheckout, handlePayment, handlePaymentConfirmed, handleQuantityChange }
 }
