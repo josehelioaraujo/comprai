@@ -57,6 +57,9 @@ export function useChat() {
     }
   }
 
+  // total de itens no carrinho (soma quantidades)
+  const cartCount = session.cart?.items.reduce((s, i) => s + i.quantity, 0) ?? 0
+
   const sendMessage = useCallback(async (text: string) => {
     const sessionId = getOrCreateSession()
     const idempotencyKey = newIdempotencyKey()
@@ -73,12 +76,8 @@ export function useChat() {
       if (nextStep) advanceStep(nextStep)
       if (res.data?.type === 'cart') setSession(s => ({ ...s, cart:(res.data as any).cart }))
       if (res.data?.type === 'order') setSession(s => ({ ...s, currentOrder:(res.data as any).order }))
-
-      // sem produtos → mensagem amigável
       const text2 = res.intent === 'search' && res.data?.type === 'search' && res.data.products.length === 0
-        ? 'Produto não encontrado. Tente outro termo de busca.'
-        : res.response
-
+        ? 'Produto não encontrado. Tente outro termo de busca.' : res.response
       pushMessage({ role:'bot', text:text2, intent:res.intent, data:res.data, idempotencyKey })
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erro desconhecido'
@@ -88,6 +87,7 @@ export function useChat() {
 
   const handleAddToCart = useCallback(async (product: Product) => {
     const sessionId = getOrCreateSession()
+    // permite adicionar múltiplos produtos — key por produto+sessão
     const idempotencyKey = getIdempotencyKey(cartAddKey(sessionId, product.id))
     pushMessage({ role:'user', text:`Adicionar: ${product.title}`, idempotencyKey })
     setIsTyping(true)
@@ -96,7 +96,9 @@ export function useChat() {
       const raw = await getCart(sessionId)
       const cart = normalizeCart(raw, sessionId)
       setSession(s => ({ ...s, cart, step:'cart' }))
-      pushMessage({ role:'bot', text:`✅ **${product.title}** adicionado ao carrinho!`,
+      const count = cart.items.reduce((s, i) => s + i.quantity, 0)
+      pushMessage({ role:'bot',
+        text:`✅ **${product.title}** adicionado! Carrinho: ${count} ${count===1?'item':'itens'}.`,
         intent:'cart_add', data:{ type:'cart', cart }, idempotencyKey })
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erro'
@@ -113,10 +115,8 @@ export function useChat() {
       const res = await createCheckout(sessionId, customer, shippingMethod, idempotencyKey)
       advanceStep('checkout')
       const orderId = (res as any).orderId ?? ''
-      // monta CheckoutData para o card mesmo sem items do backend
       const checkoutData = {
-        orderId,
-        sessionId,
+        orderId, sessionId,
         items: session.cart?.items ?? [],
         total: session.cart?.total ?? 0,
         shippingMethod,
@@ -129,22 +129,36 @@ export function useChat() {
     } finally { setIsTyping(false) }
   }, [getOrCreateSession, pushMessage, advanceStep, session.cart])
 
-  const handlePayment = useCallback(async (orderId: string, provider: PaymentProvider, method: PaymentMethod) => {
+  const handlePayment = useCallback(async (orderId: string, _provider: PaymentProvider, method: PaymentMethod) => {
     const idempotencyKey = getIdempotencyKey(paymentKey(orderId, method))
     pushMessage({ role:'user', text: method==='pix' ? 'Pagar com Pix' : 'Pagar com cartão', idempotencyKey })
     setIsTyping(true)
     try {
-      const res = await createPayment(orderId, provider, method, idempotencyKey)
+      // passa amount do carrinho atual
+      const amount = session.cart?.total ?? 0
+      const res = await createPayment(orderId, method, amount, idempotencyKey)
       advanceStep('payment')
       const intent = method==='pix' ? 'payment_pix' : 'payment_card'
+      // monta PaymentResult mock se o backend não retornar completo
+      const payment = {
+        paymentId: (res as any).paymentId ?? `pay-${Date.now()}`,
+        orderId,
+        status: (res as any).status ?? 'pending',
+        provider: 'mock' as PaymentProvider,
+        method,
+        pixQrCode: (res as any).pixQrCode,
+        pixCopyPaste: (res as any).pixCopyPaste ?? `00020126580014br.gov.bcb.pix0136${orderId}`,
+        pixExpiresAt: (res as any).pixExpiresAt,
+        amount,
+      }
       pushMessage({ role:'bot',
         text: method==='pix' ? 'Escaneie o QR Code. Expira em 15 minutos.' : 'Insira os dados do cartão.',
-        intent, data:{ type:'payment', payment:(res as any).payment ?? res }, idempotencyKey })
+        intent, data:{ type:'payment', payment }, idempotencyKey })
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erro'
       pushMessage({ role:'bot', text:`Erro ao iniciar pagamento: ${msg}`, idempotencyKey })
     } finally { setIsTyping(false) }
-  }, [pushMessage, advanceStep])
+  }, [pushMessage, advanceStep, session.cart])
 
   const handlePaymentConfirmed = useCallback((orderId: string) => {
     advanceStep('order')
@@ -154,5 +168,6 @@ export function useChat() {
       intent:'order_status' })
   }, [pushMessage, advanceStep])
 
-  return { messages, session, isTyping, sendMessage, handleAddToCart, handleCheckout, handlePayment, handlePaymentConfirmed }
+  return { messages, session, cartCount, isTyping, sendMessage,
+    handleAddToCart, handleCheckout, handlePayment, handlePaymentConfirmed }
 }

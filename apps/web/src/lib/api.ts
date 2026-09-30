@@ -85,7 +85,6 @@ export async function removeFromCart(sessionId: string, itemId: string, idempote
   })
 }
 
-// checkout envia CustomerDto (name, email, phone, document)
 export async function createCheckout(
   sessionId: string, customer: CustomerDto,
   shippingMethod: 'standard' | 'express', idempotencyKey: string,
@@ -93,8 +92,24 @@ export async function createCheckout(
   return post(`/api/checkout/${sessionId}`, customer, idempotencyKey)
 }
 
-export async function createPayment(orderId: string, provider: PaymentProvider, method: PaymentMethod, idempotencyKey: string): Promise<{ payment: PaymentResult }> {
-  return post(`/api/payment/${orderId}`, { provider, method }, idempotencyKey)
+// payload correto: { amount: "string", currency: "BRL", method: { provider, cardToken, pixKey } }
+export async function createPayment(
+  orderId: string,
+  method: PaymentMethod,
+  amount: number,
+  idempotencyKey: string,
+): Promise<any> {
+  const amountStr = amount.toFixed(2) // string com 2 casas — evita problema de precisão float
+  const body = {
+    amount: amountStr,
+    currency: 'BRL',
+    method: {
+      provider: 'mock',
+      cardToken: method === 'credit_card' ? 'mock-card-token' : null,
+      pixKey:    method === 'pix'         ? 'mock-pix-key'   : null,
+    }
+  }
+  return post(`/api/payment/${orderId}`, body, idempotencyKey)
 }
 
 export async function getOrder(orderId: string): Promise<{ order: Order }> {

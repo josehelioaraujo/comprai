@@ -7,50 +7,44 @@ import UcpProgressBar from '@/components/layout/UcpProgressBar'
 import ChatWindow from '@/components/chat/ChatWindow'
 import ChatInput from '@/components/chat/ChatInput'
 
-const VERSION = 'v0.1.0'
+const VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? '0.1.0'
 
 export default function ChatPage() {
-  const { messages, session, isTyping, sendMessage, handleAddToCart,
-    handleCheckout, handlePayment, handlePaymentConfirmed } = useChat()
+  const { messages, session, cartCount, isTyping, sendMessage,
+    handleAddToCart, handleCheckout, handlePayment, handlePaymentConfirmed } = useChat()
   const { theme, toggle } = useTheme()
 
-  const cartCount = session.cart?.items.reduce((s, i) => s + i.quantity, 0) ?? 0
-
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
-      {/* sidebar — oculta em mobile */}
+    <div className="flex h-screen overflow-hidden" style={{ background:'var(--bg)', color:'var(--text)' }}>
       <div className="hidden md:flex">
         <Sidebar step={session.step} cart={session.cart} sessionId={session.sessionId} />
       </div>
-
-      {/* área principal */}
       <div className="flex flex-col flex-1 min-w-0">
         {/* header mobile */}
         <div className="md:hidden flex items-center justify-between px-4 py-3"
-          style={{ borderBottom: '1px solid var(--border)', background: 'var(--panel)' }}>
+          style={{ borderBottom:'1px solid var(--border)', background:'var(--panel)' }}>
           <div className="flex items-center gap-2">
             <span className="text-xl">🛍️</span>
             <div>
-              <span className="text-sm font-bold" style={{ color: 'var(--text)' }}>Comprai</span>
-              <span className="text-[10px] ml-2" style={{ color: 'var(--muted)' }}>{VERSION}</span>
+              <span className="text-sm font-bold" style={{ color:'var(--text)' }}>Comprai</span>
+              <span className="text-[10px] ml-2" style={{ color:'var(--muted)' }}>v{VERSION}</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {cartCount > 0 && (
               <span className="text-xs px-2 py-0.5 rounded-full font-bold"
-                style={{ background: 'var(--accent)', color: '#fff' }}>
+                style={{ background:'var(--accent)', color:'#fff' }}>
                 🛒 {cartCount}
               </span>
             )}
             <button onClick={toggle}
               className="w-8 h-8 rounded-lg flex items-center justify-center text-sm"
-              style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+              style={{ background:'var(--surface)', border:'1px solid var(--border)' }}>
               {theme === 'dark' ? '☀️' : '🌙'}
             </button>
           </div>
         </div>
-
-        <UcpProgressBar step={session.step} />
+        <UcpProgressBar step={session.step} cartCount={cartCount} />
         <ChatWindow messages={messages} isTyping={isTyping}
           onAddToCart={handleAddToCart} onCheckout={handleCheckout}
           onPayment={handlePayment} onPaymentConfirmed={handlePaymentConfirmed} />
