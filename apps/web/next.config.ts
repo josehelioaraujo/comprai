@@ -1,10 +1,19 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  output: 'standalone',           // Docker standalone build
+  output: 'standalone',
+  experimental: {
+    outputFileTracingExcludes: {
+      '*': [
+        'node_modules/@swc/**',
+        'node_modules/webpack/**',
+        'node_modules/terser/**',
+      ],
+    },
+  },
   images: {
     remotePatterns: [
-      { protocol: 'https', hostname: '**' },  // produtos de qualquer CDN
+      { protocol: 'https', hostname: '**' },
       { protocol: 'http',  hostname: '**' },
     ],
   },
