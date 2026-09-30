@@ -82,7 +82,7 @@ public static class HealthCheckExtensions
 
     [ExcludeFromCodeCoverage(Justification = "Requer OTel Collector em execução")]
     private static Func<HealthCheckResult> DatadogCheck() => () =>
-        TcpCheck("comprai-otel-collector", 4317, "OTel Collector");
+        TcpCheck("comprai-otel-collector", 4318, "OTel Collector");
 
     [ExcludeFromCodeCoverage(Justification = "Requer Prometheus em execução")]
     private static Func<HealthCheckResult> PrometheusCheck() => () =>
