@@ -1,3 +1,37 @@
+## [4.7.0] - 2026-09-30
+
+### Added — V041 (Health Checks, Mensageria, Observabilidade, CI/CD)
+
+- **Health Checks reais**: `/health/live` (processo), `/health/ready` (Redis), `/api/health/status` (todos)
+  - `RedisHealthCheck`, `OllamaHealthCheck`, TCP checks com timeout 500ms
+  - Kafka/RabbitMQ condicionais às feature flags `UsarKafka`/`UsarRabbitMQ`
+- **Kafka ativado**: eventos de domínio `ucp.search.queried`, `ucp.cart.item_added`, `ucp.order.created`, `ucp.order.updated`
+- **RabbitMQ ativado**: notificações ao usuário via `notifications.order.confirmation`
+  - `RabbitMqNotificationPublisher` migrado para v7 (IChannel, async API)
+  - `EmailNotificationWorker` consome RabbitMQ e envia via Resend SDK
+- **Email real via Resend**: `RESEND_API_KEY` + `Resend__FromEmail=helioandrade@hotmail.com`
+  - Sem key: modo fake (log only) via injeção opcional `IResend?`
+- **IdempotencyMiddleware**: header `X-Idempotency-Key` em POSTs de cart/checkout/payment, Redis TTL 24h
+- **OTel Logs**: `WithLogging` + `AddOpenTelemetry` — logs enviados via OTLP para Datadog + New Relic
+- **OpsWatch — seção Mensageria**: Kafka e RabbitMQ em grupo separado com hints de diagnóstico
+- **Build GHCR**: imagem buildada no CI com Buildx → `ghcr.io/josehelioaraujo/comprai-api:latest`
+  - VPS só faz `docker pull` — deploy de ~5min virou ~30s
+  - Cache GHA via `docker/setup-buildx-action@v3`
+- **Deploy seguro**: pull antes do down — API não fica fora em caso de falha no pull
+- **Feature flags reais**: `USAR_REDIS=true`, `USAR_KAFKA=true`, `USAR_RABBITMQ=true` injetados no CI
+
+### Fixed
+
+- `IdempotencyMiddleware`: Redis via `IServiceProvider.GetService` (opcional) — sem crash sem Redis
+- `NullResend` removido — `IResend` não registrado sem key, Worker usa parâmetro opcional
+- `appleboy/ssh-action` substituiu SCP/SSH manual no Sonar e History
+- `docker compose down` com `--profile kafka --profile rabbitmq` — evita container kafka-ui órfão
+- OTel Collector: exporter `loki` removido (não disponível no `collector-contrib:latest`)
+- OTel Collector: `otlphttp` alias → `otlp_http` (v0.160.0)
+- `command_timeout: 15m` no deploy appleboy — evitava timeout no build
+- `/health/ready` smoke test aceita 200 ou 503 (Redis pode estar degradado)
+- GHCR login com `GHCR_TOKEN` (PAT clássico `write:packages`)
+
 ## [4.6.0] - 2026-09-29
 
 ### Added

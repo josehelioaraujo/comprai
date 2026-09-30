@@ -1,6 +1,6 @@
 # 🗺️ Roadmap — Comprai
 
-> Última atualização: 2026-09-29 · Versão atual: v4.6.0 (V040)
+> Última atualização: 2026-09-30 · Versão atual: v4.7.0 (V041)
 
 ## ✅ Concluído
 
@@ -33,6 +33,37 @@
 - Monitor de Containers com ações Start/Stop/Restart
 - Painel K6 com gráfico ao vivo durante stress test
 - Painel Pentest OWASP ZAP com findings por severidade e PDF download
+
+---
+
+## ✅ V041 — Health Checks, Mensageria, Observabilidade, CI/CD (2026-09-30)
+
+| Item | Status |
+|------|--------|
+| Health checks reais (`/health/live`, `/health/ready`, `/api/health/status`) | ✅ |
+| Kafka ativado — eventos de domínio UCP | ✅ |
+| RabbitMQ ativado — notificações ao usuário | ✅ |
+| Email real via Resend SDK | ✅ |
+| IdempotencyMiddleware (Redis TTL 24h) | ✅ |
+| OTel Logs → Datadog + New Relic | ✅ |
+| OpsWatch seção Mensageria (Kafka + RabbitMQ) | ✅ |
+| Build imagem no CI → ghcr.io (Buildx + cache GHA) | ✅ |
+| Deploy seguro pull-before-down | ✅ |
+| Feature flags reais no CI (Redis/Kafka/RabbitMQ) | ✅ |
+
+---
+
+## 🔜 V042 — Resiliência & Outbox
+
+**Palavra mágica: V042_UCP_COMPRAS**
+
+| Item | Descrição | Prioridade |
+|------|-----------|------------|
+| **Outbox Pattern** | Tabela outbox → OutboxWorker → Kafka → consumer verifica Redis TTL 24h | 🔴 Alta |
+| **DLQ + Retry** | Dead Letter Queue `notifications.dlq` com jitter backoff no EmailWorker | 🔴 Alta |
+| **`PATCH /api/orders/{id}/status`** | `ucp.order.updated` nunca publicado — falta endpoint de atualização | 🟡 Média |
+| **Circuit Breaker Ollama** | `/api/search` avg 12110ms — timeout agressivo + fallback | 🟡 Média |
+| **Cache drill New Relic** | `/api/observability/newrelic/drill` p99 ~1863ms — cache 30s | 🟡 Média |
 
 ---
 
