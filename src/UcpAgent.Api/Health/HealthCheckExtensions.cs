@@ -1,4 +1,4 @@
-// V041 — health checks reais, Redis/Kafka/RabbitMQ condicionais | command_timeout 15m
+// V041 — health checks reais | build ghcr.io, VPS só pull
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using StackExchange.Redis;
