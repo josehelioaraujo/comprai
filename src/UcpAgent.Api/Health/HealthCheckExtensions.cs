@@ -1,4 +1,4 @@
-// V041 — health checks reais | build ghcr.io, VPS só pull
+// V041 — health checks reais | buildx + ghcr.io + VPS pull
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using StackExchange.Redis;
