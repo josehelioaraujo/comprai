@@ -1,4 +1,4 @@
-// V041 — health checks reais | ghcr com GH_PAT
+// V041 — health checks reais | ghcr GITHUB_TOKEN packages:write
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using StackExchange.Redis;
