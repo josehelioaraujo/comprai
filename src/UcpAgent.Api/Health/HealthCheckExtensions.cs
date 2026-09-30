@@ -1,4 +1,4 @@
-// V041 — health checks reais | ghcr packages:write
+// V041 — health checks reais | ghcr com GH_PAT
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using StackExchange.Redis;
