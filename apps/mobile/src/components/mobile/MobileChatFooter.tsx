@@ -11,10 +11,9 @@ interface Props {
   step?: UcpStep
 }
 
-// Atalhos contextuais por step — só aparecem quando fazem sentido
-const SUGGESTIONS_BY_STEP: Partial<Record<UcpStep | 'idle', { label: string; msg: string }[]>> = {
-  idle:     [{ label: 'Buscar produto', msg: 'Quero buscar um produto' }],
-  search:   [{ label: 'Buscar produto', msg: 'Quero buscar um produto' }],
+const SUGGESTIONS_BY_STEP: Partial<Record<UcpStep | 'idle', { label: string; msg: string | null }[]>> = {
+  idle:     [{ label: 'Buscar produto', msg: null }],  // null = usa texto do input
+  search:   [{ label: 'Buscar produto', msg: null }],
   cart:     [
     { label: 'Ver carrinho',     msg: 'O que tenho no carrinho?' },
     { label: 'Finalizar compra', msg: 'Quero finalizar minha compra' },
@@ -23,12 +22,12 @@ const SUGGESTIONS_BY_STEP: Partial<Record<UcpStep | 'idle', { label: string; msg
     { label: 'Ver carrinho',     msg: 'O que tenho no carrinho?' },
     { label: 'Finalizar compra', msg: 'Quero finalizar minha compra' },
   ],
-  payment:  [
-    { label: 'Ver carrinho',     msg: 'O que tenho no carrinho?' },
+  payment: [
+    { label: 'Ver carrinho', msg: 'O que tenho no carrinho?' },
   ],
-  order:    [
-    { label: 'Nova busca',    msg: 'Quero buscar um produto' },
-    { label: 'Meus pedidos',  msg: 'Quero ver meus pedidos'  },
+  order: [
+    { label: 'Nova busca',   msg: null },              // null = usa texto do input
+    { label: 'Meus pedidos', msg: 'Quero ver meus pedidos' },
   ],
 }
 
@@ -51,9 +50,21 @@ export default function MobileChatFooter({ onSend, disabled, cartCount = 0, onVi
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
   }
 
-  function handleSuggestion(msg: string) {
+  function handleSuggestion(msg: string | null) {
     if (disabled) return
-    onSend(msg)
+    // msg null = usa o texto digitado no input; se input vazio, foca para o usuário digitar
+    if (msg === null) {
+      const trimmed = text.trim()
+      if (trimmed) {
+        onSend(trimmed)
+        setText('')
+        if (textareaRef.current) textareaRef.current.style.height = 'auto'
+      } else {
+        textareaRef.current?.focus()
+      }
+    } else {
+      onSend(msg)
+    }
   }
 
   return (
@@ -63,7 +74,6 @@ export default function MobileChatFooter({ onSend, disabled, cartCount = 0, onVi
       border-t border-zinc-900
       px-3 pt-2 pb-3 flex flex-col gap-2 z-40
     ">
-      {/* Atalhos contextuais */}
       {suggestions.length > 0 && (
         <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
           {suggestions.map(s => (
@@ -87,7 +97,6 @@ export default function MobileChatFooter({ onSend, disabled, cartCount = 0, onVi
         </div>
       )}
 
-      {/* Input */}
       <div className="flex items-end gap-2">
         <textarea
           ref={textareaRef}
@@ -113,7 +122,6 @@ export default function MobileChatFooter({ onSend, disabled, cartCount = 0, onVi
           }}
         />
 
-        {/* Botão carrinho — só quando há itens */}
         {cartCount > 0 && onViewCart && (
           <button
             onClick={onViewCart}
@@ -130,7 +138,6 @@ export default function MobileChatFooter({ onSend, disabled, cartCount = 0, onVi
           </button>
         )}
 
-        {/* Botão enviar */}
         <button
           onClick={handleSend}
           disabled={disabled || !text.trim()}

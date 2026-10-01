@@ -6,6 +6,7 @@ interface Props {
   step: UcpStep
   cartCount?: number
   onCartClick?: () => void
+  onOrderClick?: () => void
   version?: string
 }
 
@@ -56,7 +57,7 @@ const STEPS: { key: UcpStep; label: string; icon: React.ReactNode }[] = [
 
 const ORDER: UcpStep[] = ['idle', 'search', 'cart', 'checkout', 'payment', 'order']
 
-export default function MobileUcpProgressBar({ step, cartCount = 0, onCartClick, version }: Props) {
+export default function MobileUcpProgressBar({ step, cartCount = 0, onCartClick, onOrderClick, version }: Props) {
   const currentIndex = ORDER.indexOf(step)
 
   return (
@@ -97,8 +98,8 @@ export default function MobileUcpProgressBar({ step, cartCount = 0, onCartClick,
             <div
               key={s.key}
               className="flex flex-col items-center relative z-10 gap-1"
-              onClick={isCart && onCartClick ? onCartClick : undefined}
-              style={{ cursor: isCart && onCartClick ? 'pointer' : 'default' }}
+              onClick={isCart && onCartClick ? onCartClick : s.key === 'order' && onOrderClick ? onOrderClick : undefined}
+              style={{ cursor: (isCart && onCartClick) || (s.key === 'order' && onOrderClick) ? 'pointer' : 'default' }}
             >
               <div className={`
                 relative w-[22px] h-[22px] rounded-full

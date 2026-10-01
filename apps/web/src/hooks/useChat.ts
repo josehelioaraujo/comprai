@@ -22,6 +22,9 @@ export function calcShipping(subtotal: number, method: 'standard' | 'express'): 
   return method === 'express' ? EXPRESS_COST : STANDARD_COST
 }
 
+// Flag controlada por variável de ambiente — false desativa os timeouts de simulação
+const FULFILLMENT_SIMULATION = process.env.NEXT_PUBLIC_FULFILLMENT_SIMULATION !== 'false'
+
 const FULFILLMENT_PIPELINE: { status: FulfillmentStatus; description: string; delay: number; location?: string }[] = [
   { status: 'preparing',         description: 'Separando e embalando os itens',          delay: 8000  },
   { status: 'ready_to_ship',     description: 'Embalado — aguardando coleta',             delay: 6000  },

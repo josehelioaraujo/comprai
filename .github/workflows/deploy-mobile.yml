@@ -78,6 +78,7 @@ jobs:
             NEXT_PUBLIC_API_URL=${{ env.API_URL }}
             NEXT_PUBLIC_APP_VERSION=${{ steps.version.outputs.version }}
             NEXT_PUBLIC_GIT_SHA=${{ steps.version.outputs.sha }}
+            NEXT_PUBLIC_FULFILLMENT_SIMULATION=true
           cache-from: type=gha
           cache-to:   type=gha,mode=max
 
