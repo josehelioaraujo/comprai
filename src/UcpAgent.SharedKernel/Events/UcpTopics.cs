@@ -1,13 +1,20 @@
 namespace UcpAgent.SharedKernel.Events;
 
 /// <summary>
-/// Nomes canônicos dos tópicos Kafka do fluxo UCP.
-/// Um tópico por etapa — Search → Cart → Checkout → Order.
+/// Tópicos Kafka do sistema Comprai/UCP.
+/// Convenção: comprai.{domínio}.{evento}
 /// </summary>
 public static class UcpTopics
 {
-    public const string SearchQueried  = "ucp.search.queried";   // busca realizada
-    public const string CartItemAdded  = "ucp.cart.item_added";  // item adicionado ao carrinho
-    public const string OrderCreated   = "ucp.order.created";    // checkout concluído, pedido criado
-    public const string OrderUpdated   = "ucp.order.updated";    // status do pedido alterado
+    // ── Carrinho ──────────────────────────────────────────────────────────────
+    public const string CartItemAdded   = "comprai.cart.item-added";
+
+    // ── Pedido ────────────────────────────────────────────────────────────────
+    public const string OrderCreated    = "comprai.order.created";
+    public const string OrderStatusUpdated = "comprai.order.status-updated";
+
+    // ── Fulfillment ───────────────────────────────────────────────────────────
+    public const string FulfillmentStarted        = "comprai.fulfillment.started";
+    public const string FulfillmentStatusChanged  = "comprai.fulfillment.status-changed";
+    public const string FulfillmentCancelled      = "comprai.fulfillment.cancelled";
 }

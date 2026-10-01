@@ -24,7 +24,7 @@ export interface Product {
   price: number
   originalPrice?: number
   image: string
-  source: string       // MercadoLivre | Shopify | DummyJSON | etc
+  source: string
   url?: string
   rating?: number
   available: boolean
@@ -53,6 +53,7 @@ export interface Address {
   street: string
   number: string
   complement?: string
+  neighborhood: string
   city: string
   state: string
   zipCode: string
@@ -62,10 +63,11 @@ export interface CheckoutData {
   orderId: string
   sessionId: string
   items: CartItem[]
-  total: number
+  total: number          // total COM frete — valor real a pagar
+  shippingCost: number   // custo do frete isolado
+  isFreeShipping: boolean
   address?: Address
   shippingMethod?: 'standard' | 'express'
-  shippingCost?: number
 }
 
 // ─── Pagamento ────────────────────────────────────────────────────────────────
@@ -80,11 +82,32 @@ export interface PaymentResult {
   status: PaymentStatus
   provider: PaymentProvider
   method: PaymentMethod
-  pixQrCode?: string         // base64 imagem QR
-  pixCopyPaste?: string      // código copia-e-cola
-  pixExpiresAt?: string      // ISO datetime
+  pixQrCode?: string
+  pixCopyPaste?: string
+  pixExpiresAt?: string
   stripeClientSecret?: string
-  amount: number
+  amount: number         // total COM frete — igual ao checkoutData.total
+}
+
+// ─── Fulfillment / Rastreamento ───────────────────────────────────────────────
+
+export type FulfillmentStatus =
+  | 'payment_confirmed'   // Pagamento confirmado
+  | 'preparing'           // Picking & Packing
+  | 'ready_to_ship'       // Aguardando coleta
+  | 'handed_to_carrier'   // Coletado pela transportadora
+  | 'in_transit'          // Em trânsito
+  | 'out_for_delivery'    // Saiu para entrega
+  | 'delivered'           // Entregue
+  | 'cancelled'           // Cancelado
+
+export interface FulfillmentEvent {
+  status: FulfillmentStatus
+  description: string
+  occurredAt: string       // ISO datetime
+  trackingCode?: string
+  carrierCode?: string
+  location?: string
 }
 
 // ─── Pedido ───────────────────────────────────────────────────────────────────
@@ -109,19 +132,23 @@ export interface Order {
   orderId: string
   sessionId: string
   status: OrderStatus
+  fulfillmentStatus?: FulfillmentStatus   // status detalhado do fulfillment
   items: CartItem[]
   total: number
+  shippingCost?: number
+  isFreeShipping?: boolean
   createdAt: string
   tracking?: string
   events?: OrderEvent[]
+  fulfillmentHistory?: FulfillmentEvent[] // histórico completo de eventos
 }
 
-// ─── Intent Response (POST /api/intent) ──────────────────────────────────────
+// ─── Intent Response ──────────────────────────────────────────────────────────
 
 export interface IntentResponse {
   intent: UcpIntent
   sessionId: string
-  response: string           // texto que o bot fala
+  response: string
   data?: IntentData
 }
 
@@ -144,7 +171,7 @@ export interface ChatMessage {
   intent?: UcpIntent
   data?: IntentData
   timestamp: Date
-  idempotencyKey?: string    // rastreabilidade da ação
+  idempotencyKey?: string
 }
 
 // ─── Estado da sessão ─────────────────────────────────────────────────────────
@@ -155,4 +182,6 @@ export interface SessionState {
   cart: Cart | null
   currentOrder: Order | null
   lastIdempotencyKey: string | null
+  // Total com frete — mantido separado para pagamento consistente
+  confirmedTotal: number
 }
