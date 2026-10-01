@@ -1,6 +1,7 @@
 using UcpAgent.Domain.Fulfillment;
 using UcpAgent.SharedKernel;
 using UcpAgent.SharedKernel.Events;
+using UcpAgent.SharedKernel.Ports;
 
 namespace UcpAgent.Application.Fulfillment;
 
