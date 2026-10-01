@@ -11,7 +11,7 @@ const VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? '1.0.0'
 export default function MobilePage() {
   const {
     messages, session, cartCount, isTyping,
-    sendMessage, handleAddToCart, handleViewCart,
+    sendMessage, handleAddToCart, handleViewCart, handleViewOrders,
     handleCheckout, handlePayment, handlePaymentConfirmed, handleQuantityChange,
   } = useChat()
 
@@ -40,6 +40,7 @@ export default function MobilePage() {
         cartCount={cartCount}
         onViewCart={openCart}
         step={session.step}
+        onViewOrders={handleViewOrders}
       />
     </MobileChatShell>
   )

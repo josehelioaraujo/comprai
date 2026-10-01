@@ -52,6 +52,7 @@ export function useChat() {
   const sessionRef              = useRef<string>('')
   const fulfillmentHistoryRef   = useRef<Record<string, FulfillmentEvent[]>>({})
   const addingProductsRef        = useRef<Set<string>>(new Set())
+  const confirmedTotalRef        = useRef<number>(0)
 
   const getOrCreateSession = useCallback((): string => {
     if (!sessionRef.current) {
@@ -256,6 +257,7 @@ export function useChat() {
         shippingMethod,
       }
       setSession(s => ({ ...s, confirmedTotal: totalWithShipping }))
+      confirmedTotalRef.current = totalWithShipping
       pushMessage({
         role: 'bot', text: `Pedido **${orderId}** criado! Como você quer pagar?`,
         intent: 'checkout', data: { type: 'checkout', checkout: checkoutData }, idempotencyKey,
@@ -273,7 +275,7 @@ export function useChat() {
     pushMessage({ role: 'user', text: method === 'pix' ? 'Pagar com Pix' : 'Pagar com cartão', idempotencyKey })
     setIsTyping(true)
     try {
-      const amount = session.confirmedTotal > 0 ? session.confirmedTotal : (session.cart?.total ?? 0)
+      const amount = confirmedTotalRef.current > 0 ? confirmedTotalRef.current : (session.cart?.total ?? 0)
       const res    = await createPayment(orderId, method, amount, idempotencyKey)
       advanceStep('payment')
       const intent  = method === 'pix' ? 'payment_pix' : 'payment_card'
@@ -301,8 +303,9 @@ export function useChat() {
 
   const handlePaymentConfirmed = useCallback((orderId: string) => {
     advanceStep('order')
-    const orderTotal = session.confirmedTotal > 0 ? session.confirmedTotal : 0
+    const orderTotal = confirmedTotalRef.current > 0 ? confirmedTotalRef.current : 0
 
+    confirmedTotalRef.current = 0
     setSession(s => ({
       ...s, cart: null, step: 'order', confirmedTotal: 0,
       currentOrder: s.currentOrder
@@ -337,6 +340,23 @@ export function useChat() {
     startFulfillmentSimulation(orderId, orderTotal)
   }, [pushMessage, advanceStep, session.confirmedTotal, startFulfillmentSimulation])
 
+
+  // Exibe o OrderTrackingCard já existente na conversa (sem chamar backend)
+  const handleViewOrders = useCallback(() => {
+    const orderMsg = [...messages].reverse().find(
+      m => m.role === 'bot' && m.intent === 'order_status' && m.data?.type === 'order'
+    )
+    if (orderMsg) {
+      // Força re-render da mensagem para garantir visibilidade
+      setMessages(prev => prev.map(m =>
+        m.id === orderMsg.id ? { ...m, timestamp: new Date() } : m
+      ))
+      advanceStep('order')
+    } else {
+      pushMessage({ role: 'bot', text: 'Nenhum pedido encontrado nesta sessão. Faça uma compra para acompanhar!' })
+    }
+  }, [messages, advanceStep, pushMessage])
+
   const handleQuantityChange = useCallback((productId: string, qty: number) => {
     setSession(s => {
       if (!s.cart) return s
@@ -350,7 +370,7 @@ export function useChat() {
 
   return {
     messages, session, cartCount, isTyping, sendMessage,
-    handleAddToCart, handleViewCart, handleCheckout,
+    handleAddToCart, handleViewCart, handleViewOrders, handleCheckout,
     handlePayment, handlePaymentConfirmed, handleQuantityChange,
   }
 }
