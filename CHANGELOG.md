@@ -1,5 +1,41 @@
 # Changelog
 
+## [v1.0.x] — V044 — Mobile-First UI + Fulfillment Domain (2026-10-01)
+
+### ✨ Adicionado
+- **`apps/mobile/`** — app Next.js independente porta 3003, container `comprai-mobile`, imagem `ghcr.io/josehelioaraujo/comprai-mobile`
+- **Layout Mobile-First** — rota `/mobile` com shell 420px smartphone, stepper de progresso bottom nav sempre visível
+- `MobileUcpHeader` — logo mark SVG emerald + wordmark + versão discreta no topo
+- `MobileUcpProgressBar` — navbar bottom com 5 steps, badge de quantidade no Carrinho, clique em Entrega scrolla para tracking
+- `MobileChatBubble`, `MobileChatWindow`, `MobileChatFooter` — chat mobile com atalhos contextuais por step
+- `MobileProductCard` + `MobileProductCarousel` — cards w-36 + setas + drag mouse/touch
+- `MobileIntentRenderer` — switch de intent para renderização mobile
+- **Fulfillment Domain** — `FulfillmentAggregate` (Event Sourcing append-only), `FulfillmentSimulator` (IHostedService), `RedisFulfillmentRepository`, 10 status de entrega
+- `OrderTrackingCard` — timeline fulfillment com 7 etapas, código de rastreio, histórico expansível
+- **Atalhos contextuais** — sugestões no footer mudam por step: idle/search → Buscar; cart/checkout → Finalizar; order → Nova busca + Meus pedidos
+- **Flag simulação** — `NEXT_PUBLIC_FULFILLMENT_SIMULATION` (frontend) + `Features__UsarFulfillmentSimulator` (backend)
+- `deploy-mobile.yml` — workflow CI/CD independente, trigger `apps/mobile/**`, bump próprio
+- Frete grátis acima de R$ 1.000 — `calcShipping()` retorna 0 automaticamente
+
+### 🔧 Corrigido
+- **Total zerado** no CheckoutCard/PixCard — `confirmedTotalRef` evita stale closure do `setSession` assíncrono
+- **Mensagem duplicada** ao adicionar produto — `upsertBotMessage` com `intent: 'cart_add'`
+- **Duplicação no carrinho** — `addingProductsRef` (Set) no `useChat` + estado `adding` local no `MobileProductCard`
+- **IdempotencyMiddleware** — sempre ativo: Redis quando disponível, `ConcurrentDictionary` em memória como fallback (TTL 30min). Garantia de consistência independente de infraestrutura
+- **Botão "Meus pedidos"** — não chama backend; scrolla para `OrderTrackingCard` existente na conversa
+- **Drag carrossel** — `scrollSnapType` removido durante drag, restaurado no mouseup
+- **CEP** — máscara `XXXXX-XXX`, campo em linha própria com label
+- **Complemento** — `autocomplete="off"`, linha própria, hint "Opcional"
+- **CheckoutCard** — botão X para fechar, bloqueio de pagamento duplo com estado `paying`
+- **FulfillmentSimulator** — removida dependência circular de `UcpAgent.Application`; usa `IFulfillmentRepository` direto
+- **Layout mobile** — `height: 100dvh` + `min-h-0` no chat para stepper e footer sempre visíveis
+
+### 🚀 Deploy
+- Porta `3003` — container `comprai-mobile` na VPS
+- `deploy-mobile.yml` com `git pull --rebase` antes do bump para evitar race condition
+
+---
+
 ## [v1.0.x] — V043 — Web Chat Front-end (2026-09-30)
 
 ### ✨ Adicionado

@@ -37,11 +37,48 @@
 - [x] Painel de logs 🔍 — request/response com erros em vermelho
 - [x] Deploy: GitHub Actions → GHCR → VPS Hostinger porta 3002
 
+### 📱 Mobile-First UI + Fulfillment Domain (V044)
+- [x] App mobile independente porta 3003 — container `comprai-mobile`
+- [x] Layout mobile-first com shell smartphone 420px
+- [x] Stepper de progresso bottom nav — sempre visível
+- [x] `MobileUcpHeader` — logo + versão no topo
+- [x] `MobileProductCarousel` — drag touch + mouse + setas
+- [x] Atalhos contextuais no footer por step do fluxo
+- [x] Fulfillment Domain — Event Sourcing + 10 status de entrega
+- [x] `FulfillmentSimulator` — IHostedService com pipeline de 6 etapas
+- [x] `OrderTrackingCard` — timeline em tempo real + histórico
+- [x] `IdempotencyMiddleware` — sempre ativo (Redis + memória fallback)
+- [x] Correção total zerado via `confirmedTotalRef`
+- [x] Correção duplicação carrinho — guard frontend + idempotency backend
+- [x] CEP com máscara, complemento com hint, sem botão Voltar no form
+- [x] Flag `NEXT_PUBLIC_FULFILLMENT_SIMULATION` + `Features__UsarFulfillmentSimulator`
+- [x] CI/CD `deploy-mobile.yml` independente
+
 ---
 
 ## 🔜 Próximas Versões
 
-### V044 — Histórico de Pedidos
+### V044 — Histórico de Pedidos *(substituído por Mobile-First — ver acima)*
+
+~~- [ ] Chat responde "meus pedidos" listando pedidos da sessão~~
+
+### V045 — UX Mobile (pós-entrega)
+- [ ] Mensagem automática "🎉 Pedido entregue!" quando fulfillment chega em `delivered`
+- [ ] Barra de ações pós-entrega no topo: "📦 Histórico de entrega" + "🔍 Rastreio" (scrollam para o card)
+- [ ] Botão "Meus pedidos" funciona após entrega — mostra card existente com destaque
+- [ ] Versão `NEXT_PUBLIC_APP_VERSION` chegando corretamente no build do mobile (verificar build-args)
+- [ ] CEP campo maior para caber digitação `XXXXX-XXX` confortavelmente
+- [ ] Persistência de pedidos no `localStorage` — ao reabrir app, exibir botão "Ver pedido anterior"
+- [ ] Histórico de compras — salvar `orderId` + `sessionId` no localStorage
+
+### V045 — UX Web Chat
+- [ ] Categorias de produtos na sidebar: Vestuário, Eletrônicos, Eletrodomésticos
+- [ ] Filtros de preço, marca e avaliação
+- [ ] Histórico de buscas recentes
+- [ ] Botão remover item individual no CartCard
+- [ ] Animações de transição entre steps UCP
+
+
 - [ ] **Opção 1:** Chat responde "meus pedidos" listando pedidos da sessão via `/api/orders?sessionId`
 - [ ] **Opção 2:** Tela `/orders` com timeline, filtros por status (pago/em trânsito/entregue) e detalhes do pagamento
 - [ ] **Opção 3:** Ambos — chat com lista resumida + botão "Ver todos" abrindo tela dedicada

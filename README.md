@@ -822,6 +822,34 @@ O **OpsWatch** é um portal operacional integrado ao pipeline CI/CD que consolid
 | ⚙️ **Infra** | Status Page · Health Map · Monitor de Containers · Admin Restart |
 
 
+
+---
+
+## 📱 Interface Mobile
+
+O Comprai possui uma interface mobile dedicada, acessível em `/mobile` (porta `3002`) e como app independente na porta `3003`.
+
+### Características
+- **Shell 420px** — simula tela de smartphone com bordas arredondadas
+- **Stepper bottom nav** — barra de progresso fixa no rodapé com 5 steps: Busca → Carrinho → Pedido → Pagamento → Entrega
+- **Atalhos contextuais** — sugestões no footer mudam automaticamente conforme o step atual
+- **Carrossel de produtos** — navegação por setas e arrasto (touch + mouse)
+- **Fulfillment em tempo real** — timeline de 7 etapas simulada automaticamente após pagamento
+
+### Acesso
+```
+http://<VPS>:3002/mobile   # via app web
+http://<VPS>:3003          # app mobile independente
+```
+
+### Variáveis de Ambiente
+| Variável | Descrição | Padrão |
+|---|---|---|
+| `NEXT_PUBLIC_APP_VERSION` | Versão exibida no header | `1.0.0` |
+| `NEXT_PUBLIC_FULFILLMENT_SIMULATION` | Ativa simulação de entrega | `true` |
+| `NEXT_PUBLIC_API_URL` | URL da API backend | `http://localhost:5020` |
+
+
 ## 🗺️ Roadmap
 
 <details>
