@@ -9,27 +9,23 @@ interface Props {
   onViewCart?: () => void
 }
 
-// Sugestões compactas — texto curto para caber em tela pequena
 const SUGGESTIONS = [
-  { label: 'Buscar produto',   msg: 'Quero buscar um produto' },
-  { label: 'Ver carrinho',     msg: 'O que tenho no carrinho?' },
-  { label: 'Meus pedidos',     msg: 'Quero ver meus pedidos' },
+  { label: 'Buscar produto',   msg: 'Quero buscar um produto'      },
+  { label: 'Ver carrinho',     msg: 'O que tenho no carrinho?'     },
+  { label: 'Meus pedidos',     msg: 'Quero ver meus pedidos'       },
   { label: 'Finalizar compra', msg: 'Quero finalizar minha compra' },
 ]
 
 export default function MobileChatFooter({ onSend, disabled, cartCount = 0, onViewCart }: Props) {
   const [text, setText] = useState('')
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const textareaRef     = useRef<HTMLTextAreaElement>(null)
 
   function handleSend() {
     const trimmed = text.trim()
     if (!trimmed || disabled) return
     onSend(trimmed)
     setText('')
-    // reset altura
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto'
-    }
+    if (textareaRef.current) textareaRef.current.style.height = 'auto'
     textareaRef.current?.focus()
   }
 
@@ -38,6 +34,12 @@ export default function MobileChatFooter({ onSend, disabled, cartCount = 0, onVi
       e.preventDefault()
       handleSend()
     }
+  }
+
+  // Sugestão dispara igual ao Enter — mesma ação
+  function handleSuggestion(msg: string) {
+    if (disabled) return
+    onSend(msg)
   }
 
   return (
@@ -49,12 +51,12 @@ export default function MobileChatFooter({ onSend, disabled, cartCount = 0, onVi
       flex flex-col gap-2
       z-40
     ">
-      {/* Atalhos rápidos — scroll horizontal, tags compactas */}
+      {/* Atalhos rápidos */}
       <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
         {SUGGESTIONS.map(s => (
           <button
             key={s.label}
-            onClick={() => onSend(s.msg)}
+            onClick={() => handleSuggestion(s.msg)}
             disabled={disabled}
             className="
               flex-shrink-0 px-2.5 py-1
@@ -62,8 +64,7 @@ export default function MobileChatFooter({ onSend, disabled, cartCount = 0, onVi
               text-zinc-400 text-[10px] font-medium
               rounded-full whitespace-nowrap
               hover:border-zinc-600 hover:text-zinc-200
-              active:scale-95
-              transition-all duration-150
+              active:scale-95 transition-all duration-150
               disabled:opacity-30
             "
           >
@@ -90,8 +91,7 @@ export default function MobileChatFooter({ onSend, disabled, cartCount = 0, onVi
             text-[13px] leading-snug
             focus:outline-none focus:border-zinc-600
             transition-colors duration-150
-            scrollbar-none
-            disabled:opacity-50
+            scrollbar-none disabled:opacity-50
           "
           style={{ minHeight: '38px', maxHeight: '96px' }}
           onInput={e => {
@@ -101,28 +101,19 @@ export default function MobileChatFooter({ onSend, disabled, cartCount = 0, onVi
           }}
         />
 
-        {/* Botão carrinho — só quando tem itens */}
+        {/* Botão carrinho — só exibe se há itens (cartCount > 0) 
+            Quando cart é null pós-pagamento, cartCount = 0 → botão some → crash evitado */}
         {cartCount > 0 && onViewCart && (
           <button
             onClick={onViewCart}
-            className="
-              relative w-9 h-9 rounded-full shrink-0
-              bg-zinc-900 border border-zinc-700
-              flex items-center justify-center
-              transition-colors hover:border-emerald-600
-            "
+            className="relative w-9 h-9 rounded-full shrink-0 bg-zinc-900 border border-zinc-700 flex items-center justify-center transition-colors hover:border-emerald-600"
           >
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="w-4 h-4 text-zinc-300">
               <path d="M1 1h2l1.5 7h7l1.5-5H4" />
               <circle cx="6.5" cy="13" r="1" fill="currentColor" stroke="none" />
               <circle cx="11" cy="13" r="1" fill="currentColor" stroke="none" />
             </svg>
-            <span className="
-              absolute -top-1 -right-1
-              w-4 h-4 rounded-full
-              bg-emerald-500 text-black text-[8px] font-bold
-              flex items-center justify-center
-            ">
+            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-black text-[8px] font-bold flex items-center justify-center">
               {cartCount > 9 ? '9+' : cartCount}
             </span>
           </button>
@@ -138,7 +129,6 @@ export default function MobileChatFooter({ onSend, disabled, cartCount = 0, onVi
             disabled:opacity-30 disabled:cursor-not-allowed
             flex items-center justify-center
             transition-all duration-150 active:scale-95
-            shadow-md shadow-emerald-900/20
           "
         >
           <svg viewBox="0 0 16 16" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
