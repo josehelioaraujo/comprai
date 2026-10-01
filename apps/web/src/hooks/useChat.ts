@@ -136,9 +136,9 @@ export function useChat() {
 
   // Abre carrinho — upsert: atualiza a tela existente em vez de duplicar
   // CRASH FIX: verifica cart null/vazio antes de renderizar
-  const handleViewCart = useCallback((sessionCart?: Cart | null) => {
-    // Aceita cart por parâmetro (para chamar após pagamento) ou usa o da sessão
-    const cart = sessionCart ?? session.cart
+  // Assinatura () => void — compatível com onClick de botão
+  const handleViewCart = useCallback(() => {
+    const cart = session.cart
     if (!cart || !cart.items || cart.items.length === 0) {
       pushMessage({ role: 'bot', text: 'Seu carrinho está vazio. Busque produtos para adicionar!' })
       return
