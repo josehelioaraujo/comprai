@@ -12,7 +12,6 @@ function formatPrice(value: number) {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
-// Mapeia source do backend para label legível
 function sourceLabel(source: string): string {
   const map: Record<string, string> = {
     MercadoLivre: 'Mercado Livre',
@@ -31,37 +30,35 @@ export default function MobileProductCard({ product, onAddToCart }: Props) {
 
   return (
     <div className="
-      flex flex-col w-44 rounded-xl shrink-0 snap-start
+      flex flex-col w-36 rounded-xl shrink-0 snap-start
       bg-zinc-900 border border-zinc-800
-      p-3 transition-all duration-200
-      hover:border-zinc-700 hover:shadow-lg hover:shadow-black/30
+      p-2.5 transition-all duration-200
+      hover:border-zinc-700
     ">
       {/* Imagem */}
-      <div className="h-28 w-full flex items-center justify-center bg-zinc-950 rounded-lg overflow-hidden mb-2.5">
+      <div className="h-24 w-full flex items-center justify-center bg-zinc-950 rounded-lg overflow-hidden mb-2">
         {product.image ? (
           <Image
             src={product.image}
             alt={product.title}
-            width={112}
-            height={112}
+            width={96}
+            height={96}
             className="object-contain w-full h-full"
             unoptimized
           />
         ) : (
-          <div className="w-10 h-14 bg-zinc-800 rounded border border-zinc-700 flex items-center justify-center">
-            <span className="text-[10px] text-zinc-600">📦</span>
-          </div>
+          <span className="text-2xl">📦</span>
         )}
       </div>
 
-      {/* Badge da fonte UCP */}
-      <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-medium mb-0.5 truncate">
-        Via: {sourceLabel(product.source)}
+      {/* Badge fonte UCP */}
+      <span className="text-[8px] uppercase tracking-wider text-zinc-600 font-medium mb-0.5 truncate">
+        {sourceLabel(product.source)}
       </span>
 
-      {/* Nome */}
+      {/* Nome — 2 linhas max */}
       <h3
-        className="text-xs font-semibold text-zinc-100 mb-1.5 leading-tight"
+        className="text-[11px] font-semibold text-zinc-100 mb-1.5 leading-tight"
         style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
         title={product.title}
       >
@@ -69,9 +66,9 @@ export default function MobileProductCard({ product, onAddToCart }: Props) {
       </h3>
 
       {/* Preços */}
-      <div className="flex items-baseline gap-1.5 mb-2.5">
+      <div className="flex flex-col mb-2">
         {hasDiscount && (
-          <span className="text-[10px] text-zinc-500 line-through">
+          <span className="text-[9px] text-zinc-500 line-through leading-none">
             {formatPrice(product.originalPrice!)}
           </span>
         )}
@@ -82,9 +79,9 @@ export default function MobileProductCard({ product, onAddToCart }: Props) {
 
       {/* Rating */}
       {product.rating && (
-        <div className="flex items-center gap-1 mb-2 -mt-1">
+        <div className="flex items-center gap-1 mb-1.5">
           <span className="text-yellow-400 text-[10px]">★</span>
-          <span className="text-[10px] text-zinc-400">{product.rating.toFixed(1)}</span>
+          <span className="text-[9px] text-zinc-500">{product.rating.toFixed(1)}</span>
         </div>
       )}
 
@@ -93,8 +90,7 @@ export default function MobileProductCard({ product, onAddToCart }: Props) {
         onClick={() => onAddToCart(product)}
         disabled={!product.available}
         className="
-          w-full py-1.5 rounded-lg text-[11px] font-medium
-          flex items-center justify-center gap-1
+          w-full py-1.5 rounded-lg text-[10px] font-semibold
           transition-all duration-150 active:scale-95
           disabled:opacity-40 disabled:cursor-not-allowed
           bg-emerald-600 hover:bg-emerald-500 text-white

@@ -9,23 +9,28 @@ interface Props {
   onViewCart?: () => void
 }
 
+// Sugestões compactas — texto curto para caber em tela pequena
 const SUGGESTIONS = [
-  '🔍 Quero tênis Nike até R$400',
-  '🎧 Fone bluetooth',
-  '📦 Meus pedidos',
-  '🛒 Ver carrinho',
+  { label: 'Buscar produto',   msg: 'Quero buscar um produto' },
+  { label: 'Ver carrinho',     msg: 'O que tenho no carrinho?' },
+  { label: 'Meus pedidos',     msg: 'Quero ver meus pedidos' },
+  { label: 'Finalizar compra', msg: 'Quero finalizar minha compra' },
 ]
 
 export default function MobileChatFooter({ onSend, disabled, cartCount = 0, onViewCart }: Props) {
   const [text, setText] = useState('')
-  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   function handleSend() {
     const trimmed = text.trim()
     if (!trimmed || disabled) return
     onSend(trimmed)
     setText('')
-    inputRef.current?.focus()
+    // reset altura
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+    }
+    textareaRef.current?.focus()
   }
 
   function handleKey(e: KeyboardEvent<HTMLTextAreaElement>) {
@@ -35,38 +40,34 @@ export default function MobileChatFooter({ onSend, disabled, cartCount = 0, onVi
     }
   }
 
-  function handleSuggestion(s: string) {
-    // Remove emoji prefix antes de enviar
-    const clean = s.replace(/^[\p{Emoji}\s]+/u, '').trim()
-    onSend(clean)
-  }
-
   return (
     <footer className="
       absolute bottom-0 left-0 right-0
-      bg-zinc-950/80 backdrop-blur-lg
+      bg-zinc-950/90 backdrop-blur-lg
       border-t border-zinc-900
-      p-3 space-y-2.5
+      px-3 pt-2 pb-3
+      flex flex-col gap-2
       z-40
     ">
-      {/* Tags de atalho rápido */}
-      <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
+      {/* Atalhos rápidos — scroll horizontal, tags compactas */}
+      <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
         {SUGGESTIONS.map(s => (
           <button
-            key={s}
-            onClick={() => handleSuggestion(s)}
+            key={s.label}
+            onClick={() => onSend(s.msg)}
             disabled={disabled}
             className="
-              flex-shrink-0 px-3 py-1.5
+              flex-shrink-0 px-2.5 py-1
               bg-zinc-900 border border-zinc-800
-              text-zinc-300 text-[11px] font-medium
+              text-zinc-400 text-[10px] font-medium
               rounded-full whitespace-nowrap
-              hover:border-emerald-700 hover:text-emerald-400
-              transition-colors duration-150
-              disabled:opacity-40
+              hover:border-zinc-600 hover:text-zinc-200
+              active:scale-95
+              transition-all duration-150
+              disabled:opacity-30
             "
           >
-            {s}
+            {s.label}
           </button>
         ))}
       </div>
@@ -74,7 +75,7 @@ export default function MobileChatFooter({ onSend, disabled, cartCount = 0, onVi
       {/* Linha de input */}
       <div className="flex items-end gap-2">
         <textarea
-          ref={inputRef}
+          ref={textareaRef}
           value={text}
           onChange={e => setText(e.target.value)}
           onKeyDown={handleKey}
@@ -85,39 +86,41 @@ export default function MobileChatFooter({ onSend, disabled, cartCount = 0, onVi
             flex-1 resize-none
             bg-zinc-900 border border-zinc-800
             text-zinc-100 placeholder-zinc-600
-            rounded-2xl px-4 py-2.5
-            text-sm leading-snug
-            focus:outline-none focus:border-emerald-700
+            rounded-2xl px-3.5 py-2
+            text-[13px] leading-snug
+            focus:outline-none focus:border-zinc-600
             transition-colors duration-150
-            max-h-28 scrollbar-none
+            scrollbar-none
             disabled:opacity-50
           "
-          style={{ minHeight: '42px' }}
+          style={{ minHeight: '38px', maxHeight: '96px' }}
           onInput={e => {
             const el = e.currentTarget
             el.style.height = 'auto'
-            el.style.height = Math.min(el.scrollHeight, 112) + 'px'
+            el.style.height = Math.min(el.scrollHeight, 96) + 'px'
           }}
         />
 
-        {/* Botão carrinho — visível quando há itens */}
+        {/* Botão carrinho — só quando tem itens */}
         {cartCount > 0 && onViewCart && (
           <button
             onClick={onViewCart}
             className="
-              relative w-10 h-10 rounded-full
+              relative w-9 h-9 rounded-full shrink-0
               bg-zinc-900 border border-zinc-700
               flex items-center justify-center
-              text-zinc-300 text-base
-              hover:border-emerald-600 hover:text-emerald-400
-              transition-colors duration-150 shrink-0
+              transition-colors hover:border-emerald-600
             "
           >
-            🛒
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="w-4 h-4 text-zinc-300">
+              <path d="M1 1h2l1.5 7h7l1.5-5H4" />
+              <circle cx="6.5" cy="13" r="1" fill="currentColor" stroke="none" />
+              <circle cx="11" cy="13" r="1" fill="currentColor" stroke="none" />
+            </svg>
             <span className="
               absolute -top-1 -right-1
               w-4 h-4 rounded-full
-              bg-emerald-500 text-black text-[9px] font-bold
+              bg-emerald-500 text-black text-[8px] font-bold
               flex items-center justify-center
             ">
               {cartCount > 9 ? '9+' : cartCount}
@@ -130,16 +133,17 @@ export default function MobileChatFooter({ onSend, disabled, cartCount = 0, onVi
           onClick={handleSend}
           disabled={disabled || !text.trim()}
           className="
-            w-10 h-10 rounded-full shrink-0
+            w-9 h-9 rounded-full shrink-0
             bg-emerald-600 hover:bg-emerald-500
-            disabled:opacity-40 disabled:cursor-not-allowed
+            disabled:opacity-30 disabled:cursor-not-allowed
             flex items-center justify-center
-            text-white text-base
             transition-all duration-150 active:scale-95
-            shadow-md shadow-emerald-900/30
+            shadow-md shadow-emerald-900/20
           "
         >
-          ↑
+          <svg viewBox="0 0 16 16" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+            <path d="M8 13V3M3 8l5-5 5 5" />
+          </svg>
         </button>
       </div>
     </footer>
