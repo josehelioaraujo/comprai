@@ -1,25 +1,19 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using UcpAgent.Application.Fulfillment;
 using UcpAgent.Domain.Fulfillment;
 
 namespace UcpAgent.Infrastructure.Fulfillment;
 
 /// <summary>
 /// Simula a progressão automática do fulfillment para ambiente de demo/dev.
-/// Cada pedido avança pelos status com delays configuráveis.
-///
-/// Em produção: substituir por integrações reais com:
-///   - API de WMS (Warehouse Management System)
-///   - API de transportadora (Correios, Jadlog, Total Express)
-///   - Webhooks de tracking
-///
-/// Ativado apenas quando Features__UsarFulfillmentSimulator = true no appsettings.
+/// Em produção: substituir por integrações reais com WMS e transportadoras.
+/// Ativado apenas quando Features__UsarFulfillmentSimulator = true.
 /// </summary>
 public sealed class FulfillmentSimulator(
     IFulfillmentService fulfillment,
     ILogger<FulfillmentSimulator> logger) : IHostedService
 {
-    // Progressão: status → (delay antes deste passo, descrição, trackingCode)
     private static readonly (FulfillmentStatus Status, TimeSpan Delay, string Description, string? Tracking)[]
         Pipeline =
         [
@@ -31,7 +25,6 @@ public sealed class FulfillmentSimulator(
             (FulfillmentStatus.Delivered,       TimeSpan.FromSeconds(5),  "Entregue ao destinatário",                null),
         ];
 
-    // Fila de pedidos para simular (thread-safe)
     private readonly System.Collections.Concurrent.ConcurrentQueue<string> _queue = new();
     private CancellationTokenSource _cts = new();
 
@@ -47,7 +40,6 @@ public sealed class FulfillmentSimulator(
         return Task.CompletedTask;
     }
 
-    /// <summary>Enfileira um pedido para simulação após confirmação de pagamento.</summary>
     public void Enqueue(string orderId) => _queue.Enqueue(orderId);
 
     private async Task ProcessQueueAsync(CancellationToken ct)
@@ -55,9 +47,7 @@ public sealed class FulfillmentSimulator(
         while (!ct.IsCancellationRequested)
         {
             if (_queue.TryDequeue(out var orderId))
-            {
                 _ = Task.Run(() => SimulateAsync(orderId, ct), ct);
-            }
             await Task.Delay(500, ct).ConfigureAwait(false);
         }
     }
@@ -65,34 +55,22 @@ public sealed class FulfillmentSimulator(
     private async Task SimulateAsync(string orderId, CancellationToken ct)
     {
         logger.LogInformation("[Fulfillment] Iniciando simulação para pedido {OrderId}", orderId);
-
         foreach (var (status, delay, description, trackingPattern) in Pipeline)
         {
             await Task.Delay(delay, ct);
             if (ct.IsCancellationRequested) break;
-
             var tracking = trackingPattern is not null
-                ? string.Format(trackingPattern, orderId[..6].ToUpper())
-                : null;
-
+                ? string.Format(trackingPattern, orderId[..6].ToUpper()) : null;
             try
             {
-                await fulfillment.AdvanceAsync(orderId, status, description,
-                    trackingCode: tracking, ct: ct);
-
-                logger.LogInformation(
-                    "[Fulfillment] {OrderId} → {Status}: {Description}",
-                    orderId, status, description);
+                await fulfillment.AdvanceAsync(orderId, status, description, trackingCode: tracking, ct: ct);
+                logger.LogInformation("[Fulfillment] {OrderId} → {Status}", orderId, status);
             }
             catch (Exception ex)
             {
-                logger.LogError(ex,
-                    "[Fulfillment] Erro ao avançar pedido {OrderId} para {Status}",
-                    orderId, status);
+                logger.LogError(ex, "[Fulfillment] Erro ao avançar pedido {OrderId} para {Status}", orderId, status);
                 break;
             }
         }
-
-        logger.LogInformation("[Fulfillment] Simulação concluída para pedido {OrderId}", orderId);
     }
 }

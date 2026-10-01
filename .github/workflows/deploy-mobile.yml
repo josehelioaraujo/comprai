@@ -49,6 +49,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add package.json
           git commit -m "chore(mobile): bump version $OLD → $NEW [skip ci]"
+          git pull --rebase origin main
           git push
           echo "version=$NEW"   >> $GITHUB_OUTPUT
           SHORT_SHA=$(git rev-parse --short HEAD)
