@@ -1,36 +1,30 @@
 'use client'
 
-import { useState } from 'react'
 import { useChat } from '@/hooks/useChat'
-import MobileChatShell from '@/components/mobile/MobileChatShell'
+import MobileChatShell      from '@/components/mobile/MobileChatShell'
 import MobileUcpProgressBar from '@/components/mobile/MobileUcpProgressBar'
-import MobileChatWindow from '@/components/mobile/MobileChatWindow'
-import MobileChatFooter from '@/components/mobile/MobileChatFooter'
+import MobileChatWindow     from '@/components/mobile/MobileChatWindow'
+import MobileChatFooter     from '@/components/mobile/MobileChatFooter'
+
+const VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? '1.0.0'
 
 export default function MobilePage() {
   const {
     messages, session, cartCount, isTyping,
     sendMessage, handleAddToCart, handleViewCart,
-    handleCheckout, handlePayment, handlePaymentConfirmed, handleQuantityChange
+    handleCheckout, handlePayment, handlePaymentConfirmed, handleQuantityChange,
   } = useChat()
 
-  const [cartPopupOpen, setCartPopupOpen] = useState(false)
-
-  function openCart() {
-    setCartPopupOpen(true)
-    handleViewCart?.()
-  }
+  function openCart() { handleViewCart() }
 
   return (
     <MobileChatShell>
-      {/* Stepper */}
       <MobileUcpProgressBar
         step={session.step}
         cartCount={cartCount}
         onCartClick={openCart}
+        version={VERSION}
       />
-
-      {/* Mensagens */}
       <MobileChatWindow
         messages={messages}
         isTyping={isTyping}
@@ -40,13 +34,12 @@ export default function MobilePage() {
         onPaymentConfirmed={handlePaymentConfirmed}
         onQuantityChange={handleQuantityChange}
       />
-
-      {/* Input fixo */}
       <MobileChatFooter
         onSend={sendMessage}
         disabled={isTyping}
         cartCount={cartCount}
         onViewCart={openCart}
+        step={session.step}
       />
     </MobileChatShell>
   )

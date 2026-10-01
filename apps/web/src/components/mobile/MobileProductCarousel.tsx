@@ -14,6 +14,11 @@ export default function MobileProductCarousel({ products, onAddToCart }: Props) 
   const [canLeft,  setCanLeft]  = useState(false)
   const [canRight, setCanRight] = useState(false)
 
+  // drag-to-scroll
+  const isDragging  = useRef(false)
+  const startX      = useRef(0)
+  const scrollStart = useRef(0)
+
   function updateArrows() {
     const el = scrollRef.current
     if (!el) return
@@ -30,6 +35,26 @@ export default function MobileProductCarousel({ products, onAddToCart }: Props) 
 
   function scroll(dir: 'left' | 'right') {
     scrollRef.current?.scrollBy({ left: dir === 'right' ? 160 : -160, behavior: 'smooth' })
+  }
+
+  // Mouse drag handlers (desktop)
+  function onMouseDown(e: React.MouseEvent) {
+    isDragging.current  = true
+    startX.current      = e.pageX
+    scrollStart.current = scrollRef.current?.scrollLeft ?? 0
+    if (scrollRef.current) scrollRef.current.style.cursor = 'grabbing'
+  }
+
+  function onMouseMove(e: React.MouseEvent) {
+    if (!isDragging.current || !scrollRef.current) return
+    e.preventDefault()
+    const dx = e.pageX - startX.current
+    scrollRef.current.scrollLeft = scrollStart.current - dx
+  }
+
+  function onMouseUp() {
+    isDragging.current = false
+    if (scrollRef.current) scrollRef.current.style.cursor = 'grab'
   }
 
   if (!products.length) return null
@@ -63,15 +88,19 @@ export default function MobileProductCarousel({ products, onAddToCart }: Props) 
         </div>
       </div>
 
-      {/* Trilho de scroll */}
+      {/* Trilho — touch nativo + drag mouse */}
       <div
         ref={scrollRef}
-        className="flex gap-2 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-none scroll-smooth"
+        className="flex gap-2 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-none"
+        style={{ cursor: 'grab', WebkitOverflowScrolling: 'touch' }}
+        onMouseDown={onMouseDown}
+        onMouseMove={onMouseMove}
+        onMouseUp={onMouseUp}
+        onMouseLeave={onMouseUp}
       >
         {products.map(p => (
           <MobileProductCard key={p.id} product={p} onAddToCart={onAddToCart} />
         ))}
-        {/* espaçador final */}
         <div className="w-1 shrink-0" />
       </div>
     </div>

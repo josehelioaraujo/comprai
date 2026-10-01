@@ -13,7 +13,6 @@ import type { CustomerDto } from '@/components/ucp/CartCard'
 
 function makeId() { return Math.random().toString(36).slice(2) }
 
-// ── Regra de frete (espelhada do CartCard — fonte única de verdade no futuro virá do backend) ──
 const FREE_SHIPPING_THRESHOLD = 1000
 const STANDARD_COST           = 15.90
 const EXPRESS_COST            = 29.90
@@ -23,14 +22,13 @@ export function calcShipping(subtotal: number, method: 'standard' | 'express'): 
   return method === 'express' ? EXPRESS_COST : STANDARD_COST
 }
 
-// ── Simulação de fulfillment (frontend mock — substituir por polling/WebSocket futuro) ──
 const FULFILLMENT_PIPELINE: { status: FulfillmentStatus; description: string; delay: number; location?: string }[] = [
-  { status: 'preparing',         description: 'Separando e embalando os itens',           delay: 8000  },
-  { status: 'ready_to_ship',     description: 'Embalado — aguardando coleta',              delay: 6000  },
-  { status: 'handed_to_carrier', description: 'Coletado pela transportadora',              delay: 5000  },
-  { status: 'in_transit',        description: 'Em trânsito — Centro de Distribuição SP',  delay: 8000, location: 'São Paulo, SP' },
-  { status: 'out_for_delivery',  description: 'Saiu para entrega',                         delay: 6000  },
-  { status: 'delivered',         description: 'Entregue ao destinatário',                  delay: 5000  },
+  { status: 'preparing',         description: 'Separando e embalando os itens',          delay: 8000  },
+  { status: 'ready_to_ship',     description: 'Embalado — aguardando coleta',             delay: 6000  },
+  { status: 'handed_to_carrier', description: 'Coletado pela transportadora',             delay: 5000  },
+  { status: 'in_transit',        description: 'Em trânsito — Centro de Distribuição SP', delay: 8000, location: 'São Paulo, SP' },
+  { status: 'out_for_delivery',  description: 'Saiu para entrega',                        delay: 6000  },
+  { status: 'delivered',         description: 'Entregue ao destinatário',                 delay: 5000  },
 ]
 
 const INITIAL_SESSION: SessionState = {
@@ -45,12 +43,11 @@ const WELCOME: ChatMessage = {
 }
 
 export function useChat() {
-  const [messages, setMessages]   = useState<ChatMessage[]>([WELCOME])
-  const [session, setSession]     = useState<SessionState>(INITIAL_SESSION)
-  const [isTyping, setIsTyping]   = useState(false)
-  const sessionRef                = useRef<string>('')
-  // Histórico de fulfillment acumulado por pedido
-  const fulfillmentHistoryRef     = useRef<Record<string, FulfillmentEvent[]>>({})
+  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME])
+  const [session, setSession]   = useState<SessionState>(INITIAL_SESSION)
+  const [isTyping, setIsTyping] = useState(false)
+  const sessionRef              = useRef<string>('')
+  const fulfillmentHistoryRef   = useRef<Record<string, FulfillmentEvent[]>>({})
 
   const getOrCreateSession = useCallback((): string => {
     if (!sessionRef.current) {
@@ -82,7 +79,6 @@ export function useChat() {
     })
   }, [])
 
-  // Atualiza o order dentro da mensagem order_status existente (sem criar nova mensagem)
   const updateOrderMessage = useCallback((orderId: string, updater: (o: Order) => Order) => {
     setMessages(prev => prev.map(m => {
       if (m.intent !== 'order_status' || m.data?.type !== 'order') return m
@@ -111,7 +107,6 @@ export function useChat() {
 
   const cartCount = session.cart?.items?.reduce((s, i) => s + i.quantity, 0) ?? 0
 
-  // ── Simulação de fulfillment (frontend) ──────────────────────────────────────
   const startFulfillmentSimulation = useCallback((orderId: string, orderTotal: number) => {
     const history: FulfillmentEvent[] = [{
       status: 'payment_confirmed',
@@ -128,17 +123,16 @@ export function useChat() {
 
       setTimeout(() => {
         const newEvent: FulfillmentEvent = {
-          status:      stepCopy.status,
-          description: stepCopy.description,
-          occurredAt:  new Date().toISOString(),
-          location:    stepCopy.location,
+          status:       stepCopy.status,
+          description:  stepCopy.description,
+          occurredAt:   new Date().toISOString(),
+          location:     stepCopy.location,
           trackingCode: stepCopy.status === 'handed_to_carrier'
             ? `BR${orderId.slice(0, 6).toUpperCase()}001` : undefined,
         }
         histCopy.push(newEvent)
         fulfillmentHistoryRef.current[orderId] = [...histCopy]
 
-        // Mapear fulfillmentStatus → orderStatus para o card existente
         const orderStatusMap: Partial<Record<FulfillmentStatus, Order['status']>> = {
           preparing:         'preparing',
           handed_to_carrier: 'shipped',
@@ -152,13 +146,12 @@ export function useChat() {
           status:             orderStatusMap[stepCopy.status] ?? order.status,
           fulfillmentStatus:  stepCopy.status,
           fulfillmentHistory: [...histCopy],
-          tracking: newEvent.trackingCode ?? order.tracking,
+          tracking:           newEvent.trackingCode ?? order.tracking,
         }))
       }, accDelay)
     }
   }, [updateOrderMessage])
 
-  // ── sendMessage ──────────────────────────────────────────────────────────────
   const sendMessage = useCallback(async (text: string) => {
     const sessionId      = getOrCreateSession()
     const idempotencyKey = newIdempotencyKey()
@@ -201,7 +194,9 @@ export function useChat() {
       const cart = normalizeCart(raw, sessionId)
       setSession(s => ({ ...s, cart, step: 'search' }))
       const count = cart.items.reduce((s, i) => s + i.quantity, 0)
-      pushMessage({
+
+      // UPSERT — evita duplicar a mensagem de confirmação de adição
+      upsertBotMessage({
         role: 'bot',
         text: `✅ **${product.title}** adicionado! ${count} ${count === 1 ? 'item' : 'itens'} no carrinho.`,
         intent: 'cart_add', idempotencyKey,
@@ -210,12 +205,12 @@ export function useChat() {
       const msg = err instanceof Error ? err.message : 'Erro'
       pushMessage({ role: 'bot', text: `Não consegui adicionar ao carrinho: ${msg}`, idempotencyKey })
     } finally { setIsTyping(false) }
-  }, [getOrCreateSession, pushMessage])
+  }, [getOrCreateSession, pushMessage, upsertBotMessage])
 
   const handleViewCart = useCallback(() => {
     const cart = session.cart
     if (!cart || !cart.items || cart.items.length === 0) {
-      pushMessage({ role: 'bot', text: 'Seu carrinho está vazio. Busque produtos para adicionar!' })
+      pushMessage({ role: 'bot', text: 'Seu carrinho está vazio. Busque produtos para adicionar! 🛍️' })
       return
     }
     advanceStep('cart')
@@ -225,11 +220,10 @@ export function useChat() {
     })
   }, [pushMessage, upsertBotMessage, advanceStep, session.cart])
 
-  // total agora vem do CartCard (3º parâmetro) — inclui frete
   const handleCheckout = useCallback(async (
     customer: CustomerDto,
     shippingMethod: 'standard' | 'express',
-    totalWithShipping: number,           // ← recebe o total correto do CartCard
+    totalWithShipping: number,
   ) => {
     const sessionId      = getOrCreateSession()
     const idempotencyKey = getIdempotencyKey(checkoutKey(sessionId))
@@ -238,24 +232,19 @@ export function useChat() {
     try {
       const res = await createCheckout(sessionId, customer, shippingMethod, idempotencyKey)
       advanceStep('checkout')
-      const orderId = (res as any).orderId ?? ''
-
+      const orderId      = (res as any).orderId ?? ''
       const subtotal     = session.cart?.items.reduce((s, i) => s + i.price * i.quantity, 0) ?? 0
       const shippingCost = calcShipping(subtotal, shippingMethod)
-      const isFreeShip   = shippingCost === 0
 
       const checkoutData = {
         orderId, sessionId,
         items:          session.cart?.items ?? [],
-        total:          totalWithShipping,   // ← total COM frete
+        total:          totalWithShipping,
         shippingCost,
-        isFreeShipping: isFreeShip,
+        isFreeShipping: shippingCost === 0,
         shippingMethod,
       }
-
-      // Salvar total confirmado na sessão para uso no pagamento
       setSession(s => ({ ...s, confirmedTotal: totalWithShipping }))
-
       pushMessage({
         role: 'bot', text: `Pedido **${orderId}** criado! Como você quer pagar?`,
         intent: 'checkout', data: { type: 'checkout', checkout: checkoutData }, idempotencyKey,
@@ -273,7 +262,6 @@ export function useChat() {
     pushMessage({ role: 'user', text: method === 'pix' ? 'Pagar com Pix' : 'Pagar com cartão', idempotencyKey })
     setIsTyping(true)
     try {
-      // ← usa confirmedTotal (com frete) em vez de session.cart?.total
       const amount = session.confirmedTotal > 0 ? session.confirmedTotal : (session.cart?.total ?? 0)
       const res    = await createPayment(orderId, method, amount, idempotencyKey)
       advanceStep('payment')
@@ -287,7 +275,7 @@ export function useChat() {
         pixQrCode:    (res as any).pixQrCode,
         pixCopyPaste: (res as any).pixCopyPaste ?? `00020126580014br.gov.bcb.pix0136${orderId}`,
         pixExpiresAt: (res as any).pixExpiresAt,
-        amount,      // ← valor correto com frete
+        amount,
       }
       pushMessage({
         role: 'bot',
@@ -328,14 +316,13 @@ export function useChat() {
           status: 'payment_confirmed',
           fulfillmentStatus: 'payment_confirmed',
           items: [],
-          total: orderTotal,       // ← total correto
+          total: orderTotal,
           createdAt: new Date().toISOString(),
           fulfillmentHistory: initialHistory,
         }
       },
     })
 
-    // Inicia simulação de fulfillment
     startFulfillmentSimulation(orderId, orderTotal)
   }, [pushMessage, advanceStep, session.confirmedTotal, startFulfillmentSimulation])
 

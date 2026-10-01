@@ -6,6 +6,8 @@ import MobileUcpProgressBar from '@/components/mobile/MobileUcpProgressBar'
 import MobileChatWindow     from '@/components/mobile/MobileChatWindow'
 import MobileChatFooter     from '@/components/mobile/MobileChatFooter'
 
+const VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? '1.0.0'
+
 export default function MobilePage() {
   const {
     messages, session, cartCount, isTyping,
@@ -21,6 +23,7 @@ export default function MobilePage() {
         step={session.step}
         cartCount={cartCount}
         onCartClick={openCart}
+        version={VERSION}
       />
       <MobileChatWindow
         messages={messages}
@@ -36,6 +39,7 @@ export default function MobilePage() {
         disabled={isTyping}
         cartCount={cartCount}
         onViewCart={openCart}
+        step={session.step}
       />
     </MobileChatShell>
   )

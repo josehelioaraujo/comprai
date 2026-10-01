@@ -1,24 +1,42 @@
 'use client'
 
 import { useState, useRef, KeyboardEvent } from 'react'
+import type { UcpStep } from '@/types/ucp'
 
 interface Props {
   onSend: (text: string) => void
   disabled?: boolean
   cartCount?: number
   onViewCart?: () => void
+  step?: UcpStep
 }
 
-const SUGGESTIONS = [
-  { label: 'Buscar produto',   msg: 'Quero buscar um produto'      },
-  { label: 'Ver carrinho',     msg: 'O que tenho no carrinho?'     },
-  { label: 'Meus pedidos',     msg: 'Quero ver meus pedidos'       },
-  { label: 'Finalizar compra', msg: 'Quero finalizar minha compra' },
-]
+// Atalhos contextuais por step — só aparecem quando fazem sentido
+const SUGGESTIONS_BY_STEP: Partial<Record<UcpStep | 'idle', { label: string; msg: string }[]>> = {
+  idle:     [{ label: 'Buscar produto', msg: 'Quero buscar um produto' }],
+  search:   [{ label: 'Buscar produto', msg: 'Quero buscar um produto' }],
+  cart:     [
+    { label: 'Ver carrinho',     msg: 'O que tenho no carrinho?' },
+    { label: 'Finalizar compra', msg: 'Quero finalizar minha compra' },
+  ],
+  checkout: [
+    { label: 'Ver carrinho',     msg: 'O que tenho no carrinho?' },
+    { label: 'Finalizar compra', msg: 'Quero finalizar minha compra' },
+  ],
+  payment:  [
+    { label: 'Ver carrinho',     msg: 'O que tenho no carrinho?' },
+  ],
+  order:    [
+    { label: 'Nova busca',    msg: 'Quero buscar um produto' },
+    { label: 'Meus pedidos',  msg: 'Quero ver meus pedidos'  },
+  ],
+}
 
-export default function MobileChatFooter({ onSend, disabled, cartCount = 0, onViewCart }: Props) {
+export default function MobileChatFooter({ onSend, disabled, cartCount = 0, onViewCart, step = 'idle' }: Props) {
   const [text, setText] = useState('')
   const textareaRef     = useRef<HTMLTextAreaElement>(null)
+
+  const suggestions = SUGGESTIONS_BY_STEP[step] ?? SUGGESTIONS_BY_STEP['idle']!
 
   function handleSend() {
     const trimmed = text.trim()
@@ -30,13 +48,9 @@ export default function MobileChatFooter({ onSend, disabled, cartCount = 0, onVi
   }
 
   function handleKey(e: KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSend()
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
   }
 
-  // Sugestão dispara igual ao Enter — mesma ação
   function handleSuggestion(msg: string) {
     if (disabled) return
     onSend(msg)
@@ -47,33 +61,33 @@ export default function MobileChatFooter({ onSend, disabled, cartCount = 0, onVi
       absolute bottom-0 left-0 right-0
       bg-zinc-950/90 backdrop-blur-lg
       border-t border-zinc-900
-      px-3 pt-2 pb-3
-      flex flex-col gap-2
-      z-40
+      px-3 pt-2 pb-3 flex flex-col gap-2 z-40
     ">
-      {/* Atalhos rápidos */}
-      <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
-        {SUGGESTIONS.map(s => (
-          <button
-            key={s.label}
-            onClick={() => handleSuggestion(s.msg)}
-            disabled={disabled}
-            className="
-              flex-shrink-0 px-2.5 py-1
-              bg-zinc-900 border border-zinc-800
-              text-zinc-400 text-[10px] font-medium
-              rounded-full whitespace-nowrap
-              hover:border-zinc-600 hover:text-zinc-200
-              active:scale-95 transition-all duration-150
-              disabled:opacity-30
-            "
-          >
-            {s.label}
-          </button>
-        ))}
-      </div>
+      {/* Atalhos contextuais */}
+      {suggestions.length > 0 && (
+        <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
+          {suggestions.map(s => (
+            <button
+              key={s.label}
+              onClick={() => handleSuggestion(s.msg)}
+              disabled={disabled}
+              className="
+                flex-shrink-0 px-2.5 py-1
+                bg-zinc-900 border border-zinc-800
+                text-zinc-400 text-[10px] font-medium
+                rounded-full whitespace-nowrap
+                hover:border-zinc-600 hover:text-zinc-200
+                active:scale-95 transition-all duration-150
+                disabled:opacity-30
+              "
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      )}
 
-      {/* Linha de input */}
+      {/* Input */}
       <div className="flex items-end gap-2">
         <textarea
           ref={textareaRef}
@@ -87,11 +101,9 @@ export default function MobileChatFooter({ onSend, disabled, cartCount = 0, onVi
             flex-1 resize-none
             bg-zinc-900 border border-zinc-800
             text-zinc-100 placeholder-zinc-600
-            rounded-2xl px-3.5 py-2
-            text-[13px] leading-snug
+            rounded-2xl px-3.5 py-2 text-[13px] leading-snug
             focus:outline-none focus:border-zinc-600
-            transition-colors duration-150
-            scrollbar-none disabled:opacity-50
+            transition-colors duration-150 scrollbar-none disabled:opacity-50
           "
           style={{ minHeight: '38px', maxHeight: '96px' }}
           onInput={e => {
@@ -101,8 +113,7 @@ export default function MobileChatFooter({ onSend, disabled, cartCount = 0, onVi
           }}
         />
 
-        {/* Botão carrinho — só exibe se há itens (cartCount > 0) 
-            Quando cart é null pós-pagamento, cartCount = 0 → botão some → crash evitado */}
+        {/* Botão carrinho — só quando há itens */}
         {cartCount > 0 && onViewCart && (
           <button
             onClick={onViewCart}
