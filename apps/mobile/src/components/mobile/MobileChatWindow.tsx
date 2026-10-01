@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, forwardRef } from 'react'
 import type { ChatMessage, Product, PaymentMethod, PaymentProvider } from '@/types/ucp'
 import type { CustomerDto } from '@/components/ucp/CartCard'
 import MobileChatBubble from './MobileChatBubble'
@@ -16,10 +16,10 @@ interface Props {
   onQuantityChange?: (productId: string, qty: number) => void
 }
 
-export default function MobileChatWindow({
+const MobileChatWindow = forwardRef<HTMLDivElement, Props>(function MobileChatWindow({
   messages, isTyping,
   onAddToCart, onCheckout, onPayment, onPaymentConfirmed, onQuantityChange
-}: Props) {
+}, ref) {
   const bottomRef = useRef<HTMLDivElement>(null)
 
   // Auto-scroll ao receber nova mensagem
@@ -28,7 +28,7 @@ export default function MobileChatWindow({
   }, [messages, isTyping])
 
   return (
-    <main className="flex-1 overflow-y-auto px-4 pt-4 pb-36 space-y-4 scrollbar-none">
+    <main ref={ref} className="flex-1 overflow-y-auto px-4 pt-4 pb-4 space-y-4 scrollbar-none">
       {messages.map(msg => (
         <MobileChatBubble key={msg.id} message={msg}>
           {msg.role === 'bot' && msg.intent && (
@@ -69,3 +69,6 @@ export default function MobileChatWindow({
     </main>
   )
 }
+})
+
+export default MobileChatWindow

@@ -214,7 +214,7 @@ export default function CartCard({ cart, onCheckout, onQuantityChange }: Props) 
           <div className="flex flex-col gap-0.5">
             <label className="text-[9px] uppercase tracking-wider" style={{ color: 'var(--muted)' }}>CEP *</label>
             <div className="flex gap-2 items-center">
-              <div className="flex-1 relative">
+              <div className="flex-[2] relative">
                 <input
                   className="input-field text-xs py-1.5 w-full"
                   placeholder="00000-000"
@@ -230,7 +230,7 @@ export default function CartCard({ cart, onCheckout, onQuantityChange }: Props) 
                   </span>
                 )}
               </div>
-              <select className="input-field text-xs py-1.5 w-20" autoComplete="address-level1"
+              <select className="input-field text-xs py-1.5 w-16" autoComplete="address-level1"
                 value={customer.state} onChange={e => setField('state', e.target.value)}>
                 <option value="">UF *</option>
                 {UF_LIST.map(u => <option key={u} value={u}>{u}</option>)}
@@ -271,18 +271,11 @@ export default function CartCard({ cart, onCheckout, onQuantityChange }: Props) 
             <span className="text-sm font-bold font-mono" style={{ color: 'var(--accent)' }}>{fmt(total)}</span>
           </div>
 
-          <div className="flex gap-2 mt-1">
-            <button onClick={() => setShowForm(false)}
-              className="flex-1 py-2 rounded-lg text-xs font-medium"
-              style={{ background: 'var(--surface)', color: 'var(--muted)' }}>
-              ← Voltar
-            </button>
-            <button onClick={() => onCheckout(customer, shipping, total)} disabled={!isValid}
-              className="flex-1 py-2 rounded-lg text-xs font-semibold"
-              style={{ background: isValid ? 'var(--accent)' : 'var(--surface)', color: isValid ? '#fff' : 'var(--muted)', cursor: isValid ? 'pointer' : 'not-allowed' }}>
-              Confirmar pedido →
-            </button>
-          </div>
+          <button onClick={() => onCheckout(customer, shipping, total)} disabled={!isValid}
+            className="w-full py-2 rounded-lg text-xs font-semibold mt-1"
+            style={{ background: isValid ? 'var(--accent)' : 'var(--surface)', color: isValid ? '#fff' : 'var(--muted)', cursor: isValid ? 'pointer' : 'not-allowed' }}>
+            Confirmar pedido →
+          </button>
         </div>
       ) : (
         <div className="px-3 pb-3 pt-2">

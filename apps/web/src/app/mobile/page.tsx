@@ -1,7 +1,9 @@
 'use client'
 
+import { useRef } from 'react'
 import { useChat } from '@/hooks/useChat'
 import MobileChatShell      from '@/components/mobile/MobileChatShell'
+import MobileUcpHeader      from '@/components/mobile/MobileUcpHeader'
 import MobileUcpProgressBar from '@/components/mobile/MobileUcpProgressBar'
 import MobileChatWindow     from '@/components/mobile/MobileChatWindow'
 import MobileChatFooter     from '@/components/mobile/MobileChatFooter'
@@ -15,17 +17,22 @@ export default function MobilePage() {
     handleCheckout, handlePayment, handlePaymentConfirmed, handleQuantityChange,
   } = useChat()
 
+  const chatRef = useRef<HTMLDivElement>(null)
+
   function openCart() { handleViewCart() }
+
+  function scrollToBottom() {
+    chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: 'smooth' })
+  }
 
   return (
     <MobileChatShell>
-      <MobileUcpProgressBar
-        step={session.step}
-        cartCount={cartCount}
-        onCartClick={openCart}
-        version={VERSION}
-      />
+      {/* Header fixo no topo — logo + versão */}
+      <MobileUcpHeader version={VERSION} />
+
+      {/* Área de mensagens — cresce e scrollável */}
       <MobileChatWindow
+        ref={chatRef}
         messages={messages}
         isTyping={isTyping}
         onAddToCart={handleAddToCart}
@@ -34,13 +41,23 @@ export default function MobilePage() {
         onPaymentConfirmed={handlePaymentConfirmed}
         onQuantityChange={handleQuantityChange}
       />
+
+      {/* Stepper de progresso — fixo acima do footer */}
+      <MobileUcpProgressBar
+        step={session.step}
+        cartCount={cartCount}
+        onCartClick={openCart}
+        onOrderClick={() => { handleViewOrders(); scrollToBottom() }}
+      />
+
+      {/* Footer com input e atalhos */}
       <MobileChatFooter
         onSend={sendMessage}
         disabled={isTyping}
         cartCount={cartCount}
         onViewCart={openCart}
         step={session.step}
-        onViewOrders={handleViewOrders}
+        onViewOrders={() => { handleViewOrders(); scrollToBottom() }}
       />
     </MobileChatShell>
   )
