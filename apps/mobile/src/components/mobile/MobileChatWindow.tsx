@@ -16,19 +16,21 @@ interface Props {
   onQuantityChange?: (productId: string, qty: number) => void
 }
 
-const MobileChatWindow = forwardRef<HTMLDivElement, Props>(function MobileChatWindow({
-  messages, isTyping,
-  onAddToCart, onCheckout, onPayment, onPaymentConfirmed, onQuantityChange
-}, ref) {
+const MobileChatWindow = forwardRef<HTMLElement, Props>(function MobileChatWindow(
+  { messages, isTyping, onAddToCart, onCheckout, onPayment, onPaymentConfirmed, onQuantityChange },
+  ref
+) {
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  // Auto-scroll ao receber nova mensagem
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isTyping])
 
   return (
-    <main ref={ref} className="flex-1 overflow-y-auto px-4 pt-4 pb-4 space-y-4 scrollbar-none">
+    <main
+      ref={ref as React.RefObject<HTMLElement>}
+      className="flex-1 overflow-y-auto px-4 pt-4 pb-4 space-y-4 scrollbar-none"
+    >
       {messages.map(msg => (
         <MobileChatBubble key={msg.id} message={msg}>
           {msg.role === 'bot' && msg.intent && (
@@ -44,15 +46,9 @@ const MobileChatWindow = forwardRef<HTMLDivElement, Props>(function MobileChatWi
         </MobileChatBubble>
       ))}
 
-      {/* Typing indicator */}
       {isTyping && (
         <div className="flex items-start gap-3 max-w-[88%]">
-          <div className="
-            w-8 h-8 rounded-full shrink-0
-            bg-gradient-to-tr from-emerald-500 to-teal-600
-            flex items-center justify-center
-            text-white text-xs font-bold shadow-md
-          ">
+          <div className="w-8 h-8 rounded-full shrink-0 bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white text-xs font-bold shadow-md">
             C
           </div>
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl rounded-tl-none px-4 py-3">
@@ -68,7 +64,6 @@ const MobileChatWindow = forwardRef<HTMLDivElement, Props>(function MobileChatWi
       <div ref={bottomRef} />
     </main>
   )
-}
 })
 
 export default MobileChatWindow
