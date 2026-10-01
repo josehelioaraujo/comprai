@@ -10,7 +10,7 @@ interface Props {
   messages: ChatMessage[]
   isTyping: boolean
   onAddToCart: (product: Product) => void
-  onCheckout: (customer: CustomerDto, shipping: 'standard' | 'express') => void
+  onCheckout: (customer: CustomerDto, shipping: 'standard' | 'express', total: number) => void
   onPayment: (orderId: string, provider: PaymentProvider, method: PaymentMethod) => void
   onPaymentConfirmed: (orderId: string) => void
   onQuantityChange?: (productId: string, qty: number) => void
