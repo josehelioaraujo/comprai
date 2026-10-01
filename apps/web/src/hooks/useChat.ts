@@ -51,6 +51,7 @@ export function useChat() {
   const [isTyping, setIsTyping] = useState(false)
   const sessionRef              = useRef<string>('')
   const fulfillmentHistoryRef   = useRef<Record<string, FulfillmentEvent[]>>({})
+  const addingProductsRef        = useRef<Set<string>>(new Set())
 
   const getOrCreateSession = useCallback((): string => {
     if (!sessionRef.current) {
@@ -188,6 +189,10 @@ export function useChat() {
   }, [getOrCreateSession, pushMessage, upsertBotMessage, advanceStep])
 
   const handleAddToCart = useCallback(async (product: Product) => {
+    // Guard: ignora chamada duplicada para o mesmo produto enquanto está sendo processado
+    if (addingProductsRef.current.has(product.id)) return
+    addingProductsRef.current.add(product.id)
+
     const sessionId      = getOrCreateSession()
     const idempotencyKey = getIdempotencyKey(cartAddKey(sessionId, product.id))
     setIsTyping(true)
@@ -207,7 +212,10 @@ export function useChat() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erro'
       pushMessage({ role: 'bot', text: `Não consegui adicionar ao carrinho: ${msg}`, idempotencyKey })
-    } finally { setIsTyping(false) }
+    } finally {
+      setIsTyping(false)
+      addingProductsRef.current.delete(product.id)
+    }
   }, [getOrCreateSession, pushMessage, upsertBotMessage])
 
   const handleViewCart = useCallback(() => {

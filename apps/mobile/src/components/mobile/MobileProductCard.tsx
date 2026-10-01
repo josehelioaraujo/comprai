@@ -1,11 +1,12 @@
 'use client'
 
 import Image from 'next/image'
+import { useState } from 'react'
 import type { Product } from '@/types/ucp'
 
 interface Props {
   product: Product
-  onAddToCart: (product: Product) => void
+  onAddToCart: (product: Product) => void | Promise<void>
 }
 
 function formatPrice(value: number) {
@@ -26,7 +27,15 @@ function sourceLabel(source: string): string {
 }
 
 export default function MobileProductCard({ product, onAddToCart }: Props) {
+  const [adding, setAdding] = useState(false)
   const hasDiscount = product.originalPrice && product.originalPrice > product.price
+
+  async function handleAdd() {
+    if (adding || !product.available) return
+    setAdding(true)
+    try { await onAddToCart(product) }
+    finally { setAdding(false) }
+  }
 
   return (
     <div className="
@@ -87,8 +96,8 @@ export default function MobileProductCard({ product, onAddToCart }: Props) {
 
       {/* Botão */}
       <button
-        onClick={() => onAddToCart(product)}
-        disabled={!product.available}
+        onClick={handleAdd}
+        disabled={!product.available || adding}
         className="
           w-full py-1.5 rounded-lg text-[10px] font-semibold
           transition-all duration-150 active:scale-95
