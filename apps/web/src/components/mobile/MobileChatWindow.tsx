@@ -29,7 +29,7 @@ const MobileChatWindow = forwardRef<HTMLElement, Props>(function MobileChatWindo
   return (
     <main
       ref={ref as React.RefObject<HTMLElement>}
-      className="flex-1 overflow-y-auto px-4 pt-4 pb-4 space-y-4 scrollbar-none"
+      className="flex-1 overflow-y-auto px-4 pt-4 pb-2 space-y-4 scrollbar-none"
     >
       {messages.map(msg => (
         <MobileChatBubble key={msg.id} message={msg}>

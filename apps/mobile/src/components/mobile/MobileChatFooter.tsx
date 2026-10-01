@@ -56,7 +56,7 @@ export default function MobileChatFooter({ onSend, onViewOrders, disabled, cartC
   }
 
   return (
-    <footer className="absolute bottom-0 left-0 right-0 bg-zinc-950/90 backdrop-blur-lg border-t border-zinc-900 px-3 pt-2 pb-3 flex flex-col gap-2 z-40">
+    <footer className="w-full bg-zinc-950/90 backdrop-blur-lg border-t border-zinc-900 px-3 pt-2 pb-3 flex flex-col gap-2 shrink-0">
       {suggestions.length > 0 && (
         <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
           {suggestions.map(s => (
