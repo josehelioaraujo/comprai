@@ -4,16 +4,15 @@ on:
   push:
     branches: [main]
     paths:
-      - 'apps/web/src/app/mobile/**'
-      - 'apps/web/src/components/mobile/**'
+      - 'apps/mobile/**'
       - '.github/workflows/deploy-mobile.yml'
   workflow_dispatch:
 
 env:
-  IMAGE:    ghcr.io/josehelioaraujo/comprai-web
+  IMAGE:    ghcr.io/josehelioaraujo/comprai-mobile
   VPS_HOST: 2.25.122.11
   VPS_USER: root
-  WEB_PORT: 3002          # mesma imagem — rota /mobile já está dentro do build
+  PORT:     3003
   API_URL:  http://2.25.122.11:5020
 
 jobs:
@@ -34,7 +33,7 @@ jobs:
       - name: Bump patch version
         id: version
         run: |
-          cd apps/web
+          cd apps/mobile
           OLD=$(node -p "require('./package.json').version")
           NEW=$(node -e "
             const [major,minor,patch] = '$OLD'.split('.').map(Number);
@@ -54,7 +53,6 @@ jobs:
           echo "version=$NEW"   >> $GITHUB_OUTPUT
           SHORT_SHA=$(git rev-parse --short HEAD)
           echo "sha=$SHORT_SHA" >> $GITHUB_OUTPUT
-          echo "Versão: $NEW ($SHORT_SHA)"
 
       - name: Login GHCR
         uses: docker/login-action@v3
@@ -69,8 +67,8 @@ jobs:
       - name: Build e Push imagem
         uses: docker/build-push-action@v6
         with:
-          context: apps/web
-          file:    apps/web/Dockerfile
+          context: apps/mobile
+          file:    apps/mobile/Dockerfile
           push: true
           tags: |
             ${{ env.IMAGE }}:latest
@@ -92,21 +90,22 @@ jobs:
             set -e
             echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u josehelioaraujo --password-stdin
             docker pull ${{ env.IMAGE }}:latest && echo "✅ Pull OK" || { echo "❌ Pull falhou"; exit 1; }
-            docker stop comprai-web 2>/dev/null || true
-            docker rm   comprai-web 2>/dev/null || true
+            docker stop comprai-mobile 2>/dev/null || true
+            docker rm   comprai-mobile 2>/dev/null || true
             docker run -d \
-              --name comprai-web \
+              --name comprai-mobile \
               --restart unless-stopped \
               --network comprai-network \
-              -p ${{ env.WEB_PORT }}:${{ env.WEB_PORT }} \
+              -p ${{ env.PORT }}:${{ env.PORT }} \
               -e NODE_ENV=production \
               ${{ env.IMAGE }}:latest
             sleep 8
-            curl -sf http://localhost:${{ env.WEB_PORT }}/mobile && echo "✅ /mobile OK" \
-              || { docker logs comprai-web --tail 20; exit 1; }
+            curl -sf http://localhost:${{ env.PORT }}/ && echo "✅ OK" \
+              || { docker logs comprai-mobile --tail 20; exit 1; }
 
       - name: Summary
         run: |
           echo "## 📱 Deploy Mobile ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **URL:** http://${{ env.VPS_HOST }}:${{ env.WEB_PORT }}/mobile"  >> $GITHUB_STEP_SUMMARY
-          echo "- **Version:** ${{ steps.version.outputs.version }} (${{ steps.version.outputs.sha }})" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL:** http://${{ env.VPS_HOST }}:${{ env.PORT }}"   >> $GITHUB_STEP_SUMMARY
+          echo "- **Container:** comprai-mobile"                          >> $GITHUB_STEP_SUMMARY
+          echo "- **SHA:** ${{ steps.version.outputs.sha }}"             >> $GITHUB_STEP_SUMMARY

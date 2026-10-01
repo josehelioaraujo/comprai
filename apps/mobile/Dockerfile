@@ -1,0 +1,47 @@
+FROM node:22-alpine AS base
+
+# ── deps ──────────────────────────────────────────────────────────────────────
+FROM base AS deps
+WORKDIR /app
+COPY package.json ./
+RUN npm install
+
+# ── build ─────────────────────────────────────────────────────────────────────
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+ARG NEXT_PUBLIC_API_URL=http://localhost:5020
+ARG NEXT_PUBLIC_APP_VERSION=1.0.0
+ARG NEXT_PUBLIC_GIT_SHA=dev
+
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_APP_VERSION=$NEXT_PUBLIC_APP_VERSION
+ENV NEXT_PUBLIC_GIT_SHA=$NEXT_PUBLIC_GIT_SHA
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN mkdir -p public
+RUN npm run build
+
+# ── runner ────────────────────────────────────────────────────────────────────
+FROM base AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3003
+ENV HOSTNAME=0.0.0.0
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser  --system --uid 1001 nextjs
+
+RUN mkdir -p public
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static     ./.next/static
+
+USER nextjs
+EXPOSE 3003
+
+CMD ["node", "server.js"]
