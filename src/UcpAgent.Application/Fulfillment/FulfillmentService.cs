@@ -1,22 +1,20 @@
 using UcpAgent.Domain.Fulfillment;
-using UcpAgent.SharedKernel;
-using UcpAgent.SharedKernel.Events;
-using UcpAgent.SharedKernel.Ports;
 
 namespace UcpAgent.Application.Fulfillment;
 
 /// <summary>
 /// Implementação do serviço de fulfillment.
-/// Persiste via IFulfillmentRepository e publica eventos via IEventPublisher (Kafka).
+/// A camada Application orquestra as transições — não publica eventos diretamente.
+/// A publicação de eventos de domínio fica na Infrastructure (RedisFulfillmentRepository),
+/// seguindo o padrão Ports & Adapters correto.
 ///
 /// TODO futuro:
-/// - Integrar com API de transportadoras para obter código de rastreio real
-/// - Disparar notificações push/email via INotificationPublisher (RabbitMQ)
-/// - Implementar SLA monitoring (alertar se pedido travou em um status por muito tempo)
+/// - Usar IMediator para publicar domain events via MediatR
+/// - Integrar com API de transportadoras para código de rastreio real
+/// - Implementar SLA monitoring
 /// </summary>
 public sealed class FulfillmentService(
-    IFulfillmentRepository repository,
-    IEventPublisher events) : IFulfillmentService
+    IFulfillmentRepository repository) : IFulfillmentService
 {
     public async Task<FulfillmentAggregate> StartAsync(string orderId, CancellationToken ct = default)
     {
@@ -25,14 +23,6 @@ public sealed class FulfillmentService(
 
         var agg = FulfillmentAggregate.Create(orderId);
         await repository.SaveAsync(agg, ct);
-
-        await events.PublishAsync(
-            UcpTopics.FulfillmentStarted,
-            new FulfillmentStatusChangedEvent(
-                orderId, FulfillmentStatus.PaymentConfirmed.ToString(),
-                "Fulfillment iniciado", DateTime.UtcNow),
-            ct);
-
         return agg;
     }
 
@@ -42,17 +32,8 @@ public sealed class FulfillmentService(
         string? location = null, CancellationToken ct = default)
     {
         var agg = await GetOrThrowAsync(orderId, ct);
-
         agg.AdvanceTo(newStatus, description, trackingCode, carrierCode, location);
         await repository.SaveAsync(agg, ct);
-
-        await events.PublishAsync(
-            UcpTopics.FulfillmentStatusChanged,
-            new FulfillmentStatusChangedEvent(
-                orderId, newStatus.ToString(), description, DateTime.UtcNow,
-                trackingCode, carrierCode, location),
-            ct);
-
         return agg;
     }
 
@@ -67,13 +48,6 @@ public sealed class FulfillmentService(
         var agg = await GetOrThrowAsync(orderId, ct);
         agg.Cancel(reason);
         await repository.SaveAsync(agg, ct);
-
-        await events.PublishAsync(
-            UcpTopics.FulfillmentCancelled,
-            new FulfillmentStatusChangedEvent(
-                orderId, FulfillmentStatus.Cancelled.ToString(), reason, DateTime.UtcNow),
-            ct);
-
         return agg;
     }
 
