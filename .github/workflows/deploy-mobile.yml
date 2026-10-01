@@ -1,25 +1,24 @@
-name: Deploy Web
+name: Deploy Mobile
 
 on:
   push:
     branches: [main]
     paths:
-      - 'apps/web/**'
-      - '!apps/web/src/app/mobile/**'
-      - '!apps/web/src/components/mobile/**'
-      - '.github/workflows/deploy-web.yml'
+      - 'apps/web/src/app/mobile/**'
+      - 'apps/web/src/components/mobile/**'
+      - '.github/workflows/deploy-mobile.yml'
   workflow_dispatch:
 
 env:
-  IMAGE: ghcr.io/josehelioaraujo/comprai-web
+  IMAGE:    ghcr.io/josehelioaraujo/comprai-web
   VPS_HOST: 2.25.122.11
   VPS_USER: root
-  WEB_PORT: 3002
-  API_URL: http://2.25.122.11:5020
+  WEB_PORT: 3002          # mesma imagem — rota /mobile já está dentro do build
+  API_URL:  http://2.25.122.11:5020
 
 jobs:
   deploy:
-    name: 🚀 Build & Deploy Web
+    name: 📱 Build & Deploy Mobile
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -47,12 +46,12 @@ jobs:
             pkg.version = '$NEW';
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
           "
-          git config user.name "github-actions[bot]"
+          git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add package.json
-          git commit -m "chore(web): bump version $OLD → $NEW [skip ci]"
+          git commit -m "chore(mobile): bump version $OLD → $NEW [skip ci]"
           git push
-          echo "version=$NEW" >> $GITHUB_OUTPUT
+          echo "version=$NEW"   >> $GITHUB_OUTPUT
           SHORT_SHA=$(git rev-parse --short HEAD)
           echo "sha=$SHORT_SHA" >> $GITHUB_OUTPUT
           echo "Versão: $NEW ($SHORT_SHA)"
@@ -67,11 +66,11 @@ jobs:
       - name: Setup Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build e Push imagem para GHCR
+      - name: Build e Push imagem
         uses: docker/build-push-action@v6
         with:
           context: apps/web
-          file: apps/web/Dockerfile
+          file:    apps/web/Dockerfile
           push: true
           tags: |
             ${{ env.IMAGE }}:latest
@@ -81,14 +80,14 @@ jobs:
             NEXT_PUBLIC_APP_VERSION=${{ steps.version.outputs.version }}
             NEXT_PUBLIC_GIT_SHA=${{ steps.version.outputs.sha }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to:   type=gha,mode=max
 
       - name: Deploy na VPS
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ env.VPS_HOST }}
+          host:     ${{ env.VPS_HOST }}
           username: ${{ env.VPS_USER }}
-          key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          key:      ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
           script: |
             set -e
             echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u josehelioaraujo --password-stdin
@@ -103,10 +102,11 @@ jobs:
               -e NODE_ENV=production \
               ${{ env.IMAGE }}:latest
             sleep 8
-            curl -sf http://localhost:${{ env.WEB_PORT }}/ && echo "✅ ${{ steps.version.outputs.version }} OK" || { docker logs comprai-web --tail 20; exit 1; }
+            curl -sf http://localhost:${{ env.WEB_PORT }}/mobile && echo "✅ /mobile OK" \
+              || { docker logs comprai-web --tail 20; exit 1; }
 
       - name: Summary
         run: |
-          echo "## 🚀 Deploy Web ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **URL:** http://${{ env.VPS_HOST }}:${{ env.WEB_PORT }}" >> $GITHUB_STEP_SUMMARY
+          echo "## 📱 Deploy Mobile ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL:** http://${{ env.VPS_HOST }}:${{ env.WEB_PORT }}/mobile"  >> $GITHUB_STEP_SUMMARY
           echo "- **Version:** ${{ steps.version.outputs.version }} (${{ steps.version.outputs.sha }})" >> $GITHUB_STEP_SUMMARY
