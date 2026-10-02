@@ -58,7 +58,8 @@ function fmtDatetime(iso: string) {
 }
 
 export default function OrderTrackingCard({ order, compact = false }: Props) {
-  const [showHistory, setShowHistory] = useState(false)
+  const [showHistory,  setShowHistory]  = useState(false)
+  const [showTracking, setShowTracking] = useState(false)
 
   const currentStatus = inferFulfillmentStatus(order)
   const currentIndex  = STATUS_INDEX[currentStatus] ?? 0
@@ -128,28 +129,95 @@ export default function OrderTrackingCard({ order, compact = false }: Props) {
         </p>
       </div>
 
-      {/* ── Ações pós-entrega — substitui stepper quando delivered ── */}
+      {/* ── Ações pós-entrega (drilldown) ou Timeline ── */}
       {isDelivered ? (
-        <div className="px-4 py-3 flex gap-2" style={{ borderBottom: '1px solid var(--border)' }}>
-          <button
-            onClick={() => setShowHistory(true)}
-            className="flex-1 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
-            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>
-            📦 Histórico de entrega
-          </button>
-          {order.tracking && (
+        <div className="flex flex-col" style={{ borderBottom: '1px solid var(--border)' }}>
+          {/* Botões toggle */}
+          <div className="px-4 py-3 flex gap-2">
             <button
-              onClick={() => {
-                document.getElementById(`tracking-${order.orderId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-              }}
-              className="flex-1 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
-              style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>
-              🔍 Rastreio
+              onClick={() => setShowHistory(h => !h)}
+              className="flex-1 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all"
+              style={{
+                background: showHistory ? 'rgba(34,197,94,0.12)' : 'var(--surface)',
+                border: `1px solid ${showHistory ? 'rgba(34,197,94,0.4)' : 'var(--border)'}`,
+                color: showHistory ? 'var(--accent)' : 'var(--text)',
+              }}>
+              📦 Histórico de entrega {showHistory ? '▲' : '▼'}
             </button>
+            {order.tracking && (
+              <button
+                onClick={() => setShowTracking(t => !t)}
+                className="flex-1 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all"
+                style={{
+                  background: showTracking ? 'rgba(34,197,94,0.12)' : 'var(--surface)',
+                  border: `1px solid ${showTracking ? 'rgba(34,197,94,0.4)' : 'var(--border)'}`,
+                  color: showTracking ? 'var(--accent)' : 'var(--text)',
+                }}>
+                🔍 Rastreio {showTracking ? '▲' : '▼'}
+              </button>
+            )}
+          </div>
+
+          {/* Painel rastreio — drilldown */}
+          {showTracking && order.tracking && (
+            <div className="px-4 pb-3 flex items-center justify-between"
+              style={{ borderTop: '1px solid var(--border)', paddingTop: '12px' }}>
+              <span className="text-[10px]" style={{ color: 'var(--muted)' }}>Código de rastreio</span>
+              <code className="text-[12px] font-mono font-bold" style={{ color: 'var(--accent)' }}>
+                {order.tracking}
+              </code>
+            </div>
+          )}
+
+          {/* Painel histórico — drilldown */}
+          {showHistory && history.length > 0 && (
+            <div className="px-4 pb-3 flex flex-col gap-2.5"
+              style={{ borderTop: '1px solid var(--border)', paddingTop: '12px' }}>
+              <p className="text-[10px] font-semibold mb-1" style={{ color: 'var(--muted)' }}>
+                Histórico de entrega
+              </p>
+              {[...history].reverse().map((evt, i) => {
+                const step = FULFILLMENT_FLOW.find(s => s.status === evt.status)
+                return (
+                  <div key={i} className="flex gap-3">
+                    <div className="flex flex-col items-center pt-0.5">
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] flex-shrink-0"
+                        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                        {step?.icon ?? '•'}
+                      </div>
+                      {i < history.length - 1 && (
+                        <div className="w-px flex-1 mt-1" style={{ background: 'var(--border)' }} />
+                      )}
+                    </div>
+                    <div className="pb-2">
+                      <p className="text-[11px] font-medium" style={{ color: 'var(--text)' }}>
+                        {step?.label ?? evt.status}
+                      </p>
+                      <p className="text-[10px] mt-0.5" style={{ color: 'var(--muted)' }}>
+                        {evt.description}
+                      </p>
+                      {evt.location && (
+                        <p className="text-[9px] mt-0.5" style={{ color: 'var(--muted)' }}>
+                          📍 {evt.location}
+                        </p>
+                      )}
+                      {evt.trackingCode && (
+                        <p className="text-[9px] mt-0.5 font-mono" style={{ color: 'var(--accent)' }}>
+                          🏷️ {evt.trackingCode}
+                        </p>
+                      )}
+                      <p className="text-[9px] mt-0.5" style={{ color: 'var(--border)' }}>
+                        {fmtDatetime(evt.occurredAt)}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           )}
         </div>
       ) : (
-        /* ── Timeline de fulfillment (só quando não entregue) ── */
+        /* ── Timeline (só quando não entregue) ── */
         <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
           {FULFILLMENT_FLOW.map((step, i) => {
             const done    = i <= currentIndex
@@ -166,11 +234,7 @@ export default function OrderTrackingCard({ order, compact = false }: Props) {
                     ${current ? 'shadow-[0_0_10px_rgba(34,197,94,0.4)]' : ''}
                   `}
                   style={{
-                    background: current
-                      ? 'var(--accent)'
-                      : done
-                        ? 'rgba(34,197,94,0.2)'
-                        : 'var(--surface)',
+                    background: current ? 'var(--accent)' : done ? 'rgba(34,197,94,0.2)' : 'var(--surface)',
                     border: `1px solid ${done ? 'rgba(34,197,94,0.5)' : 'var(--border)'}`,
                   }}>
                     {done ? step.icon : <span className="text-[10px]" style={{ color: 'var(--muted)' }}>○</span>}
@@ -199,7 +263,7 @@ export default function OrderTrackingCard({ order, compact = false }: Props) {
                     )}
                   </div>
                   {evt?.location && (
-                    <p className="text-[9px] mt-0.5" style={{ color: 'var(--muted)' }}>
+                    <p className="text-[9px] mt.0.5" style={{ color: 'var(--muted)' }}>
                       📍 {evt.location}
                     </p>
                   )}
@@ -210,10 +274,9 @@ export default function OrderTrackingCard({ order, compact = false }: Props) {
         </div>
       )}
 
-      {/* ── Código de rastreio ── */}
-      {order.tracking && (
-        <div id={`tracking-${order.orderId}`}
-          className="px-4 py-2.5 flex items-center justify-between"
+      {/* ── Rastreio (quando não entregue) ── */}
+      {!isDelivered && order.tracking && (
+        <div className="px-4 py-2.5 flex items-center justify-between"
           style={{ borderBottom: '1px solid var(--border)', background: 'rgba(34,197,94,0.04)' }}>
           <span className="text-[10px]" style={{ color: 'var(--muted)' }}>Rastreio</span>
           <code className="text-[11px] font-mono font-bold" style={{ color: 'var(--accent)' }}>
@@ -222,33 +285,27 @@ export default function OrderTrackingCard({ order, compact = false }: Props) {
         </div>
       )}
 
-      {/* ── Histórico de entrega ── */}
-      {history.length > 0 && (
+      {/* ── Histórico toggle (quando não entregue) ── */}
+      {!isDelivered && history.length > 0 && (
         <div>
-          {!isDelivered && (
-            <button
-              onClick={() => setShowHistory(h => !h)}
-              className="w-full px-4 py-2.5 flex items-center justify-between text-[11px] transition-colors"
-              style={{
-                color: 'var(--muted)',
-                borderBottom: showHistory ? '1px solid var(--border)' : 'none',
-              }}
-            >
-              <span className="flex items-center gap-1.5">
-                🕐 Histórico de entrega
-                <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold"
-                  style={{ background: 'var(--surface)', color: 'var(--muted)' }}>
-                  {history.length}
-                </span>
+          <button
+            onClick={() => setShowHistory(h => !h)}
+            className="w-full px-4 py-2.5 flex items-center justify-between text-[11px] transition-colors"
+            style={{ color: 'var(--muted)', borderBottom: showHistory ? '1px solid var(--border)' : 'none' }}>
+            <span className="flex items-center gap-1.5">
+              🕐 Histórico de entrega
+              <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold"
+                style={{ background: 'var(--surface)', color: 'var(--muted)' }}>
+                {history.length}
               </span>
-              <span>{showHistory ? '▲' : '▼'}</span>
-            </button>
-          )}
+            </span>
+            <span>{showHistory ? '▲' : '▼'}</span>
+          </button>
 
-          {(showHistory || isDelivered) && (
+          {showHistory && (
             <div className="px-4 py-3 flex flex-col gap-2.5">
               <p className="text-[10px] font-semibold mb-1" style={{ color: 'var(--muted)' }}>
-                HISTÓRICO COMPLETO DE FULFILLMENT
+                Histórico de entrega
               </p>
               {[...history].reverse().map((evt, i) => {
                 const step = FULFILLMENT_FLOW.find(s => s.status === evt.status)

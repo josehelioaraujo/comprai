@@ -23,15 +23,20 @@ export default function MobilePage() {
   function openCart() { handleViewCart() }
 
   function scrollToBottom() {
-    chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: 'smooth' })
+    setTimeout(() => {
+      chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: 'smooth' })
+    }, 80)
+  }
+
+  function handleViewOrdersAndScroll() {
+    handleViewOrders()
+    scrollToBottom()
   }
 
   return (
     <MobileChatShell>
-      {/* Header fixo no topo — logo + versão */}
       <MobileUcpHeader version={VERSION} />
 
-      {/* Área de mensagens — cresce e scrollável */}
       <MobileChatWindow
         ref={chatRef}
         messages={messages}
@@ -43,22 +48,20 @@ export default function MobilePage() {
         onQuantityChange={handleQuantityChange}
       />
 
-      {/* Stepper de progresso — fixo acima do footer */}
       <MobileUcpProgressBar
         step={session.step}
         cartCount={cartCount}
         onCartClick={openCart}
-        onOrderClick={() => { handleViewOrders(); scrollToBottom() }}
+        onOrderClick={handleViewOrdersAndScroll}
       />
 
-      {/* Footer com input e atalhos */}
       <MobileChatFooter
         onSend={sendMessage}
         disabled={isTyping}
         cartCount={cartCount}
         onViewCart={openCart}
         step={session.step}
-        onViewOrders={() => { handleViewOrders(); scrollToBottom() }}
+        onViewOrders={handleViewOrdersAndScroll}
         hasPreviousOrder={hasPreviousOrder}
         onRestorePreviousOrder={handleRestorePreviousOrder}
       />

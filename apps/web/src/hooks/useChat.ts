@@ -131,7 +131,7 @@ export function useChat() {
   const startFulfillmentSimulation = useCallback((orderId: string, orderTotal: number) => {
     const history: FulfillmentEvent[] = [{
       status: 'payment_confirmed',
-      description: 'Pagamento confirmado — iniciando fulfillment',
+      description: 'Pagamento confirmado — seu pedido está sendo preparado',
       occurredAt: new Date().toISOString(),
     }]
     fulfillmentHistoryRef.current[orderId] = history
@@ -336,7 +336,7 @@ export function useChat() {
 
     const initialHistory: FulfillmentEvent[] = [{
       status: 'payment_confirmed',
-      description: 'Pagamento confirmado — iniciando fulfillment',
+      description: 'Pagamento confirmado — seu pedido está sendo preparado',
       occurredAt: new Date().toISOString(),
     }]
 
