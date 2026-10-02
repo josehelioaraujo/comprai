@@ -50,7 +50,6 @@ function fCPF(v: string) {
 
 function fCEP(v: string) {
   const d = v.replace(/\D/g, '').slice(0, 8)
-  // Aplica máscara XXXXX-XXX
   if (d.length <= 5) return d
   return `${d.slice(0, 5)}-${d.slice(5)}`
 }
@@ -210,11 +209,11 @@ export default function CartCard({ cart, onCheckout, onQuantityChange }: Props) 
               value={customer.document} onChange={e => setField('document', fCPF(e.target.value))} />
           </div>
 
-          {/* CEP — linha própria com label */}
+          {/* CEP — flex-[3] para caber XXXXX-XXX confortavelmente */}
           <div className="flex flex-col gap-0.5">
             <label className="text-[9px] uppercase tracking-wider" style={{ color: 'var(--muted)' }}>CEP *</label>
             <div className="flex gap-2 items-center">
-              <div className="flex-[2] relative">
+              <div className="flex-[3] min-w-[120px] relative">
                 <input
                   className="input-field text-xs py-1.5 w-full"
                   placeholder="00000-000"
@@ -230,7 +229,7 @@ export default function CartCard({ cart, onCheckout, onQuantityChange }: Props) 
                   </span>
                 )}
               </div>
-              <select className="input-field text-xs py-1.5 w-16" autoComplete="address-level1"
+              <select className="input-field text-xs py-1.5 w-16 flex-shrink-0" autoComplete="address-level1"
                 value={customer.state} onChange={e => setField('state', e.target.value)}>
                 <option value="">UF *</option>
                 {UF_LIST.map(u => <option key={u} value={u}>{u}</option>)}
@@ -245,7 +244,7 @@ export default function CartCard({ cart, onCheckout, onQuantityChange }: Props) 
           <input className="input-field text-xs py-1.5 w-28" placeholder="Número *" autoComplete="off"
             value={customer.number} onChange={e => setField('number', e.target.value)} />
 
-          {/* Complemento — linha própria com hint */}
+          {/* Complemento */}
           <div className="flex flex-col gap-0.5">
             <input
               className="input-field text-xs py-1.5"

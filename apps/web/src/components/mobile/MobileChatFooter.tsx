@@ -10,6 +10,8 @@ interface Props {
   cartCount?: number
   onViewCart?: () => void
   step?: UcpStep
+  hasPreviousOrder?: boolean
+  onRestorePreviousOrder?: () => void
 }
 
 const SUGGESTIONS_BY_STEP: Partial<Record<UcpStep | 'idle', { label: string; msg: string | null; action?: 'viewOrders' }[]>> = {
@@ -24,7 +26,10 @@ const SUGGESTIONS_BY_STEP: Partial<Record<UcpStep | 'idle', { label: string; msg
   ],
 }
 
-export default function MobileChatFooter({ onSend, onViewOrders, disabled, cartCount = 0, onViewCart, step = 'idle' }: Props) {
+export default function MobileChatFooter({
+  onSend, onViewOrders, disabled, cartCount = 0, onViewCart,
+  step = 'idle', hasPreviousOrder = false, onRestorePreviousOrder,
+}: Props) {
   const [text, setText] = useState('')
   const textareaRef     = useRef<HTMLTextAreaElement>(null)
 
@@ -57,6 +62,18 @@ export default function MobileChatFooter({ onSend, onViewOrders, disabled, cartC
 
   return (
     <footer className="w-full bg-zinc-950/90 backdrop-blur-lg border-t border-zinc-900 px-3 pt-2 pb-3 flex flex-col gap-2 shrink-0">
+      {/* Botão "Ver pedido anterior" — aparece só ao reabrir com pedido salvo */}
+      {hasPreviousOrder && step === 'idle' && onRestorePreviousOrder && (
+        <button
+          onClick={onRestorePreviousOrder}
+          disabled={disabled}
+          className="w-full py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border transition-all duration-150 active:scale-[0.98] disabled:opacity-40"
+          style={{ background: 'rgba(34,197,94,0.08)', borderColor: 'rgba(34,197,94,0.3)', color: 'var(--accent, #10b981)' }}
+        >
+          📦 Ver pedido anterior
+        </button>
+      )}
+
       {suggestions.length > 0 && (
         <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
           {suggestions.map(s => (
@@ -71,27 +88,28 @@ export default function MobileChatFooter({ onSend, onViewOrders, disabled, cartC
         <textarea ref={textareaRef} value={text} onChange={e => setText(e.target.value)}
           onKeyDown={handleKey} disabled={disabled} rows={1}
           placeholder="O que você quer comprar?"
-          className="flex-1 resize-none bg-zinc-900 border border-zinc-800 text-zinc-100 placeholder-zinc-600 rounded-2xl px-3.5 py-2 text-[13px] leading-snug focus:outline-none focus:border-zinc-600 transition-colors duration-150 scrollbar-none disabled:opacity-50"
-          style={{ minHeight: '38px', maxHeight: '96px' }}
-          onInput={e => { const el = e.currentTarget; el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 96) + 'px' }}
+          className="flex-1 resize-none bg-zinc-900 border border-zinc-800 text-zinc-100 placeholder-zinc-600 rounded-2xl px-4 py-2.5 text-sm leading-snug focus:outline-none focus:border-emerald-700 transition-colors duration-150 max-h-28 scrollbar-none disabled:opacity-50"
+          style={{ minHeight: '42px' }}
+          onInput={e => {
+            const el = e.currentTarget
+            el.style.height = 'auto'
+            el.style.height = Math.min(el.scrollHeight, 112) + 'px'
+          }}
         />
+
         {cartCount > 0 && onViewCart && (
-          <button onClick={onViewCart} className="relative w-9 h-9 rounded-full shrink-0 bg-zinc-900 border border-zinc-700 flex items-center justify-center transition-colors hover:border-emerald-600">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="w-4 h-4 text-zinc-300">
-              <path d="M1 1h2l1.5 7h7l1.5-5H4" />
-              <circle cx="6.5" cy="13" r="1" fill="currentColor" stroke="none" />
-              <circle cx="11" cy="13" r="1" fill="currentColor" stroke="none" />
-            </svg>
-            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-black text-[8px] font-bold flex items-center justify-center">
+          <button onClick={onViewCart}
+            className="relative w-10 h-10 rounded-full bg-zinc-900 border border-zinc-700 flex items-center justify-center text-zinc-300 text-base hover:border-emerald-600 hover:text-emerald-400 transition-colors duration-150 shrink-0">
+            🛒
+            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-black text-[9px] font-bold flex items-center justify-center">
               {cartCount > 9 ? '9+' : cartCount}
             </span>
           </button>
         )}
+
         <button onClick={handleSend} disabled={disabled || !text.trim()}
-          className="w-9 h-9 rounded-full shrink-0 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-150 active:scale-95">
-          <svg viewBox="0 0 16 16" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
-            <path d="M8 13V3M3 8l5-5 5 5" />
-          </svg>
+          className="w-10 h-10 rounded-full shrink-0 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center text-white text-base transition-all duration-150 active:scale-95 shadow-md shadow-emerald-900/30">
+          ↑
         </button>
       </div>
     </footer>

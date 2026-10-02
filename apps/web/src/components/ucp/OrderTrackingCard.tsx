@@ -8,8 +8,6 @@ interface Props {
   compact?: boolean
 }
 
-// ── Mapeamento de status do fulfillment ───────────────────────────────────────
-
 const FULFILLMENT_FLOW: {
   status: FulfillmentStatus
   label: string
@@ -36,7 +34,6 @@ const STATUS_INDEX: Record<FulfillmentStatus, number> = {
   cancelled:         -1,
 }
 
-// Mapeia orderStatus → fulfillmentStatus quando não há fulfillmentStatus
 function inferFulfillmentStatus(order: Order): FulfillmentStatus {
   if (order.fulfillmentStatus) return order.fulfillmentStatus
   const map: Partial<Record<string, FulfillmentStatus>> = {
@@ -60,14 +57,13 @@ function fmtDatetime(iso: string) {
   })
 }
 
-// ── Componente principal ──────────────────────────────────────────────────────
-
 export default function OrderTrackingCard({ order, compact = false }: Props) {
   const [showHistory, setShowHistory] = useState(false)
 
   const currentStatus = inferFulfillmentStatus(order)
   const currentIndex  = STATUS_INDEX[currentStatus] ?? 0
   const history       = order.fulfillmentHistory ?? []
+  const isDelivered   = currentStatus === 'delivered'
 
   if (order.status === 'cancelled') {
     return (
@@ -98,6 +94,22 @@ export default function OrderTrackingCard({ order, compact = false }: Props) {
   return (
     <div className="mt-2 rounded-xl overflow-hidden" style={{ background: 'var(--panel)', border: '1px solid var(--border)' }}>
 
+      {/* ── Banner pós-entrega ── */}
+      {isDelivered && (
+        <div className="px-4 py-3 flex items-center gap-3"
+          style={{ background: 'rgba(34,197,94,0.08)', borderBottom: '1px solid rgba(34,197,94,0.2)' }}>
+          <span className="text-2xl">🎉</span>
+          <div>
+            <p className="text-sm font-bold" style={{ color: 'var(--accent)' }}>
+              Seu pedido foi entregue!
+            </p>
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--muted)' }}>
+              Esperamos que você aproveite sua compra.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ── Header ── */}
       <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
         <div className="flex items-center justify-between">
@@ -116,75 +128,92 @@ export default function OrderTrackingCard({ order, compact = false }: Props) {
         </p>
       </div>
 
-      {/* ── Timeline de fulfillment ── */}
-      <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
-        {FULFILLMENT_FLOW.map((step, i) => {
-          const done    = i <= currentIndex
-          const current = i === currentIndex
-          const isLast  = i === FULFILLMENT_FLOW.length - 1
-          // Busca evento correspondente no histórico
-          const evt = history.find(h => h.status === step.status)
+      {/* ── Ações pós-entrega — substitui stepper quando delivered ── */}
+      {isDelivered ? (
+        <div className="px-4 py-3 flex gap-2" style={{ borderBottom: '1px solid var(--border)' }}>
+          <button
+            onClick={() => setShowHistory(true)}
+            className="flex-1 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+            📦 Histórico de entrega
+          </button>
+          {order.tracking && (
+            <button
+              onClick={() => {
+                document.getElementById(`tracking-${order.orderId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+              }}
+              className="flex-1 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+              style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+              🔍 Rastreio
+            </button>
+          )}
+        </div>
+      ) : (
+        /* ── Timeline de fulfillment (só quando não entregue) ── */
+        <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
+          {FULFILLMENT_FLOW.map((step, i) => {
+            const done    = i <= currentIndex
+            const current = i === currentIndex
+            const isLast  = i === FULFILLMENT_FLOW.length - 1
+            const evt = history.find(h => h.status === step.status)
 
-          return (
-            <div key={step.status} className="flex gap-3">
-              {/* Coluna esquerda: ícone + linha */}
-              <div className="flex flex-col items-center">
-                <div className={`
-                  w-7 h-7 rounded-full flex items-center justify-center text-sm flex-shrink-0
-                  transition-all duration-500
-                  ${current
-                    ? 'shadow-[0_0_10px_rgba(34,197,94,0.4)]'
-                    : ''}
-                `}
-                style={{
-                  background: current
-                    ? 'var(--accent)'
-                    : done
-                      ? 'rgba(34,197,94,0.2)'
-                      : 'var(--surface)',
-                  border: `1px solid ${done ? 'rgba(34,197,94,0.5)' : 'var(--border)'}`,
-                }}>
-                  {done ? step.icon : <span className="text-[10px]" style={{ color: 'var(--muted)' }}>○</span>}
-                </div>
-                {!isLast && (
-                  <div className="w-px h-5 mt-0.5 transition-all duration-500"
-                    style={{ background: done && i < currentIndex ? 'rgba(34,197,94,0.4)' : 'var(--border)' }} />
-                )}
-              </div>
-
-              {/* Coluna direita: label + timestamp */}
-              <div className="pb-3 pt-1 flex-1">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-medium transition-colors duration-300"
-                    style={{ color: current ? 'var(--accent)' : done ? 'var(--text)' : 'var(--muted)' }}>
-                    {step.label}
-                    {current && (
-                      <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px]" style={{ color: 'var(--accent)' }}>
-                        <span className="w-1 h-1 rounded-full animate-pulse inline-block" style={{ background: 'var(--accent)' }} />
-                        agora
-                      </span>
-                    )}
-                  </p>
-                  {evt && (
-                    <span className="text-[9px]" style={{ color: 'var(--muted)' }}>
-                      {fmtDatetime(evt.occurredAt)}
-                    </span>
+            return (
+              <div key={step.status} className="flex gap-3">
+                <div className="flex flex-col items-center">
+                  <div className={`
+                    w-7 h-7 rounded-full flex items-center justify-center text-sm flex-shrink-0
+                    transition-all duration-500
+                    ${current ? 'shadow-[0_0_10px_rgba(34,197,94,0.4)]' : ''}
+                  `}
+                  style={{
+                    background: current
+                      ? 'var(--accent)'
+                      : done
+                        ? 'rgba(34,197,94,0.2)'
+                        : 'var(--surface)',
+                    border: `1px solid ${done ? 'rgba(34,197,94,0.5)' : 'var(--border)'}`,
+                  }}>
+                    {done ? step.icon : <span className="text-[10px]" style={{ color: 'var(--muted)' }}>○</span>}
+                  </div>
+                  {!isLast && (
+                    <div className="w-px h-5 mt-0.5 transition-all duration-500"
+                      style={{ background: done && i < currentIndex ? 'rgba(34,197,94,0.4)' : 'var(--border)' }} />
                   )}
                 </div>
-                {evt?.location && (
-                  <p className="text-[9px] mt-0.5" style={{ color: 'var(--muted)' }}>
-                    📍 {evt.location}
-                  </p>
-                )}
+                <div className="pb-3 pt-1 flex-1">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-medium transition-colors duration-300"
+                      style={{ color: current ? 'var(--accent)' : done ? 'var(--text)' : 'var(--muted)' }}>
+                      {step.label}
+                      {current && (
+                        <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px]" style={{ color: 'var(--accent)' }}>
+                          <span className="w-1 h-1 rounded-full animate-pulse inline-block" style={{ background: 'var(--accent)' }} />
+                          agora
+                        </span>
+                      )}
+                    </p>
+                    {evt && (
+                      <span className="text-[9px]" style={{ color: 'var(--muted)' }}>
+                        {fmtDatetime(evt.occurredAt)}
+                      </span>
+                    )}
+                  </div>
+                  {evt?.location && (
+                    <p className="text-[9px] mt-0.5" style={{ color: 'var(--muted)' }}>
+                      📍 {evt.location}
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
-          )
-        })}
-      </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* ── Código de rastreio ── */}
       {order.tracking && (
-        <div className="px-4 py-2.5 flex items-center justify-between"
+        <div id={`tracking-${order.orderId}`}
+          className="px-4 py-2.5 flex items-center justify-between"
           style={{ borderBottom: '1px solid var(--border)', background: 'rgba(34,197,94,0.04)' }}>
           <span className="text-[10px]" style={{ color: 'var(--muted)' }}>Rastreio</span>
           <code className="text-[11px] font-mono font-bold" style={{ color: 'var(--accent)' }}>
@@ -193,29 +222,30 @@ export default function OrderTrackingCard({ order, compact = false }: Props) {
         </div>
       )}
 
-      {/* ── Botão histórico ── */}
+      {/* ── Histórico de entrega ── */}
       {history.length > 0 && (
         <div>
-          <button
-            onClick={() => setShowHistory(h => !h)}
-            className="w-full px-4 py-2.5 flex items-center justify-between text-[11px] transition-colors"
-            style={{
-              color: 'var(--muted)',
-              borderBottom: showHistory ? '1px solid var(--border)' : 'none',
-            }}
-          >
-            <span className="flex items-center gap-1.5">
-              🕐 Histórico de entrega
-              <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold"
-                style={{ background: 'var(--surface)', color: 'var(--muted)' }}>
-                {history.length}
+          {!isDelivered && (
+            <button
+              onClick={() => setShowHistory(h => !h)}
+              className="w-full px-4 py-2.5 flex items-center justify-between text-[11px] transition-colors"
+              style={{
+                color: 'var(--muted)',
+                borderBottom: showHistory ? '1px solid var(--border)' : 'none',
+              }}
+            >
+              <span className="flex items-center gap-1.5">
+                🕐 Histórico de entrega
+                <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold"
+                  style={{ background: 'var(--surface)', color: 'var(--muted)' }}>
+                  {history.length}
+                </span>
               </span>
-            </span>
-            <span>{showHistory ? '▲' : '▼'}</span>
-          </button>
+              <span>{showHistory ? '▲' : '▼'}</span>
+            </button>
+          )}
 
-          {/* ── Painel de histórico ── */}
-          {showHistory && (
+          {(showHistory || isDelivered) && (
             <div className="px-4 py-3 flex flex-col gap-2.5">
               <p className="text-[10px] font-semibold mb-1" style={{ color: 'var(--muted)' }}>
                 HISTÓRICO COMPLETO DE FULFILLMENT

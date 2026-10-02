@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { getSessionId } from '@/lib/session'
 import { newIdempotencyKey, getIdempotencyKey, cartAddKey, checkoutKey, paymentKey } from '@/lib/idempotency'
 import { postIntent, addToCart, getCart, createCheckout, createPayment } from '@/lib/api'
@@ -22,7 +22,6 @@ export function calcShipping(subtotal: number, method: 'standard' | 'express'): 
   return method === 'express' ? EXPRESS_COST : STANDARD_COST
 }
 
-// Flag controlada por variável de ambiente — false desativa os timeouts de simulação
 const FULFILLMENT_SIMULATION = process.env.NEXT_PUBLIC_FULFILLMENT_SIMULATION !== 'false'
 
 const FULFILLMENT_PIPELINE: { status: FulfillmentStatus; description: string; delay: number; location?: string }[] = [
@@ -33,6 +32,10 @@ const FULFILLMENT_PIPELINE: { status: FulfillmentStatus; description: string; de
   { status: 'out_for_delivery',  description: 'Saiu para entrega',                        delay: 6000  },
   { status: 'delivered',         description: 'Entregue ao destinatário',                 delay: 5000  },
 ]
+
+// ── Chaves de persistência localStorage ──────────────────────────────────────
+const LS_ORDER_KEY   = 'comprai_last_order_id'
+const LS_SESSION_KEY = 'comprai_last_session_id'
 
 const INITIAL_SESSION: SessionState = {
   sessionId: '', step: 'idle', cart: null, currentOrder: null,
@@ -49,10 +52,23 @@ export function useChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME])
   const [session, setSession]   = useState<SessionState>(INITIAL_SESSION)
   const [isTyping, setIsTyping] = useState(false)
+  // Flag: exibe botão "Ver pedido anterior" enquanto não há pedido ativo
+  const [hasPreviousOrder, setHasPreviousOrder] = useState(false)
   const sessionRef              = useRef<string>('')
   const fulfillmentHistoryRef   = useRef<Record<string, FulfillmentEvent[]>>({})
-  const addingProductsRef        = useRef<Set<string>>(new Set())
-  const confirmedTotalRef        = useRef<number>(0)
+  const addingProductsRef       = useRef<Set<string>>(new Set())
+  const confirmedTotalRef       = useRef<number>(0)
+
+  // ── Detecta pedido anterior no localStorage ──────────────────────────────
+  useEffect(() => {
+    try {
+      const savedOrderId   = localStorage.getItem(LS_ORDER_KEY)
+      const savedSessionId = localStorage.getItem(LS_SESSION_KEY)
+      if (savedOrderId && savedSessionId) {
+        setHasPreviousOrder(true)
+      }
+    } catch { /* SSR / privado */ }
+  }, [])
 
   const getOrCreateSession = useCallback((): string => {
     if (!sessionRef.current) {
@@ -190,7 +206,6 @@ export function useChat() {
   }, [getOrCreateSession, pushMessage, upsertBotMessage, advanceStep])
 
   const handleAddToCart = useCallback(async (product: Product) => {
-    // Guard: ignora chamada duplicada para o mesmo produto enquanto está sendo processado
     if (addingProductsRef.current.has(product.id)) return
     addingProductsRef.current.add(product.id)
 
@@ -204,7 +219,6 @@ export function useChat() {
       setSession(s => ({ ...s, cart, step: 'search' }))
       const count = cart.items.reduce((s, i) => s + i.quantity, 0)
 
-      // UPSERT — evita duplicar a mensagem de confirmação de adição
       upsertBotMessage({
         role: 'bot',
         text: `✅ **${product.title}** adicionado! ${count} ${count === 1 ? 'item' : 'itens'} no carrinho.`,
@@ -313,6 +327,13 @@ export function useChat() {
         : null,
     }))
 
+    // Persiste no localStorage para "Ver pedido anterior"
+    try {
+      localStorage.setItem(LS_ORDER_KEY,   orderId)
+      localStorage.setItem(LS_SESSION_KEY, sessionRef.current)
+      setHasPreviousOrder(false) // pedido atual ativo — esconde botão
+    } catch { }
+
     const initialHistory: FulfillmentEvent[] = [{
       status: 'payment_confirmed',
       description: 'Pagamento confirmado — iniciando fulfillment',
@@ -340,12 +361,13 @@ export function useChat() {
     startFulfillmentSimulation(orderId, orderTotal)
   }, [pushMessage, advanceStep, session.confirmedTotal, startFulfillmentSimulation])
 
-
-  // Exibe o OrderTrackingCard já existente na conversa (sem chamar backend)
+  // Exibe o OrderTrackingCard — busca em todas as mensagens (não só na última)
   const handleViewOrders = useCallback(() => {
+    // Busca a última mensagem order_status de qualquer posição
     const orderMsg = [...messages].reverse().find(
       m => m.role === 'bot' && m.intent === 'order_status' && m.data?.type === 'order'
     )
+
     if (orderMsg) {
       // Força re-render da mensagem para garantir visibilidade
       setMessages(prev => prev.map(m =>
@@ -353,9 +375,69 @@ export function useChat() {
       ))
       advanceStep('order')
     } else {
-      pushMessage({ role: 'bot', text: 'Nenhum pedido encontrado nesta sessão. Faça uma compra para acompanhar!' })
+      // Tenta restaurar do localStorage se sessão anterior existir
+      try {
+        const savedOrderId   = localStorage.getItem(LS_ORDER_KEY)
+        const savedSessionId = localStorage.getItem(LS_SESSION_KEY)
+        if (savedOrderId && savedSessionId) {
+          // Reconstrói uma mensagem sintética com o orderId salvo
+          pushMessage({
+            role: 'bot',
+            text: `📦 Pedido anterior: **#${savedOrderId}**. Para detalhes completos, reinicie a sessão e consulte o pedido.`,
+            intent: 'order_status',
+            data: {
+              type: 'order',
+              order: {
+                orderId:    savedOrderId,
+                sessionId:  savedSessionId,
+                status:     'delivered',
+                fulfillmentStatus: 'delivered',
+                items:      [],
+                total:      0,
+                createdAt:  new Date().toISOString(),
+                fulfillmentHistory: [],
+              }
+            },
+          })
+          advanceStep('order')
+        } else {
+          pushMessage({ role: 'bot', text: 'Nenhum pedido encontrado nesta sessão. Faça uma compra para acompanhar!' })
+        }
+      } catch {
+        pushMessage({ role: 'bot', text: 'Nenhum pedido encontrado nesta sessão. Faça uma compra para acompanhar!' })
+      }
     }
   }, [messages, advanceStep, pushMessage])
+
+  // "Ver pedido anterior" — restaura do localStorage ao reabrir
+  const handleRestorePreviousOrder = useCallback(() => {
+    try {
+      const savedOrderId   = localStorage.getItem(LS_ORDER_KEY)
+      const savedSessionId = localStorage.getItem(LS_SESSION_KEY)
+      if (!savedOrderId || !savedSessionId) return
+
+      setHasPreviousOrder(false)
+      pushMessage({
+        role: 'bot',
+        text: `📦 Seu pedido anterior **#${savedOrderId}** foi localizado.`,
+        intent: 'order_status',
+        data: {
+          type: 'order',
+          order: {
+            orderId:    savedOrderId,
+            sessionId:  savedSessionId,
+            status:     'delivered',
+            fulfillmentStatus: 'delivered',
+            items:      [],
+            total:      0,
+            createdAt:  new Date().toISOString(),
+            fulfillmentHistory: [],
+          }
+        },
+      })
+      advanceStep('order')
+    } catch { }
+  }, [pushMessage, advanceStep])
 
   const handleQuantityChange = useCallback((productId: string, qty: number) => {
     setSession(s => {
@@ -369,8 +451,9 @@ export function useChat() {
   }, [])
 
   return {
-    messages, session, cartCount, isTyping, sendMessage,
+    messages, session, cartCount, isTyping, hasPreviousOrder, sendMessage,
     handleAddToCart, handleViewCart, handleViewOrders, handleCheckout,
     handlePayment, handlePaymentConfirmed, handleQuantityChange,
+    handleRestorePreviousOrder,
   }
 }

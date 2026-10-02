@@ -12,9 +12,10 @@ const VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? '1.0.0'
 
 export default function MobilePage() {
   const {
-    messages, session, cartCount, isTyping,
+    messages, session, cartCount, isTyping, hasPreviousOrder,
     sendMessage, handleAddToCart, handleViewCart, handleViewOrders,
     handleCheckout, handlePayment, handlePaymentConfirmed, handleQuantityChange,
+    handleRestorePreviousOrder,
   } = useChat()
 
   const chatRef = useRef<HTMLDivElement>(null)
@@ -58,6 +59,8 @@ export default function MobilePage() {
         onViewCart={openCart}
         step={session.step}
         onViewOrders={() => { handleViewOrders(); scrollToBottom() }}
+        hasPreviousOrder={hasPreviousOrder}
+        onRestorePreviousOrder={handleRestorePreviousOrder}
       />
     </MobileChatShell>
   )
