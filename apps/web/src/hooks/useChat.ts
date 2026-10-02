@@ -34,8 +34,10 @@ const FULFILLMENT_PIPELINE: { status: FulfillmentStatus; description: string; de
 ]
 
 // ── Chaves de persistência localStorage ──────────────────────────────────────
-const LS_ORDER_KEY   = 'comprai_last_order_id'
-const LS_SESSION_KEY = 'comprai_last_session_id'
+const LS_ORDER_KEY       = 'comprai_last_order_id'
+const LS_SESSION_KEY     = 'comprai_last_session_id'
+const LS_FULFILLMENT_KEY = 'comprai_last_fulfillment'
+const LS_TRACKING_KEY    = 'comprai_last_tracking'
 
 const INITIAL_SESSION: SessionState = {
   sessionId: '', step: 'idle', cart: null, currentOrder: null,
@@ -153,6 +155,12 @@ export function useChat() {
         }
         histCopy.push(newEvent)
         fulfillmentHistoryRef.current[orderId] = [...histCopy]
+        // Persiste no localStorage a cada etapa — restaurável na próxima sessão
+        try { localStorage.setItem(LS_FULFILLMENT_KEY, JSON.stringify([...histCopy])) } catch { }
+        // Salva tracking code quando disponível
+        if (newEvent.trackingCode) {
+          try { localStorage.setItem(LS_TRACKING_KEY, newEvent.trackingCode) } catch { }
+        }
 
         const orderStatusMap: Partial<Record<FulfillmentStatus, Order['status']>> = {
           preparing:         'preparing',
@@ -332,6 +340,7 @@ export function useChat() {
       localStorage.setItem(LS_ORDER_KEY,   orderId)
       localStorage.setItem(LS_SESSION_KEY, sessionRef.current)
       setHasPreviousOrder(false) // pedido atual ativo — esconde botão
+      // TODO V_DB_COMPRAI: migrar para PostgreSQL — fulfillment_event + order_history
     } catch { }
 
     const initialHistory: FulfillmentEvent[] = [{
@@ -416,6 +425,10 @@ export function useChat() {
       const savedSessionId = localStorage.getItem(LS_SESSION_KEY)
       if (!savedOrderId || !savedSessionId) return
 
+      const savedFulfillment = localStorage.getItem(LS_FULFILLMENT_KEY)
+      const savedTracking    = localStorage.getItem(LS_TRACKING_KEY)
+      const fulfillmentHistory = savedFulfillment ? JSON.parse(savedFulfillment) : []
+
       setHasPreviousOrder(false)
       pushMessage({
         role: 'bot',
@@ -430,8 +443,9 @@ export function useChat() {
             fulfillmentStatus: 'delivered',
             items:      [],
             total:      0,
+            tracking:   savedTracking ?? undefined,
             createdAt:  new Date().toISOString(),
-            fulfillmentHistory: [],
+            fulfillmentHistory,
           }
         },
       })

@@ -70,7 +70,7 @@ export default function MobileChatFooter({
           className="w-full py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border transition-all duration-150 active:scale-[0.98] disabled:opacity-40"
           style={{ background: 'rgba(34,197,94,0.08)', borderColor: 'rgba(34,197,94,0.3)', color: 'var(--accent, #10b981)' }}
         >
-          📦 Ver pedido anterior
+          📦 Meus pedidos
         </button>
       )}
 
