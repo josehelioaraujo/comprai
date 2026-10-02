@@ -101,12 +101,12 @@ public sealed class FulfillmentAggregateTests
     public void AdvanceTo_AfterDelivered_Throws()
     {
         var agg = FulfillmentAggregate.Create("order-007");
-        agg.AdvanceTo(FulfillmentStatus.Preparing,        "Picking");
-        agg.AdvanceTo(FulfillmentStatus.ReadyToShip,      "Embalado");
-        agg.AdvanceTo(FulfillmentStatus.HandedToCarrier,  "Coletado");
-        agg.AdvanceTo(FulfillmentStatus.InTransit,        "Trânsito");
-        agg.AdvanceTo(FulfillmentStatus.OutForDelivery,   "Saiu");
-        agg.AdvanceTo(FulfillmentStatus.Delivered,        "Entregue");
+        agg.AdvanceTo(FulfillmentStatus.Preparing,       "Picking");
+        agg.AdvanceTo(FulfillmentStatus.ReadyToShip,     "Embalado");
+        agg.AdvanceTo(FulfillmentStatus.HandedToCarrier, "Coletado");
+        agg.AdvanceTo(FulfillmentStatus.InTransit,       "Trânsito");
+        agg.AdvanceTo(FulfillmentStatus.OutForDelivery,  "Saiu");
+        agg.AdvanceTo(FulfillmentStatus.Delivered,       "Entregue");
 
         var act = () => agg.AdvanceTo(FulfillmentStatus.Preparing, "Após entrega");
 
@@ -144,7 +144,25 @@ public sealed class FulfillmentAggregateTests
         var agg = FulfillmentAggregate.Create("order-010");
         agg.Cancel("Primeiro cancelamento");
 
+        // Cancel() agora tem guard de estado final — deve lançar exception
         var act = () => agg.Cancel("Segundo cancelamento");
+
+        act.Should().Throw<InvalidOperationException>()
+           .WithMessage("*estado final*");
+    }
+
+    [Fact]
+    public void Cancel_AfterDelivered_Throws()
+    {
+        var agg = FulfillmentAggregate.Create("order-010b");
+        agg.AdvanceTo(FulfillmentStatus.Preparing,       "Picking");
+        agg.AdvanceTo(FulfillmentStatus.ReadyToShip,     "Embalado");
+        agg.AdvanceTo(FulfillmentStatus.HandedToCarrier, "Coletado");
+        agg.AdvanceTo(FulfillmentStatus.InTransit,       "Trânsito");
+        agg.AdvanceTo(FulfillmentStatus.OutForDelivery,  "Saiu");
+        agg.AdvanceTo(FulfillmentStatus.Delivered,       "Entregue");
+
+        var act = () => agg.Cancel("Cancelar após entrega");
 
         act.Should().Throw<InvalidOperationException>()
            .WithMessage("*estado final*");
@@ -173,7 +191,7 @@ public sealed class FulfillmentAggregateTests
     {
         var history = new List<FulfillmentEvent>
         {
-            new("order-012", FulfillmentStatus.PaymentConfirmed, "Pago",    DateTime.UtcNow.AddMinutes(-5)),
+            new("order-012", FulfillmentStatus.PaymentConfirmed, "Pago",     DateTime.UtcNow.AddMinutes(-5)),
             new("order-012", FulfillmentStatus.HandedToCarrier,  "Coletado", DateTime.UtcNow.AddMinutes(-1),
                 TrackingCode: "BR999888777BR"),
         };
@@ -190,18 +208,16 @@ public sealed class FulfillmentAggregateTests
         var t1 = DateTime.UtcNow.AddMinutes(-5);
         var history = new List<FulfillmentEvent>
         {
-            // Intencionalmente fora de ordem
-            new("order-013", FulfillmentStatus.Preparing,        "Picking",  t1),
-            new("order-013", FulfillmentStatus.PaymentConfirmed, "Pago",     t0),
+            new("order-013", FulfillmentStatus.Preparing,        "Picking", t1),
+            new("order-013", FulfillmentStatus.PaymentConfirmed, "Pago",    t0),
         };
 
         var agg = FulfillmentAggregate.Reconstitute("order-013", history);
 
-        // Deve aplicar PaymentConfirmed antes de Preparing
         agg.CurrentStatus.Should().Be(FulfillmentStatus.Preparing);
     }
 
-    // ── Append-only: histórico nunca muda ─────────────────────────────────────
+    // ── Append-only ───────────────────────────────────────────────────────────
 
     [Fact]
     public void Events_AreReadOnly_CannotBeModifiedExternally()
