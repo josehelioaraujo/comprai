@@ -109,30 +109,36 @@ jobs:
           dotnet restore tests/UcpAgent.Application.Tests/UcpAgent.Application.Tests.csproj
           dotnet restore tests/UcpAgent.Catalog.MercadoLivre.Tests/UcpAgent.Catalog.MercadoLivre.Tests.csproj
 
-      - name: Run Unit Tests com cobertura
+      - name: Run Domain Tests
         run: |
           mkdir -p ./test-results/unit
-
           dotnet test tests/UcpAgent.Domain.Tests/UcpAgent.Domain.Tests.csproj \
             --configuration Release \
             --logger "trx;LogFileName=unit-domain.trx" \
             --results-directory ./test-results/unit \
             --settings coverlet.runsettings \
-            --collect:"XPlat Code Coverage"
+            --collect:"XPlat Code Coverage" \
+            --verbosity normal
 
+      - name: Run Application Tests
+        run: |
           dotnet test tests/UcpAgent.Application.Tests/UcpAgent.Application.Tests.csproj \
             --configuration Release \
             --logger "trx;LogFileName=unit-app.trx" \
             --results-directory ./test-results/unit \
             --settings coverlet.runsettings \
-            --collect:"XPlat Code Coverage"
+            --collect:"XPlat Code Coverage" \
+            --verbosity normal
 
+      - name: Run Catalog Tests
+        run: |
           dotnet test tests/UcpAgent.Catalog.MercadoLivre.Tests/UcpAgent.Catalog.MercadoLivre.Tests.csproj \
             --configuration Release \
             --settings coverlet.runsettings \
             --logger "trx;LogFileName=unit-ml.trx" \
             --results-directory ./test-results/unit \
-            --collect:"XPlat Code Coverage"
+            --collect:"XPlat Code Coverage" \
+            --verbosity normal
 
       - name: Gerar relatório de cobertura
         run: |
