@@ -36,7 +36,10 @@ public sealed class FulfillmentAggregate
     {
         var agg = new FulfillmentAggregate { OrderId = orderId };
         foreach (var evt in history.OrderBy(e => e.OccurredAt))
+        {
+            agg._events.Add(evt);
             agg.ApplyEvent(evt);
+        }
         return agg;
     }
 
