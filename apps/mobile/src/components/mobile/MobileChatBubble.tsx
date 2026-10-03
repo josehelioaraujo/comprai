@@ -40,7 +40,7 @@ export default function MobileChatBubble({ message, children }: Props) {
           text-sm leading-relaxed shadow-sm
         ">
           {message.text}
-          <div className="text-[10px] text-emerald-200 mt-1 text-right opacity-70">
+          <div suppressHydrationWarning className="text-[10px] text-emerald-200 mt-1 text-right opacity-70">
             {formatTime(message.timestamp)}
           </div>
         </div>
@@ -71,7 +71,7 @@ export default function MobileChatBubble({ message, children }: Props) {
           }
         `}>
           {renderText(message.text)}
-          <div className="text-[10px] text-zinc-500 mt-1 text-right">
+          <div suppressHydrationWarning className="text-[10px] text-zinc-500 mt-1 text-right">
             {formatTime(message.timestamp)}
           </div>
         </div>

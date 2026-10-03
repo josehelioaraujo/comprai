@@ -45,6 +45,68 @@ public sealed partial class IntentRouterService : IIntentRouterService
         "um ", "uma ", "algum", "alguma", "bom ", "boa ", "barato", "barata"
     ];
 
+    // Mapeamento de termos PT-BR para ingl\u00eas (para cat\u00e1logos como DummyJSON que operam em ingl\u00eas)
+    private static readonly Dictionary<string, string> _ptBrToEn = new(StringComparer.OrdinalIgnoreCase)
+    {
+        // Eletr\u00f4nicos
+        { "celular",       "smartphone"  },
+        { "celulares",     "smartphones" },
+        { "smartphone",    "smartphone"  },
+        { "tablet",        "tablet"      },
+        { "notebook",      "laptop"      },
+        { "computador",    "computer"    },
+        { "televis\u00e3o",     "tv"          },
+        { "televisao",     "tv"          },
+        { "televisor",     "tv"          },
+        { "fone",          "headphone"   },
+        { "fones",         "headphones"  },
+        { "c\u00e2mera",        "camera"      },
+        { "camera",        "camera"      },
+        { "relogio",       "watch"       },
+        { "rel\u00f3gio",       "watch"       },
+        { "smartwatch",    "watch"       },
+        { "carregador",    "charger"     },
+        // Moda / acess\u00f3rios
+        { "camiseta",      "t-shirt"     },
+        { "cal\u00e7a",         "pants"       },
+        { "calca",         "pants"       },
+        { "vestido",       "dress"       },
+        { "sapato",        "shoes"       },
+        { "sapatos",       "shoes"       },
+        { "tenis",         "sneakers"    },
+        { "t\u00eanis",         "sneakers"    },
+        { "bolsa",         "bag"         },
+        { "mochila",       "bag"         },
+        { "anel",          "ring"        },
+        { "colar",         "necklace"    },
+        { "brinco",        "earring"     },
+        { "pulseira",      "bracelet"    },
+        // Beleza / sa\u00fade
+        { "perfume",       "perfume"     },
+        { "creme",         "cream"       },
+        { "batom",         "lipstick"    },
+        { "maquiagem",     "makeup"      },
+        { "skincare",      "skincare"    },
+        { "shampoo",       "shampoo"     },
+        // Casa
+        { "sof\u00e1",          "sofa"        },
+        { "sofa",          "sofa"        },
+        { "mesa",          "table"       },
+        { "cadeira",       "chair"       },
+        { "luminaria",     "lamp"        },
+        { "lumin\u00e1ria",     "lamp"        },
+        { "geladeira",     "refrigerator"},
+        // Outros
+        { "livro",         "book"        },
+        { "livros",        "books"       },
+        { "jogo",          "game"        },
+        { "jogos",         "games"       },
+        { "brinquedo",     "toy"         },
+        { "brinquedos",    "toys"        },
+        { "bicicleta",     "bicycle"     },
+        { "moto",          "motorcycle"  },
+    };
+
     public IntentResult Detect(string input, string? sessionId = null)
     {
         if (string.IsNullOrWhiteSpace(input))
@@ -81,7 +143,12 @@ public sealed partial class IntentRouterService : IIntentRouterService
         var s = input.ToLowerInvariant();
         foreach (var sw in _searchStopwords)
             s = s.Replace(sw, " ");
-        return RxMultiSpace().Replace(s, " ").Trim();
+        s = RxMultiSpace().Replace(s, " ").Trim();
+
+        // Traduz termos PT-BR → inglês palavra a palavra
+        var words = s.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var translated = words.Select(w => _ptBrToEn.TryGetValue(w, out var en) ? en : w);
+        return string.Join(" ", translated).Trim();
     }
 
     private static string? ExtractProductId(string input)
