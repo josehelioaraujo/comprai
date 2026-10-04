@@ -9,12 +9,19 @@ public sealed class RedisOrderAdapter(IConnectionMultiplexer redis, IConfigurati
 {
     private static readonly JsonSerializerOptions JsonOpts = new() { PropertyNameCaseInsensitive = true };
 
-    private TimeSpan Ttl => TimeSpan.FromDays(
-        config.GetValue<int>("Orders:RetentionDays", 30));
+    private TimeSpan Ttl
+    {
+        get
+        {
+            var raw = config["Orders:RetentionDays"];
+            var days = int.TryParse(raw, out var d) ? d : 30;
+            return TimeSpan.FromDays(days);
+        }
+    }
 
     private IDatabase Db => redis.GetDatabase();
 
-    public static string Key(string orderId)        => $"order:{orderId}";
+    public static string Key(string orderId)         => $"order:{orderId}";
     public static string SessionKey(string sessionId) => $"order:session:{sessionId}";
 
     public async Task<OrderStatusDto?> GetStatusAsync(string orderId, CancellationToken ct = default)
