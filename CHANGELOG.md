@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.0.47] — 2026-10-04
+
+### Mobile UX — Meus Pedidos, Drilldown e Qualidade Visual
+
+#### Fixes
+- **OrderList simplificado**: lista exibe apenas nº do pedido + valor; clique abre drilldown com `OrderTrackingCard`
+- **Drilldown completo**: produtos (nome/qtd/valor), frete, total, forma de pagamento + detalhe (Pix/cartão), endereço de entrega, timeline de rastreio colapsável
+- **Dismiss sem bolha**: `handleViewOrders` não emite texto na bolha — card exibido diretamente
+- **Bug carrinho 2ª compra**: `clearSession()` + `createSession()` após pagamento confirmado — `cartSnapshot` capturado antes de zerar
+- **Botão × universal**: `OrderTrackingCard` e `OrderList` com botão fechar em todos os estados (incluindo Entregue)
+- **Stepper oculto em idle**: `MobileUcpProgressBar` retorna `null` quando `step === 'idle'`
+- **Stepper some ao fechar**: dismiss do card `order_list` reseta `step → idle`; dismiss de `order_status` mantém o step
+- **Sem duplicação de cards**: `handleViewOrders` usa `upsertBotMessage` — clicar várias vezes atualiza o mesmo card
+- **Botão "Buscar produto" removido**: redundante com o input de chat
+- **Botão "Nova busca" removido**: redundante com o input de chat
+- **Botão "Meus pedidos"**: aparece no footer em `idle`/`search` quando há pedidos anteriores (via `hasPreviousOrder`)
+- **Rastreio unificado**: dois botões (Histórico + Rastreio) unificados em "📦 Rastreio da entrega ▼" colapsável
+- **Forma de pagamento**: label renomeado + exibe detalhe (chave Pix truncada ou `•••• 4242`)
+- **Deploy Web**: workflow cobre `apps/web/**` completo (incluindo mobile) após remoção de exclusões
+
+#### Arquivos alterados
+`useChat.ts`, `ucp.ts`, `OrderTrackingCard.tsx`, `MobileIntentRenderer.tsx`, `MobileChatBubble.tsx`, `MobileChatWindow.tsx`, `MobileChatFooter.tsx`, `MobileUcpProgressBar.tsx`, `PixCard.tsx`, `StripeCard.tsx`, `apps/web/src/app/mobile/page.tsx`, `.github/workflows/deploy-web.yml`
+
 ## [v1.0.x] — V044 — Mobile-First UI + Fulfillment Domain (2026-10-01)
 
 ### ✨ Adicionado
