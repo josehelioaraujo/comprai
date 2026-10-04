@@ -15,8 +15,8 @@ interface Props {
 }
 
 const SUGGESTIONS_BY_STEP: Partial<Record<UcpStep | 'idle', { label: string; msg: string | null; action?: 'viewOrders' }[]>> = {
-  idle:     [{ label: 'Buscar produto', msg: null }],
-  search:   [{ label: 'Buscar produto', msg: null }],
+  idle:     [],
+  search:   [],
   cart:     [{ label: 'Finalizar compra', msg: 'Quero finalizar minha compra' }],
   checkout: [{ label: 'Finalizar compra', msg: 'Quero finalizar minha compra' }],
   payment:  [],

@@ -59,6 +59,9 @@ const ORDER: UcpStep[] = ['idle', 'search', 'cart', 'checkout', 'payment', 'orde
 export default function MobileUcpProgressBar({ step, cartCount = 0, onCartClick, onOrderClick }: Props) {
   const currentIndex = ORDER.indexOf(step)
 
+  // Ocultar barra enquanto nenhum step foi ativado
+  if (step === 'idle') return null
+
   return (
     <nav className="w-full bg-zinc-950/95 backdrop-blur-md border-t border-zinc-900 z-50 px-2 py-2">
       <div className="flex items-center justify-around max-w-xs mx-auto relative">
