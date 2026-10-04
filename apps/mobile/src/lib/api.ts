@@ -53,11 +53,11 @@ export async function postIntent(message: string, sessionId: string, idempotency
 }
 
 function messageForIntent(intent: string, success: boolean): string {
-  if (!success) return 'Não entendi. Tente: buscar produto, ver carrinho, finalizar pedido.'
+  if (!success) return 'NÃ£o entendi. Tente: buscar produto, ver carrinho, finalizar pedido.'
   const msgs: Record<string, string> = {
-    search:'Encontrei esses produtos para você:', cart_add:'Produto adicionado ao carrinho!',
-    cart_view:'Aqui está seu carrinho:', cart_remove:'Produto removido do carrinho.',
-    checkout:'Pedido criado! Como você quer pagar?', order_status:'Aqui está o status do seu pedido:',
+    search:'Encontrei esses produtos para vocÃª:', cart_add:'Produto adicionado ao carrinho!',
+    cart_view:'Aqui estÃ¡ seu carrinho:', cart_remove:'Produto removido do carrinho.',
+    checkout:'Pedido criado! Como vocÃª quer pagar?', order_status:'Aqui estÃ¡ o status do seu pedido:',
   }
   return msgs[intent] ?? 'Ok!'
 }
@@ -84,6 +84,13 @@ export async function removeFromCart(sessionId: string, itemId: string, idempote
     method: 'DELETE', headers: { 'X-Idempotency-Key': idempotencyKey }
   })
 }
+export async function clearCart(sessionId: string): Promise<void> {
+  try {
+    await fetch(`${BASE_URL}/api/cart/${sessionId}`, {
+      method: 'DELETE', cache: 'no-store',
+    })
+  } catch {}
+}
 
 export async function createCheckout(
   sessionId: string, customer: CustomerDto,
@@ -99,7 +106,7 @@ export async function createPayment(
   amount: number,
   idempotencyKey: string,
 ): Promise<any> {
-  const amountStr = amount.toFixed(2) // string com 2 casas — evita problema de precisão float
+  const amountStr = amount.toFixed(2) // string com 2 casas â evita problema de precisÃ£o float
   const body = {
     amount: amountStr,
     currency: 'BRL',
@@ -130,11 +137,11 @@ export async function persistOrder(order: Order, sessionId: string): Promise<voi
       cache: 'no-store',
     })
   } catch {
-    // falha silenciosa — localStorage ainda garante UX local
+    // falha silenciosa â localStorage ainda garante UX local
   }
 }
 
-/** Busca pedidos da sessão no Redis */
+/** Busca pedidos da sessÃ£o no Redis */
 export async function getOrderBySession(sessionId: string): Promise<Order | null> {
   try {
     const res = await fetch(`${BASE_URL}/api/orders/session/${sessionId}`, {

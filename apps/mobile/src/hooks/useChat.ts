@@ -2,8 +2,8 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { getSessionId } from '@/lib/session'
-import { newIdempotencyKey, getIdempotencyKey, cartAddKey, checkoutKey, paymentKey } from '@/lib/idempotency'
-import { postIntent, addToCart, getCart, createCheckout, createPayment, persistOrder, getOrderBySession } from '@/lib/api'
+import { newIdempotencyKey, getIdempotencyKey, cartAddKey, checkoutKey, paymentKey, clearIdempotencyCache } from '@/lib/idempotency'
+import { postIntent, addToCart, getCart, createCheckout, createPayment, persistOrder, getOrderBySession, clearCart } from '@/lib/api'
 import type {
   ChatMessage, SessionState, UcpStep, Product,
   PaymentMethod, PaymentProvider, Cart, Order,
@@ -22,16 +22,16 @@ export function calcShipping(subtotal: number, method: 'standard' | 'express'): 
   return method === 'express' ? EXPRESS_COST : STANDARD_COST
 }
 
-// Flag controlada por variável de ambiente — false desativa os timeouts de simulação
+// Flag controlada por variÃ¡vel de ambiente â false desativa os timeouts de simulaÃ§Ã£o
 const FULFILLMENT_SIMULATION = process.env.NEXT_PUBLIC_FULFILLMENT_SIMULATION !== 'false'
 
 const FULFILLMENT_PIPELINE: { status: FulfillmentStatus; description: string; delay: number; location?: string }[] = [
   { status: 'preparing',         description: 'Separando e embalando os itens',          delay: 8000  },
-  { status: 'ready_to_ship',     description: 'Embalado — aguardando coleta',             delay: 6000  },
+  { status: 'ready_to_ship',     description: 'Embalado â aguardando coleta',             delay: 6000  },
   { status: 'handed_to_carrier', description: 'Coletado pela transportadora',             delay: 5000  },
-  { status: 'in_transit',        description: 'Em trânsito — Centro de Distribuição SP', delay: 8000, location: 'São Paulo, SP' },
+  { status: 'in_transit',        description: 'Em trÃ¢nsito â Centro de DistribuiÃ§Ã£o SP', delay: 8000, location: 'SÃ£o Paulo, SP' },
   { status: 'out_for_delivery',  description: 'Saiu para entrega',                        delay: 6000  },
-  { status: 'delivered',         description: 'Entregue ao destinatário',                 delay: 5000  },
+  { status: 'delivered',         description: 'Entregue ao destinatÃ¡rio',                 delay: 5000  },
 ]
 
 const INITIAL_SESSION: SessionState = {
@@ -41,11 +41,11 @@ const INITIAL_SESSION: SessionState = {
 
 const WELCOME: ChatMessage = {
   id: 'welcome', role: 'bot',
-  text: 'Olá! Sou o Comprai 🛒 — seu assistente de compras com IA. O que você quer encontrar hoje?',
-  timestamp: new Date(0), // epoch: substituído no cliente via useEffect para evitar hydration mismatch
+  text: 'OlÃ¡! Sou o Comprai ð â seu assistente de compras com IA. O que vocÃª quer encontrar hoje?',
+  timestamp: new Date(0), // epoch: substituÃ­do no cliente via useEffect para evitar hydration mismatch
 }
 
-// Chave do localStorage para persistência local de pedidos
+// Chave do localStorage para persistÃªncia local de pedidos
 const ORDERS_LS_KEY = 'comprai_orders'
 
 function saveOrderToLocalStorage(order: Order): void {
@@ -76,7 +76,7 @@ export function useChat() {
   const addingProductsRef        = useRef<Set<string>>(new Set())
   const confirmedTotalRef        = useRef<number>(0)
 
-  // Corrige o timestamp da mensagem de boas-vindas após hidratação no cliente
+  // Corrige o timestamp da mensagem de boas-vindas apÃ³s hidrataÃ§Ã£o no cliente
   // e inicializa ordersCount a partir do localStorage
   useEffect(() => {
     setMessages(prev => prev.map(m =>
@@ -140,7 +140,11 @@ export function useChat() {
         quantity:  i.quantity ?? 1,
         image:     i.product?.imageUrl ?? i.image ?? '',
       })),
-      total: raw?.total ?? 0,
+      total: raw?.total > 0 ? raw.total : (raw?.items ?? []).reduce((s: number, i: any) => {
+        const price = i.product?.price ?? i.price ?? 0
+        const qty   = i.quantity ?? 1
+        return s + price * qty
+      }, 0),
     }
   }
 
@@ -149,7 +153,7 @@ export function useChat() {
   const startFulfillmentSimulation = useCallback((orderId: string, orderTotal: number) => {
     const history: FulfillmentEvent[] = [{
       status: 'payment_confirmed',
-      description: 'Pagamento confirmado — iniciando fulfillment',
+      description: 'Pagamento confirmado â iniciando fulfillment',
       occurredAt: new Date().toISOString(),
     }]
     fulfillmentHistoryRef.current[orderId] = history
@@ -209,7 +213,7 @@ export function useChat() {
       if (res.data?.type === 'order') setSession(s => ({ ...s, currentOrder: (res.data as any).order }))
 
       const text2 = res.intent === 'search' && res.data?.type === 'search' && res.data.products.length === 0
-        ? 'Produto não encontrado. Tente outro termo de busca.' : res.response
+        ? 'Produto nÃ£o encontrado. Tente outro termo de busca.' : res.response
 
       const usesUpsert = ['cart_view', 'cart_remove', 'order_list', 'order_status'].includes(res.intent)
       if (usesUpsert) {
@@ -224,7 +228,7 @@ export function useChat() {
   }, [getOrCreateSession, pushMessage, upsertBotMessage, advanceStep])
 
   const handleAddToCart = useCallback(async (product: Product) => {
-    // Guard: ignora chamada duplicada para o mesmo produto enquanto está sendo processado
+    // Guard: ignora chamada duplicada para o mesmo produto enquanto estÃ¡ sendo processado
     if (addingProductsRef.current.has(product.id)) return
     addingProductsRef.current.add(product.id)
 
@@ -238,15 +242,15 @@ export function useChat() {
       setSession(s => ({ ...s, cart, step: 'search' }))
       const count = cart.items.reduce((s, i) => s + i.quantity, 0)
 
-      // UPSERT — evita duplicar a mensagem de confirmação de adição
+      // UPSERT â evita duplicar a mensagem de confirmaÃ§Ã£o de adiÃ§Ã£o
       upsertBotMessage({
         role: 'bot',
-        text: `✅ **${product.title}** adicionado! ${count} ${count === 1 ? 'item' : 'itens'} no carrinho.`,
+        text: `â **${product.title}** adicionado! ${count} ${count === 1 ? 'item' : 'itens'} no carrinho.`,
         intent: 'cart_add', idempotencyKey,
       })
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erro'
-      pushMessage({ role: 'bot', text: `Não consegui adicionar ao carrinho: ${msg}`, idempotencyKey })
+      pushMessage({ role: 'bot', text: `NÃ£o consegui adicionar ao carrinho: ${msg}`, idempotencyKey })
     } finally {
       setIsTyping(false)
       addingProductsRef.current.delete(product.id)
@@ -256,12 +260,12 @@ export function useChat() {
   const handleViewCart = useCallback(() => {
     const cart = session.cart
     if (!cart || !cart.items || cart.items.length === 0) {
-      pushMessage({ role: 'bot', text: 'Seu carrinho está vazio. Busque produtos para adicionar! 🛒' })
+      pushMessage({ role: 'bot', text: 'Seu carrinho estÃ¡ vazio. Busque produtos para adicionar! ð' })
       return
     }
     advanceStep('cart')
     upsertBotMessage({
-      role: 'bot', text: 'Aqui está seu carrinho:',
+      role: 'bot', text: 'Aqui estÃ¡ seu carrinho:',
       intent: 'cart_view', data: { type: 'cart', cart },
     })
   }, [pushMessage, upsertBotMessage, advanceStep, session.cart])
@@ -293,7 +297,7 @@ export function useChat() {
       setSession(s => ({ ...s, confirmedTotal: totalWithShipping }))
       confirmedTotalRef.current = totalWithShipping
       pushMessage({
-        role: 'bot', text: `Pedido **${orderId}** criado! Como você quer pagar?`,
+        role: 'bot', text: `Pedido **${orderId}** criado! Como vocÃª quer pagar?`,
         intent: 'checkout', data: { type: 'checkout', checkout: checkoutData }, idempotencyKey,
       })
     } catch (err) {
@@ -306,7 +310,7 @@ export function useChat() {
     orderId: string, _provider: PaymentProvider, method: PaymentMethod
   ) => {
     const idempotencyKey = getIdempotencyKey(paymentKey(orderId, method))
-    pushMessage({ role: 'user', text: method === 'pix' ? 'Pagar com Pix' : 'Pagar com cartão', idempotencyKey })
+    pushMessage({ role: 'user', text: method === 'pix' ? 'Pagar com Pix' : 'Pagar com cartÃ£o', idempotencyKey })
     setIsTyping(true)
     try {
       const amount = confirmedTotalRef.current > 0 ? confirmedTotalRef.current : (session.cart?.total ?? 0)
@@ -326,7 +330,7 @@ export function useChat() {
       }
       pushMessage({
         role: 'bot',
-        text: method === 'pix' ? 'Escaneie o QR Code. Expira em 15 minutos.' : 'Insira os dados do cartão.',
+        text: method === 'pix' ? 'Escaneie o QR Code. Expira em 15 minutos.' : 'Insira os dados do cartÃ£o.',
         intent, data: { type: 'payment', payment }, idempotencyKey,
       })
     } catch (err) {
@@ -350,7 +354,7 @@ export function useChat() {
 
     const initialHistory: FulfillmentEvent[] = [{
       status: 'payment_confirmed',
-      description: 'Pagamento confirmado — iniciando fulfillment',
+      description: 'Pagamento confirmado â iniciando fulfillment',
       occurredAt: new Date().toISOString(),
     }]
 
@@ -365,16 +369,21 @@ export function useChat() {
       fulfillmentHistory: initialHistory,
     }
 
-    // 1. Persiste no localStorage (acesso rápido / offline) e atualiza badge
+    // 1. Persiste no localStorage (acesso rÃ¡pido / offline) e atualiza badge
+    // 1. Limpa carrinho no backend (evita duplicação no próximo pedido)
+    clearCart(sessionId).catch(() => {})
+    // 2. Limpa cache de idempotência para permitir novos addToCart
+    clearIdempotencyCache()
+    // 3. Persiste no localStorage (acesso rápido / offline) e atualiza badge
     saveOrderToLocalStorage(confirmedOrder)
     setOrdersCount(getOrdersFromLocalStorage().length)
 
-    // 2. Persiste no Redis em background (fonte da verdade — falha silenciosa)
+    // 4. Persiste no Redis em background (fonte da verdade â falha silenciosa)
     persistOrder(confirmedOrder, sessionId).catch(() => {})
 
     pushMessage({
       role: 'bot',
-      text: `🎉 Pagamento confirmado! Seu pedido **#${orderId}** está sendo preparado.`,
+      text: `ð Pagamento confirmado! Seu pedido **#${orderId}** estÃ¡ sendo preparado.`,
       intent: 'order_status',
       data: { type: 'order', order: confirmedOrder },
     })
@@ -387,15 +396,15 @@ export function useChat() {
   const handleViewOrders = useCallback(async () => {
     const sessionId = getOrCreateSession()
 
-    // 1. Tenta localStorage (todos os pedidos, mais rápido)
+    // 1. Tenta localStorage (todos os pedidos, mais rÃ¡pido)
     const localOrders = getOrdersFromLocalStorage()
     if (localOrders.length > 0) {
       advanceStep('order')
       upsertBotMessage({
         role: 'bot',
         text: localOrders.length === 1
-          ? 'Aqui está seu pedido:'
-          : `Você tem ${localOrders.length} pedidos. Clique em um para ver os detalhes:`,
+          ? 'Aqui estÃ¡ seu pedido:'
+          : `VocÃª tem ${localOrders.length} pedidos. Clique em um para ver os detalhes:`,
         intent: 'order_list',
         data: { type: 'orders', orders: localOrders },
       })
@@ -423,15 +432,15 @@ export function useChat() {
         advanceStep('order')
         upsertBotMessage({
           role: 'bot',
-          text: 'Aqui está seu pedido:',
+          text: 'Aqui estÃ¡ seu pedido:',
           intent: 'order_list',
           data: { type: 'orders', orders: [redisOrder] },
         })
       } else {
-        pushMessage({ role: 'bot', text: 'Nenhum pedido encontrado. Faça uma compra para acompanhar!' })
+        pushMessage({ role: 'bot', text: 'Nenhum pedido encontrado. FaÃ§a uma compra para acompanhar!' })
       }
     } catch {
-      pushMessage({ role: 'bot', text: 'Não foi possível recuperar seus pedidos. Tente novamente.' })
+      pushMessage({ role: 'bot', text: 'NÃ£o foi possÃ­vel recuperar seus pedidos. Tente novamente.' })
     } finally {
       setIsTyping(false)
     }
