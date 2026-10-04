@@ -46,6 +46,7 @@ export default function MobilePage() {
         onPayment={handlePayment}
         onPaymentConfirmed={handlePaymentConfirmed}
         onQuantityChange={handleQuantityChange}
+        onDismiss={handleDismissMessage}
       />
 
       <MobileUcpProgressBar
