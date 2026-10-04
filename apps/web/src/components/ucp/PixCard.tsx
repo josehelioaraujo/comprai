@@ -6,7 +6,7 @@ import type { PaymentResult } from '@/types/ucp'
 
 interface Props {
   payment: PaymentResult
-  onConfirmed: () => void
+  onConfirmed: (detail?: string) => void
 }
 
 const PIX_TTL_SECONDS = 15 * 60 // 15 minutos
@@ -35,7 +35,7 @@ export default function PixCard({ payment, onConfirmed }: Props) {
   useEffect(() => {
     if (payment.status === 'paid' && !confirmed) {
       setConfirmed(true)
-      onConfirmed()
+      onConfirmed(payment.pixCopyPaste)
     }
   }, [payment.status, confirmed, onConfirmed])
 
@@ -155,7 +155,7 @@ export default function PixCard({ payment, onConfirmed }: Props) {
 
         {/* botão confirmar manual (demo / mock) */}
         <button
-          onClick={() => { setConfirmed(true); onConfirmed() }}
+          onClick={() => { setConfirmed(true); onConfirmed(payment.pixCopyPaste) }}
           className="w-full py-2.5 rounded-xl text-sm font-semibold
             bg-green-600 hover:bg-green-500 text-white transition-colors"
         >

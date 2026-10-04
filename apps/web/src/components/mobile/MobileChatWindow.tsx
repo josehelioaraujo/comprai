@@ -12,7 +12,7 @@ interface Props {
   onAddToCart: (product: Product) => void
   onCheckout: (customer: CustomerDto, shipping: 'standard' | 'express', total: number) => void
   onPayment: (orderId: string, provider: PaymentProvider, method: PaymentMethod) => void
-  onPaymentConfirmed: (orderId: string) => void
+  onPaymentConfirmed: (orderId: string, detail?: string) => void
   onQuantityChange?: (productId: string, qty: number) => void
   onDismiss?: (id: string) => void
 }

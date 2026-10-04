@@ -5,7 +5,7 @@ import type { PaymentResult } from '@/types/ucp'
 
 interface Props {
   payment: PaymentResult
-  onConfirmed: () => void
+  onConfirmed: (detail?: string) => void
 }
 
 function formatPrice(v: number) {
@@ -41,7 +41,7 @@ export default function StripeCard({ payment, onConfirmed }: Props) {
     await new Promise((r) => setTimeout(r, 1500))
     setLoading(false)
     setPaid(true)
-    onConfirmed()
+    onConfirmed(number.replace(/\s/g, '').slice(-4))
   }
 
   if (paid) {

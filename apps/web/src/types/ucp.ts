@@ -139,6 +139,7 @@ export interface Order {
   isFreeShipping?: boolean
   shippingMethod?: 'standard' | 'express'
   paymentMethod?: PaymentMethod           // método de pagamento usado
+  paymentDetail?: string                   // chave Pix ou últimos 4 dígitos do cartão
   address?: Address                        // endereço de entrega
   createdAt: string
   tracking?: string
