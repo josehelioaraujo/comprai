@@ -14,7 +14,7 @@ interface Props {
   onRestorePreviousOrder?: () => void
 }
 
-const SUGGESTIONS_BY_STEP: Partial<Record<UcpStep | 'idle', { label: string; msg: string | null; action?: 'viewOrders' }[]>> = {
+const BASE_SUGGESTIONS: Partial<Record<UcpStep | 'idle', { label: string; msg: string | null; action?: 'viewOrders' }[]>> = {
   idle:     [],
   search:   [],
   cart:     [{ label: 'Finalizar compra', msg: 'Quero finalizar minha compra' }],
@@ -32,7 +32,11 @@ export default function MobileChatFooter({
   const [text, setText] = useState('')
   const textareaRef     = useRef<HTMLTextAreaElement>(null)
 
-  const suggestions = SUGGESTIONS_BY_STEP[step] ?? SUGGESTIONS_BY_STEP['idle']!
+  const baseSuggestions = BASE_SUGGESTIONS[step] ?? []
+  // No idle, mostrar "Meus pedidos" se houver pedidos anteriores
+  const suggestions = (step === 'idle' || step === 'search') && hasPreviousOrder
+    ? [{ label: 'Meus pedidos', msg: null as null, action: 'viewOrders' as const }, ...baseSuggestions]
+    : baseSuggestions
 
   function handleSend() {
     const trimmed = text.trim()
