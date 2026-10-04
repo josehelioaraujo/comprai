@@ -41,7 +41,7 @@ const INITIAL_SESSION: SessionState = {
 
 const WELCOME: ChatMessage = {
   id: 'welcome', role: 'bot',
-  text: 'Olá! Sou o Comprai 🛍️ — seu assistente de compras com IA. O que você quer encontrar hoje?',
+  text: 'Olá! Sou o Comprai 🛒 — seu assistente de compras com IA. O que você quer encontrar hoje?',
   timestamp: new Date(0), // epoch: substituído no cliente via useEffect para evitar hydration mismatch
 }
 
@@ -70,16 +70,19 @@ export function useChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME])
   const [session, setSession]   = useState<SessionState>(INITIAL_SESSION)
   const [isTyping, setIsTyping] = useState(false)
+  const [ordersCount, setOrdersCount] = useState(0)
   const sessionRef              = useRef<string>('')
   const fulfillmentHistoryRef   = useRef<Record<string, FulfillmentEvent[]>>({})
   const addingProductsRef        = useRef<Set<string>>(new Set())
   const confirmedTotalRef        = useRef<number>(0)
 
   // Corrige o timestamp da mensagem de boas-vindas após hidratação no cliente
+  // e inicializa ordersCount a partir do localStorage
   useEffect(() => {
     setMessages(prev => prev.map(m =>
       m.id === 'welcome' ? { ...m, timestamp: new Date() } : m
     ))
+    setOrdersCount(getOrdersFromLocalStorage().length)
   }, [])
 
   const getOrCreateSession = useCallback((): string => {
@@ -253,7 +256,7 @@ export function useChat() {
   const handleViewCart = useCallback(() => {
     const cart = session.cart
     if (!cart || !cart.items || cart.items.length === 0) {
-      pushMessage({ role: 'bot', text: 'Seu carrinho está vazio. Busque produtos para adicionar! 🛍️' })
+      pushMessage({ role: 'bot', text: 'Seu carrinho está vazio. Busque produtos para adicionar! 🛒' })
       return
     }
     advanceStep('cart')
@@ -362,8 +365,9 @@ export function useChat() {
       fulfillmentHistory: initialHistory,
     }
 
-    // 1. Persiste no localStorage (acesso rápido / offline)
+    // 1. Persiste no localStorage (acesso rápido / offline) e atualiza badge
     saveOrderToLocalStorage(confirmedOrder)
+    setOrdersCount(getOrdersFromLocalStorage().length)
 
     // 2. Persiste no Redis em background (fonte da verdade — falha silenciosa)
     persistOrder(confirmedOrder, sessionId).catch(() => {})
@@ -379,60 +383,49 @@ export function useChat() {
   }, [pushMessage, advanceStep, session.confirmedTotal, startFulfillmentSimulation])
 
 
-  // Busca pedido: localStorage primeiro (rápido), Redis como fallback (fonte da verdade)
+  // Exibe lista de todos os pedidos; ao clicar em um, mostra detalhes (via OrderListCard)
   const handleViewOrders = useCallback(async () => {
     const sessionId = getOrCreateSession()
 
-    // 1. Tenta memória da sessão atual (mais recente, tem fulfillment em tempo real)
-    const orderMsg = [...messages].reverse().find(
-      m => m.role === 'bot' && m.intent === 'order_status' && m.data?.type === 'order'
-    )
-    if (orderMsg) {
-      setMessages(prev => prev.map(m =>
-        m.id === orderMsg.id ? { ...m, timestamp: new Date() } : m
-      ))
-      advanceStep('order')
-      return
-    }
-
-    // 2. Tenta localStorage (pedidos de sessões anteriores)
+    // 1. Tenta localStorage (todos os pedidos, mais rápido)
     const localOrders = getOrdersFromLocalStorage()
     if (localOrders.length > 0) {
       advanceStep('order')
-      pushMessage({
+      upsertBotMessage({
         role: 'bot',
-        text: 'Aqui está seu pedido mais recente:',
-        intent: 'order_status',
-        data: { type: 'order', order: localOrders[0] },
+        text: localOrders.length === 1
+          ? 'Aqui está seu pedido:'
+          : `Você tem ${localOrders.length} pedidos. Clique em um para ver os detalhes:`,
+        intent: 'order_list',
+        data: { type: 'orders', orders: localOrders },
       })
 
-      // 3. Sincroniza com Redis em background (fonte da verdade)
+      // Sincroniza com Redis em background (fonte da verdade)
       getOrderBySession(sessionId).then(redisOrder => {
-        if (redisOrder && redisOrder.orderId !== localOrders[0].orderId) {
-          saveOrderToLocalStorage(redisOrder)
-          pushMessage({
-            role: 'bot',
-            text: 'Pedido atualizado com dados do servidor:',
-            intent: 'order_status',
-            data: { type: 'order', order: redisOrder },
-          })
+        if (redisOrder) {
+          const existsLocal = localOrders.some(o => o.orderId === redisOrder.orderId)
+          if (!existsLocal) {
+            saveOrderToLocalStorage(redisOrder)
+            setOrdersCount(getOrdersFromLocalStorage().length)
+          }
         }
       }).catch(() => {})
       return
     }
 
-    // 4. Fallback: consulta Redis diretamente
+    // 2. Fallback: consulta Redis diretamente
     setIsTyping(true)
     try {
       const redisOrder = await getOrderBySession(sessionId)
       if (redisOrder) {
         saveOrderToLocalStorage(redisOrder)
+        setOrdersCount(getOrdersFromLocalStorage().length)
         advanceStep('order')
-        pushMessage({
+        upsertBotMessage({
           role: 'bot',
           text: 'Aqui está seu pedido:',
-          intent: 'order_status',
-          data: { type: 'order', order: redisOrder },
+          intent: 'order_list',
+          data: { type: 'orders', orders: [redisOrder] },
         })
       } else {
         pushMessage({ role: 'bot', text: 'Nenhum pedido encontrado. Faça uma compra para acompanhar!' })
@@ -442,7 +435,7 @@ export function useChat() {
     } finally {
       setIsTyping(false)
     }
-  }, [messages, advanceStep, pushMessage, getOrCreateSession])
+  }, [advanceStep, upsertBotMessage, pushMessage, getOrCreateSession])
 
   const handleQuantityChange = useCallback((productId: string, qty: number) => {
     setSession(s => {
@@ -456,7 +449,7 @@ export function useChat() {
   }, [])
 
   return {
-    messages, session, cartCount, isTyping, sendMessage,
+    messages, session, cartCount, ordersCount, isTyping, sendMessage,
     handleAddToCart, handleViewCart, handleViewOrders, handleCheckout,
     handlePayment, handlePaymentConfirmed, handleQuantityChange,
   }

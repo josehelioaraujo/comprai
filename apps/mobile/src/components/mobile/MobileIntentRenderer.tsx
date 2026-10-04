@@ -3,15 +3,14 @@
 import type { ChatMessage, Product, PaymentMethod, PaymentProvider } from '@/types/ucp'
 import type { CustomerDto } from '@/components/ucp/CartCard'
 
-// Componentes mobile novos
 import MobileProductCarousel from './MobileProductCarousel'
 
-// Componentes UCP originais reaproveitados (sem redesign necessário agora)
 import CartCard from '@/components/ucp/CartCard'
 import CheckoutCard from '@/components/ucp/CheckoutCard'
 import PixCard from '@/components/ucp/PixCard'
 import StripeCard from '@/components/ucp/StripeCard'
 import OrderTrackingCard from '@/components/ucp/OrderTrackingCard'
+import OrderListCard from '@/components/ucp/OrderListCard'
 
 interface Props {
   message: ChatMessage
@@ -64,14 +63,12 @@ export default function MobileIntentRenderer({
       return null
 
     case 'order_status':
-    case 'order_list':
       if (data.type === 'order') return <OrderTrackingCard order={data.order} />
-      if (data.type === 'orders')
-        return (
-          <div className="flex flex-col gap-2">
-            {data.orders.map(o => <OrderTrackingCard key={o.orderId} order={o} compact />)}
-          </div>
-        )
+      return null
+
+    case 'order_list':
+      if (data.type === 'orders') return <OrderListCard orders={data.orders} />
+      if (data.type === 'order')  return <OrderTrackingCard order={data.order} />
       return null
 
     default:

@@ -8,6 +8,7 @@ interface Props {
   onViewOrders?: () => void
   disabled?: boolean
   cartCount?: number
+  ordersCount?: number
   onViewCart?: () => void
   step?: UcpStep
 }
@@ -24,7 +25,7 @@ const SUGGESTIONS_BY_STEP: Partial<Record<UcpStep | 'idle', { label: string; msg
   ],
 }
 
-export default function MobileChatFooter({ onSend, onViewOrders, disabled, cartCount = 0, onViewCart, step = 'idle' }: Props) {
+export default function MobileChatFooter({ onSend, onViewOrders, disabled, cartCount = 0, ordersCount = 0, onViewCart, step = 'idle' }: Props) {
   const [text, setText] = useState('')
   const textareaRef     = useRef<HTMLTextAreaElement>(null)
 
@@ -61,8 +62,14 @@ export default function MobileChatFooter({ onSend, onViewOrders, disabled, cartC
         <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
           {suggestions.map(s => (
             <button key={s.label} onClick={() => handleSuggestion(s.msg, s.action)} disabled={disabled}
-              className="flex-shrink-0 px-2.5 py-1 bg-zinc-900 border border-zinc-800 text-zinc-400 text-[10px] font-medium rounded-full whitespace-nowrap hover:border-zinc-600 hover:text-zinc-200 active:scale-95 transition-all duration-150 disabled:opacity-30">
+              className="relative flex-shrink-0 px-2.5 py-1 bg-zinc-900 border border-zinc-800 text-zinc-400 text-[10px] font-medium rounded-full whitespace-nowrap hover:border-zinc-600 hover:text-zinc-200 active:scale-95 transition-all duration-150 disabled:opacity-30">
               {s.label}
+              {/* Badge de quantidade no botão Meus pedidos */}
+              {s.action === 'viewOrders' && ordersCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-emerald-500 text-black text-[8px] font-bold flex items-center justify-center leading-none">
+                  {ordersCount > 9 ? '9+' : ordersCount}
+                </span>
+              )}
             </button>
           ))}
         </div>
