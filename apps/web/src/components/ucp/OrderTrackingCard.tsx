@@ -268,9 +268,21 @@ export default function OrderTrackingCard({ order, compact = false, onClose }: P
             </div>
             {order.paymentMethod && (
               <div className="flex justify-between text-[10px] mt-1.5">
-                <span style={{ color: 'var(--muted)' }}>Pagamento</span>
+                <span style={{ color: 'var(--muted)' }}>Forma de pagamento</span>
                 <span style={{ color: 'var(--text)' }}>
                   {order.paymentMethod === 'pix' ? '🔵 Pix' : '💳 Cartão de crédito'}
+                </span>
+              </div>
+            )}
+            {order.paymentDetail && (
+              <div className="flex justify-between text-[10px] mt-0.5">
+                <span style={{ color: 'var(--muted)' }}>
+                  {order.paymentMethod === 'pix' ? 'Chave Pix' : 'Cartão final'}
+                </span>
+                <span className="font-mono text-[10px] truncate max-w-[160px]" style={{ color: 'var(--muted)' }}>
+                  {order.paymentMethod === 'pix'
+                    ? order.paymentDetail.slice(0, 40) + (order.paymentDetail.length > 40 ? '…' : '')
+                    : `•••• ${order.paymentDetail}`}
                 </span>
               </div>
             )}

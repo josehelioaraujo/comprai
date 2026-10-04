@@ -442,12 +442,11 @@ export function useChat() {
             createdAt:  new Date().toISOString(),
             fulfillmentHistory: savedFulfillment ? JSON.parse(savedFulfillment) : [],
           }
-          // sem texto na bolha — só o card
-          setMessages(prev => [...prev, {
-            id: makeId(), role: 'bot' as const, timestamp: new Date(),
-            text: '', intent: 'order_list',
+          // upsert para não duplicar ao clicar várias vezes
+          upsertBotMessage({
+            role: 'bot', text: '', intent: 'order_list',
             data: { type: 'orders', orders: [order] },
-          }])
+          })
           advanceStep('order')
           return
         }
