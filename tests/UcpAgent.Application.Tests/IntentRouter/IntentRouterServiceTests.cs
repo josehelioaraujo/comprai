@@ -134,7 +134,7 @@ public sealed class IntentRouterServiceTests
         var result = _sut.Detect("quero um notebook barato");
         result.Intent.Should().Be(IntentType.SearchProducts);
         result.ExtractedQuery.Should().NotContain("quero");
-        result.ExtractedQuery.Should().Contain("notebook");
+        result.ExtractedQuery.Should().Contain("laptop"); // notebook → laptop via dicionário PT-BR→EN
     }
 
     // ── Unknown ───────────────────────────────────────────────────────────────
@@ -223,7 +223,7 @@ public sealed class IntentRouterServiceTests
     {
         var result = _sut.Detect("quero notebook gamer");
         result.Intent.Should().Be(IntentType.SearchProducts);
-        result.ExtractedQuery.Should().Contain("notebook");
+        result.ExtractedQuery.Should().Contain("laptop"); // notebook → laptop via dicionário PT-BR→EN
         result.ExtractedQuery.Should().NotContain("quero");
     }
 
@@ -232,7 +232,7 @@ public sealed class IntentRouterServiceTests
     {
         var result = _sut.Detect("buscar ver notebook");
         result.Intent.Should().Be(IntentType.SearchProducts);
-        result.ExtractedQuery.Should().Contain("notebook");
+        result.ExtractedQuery.Should().Contain("laptop"); // notebook → laptop via dicionário PT-BR→EN
         result.ExtractedQuery.Should().NotContain("  ");
     }
 
