@@ -18,9 +18,16 @@ export default function CheckoutCard({ checkout, onPayment }: Props) {
   const [paidMethod, setPaidMethod] = useState<PaymentMethod | null>(null)
 
   const orderId      = checkout?.orderId ?? ''
-  const total        = checkout?.total ?? 0
   const isFree       = checkout?.isFreeShipping ?? false
   const shippingCost = checkout?.shippingCost ?? 0
+
+  // Calcula total a partir dos items quando checkout.total é 0 (fallback)
+  const itemsSubtotal = (checkout?.items ?? []).reduce(
+    (s, i) => s + (i.price ?? 0) * (i.quantity ?? 1), 0
+  )
+  const total = (checkout?.total ?? 0) > 0
+    ? checkout.total
+    : itemsSubtotal + shippingCost
 
   if (dismissed) return null
 
@@ -34,10 +41,10 @@ export default function CheckoutCard({ checkout, onPayment }: Props) {
   return (
     <div className="mt-2 rounded-xl overflow-hidden relative" style={{ background: 'var(--panel)', border: '1px solid var(--border)' }}>
 
-      {/* ── Header com X ── */}
+      {/* —— Header com X —— */}
       <div className="px-4 py-3 flex items-start justify-between" style={{ borderBottom: '1px solid var(--border)' }}>
         <div>
-          <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>📋 Pedido criado!</p>
+          <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>📦 Pedido criado!</p>
           <p className="text-[10px] font-mono mt-0.5" style={{ color: 'var(--muted)' }}>#{orderId}</p>
         </div>
         <button
@@ -52,15 +59,15 @@ export default function CheckoutCard({ checkout, onPayment }: Props) {
         </button>
       </div>
 
-      {/* ── Total ── */}
+      {/* —— Total —— */}
       <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)' }}>
         <span className="text-sm" style={{ color: 'var(--muted)' }}>Total</span>
         <span className="text-base font-bold font-mono" style={{ color: 'var(--accent)' }}>
-          {total > 0 ? fmt(total) : '—'}
+          {total > 0 ? fmt(total) : fmt(shippingCost > 0 ? shippingCost : 0)}
         </span>
       </div>
 
-      {/* ── Frete ── */}
+      {/* —— Frete —— */}
       <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
         <p className="text-xs mb-1.5" style={{ color: 'var(--muted)' }}>🚚 Frete</p>
         <div className="flex items-center justify-between">
@@ -70,7 +77,7 @@ export default function CheckoutCard({ checkout, onPayment }: Props) {
               <div className="w-1 h-1 rounded-full bg-white" />
             </div>
             <span className="text-xs" style={{ color: 'var(--text)' }}>
-              {isFree ? 'Grátis — Padrão (5–8 dias)' : `Padrão (5–8 dias) — ${fmt(shippingCost)}`}
+              {isFree ? 'Grátis – Padrão (5–8 dias)' : `Padrão (5–8 dias) – ${fmt(shippingCost)}`}
             </span>
           </div>
           {isFree && (
@@ -79,10 +86,10 @@ export default function CheckoutCard({ checkout, onPayment }: Props) {
         </div>
       </div>
 
-      {/* ── Pagamento ── */}
+      {/* —— Pagamento —— */}
       <div className="px-4 py-4 flex flex-col gap-2">
         <p className="text-xs mb-1" style={{ color: 'var(--muted)' }}>
-          {paidMethod ? '✅ Pagamento iniciado' : 'Como você quer pagar?'}
+          {paidMethod ? '✓ Pagamento iniciado' : 'Como você quer pagar?'}
         </p>
 
         <button
@@ -97,7 +104,7 @@ export default function CheckoutCard({ checkout, onPayment }: Props) {
             cursor:      paying ? 'not-allowed' : 'pointer',
           }}
         >
-          {paidMethod === 'pix' ? '⏳ Processando Pix...' : '🟢 Pix — pagamento instantâneo'}
+          {paidMethod === 'pix' ? '⏳ Processando Pix...' : '🟢 Pix – pagamento instantâneo'}
         </button>
 
         <button
