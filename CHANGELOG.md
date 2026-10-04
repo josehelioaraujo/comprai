@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.48] — V047 — 2026-10-04
+
+### Fix
+- **paymentDetail propagado corretamente ao Order** — `IntentRenderer` e `ChatWindow` agora passam `detail?` de `PixCard`/`StripeCard` para `handlePaymentConfirmed`
+- `useChat.handlePaymentConfirmed` recebe `paymentDetail?` e persiste em `newOrder.paymentDetail`
+- CI estava verde (confirmado via Actions API) — CI/CD e Deploy Web ✅ nos commits `64c2a812` e `25adf96c`
+
+
 ## [1.0.47] — 2026-10-04
 
 ### Mobile UX — Meus Pedidos, Drilldown e Qualidade Visual
