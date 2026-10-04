@@ -15,7 +15,7 @@ export default function MobilePage() {
     messages, session, cartCount, isTyping, hasPreviousOrder,
     sendMessage, handleAddToCart, handleViewCart, handleViewOrders,
     handleCheckout, handlePayment, handlePaymentConfirmed, handleQuantityChange,
-    handleRestorePreviousOrder,
+    handleRestorePreviousOrder, handleDismissMessage,
   } = useChat()
 
   const chatRef = useRef<HTMLDivElement>(null)
