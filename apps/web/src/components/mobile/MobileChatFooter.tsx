@@ -21,7 +21,6 @@ const SUGGESTIONS_BY_STEP: Partial<Record<UcpStep | 'idle', { label: string; msg
   checkout: [{ label: 'Finalizar compra', msg: 'Quero finalizar minha compra' }],
   payment:  [],
   order:    [
-    { label: 'Nova busca',   msg: null },
     { label: 'Meus pedidos', msg: null, action: 'viewOrders' },
   ],
 }
