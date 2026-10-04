@@ -35,27 +35,6 @@ function OrderList({
     return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
   }
 
-  function fmtDate(iso: string) {
-    return new Date(iso).toLocaleDateString('pt-BR', {
-      day: '2-digit', month: '2-digit', year: '2-digit',
-    })
-  }
-
-  const STATUS_LABEL: Record<string, string> = {
-    payment_confirmed: '✅ Confirmado',
-    preparing:         '📦 Preparando',
-    ready_to_ship:     '🗃️ Aguardando coleta',
-    handed_to_carrier: '🚛 Coletado',
-    in_transit:        '🗺️ Em trânsito',
-    out_for_delivery:  '🛵 Saindo p/ entrega',
-    delivered:         '🎉 Entregue',
-    cancelled:         '❌ Cancelado',
-    created:           '🕐 Criado',
-    payment_pending:   '⏳ Aguardando pag.',
-    shipped:           '🚛 Enviado',
-  }
-
-  // Detalhe de um pedido
   if (selected) {
     return (
       <div className="mt-2">
@@ -71,7 +50,6 @@ function OrderList({
     )
   }
 
-  // Lista
   return (
     <div className="mt-2 rounded-xl overflow-hidden" style={{ background: 'var(--panel)', border: '1px solid var(--border)' }}>
       {/* Header */}
@@ -97,33 +75,22 @@ function OrderList({
         </div>
       </div>
 
-      {/* Linhas clicáveis */}
+      {/* Linhas: só nº pedido + valor */}
       {orders.map((order, i) => {
-        const statusKey = order.fulfillmentStatus ?? order.status
-        const label     = STATUS_LABEL[statusKey] ?? statusKey
-        const isLast    = i === orders.length - 1
-
+        const isLast = i === orders.length - 1
         return (
           <button
             key={order.orderId}
             onClick={() => setSelected(order)}
-            className="w-full px-4 py-3 flex items-center justify-between gap-3 text-left transition-colors active:opacity-70"
+            className="w-full px-4 py-3.5 flex items-center justify-between gap-3 text-left transition-colors active:opacity-70"
             style={{
               borderBottom: isLast ? 'none' : '1px solid var(--border)',
               background: 'transparent',
             }}
           >
-            <div className="flex-1 min-w-0">
-              <p className="text-[11px] font-mono truncate" style={{ color: 'var(--muted)' }}>
-                #{order.orderId.length > 16 ? order.orderId.slice(0, 16) + '…' : order.orderId}
-              </p>
-              <p className="text-xs font-medium mt-0.5" style={{ color: 'var(--text)' }}>
-                {label}
-              </p>
-              <p className="text-[9px] mt-0.5" style={{ color: 'var(--muted)' }}>
-                {fmtDate(order.createdAt)}
-              </p>
-            </div>
+            <p className="text-[12px] font-mono" style={{ color: 'var(--text)' }}>
+              #{order.orderId.length > 18 ? order.orderId.slice(0, 18) + '…' : order.orderId}
+            </p>
             <div className="flex items-center gap-2 flex-shrink-0">
               <span className="text-sm font-bold font-mono" style={{ color: 'var(--accent)' }}>
                 {order.total > 0 ? fmt(order.total) : '—'}

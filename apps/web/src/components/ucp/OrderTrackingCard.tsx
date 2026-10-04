@@ -146,7 +146,7 @@ export default function OrderTrackingCard({ order, compact = false, onClose }: P
             <span className="text-sm font-bold font-mono" style={{ color: 'var(--accent)' }}>
               {order.total > 0 ? fmt(order.total) : '—'}
             </span>
-            {onClose && !isDelivered && <BtnClose onClose={onClose} />}
+            {onClose && <BtnClose onClose={onClose} />}
           </div>
         </div>
         <p className="text-[10px] font-mono mt-0.5" style={{ color: 'var(--muted)' }}>
