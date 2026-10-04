@@ -6,6 +6,7 @@ import type { Order, FulfillmentStatus, FulfillmentEvent } from '@/types/ucp'
 interface Props {
   order: Order
   compact?: boolean
+  onClose?: () => void
 }
 
 const FULFILLMENT_FLOW: {
@@ -57,7 +58,22 @@ function fmtDatetime(iso: string) {
   })
 }
 
-export default function OrderTrackingCard({ order, compact = false }: Props) {
+function BtnClose({ onClose }: { onClose: () => void }) {
+  return (
+    <button
+      onClick={onClose}
+      className="w-6 h-6 rounded-full flex items-center justify-center opacity-40 hover:opacity-100 transition-opacity flex-shrink-0"
+      style={{ background: 'var(--surface)', color: 'var(--muted)' }}
+      title="Fechar"
+    >
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-3 h-3">
+        <path d="M3 3l10 10M13 3L3 13" />
+      </svg>
+    </button>
+  )
+}
+
+export default function OrderTrackingCard({ order, compact = false, onClose }: Props) {
   const [showHistory,  setShowHistory]  = useState(false)
   const [showTracking, setShowTracking] = useState(false)
 
@@ -69,8 +85,13 @@ export default function OrderTrackingCard({ order, compact = false }: Props) {
   if (order.status === 'cancelled') {
     return (
       <div className="mt-2 bg-red-950/30 border border-red-700/40 rounded-xl p-4">
-        <p className="text-sm font-semibold text-red-400">❌ Pedido cancelado</p>
-        <p className="text-xs text-zinc-500 font-mono mt-1">#{order.orderId}</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold text-red-400">❌ Pedido cancelado</p>
+            <p className="text-xs text-zinc-500 font-mono mt-1">#{order.orderId}</p>
+          </div>
+          {onClose && <BtnClose onClose={onClose} />}
+        </div>
       </div>
     )
   }
@@ -85,9 +106,12 @@ export default function OrderTrackingCard({ order, compact = false }: Props) {
             {step?.icon} {step?.label}
           </p>
         </div>
-        <span className="text-sm font-bold text-green-400 font-mono">
-          {order.total > 0 ? fmt(order.total) : '—'}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold text-green-400 font-mono">
+            {order.total > 0 ? fmt(order.total) : '—'}
+          </span>
+          {onClose && <BtnClose onClose={onClose} />}
+        </div>
       </div>
     )
   }
@@ -95,12 +119,12 @@ export default function OrderTrackingCard({ order, compact = false }: Props) {
   return (
     <div className="mt-2 rounded-xl overflow-hidden" style={{ background: 'var(--panel)', border: '1px solid var(--border)' }}>
 
-      {/* ── Banner pós-entrega ── */}
+      {/* Banner pós-entrega */}
       {isDelivered && (
         <div className="px-4 py-3 flex items-center gap-3"
           style={{ background: 'rgba(34,197,94,0.08)', borderBottom: '1px solid rgba(34,197,94,0.2)' }}>
           <span className="text-2xl">🎉</span>
-          <div>
+          <div className="flex-1">
             <p className="text-sm font-bold" style={{ color: 'var(--accent)' }}>
               Seu pedido foi entregue!
             </p>
@@ -108,18 +132,22 @@ export default function OrderTrackingCard({ order, compact = false }: Props) {
               Esperamos que você aproveite sua compra.
             </p>
           </div>
+          {onClose && <BtnClose onClose={onClose} />}
         </div>
       )}
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
             📦 Acompanhar pedido
           </p>
-          <span className="text-sm font-bold font-mono" style={{ color: 'var(--accent)' }}>
-            {order.total > 0 ? fmt(order.total) : '—'}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold font-mono" style={{ color: 'var(--accent)' }}>
+              {order.total > 0 ? fmt(order.total) : '—'}
+            </span>
+            {onClose && !isDelivered && <BtnClose onClose={onClose} />}
+          </div>
         </div>
         <p className="text-[10px] font-mono mt-0.5" style={{ color: 'var(--muted)' }}>
           #{order.orderId}
@@ -129,10 +157,9 @@ export default function OrderTrackingCard({ order, compact = false }: Props) {
         </p>
       </div>
 
-      {/* ── Ações pós-entrega (drilldown) ou Timeline ── */}
+      {/* Ações pós-entrega (drilldown) ou Timeline */}
       {isDelivered ? (
         <div className="flex flex-col" style={{ borderBottom: '1px solid var(--border)' }}>
-          {/* Botões toggle */}
           <div className="px-4 py-3 flex gap-2">
             <button
               onClick={() => setShowHistory(h => !h)}
@@ -158,7 +185,6 @@ export default function OrderTrackingCard({ order, compact = false }: Props) {
             )}
           </div>
 
-          {/* Painel rastreio — drilldown */}
           {showTracking && order.tracking && (
             <div className="px-4 pb-3 flex items-center justify-between"
               style={{ borderTop: '1px solid var(--border)', paddingTop: '12px' }}>
@@ -169,7 +195,6 @@ export default function OrderTrackingCard({ order, compact = false }: Props) {
             </div>
           )}
 
-          {/* Painel histórico — drilldown */}
           {showHistory && history.length > 0 && (
             <div className="px-4 pb-3 flex flex-col gap-2.5"
               style={{ borderTop: '1px solid var(--border)', paddingTop: '12px' }}>
@@ -215,9 +240,17 @@ export default function OrderTrackingCard({ order, compact = false }: Props) {
               })}
             </div>
           )}
+
+          {showHistory && history.length === 0 && (
+            <div className="px-4 pb-3 pt-2" style={{ borderTop: '1px solid var(--border)' }}>
+              <p className="text-[11px]" style={{ color: 'var(--muted)' }}>
+                Histórico de entrega não disponível para este pedido.
+              </p>
+            </div>
+          )}
         </div>
       ) : (
-        /* ── Timeline (só quando não entregue) ── */
+        /* Timeline (só quando não entregue) */
         <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
           {FULFILLMENT_FLOW.map((step, i) => {
             const done    = i <= currentIndex
@@ -263,7 +296,7 @@ export default function OrderTrackingCard({ order, compact = false }: Props) {
                     )}
                   </div>
                   {evt?.location && (
-                    <p className="text-[9px] mt.0.5" style={{ color: 'var(--muted)' }}>
+                    <p className="text-[9px] mt-0.5" style={{ color: 'var(--muted)' }}>
                       📍 {evt.location}
                     </p>
                   )}
@@ -274,7 +307,7 @@ export default function OrderTrackingCard({ order, compact = false }: Props) {
         </div>
       )}
 
-      {/* ── Rastreio (quando não entregue) ── */}
+      {/* Rastreio (quando não entregue) */}
       {!isDelivered && order.tracking && (
         <div className="px-4 py-2.5 flex items-center justify-between"
           style={{ borderBottom: '1px solid var(--border)', background: 'rgba(34,197,94,0.04)' }}>
@@ -285,7 +318,7 @@ export default function OrderTrackingCard({ order, compact = false }: Props) {
         </div>
       )}
 
-      {/* ── Histórico toggle (quando não entregue) ── */}
+      {/* Histórico toggle (quando não entregue) */}
       {!isDelivered && history.length > 0 && (
         <div>
           <button
@@ -301,7 +334,6 @@ export default function OrderTrackingCard({ order, compact = false }: Props) {
             </span>
             <span>{showHistory ? '▲' : '▼'}</span>
           </button>
-
           {showHistory && (
             <div className="px-4 py-3 flex flex-col gap-2.5">
               <p className="text-[10px] font-semibold mb-1" style={{ color: 'var(--muted)' }}>

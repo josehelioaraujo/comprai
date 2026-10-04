@@ -7,6 +7,7 @@ interface Props {
   cart: Cart
   onCheckout: (customer: CustomerDto, shipping: 'standard' | 'express', total: number) => void
   onQuantityChange?: (productId: string, qty: number) => void
+  onClose?: () => void
 }
 
 export interface CustomerDto {
@@ -30,16 +31,13 @@ function calcShipping(subtotal: number, method: 'standard' | 'express'): number 
   if (subtotal >= FREE_SHIPPING_THRESHOLD) return 0
   return method === 'express' ? EXPRESS_COST : STANDARD_COST
 }
-
 function fmt(v: number) { return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }
-
 function fPhone(v: string) {
   const d = v.replace(/\D/g, '').slice(0, 11)
   if (d.length <= 2) return d
   if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
 }
-
 function fCPF(v: string) {
   const d = v.replace(/\D/g, '').slice(0, 11)
   if (d.length <= 3) return d
@@ -47,14 +45,28 @@ function fCPF(v: string) {
   if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`
   return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`
 }
-
 function fCEP(v: string) {
   const d = v.replace(/\D/g, '').slice(0, 8)
   if (d.length <= 5) return d
   return `${d.slice(0, 5)}-${d.slice(5)}`
 }
 
-export default function CartCard({ cart, onCheckout, onQuantityChange }: Props) {
+function BtnClose({ onClose }: { onClose: () => void }) {
+  return (
+    <button
+      onClick={onClose}
+      className="w-6 h-6 rounded-full flex items-center justify-center opacity-40 hover:opacity-100 transition-opacity flex-shrink-0"
+      style={{ background: 'var(--surface)', color: 'var(--muted)' }}
+      title="Fechar"
+    >
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-3 h-3">
+        <path d="M3 3l10 10M13 3L3 13" />
+      </svg>
+    </button>
+  )
+}
+
+export default function CartCard({ cart, onCheckout, onQuantityChange, onClose }: Props) {
   const [showForm, setShowForm]     = useState(false)
   const [customer, setCustomer]     = useState<CustomerDto>(EMPTY)
   const [shipping, setShipping]     = useState<'standard' | 'express'>('standard')
@@ -118,9 +130,12 @@ export default function CartCard({ cart, onCheckout, onQuantityChange }: Props) 
       {/* Header */}
       <div className="px-3 py-2 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)' }}>
         <span className="text-xs font-semibold" style={{ color: 'var(--text)' }}>🛒 Carrinho</span>
-        <span className="text-[10px]" style={{ color: 'var(--muted)' }}>
-          {totalItems} {totalItems === 1 ? 'item' : 'itens'}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px]" style={{ color: 'var(--muted)' }}>
+            {totalItems} {totalItems === 1 ? 'item' : 'itens'}
+          </span>
+          {onClose && <BtnClose onClose={onClose} />}
+        </div>
       </div>
 
       {/* Itens */}
@@ -196,8 +211,6 @@ export default function CartCard({ cart, onCheckout, onQuantityChange }: Props) 
       {showForm ? (
         <div className="px-3 pb-3 pt-2 flex flex-col gap-1.5">
           <p className="text-[11px] font-semibold mb-0.5" style={{ color: 'var(--text)' }}>📦 Dados de entrega</p>
-
-          {/* Identificação */}
           <input className="input-field text-xs py-1.5" placeholder="Nome completo *" autoComplete="name"
             value={customer.name} onChange={e => setField('name', e.target.value)} />
           <input className="input-field text-xs py-1.5" placeholder="E-mail *" type="email" autoComplete="email"
@@ -208,21 +221,14 @@ export default function CartCard({ cart, onCheckout, onQuantityChange }: Props) 
             <input className="input-field text-xs py-1.5 flex-1" placeholder="CPF *" autoComplete="off"
               value={customer.document} onChange={e => setField('document', fCPF(e.target.value))} />
           </div>
-
-          {/* CEP — flex-[3] para caber XXXXX-XXX confortavelmente */}
           <div className="flex flex-col gap-0.5">
             <label className="text-[9px] uppercase tracking-wider" style={{ color: 'var(--muted)' }}>CEP *</label>
             <div className="flex gap-2 items-center">
               <div className="flex-[3] min-w-[120px] relative">
-                <input
-                  className="input-field text-xs py-1.5 w-full"
-                  placeholder="00000-000"
-                  autoComplete="postal-code"
-                  value={customer.cep}
+                <input className="input-field text-xs py-1.5 w-full" placeholder="00000-000"
+                  autoComplete="postal-code" value={customer.cep}
                   onChange={e => setField('cep', fCEP(e.target.value))}
-                  onBlur={handleCepBlur}
-                  maxLength={9}
-                />
+                  onBlur={handleCepBlur} maxLength={9} />
                 {loadingCep && (
                   <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] animate-pulse" style={{ color: 'var(--muted)' }}>
                     buscando...
@@ -236,40 +242,25 @@ export default function CartCard({ cart, onCheckout, onQuantityChange }: Props) 
               </select>
             </div>
           </div>
-
-          {/* Logradouro + Número */}
           <input className="input-field text-xs py-1.5" placeholder="Logradouro *" autoComplete="street-address"
             value={customer.street} onChange={e => setField('street', e.target.value)} />
-
           <input className="input-field text-xs py-1.5 w-28" placeholder="Número *" autoComplete="off"
             value={customer.number} onChange={e => setField('number', e.target.value)} />
-
-          {/* Complemento */}
           <div className="flex flex-col gap-0.5">
-            <input
-              className="input-field text-xs py-1.5"
-              placeholder="Complemento (Apto, sala, bloco...)"
-              autoComplete="off"
-              value={customer.complement ?? ''}
-              onChange={e => setField('complement', e.target.value)}
-            />
+            <input className="input-field text-xs py-1.5" placeholder="Complemento (Apto, sala, bloco...)"
+              autoComplete="off" value={customer.complement ?? ''} onChange={e => setField('complement', e.target.value)} />
             <span className="text-[9px]" style={{ color: 'var(--muted)' }}>Opcional — ex: Apto 42, Bloco B</span>
           </div>
-
-          {/* Bairro + Cidade */}
           <div className="flex gap-2">
             <input className="input-field text-xs py-1.5 flex-1" placeholder="Bairro *" autoComplete="off"
               value={customer.neighborhood} onChange={e => setField('neighborhood', e.target.value)} />
             <input className="input-field text-xs py-1.5 flex-1" placeholder="Cidade *" autoComplete="address-level2"
               value={customer.city} onChange={e => setField('city', e.target.value)} />
           </div>
-
-          {/* Total final */}
           <div className="flex items-center justify-between mt-1 px-1">
             <span className="text-[10px]" style={{ color: 'var(--muted)' }}>Total a pagar:</span>
             <span className="text-sm font-bold font-mono" style={{ color: 'var(--accent)' }}>{fmt(total)}</span>
           </div>
-
           <button onClick={() => onCheckout(customer, shipping, total)} disabled={!isValid}
             className="w-full py-2 rounded-lg text-xs font-semibold mt-1"
             style={{ background: isValid ? 'var(--accent)' : 'var(--surface)', color: isValid ? '#fff' : 'var(--muted)', cursor: isValid ? 'pointer' : 'not-allowed' }}>
