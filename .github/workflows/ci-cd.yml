@@ -39,9 +39,9 @@ env:
 
 jobs:
 
-  # ── 1. BUILD ────────────────────────────────────────────────────────────────
+  # ââ 1. BUILD ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
   build:
-    name: 🔨 Build
+    name: ð¨ Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -51,10 +51,10 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Restore — Solution
+      - name: Restore â Solution
         run: dotnet restore comprai.sln
 
-      - name: Restore — Projetos de Teste
+      - name: Restore â Projetos de Teste
         run: |
           dotnet restore tests/UcpAgent.Domain.Tests/UcpAgent.Domain.Tests.csproj
           dotnet restore tests/UcpAgent.Application.Tests/UcpAgent.Application.Tests.csproj
@@ -84,9 +84,9 @@ jobs:
             src/**/obj/Release/
           retention-days: 1
 
-  # ── 2. TESTES UNITÁRIOS + QUALITY GATE ─────────────────────────────────────
+  # ââ 2. TESTES UNITÃRIOS + QUALITY GATE âââââââââââââââââââââââââââââââââââââ
   unit-tests:
-    name: 🧪 Testes Unitários
+    name: ð§ª Testes UnitÃ¡rios
     runs-on: ubuntu-latest
     needs: build
     steps:
@@ -140,7 +140,7 @@ jobs:
             --collect:"XPlat Code Coverage" \
             --verbosity normal
 
-      - name: Gerar relatório de cobertura
+      - name: Gerar relatÃ³rio de cobertura
         run: |
           COVERAGE_FILES=$(find ./test-results/unit -name "coverage.cobertura.xml" | paste -sd ';' -)
           echo "Arquivos encontrados: $COVERAGE_FILES"
@@ -149,7 +149,7 @@ jobs:
             -targetdir:"./coverage-report" \
             -reporttypes:"Cobertura;TextSummary"
 
-      - name: Quality Gate — cobertura mínima ${{ env.COVERAGE_THRESHOLD }}%
+      - name: Quality Gate â cobertura mÃ­nima ${{ env.COVERAGE_THRESHOLD }}%
         run: |
           python3 << 'EOF'
           import xml.etree.ElementTree as ET, sys
@@ -161,14 +161,14 @@ jobs:
           coverage = float(rate) * 100
           threshold = float('${{ env.COVERAGE_THRESHOLD }}')
 
-          print(f'📊 Cobertura atual: {coverage:.1f}%')
-          print(f'🎯 Threshold: {threshold}%')
+          print(f'ð Cobertura atual: {coverage:.1f}%')
+          print(f'ð¯ Threshold: {threshold}%')
 
           if coverage < threshold:
-              print(f'❌ Quality Gate FALHOU: {coverage:.1f}% < {threshold}%')
+              print(f'â Quality Gate FALHOU: {coverage:.1f}% < {threshold}%')
               sys.exit(1)
           else:
-              print(f'✅ Quality Gate OK: {coverage:.1f}% >= {threshold}%')
+              print(f'â Quality Gate OK: {coverage:.1f}% >= {threshold}%')
           EOF
 
       - name: Upload Test Results
@@ -187,9 +187,9 @@ jobs:
           path: ./coverage-report/
           if-no-files-found: ignore
 
-  # ── 3. TESTES DE INTEGRAÇÃO ─────────────────────────────────────────────────
+  # ââ 3. TESTES DE INTEGRAÃÃO âââââââââââââââââââââââââââââââââââââââââââââââââ
   integration-tests:
-    name: 🔗 Testes de Integração
+    name: ð Testes de IntegraÃ§Ã£o
     runs-on: ubuntu-latest
     needs: unit-tests
     steps:
@@ -235,9 +235,9 @@ jobs:
           if-no-files-found: ignore
 
 
-  # ── SONAR ───────────────────────────────────────────────────────────────────
+  # ââ SONAR âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
   sonar:
-    name: 🔍 SonarCloud
+    name: ð SonarCloud
     runs-on: ubuntu-latest
     needs: unit-tests
 
@@ -260,14 +260,14 @@ jobs:
       - name: Instalar SonarScanner
         run: dotnet tool install --global dotnet-sonarscanner
 
-      - name: Restaurar dependências
+      - name: Restaurar dependÃªncias
         run: |
           dotnet restore comprai.sln
           dotnet restore tests/UcpAgent.Domain.Tests/UcpAgent.Domain.Tests.csproj
           dotnet restore tests/UcpAgent.Application.Tests/UcpAgent.Application.Tests.csproj
           dotnet restore tests/UcpAgent.Catalog.MercadoLivre.Tests/UcpAgent.Catalog.MercadoLivre.Tests.csproj
 
-      - name: Iniciar análise SonarCloud
+      - name: Iniciar anÃ¡lise SonarCloud
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
@@ -282,7 +282,7 @@ jobs:
             /d:sonar.exclusions="**/Migrations/**,**/Program.cs,src/UcpAgent.Infrastructure/**,src/plugins/**,src/UcpAgent.McpServer/**,src/UcpAgent.Api/Mocks/**,src/UcpAgent.Api/Endpoints/**,src/UcpAgent.Api/Adapters/**,tests/**,**/*.html,**/wwwroot/**,k6/**,.github/**,docs/**,deploy/**,newman/**,observability/**,**/*.py,**/*.sh" \
             /d:sonar.coverage.exclusions="**/Migrations/**,src/UcpAgent.Infrastructure/**,src/plugins/**,src/UcpAgent.McpServer/**,src/UcpAgent.Api/Mocks/**,src/UcpAgent.Api/Endpoints/**,src/UcpAgent.Api/Adapters/**,tests/**,**/*.html,**/wwwroot/**,k6/**,.github/**,docs/**,deploy/**,newman/**,observability/**"
 
-      - name: Build para análise
+      - name: Build para anÃ¡lise
         run: dotnet build comprai.sln --no-restore --configuration Release
 
       - name: Testes com cobertura (OpenCover para Sonar)
@@ -304,13 +304,13 @@ jobs:
             --results-directory ${{ github.workspace }}/coverage/application \
             -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
 
-      - name: Finalizar análise SonarCloud
+      - name: Finalizar anÃ¡lise SonarCloud
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
 
 
-      - name: Buscar métricas SonarCloud
+      - name: Buscar mÃ©tricas SonarCloud
         id: sonar_fetch
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -326,7 +326,7 @@ jobs:
             -o sonar-raw.json
 
           if ! python3 -c "import json,sys; json.load(open('sonar-raw.json'))" 2>/dev/null; then
-            echo "❌ SonarCloud retornou resposta inválida:"
+            echo "â SonarCloud retornou resposta invÃ¡lida:"
             cat sonar-raw.json
             exit 1
           fi
@@ -339,10 +339,11 @@ jobs:
           json.dump(d, open('sonar-metrics.json', 'w'))
           print('sonar-metrics.json gerado')
           "
-          # Expor conteúdo como output para o step SSH
+          # Expor conteÃºdo como output para o step SSH
           echo "SONAR_JSON=$(cat sonar-metrics.json)" >> $GITHUB_OUTPUT
 
-      - name: Publicar métricas SonarCloud na VPS
+      - name: Publicar mÃ©tricas SonarCloud na VPS
+        continue-on-error: true
         uses: appleboy/ssh-action@v1.2.0
         env:
           SONAR_JSON: ${{ steps.sonar_fetch.outputs.SONAR_JSON }}
@@ -354,9 +355,9 @@ jobs:
           script: |
             mkdir -p /var/www/html/k6/results/sonar
             echo "$SONAR_JSON" > /var/www/html/k6/results/sonar/latest.json
-            echo "✅ sonar/latest.json publicado"
+            echo "â sonar/latest.json publicado"
 
-      - name: Append history.json — Evolução
+      - name: Append history.json â EvoluÃ§Ã£o
         env:
           RUN_NUMBER: ${{ github.run_number }}
           RUN_SHA: ${{ github.sha }}
@@ -369,7 +370,7 @@ jobs:
               sm = json.load(open('sonar-metrics.json'))
               measures = {m['metric']: m.get('value','0') for m in sm.get('component',{}).get('measures',[])}
           except Exception as e:
-              print(f"⚠ sonar-metrics.json não disponível: {e}")
+              print(f"â  sonar-metrics.json nÃ£o disponÃ­vel: {e}")
               measures = {}
 
           entry = {
@@ -384,10 +385,11 @@ jobs:
               "duplication": float(measures.get("duplicated_lines_density", 0))
           }
           json.dump(entry, open('history-entry.json','w'))
-          print(f"✅ entry: run#{entry['run']} coverage={entry['coverage']}%")
+          print(f"â entry: run#{entry['run']} coverage={entry['coverage']}%")
           PYEOF
 
       - name: Publicar history.json na VPS
+        continue-on-error: true
         uses: appleboy/ssh-action@v1.2.0
         env:
           HISTORY_ENTRY: ${{ toJSON(fromJSON(steps.sonar_fetch.outputs.SONAR_JSON || '{}')) }}
@@ -407,7 +409,7 @@ jobs:
             HISTORY = Path("/var/www/html/k6/results/history.json")
             history = json.loads(HISTORY.read_text()) if HISTORY.exists() else []
 
-            # Ler entry do arquivo temporário se existir, senão criar vazio
+            # Ler entry do arquivo temporÃ¡rio se existir, senÃ£o criar vazio
             entry = {
                 "run":    int(os.environ.get("RUN_NUMBER", 0)),
                 "sha":    os.environ.get("RUN_SHA", "")[:7],
@@ -425,12 +427,12 @@ jobs:
             history = sorted(history, key=lambda x: x.get("run", 0))[-50:]
             HISTORY.parent.mkdir(parents=True, exist_ok=True)
             HISTORY.write_text(json.dumps(history, indent=2))
-            print(f"✅ history.json: {len(history)} entradas")
+            print(f"â history.json: {len(history)} entradas")
             PYEOF
 
-  # ── 4. DEPLOY VPS ───────────────────────────────────────────────────────────
+  # ââ 4. DEPLOY VPS âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
   deploy:
-    name: 🚀 Deploy VPS Hostinger
+    name: ð Deploy VPS Hostinger
     runs-on: ubuntu-latest
     needs: [integration-tests, sonar]
     if: github.ref == 'refs/heads/main'
@@ -541,7 +543,7 @@ jobs:
               && sed -i "s|^ConnectionStrings__Redis=.*|ConnectionStrings__Redis=comprai-redis:6379,connectTimeout=2000,syncTimeout=2000,abortConnect=false|" .env \
               || echo "ConnectionStrings__Redis=comprai-redis:6379,connectTimeout=2000,syncTimeout=2000,abortConnect=false" >> .env
 
-            # Feature flags — cenário real (sem mocks, com Redis, Kafka, RabbitMQ)
+            # Feature flags â cenÃ¡rio real (sem mocks, com Redis, Kafka, RabbitMQ)
             grep -q '^USAR_REDIS=' .env \
               && sed -i "s|^USAR_REDIS=.*|USAR_REDIS=true|" .env \
               || echo "USAR_REDIS=true" >> .env
@@ -561,16 +563,16 @@ jobs:
             cp docs/price-watcher-test.html wwwroot/
 
 
-            # ── Garantir Ollama como serviço systemd ──────────────────────────
+            # ââ Garantir Ollama como serviÃ§o systemd ââââââââââââââââââââââââââ
             if ! systemctl is-enabled ollama > /dev/null 2>&1; then
-              echo "Configurando Ollama como serviço systemd..."
+              echo "Configurando Ollama como serviÃ§o systemd..."
               printf '[Unit]\nDescription=Ollama Service\nAfter=network.target\n\n[Service]\nType=simple\nUser=root\nExecStart=/usr/local/bin/ollama serve\nRestart=always\nRestartSec=3\nEnvironment=OLLAMA_HOST=0.0.0.0:11434\n\n[Install]\nWantedBy=multi-user.target\n' > /etc/systemd/system/ollama.service
               systemctl daemon-reload
               systemctl enable ollama
-              echo "Ollama registrado como serviço"
+              echo "Ollama registrado como serviÃ§o"
             fi
 
-            # Garantir que está rodando
+            # Garantir que estÃ¡ rodando
             if ! systemctl is-active ollama > /dev/null 2>&1; then
               echo "Iniciando Ollama..."
               systemctl start ollama
@@ -582,33 +584,33 @@ jobs:
             echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
 
             # Pull da nova imagem ANTES de derrubar a atual
-            docker pull ghcr.io/josehelioaraujo/comprai-api:latest               && echo "✅ Pull OK"               || { echo "❌ Pull falhou — abortando deploy, API continua rodando"; exit 1; }
+            docker pull ghcr.io/josehelioaraujo/comprai-api:latest               && echo "â Pull OK"               || { echo "â Pull falhou â abortando deploy, API continua rodando"; exit 1; }
 
-            # Só derruba depois que o pull garantiu a nova imagem
+            # SÃ³ derruba depois que o pull garantiu a nova imagem
             docker compose -f deploy/docker-compose.yml --env-file .env --profile datadog --profile kafka --profile rabbitmq down --remove-orphans || true
             docker rm -f comprai-api comprai-redis comprai-mcp comprai-dd-agent comprai-otel-collector comprai-kafka comprai-kafka-ui comprai-rabbitmq 2>/dev/null || true
 
-            # Subir com a imagem já baixada (sem --volumes para preservar dados)
-            docker compose -f deploy/docker-compose.yml --env-file .env --profile datadog --profile kafka --profile rabbitmq up -d               && echo "✅ Containers up"               || { echo "❌ Up falhou"; exit 1; }
-            # Aguardar API subir — Kafka + RabbitMQ aumentam o tempo de inicialização
+            # Subir com a imagem jÃ¡ baixada (sem --volumes para preservar dados)
+            docker compose -f deploy/docker-compose.yml --env-file .env --profile datadog --profile kafka --profile rabbitmq up -d               && echo "â Containers up"               || { echo "â Up falhou"; exit 1; }
+            # Aguardar API subir â Kafka + RabbitMQ aumentam o tempo de inicializaÃ§Ã£o
             echo "Aguardando API iniciar..."
             for i in $(seq 1 12); do
               sleep 10
               echo "Tentativa $i/12..."
               if curl -sf http://localhost:${{ env.API_PORT }}/health/live > /dev/null 2>&1; then
-                echo "✅ API respondendo após $((i*10))s"
+                echo "â API respondendo apÃ³s $((i*10))s"
                 break
               fi
               if [ "$i" -eq 12 ]; then
-                echo "❌ API não respondeu em 120s"
+                echo "â API nÃ£o respondeu em 120s"
                 docker logs comprai-api --tail 50
                 exit 1
               fi
             done
 
-  # ── 4b. DEPLOY DASHBOARD ────────────────────────────────────────────────────
+  # ââ 4b. DEPLOY DASHBOARD ââââââââââââââââââââââââââââââââââââââââââââââââââââ
   deploy-dashboard:
-    name: 📊 Deploy Dashboard K6
+    name: ð Deploy Dashboard K6
     runs-on: ubuntu-latest
     needs: deploy
     steps:
@@ -637,9 +639,9 @@ jobs:
           strip_components: 2
           overwrite: true
 
-  # ── 5. SMOKE TESTS ──────────────────────────────────────────────────────────
+  # ââ 5. SMOKE TESTS ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
   smoke-tests:
-    name: 💨 Smoke Tests Newman
+    name: ð¨ Smoke Tests Newman
     runs-on: ubuntu-latest
     needs: deploy
     steps:
