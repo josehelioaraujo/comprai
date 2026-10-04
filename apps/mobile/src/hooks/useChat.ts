@@ -22,14 +22,14 @@ export function calcShipping(subtotal: number, method: 'standard' | 'express'): 
   return method === 'express' ? EXPRESS_COST : STANDARD_COST
 }
 
-// Flag controlada por o variável de ambiente — false desativa os timeouts de simulação
+// Flag controlada por variável de ambiente — false desativa os timeouts de simulação
 const FULFILLMENT_SIMULATION = process.env.NEXT_PUBLIC_FULFILLMENT_SIMULATION !== 'false'
 
 const FULFILLMENT_PIPELINE: { status: FulfillmentStatus; description: string; delay: number; location?: string }[] = [
   { status: 'preparing',         description: 'Separando e embalando os itens',          delay: 8000  },
   { status: 'ready_to_ship',     description: 'Embalado — aguardando coleta',             delay: 6000  },
   { status: 'handed_to_carrier', description: 'Coletado pela transportadora',             delay: 5000  },
-  { status: 'in_transit',        description: 'Em trâksito — Centro de Distribuição SP', delay: 8000, location: 'São Paulo, SP' },
+  { status: 'in_transit',        description: 'Em trânsito — Centro de Distribuição SP', delay: 8000, location: 'São Paulo, SP' },
   { status: 'out_for_delivery',  description: 'Saiu para entrega',                        delay: 6000  },
   { status: 'delivered',         description: 'Entregue ao destinatário',                 delay: 5000  },
 ]
@@ -41,7 +41,7 @@ const INITIAL_SESSION: SessionState = {
 
 const WELCOME: ChatMessage = {
   id: 'welcome', role: 'bot',
-  text: 'Olá! Sou o Comprai 🛍� — seu assistente de compras com IA. O que você quer encontrar hoje?',
+  text: 'Olá! Sou o Comprai 🛍️ — seu assistente de compras com IA. O que você quer encontrar hoje?',
   timestamp: new Date(0), // epoch: substituído no cliente via useEffect para evitar hydration mismatch
 }
 
@@ -54,7 +54,7 @@ export function useChat() {
   const addingProductsRef        = useRef<Set<string>>(new Set())
   const confirmedTotalRef        = useRef<number>(0)
 
-  // Corrige ot timestamp da mensagem de boas-vindas após hidratação no cliente
+  // Corrige o timestamp da mensagem de boas-vindas após hidratação no cliente
   useEffect(() => {
     setMessages(prev => prev.map(m =>
       m.id === 'welcome' ? { ...m, timestamp: new Date() } : m
@@ -91,7 +91,7 @@ export function useChat() {
     })
   }, [])
 
-  const updateOrderMessage = useCallback(( orderId: string, updater: (o: Order) => Order) => {
+  const updateOrderMessage = useCallback((orderId: string, updater: (o: Order) => Order) => {
     setMessages(prev => prev.map(m => {
       if (m.intent !== 'order_status' || m.data?.type !== 'order') return m
       if (m.data.order.orderId !== orderId) return m
@@ -119,7 +119,7 @@ export function useChat() {
 
   const cartCount = session.cart?.items?.reduce((s, i) => s + i.quantity, 0) ?? 0
 
-  const startFulfillmentSimulation = useCallback( (orderId: string, orderTotal: number) => {
+  const startFulfillmentSimulation = useCallback((orderId: string, orderTotal: number) => {
     const history: FulfillmentEvent[] = [{
       status: 'payment_confirmed',
       description: 'Pagamento confirmado — iniciando fulfillment',
@@ -197,6 +197,7 @@ export function useChat() {
   }, [getOrCreateSession, pushMessage, upsertBotMessage, advanceStep])
 
   const handleAddToCart = useCallback(async (product: Product) => {
+    // Guard: ignora chamada duplicada para o mesmo produto enquanto está sendo processado
     if (addingProductsRef.current.has(product.id)) return
     addingProductsRef.current.add(product.id)
 
@@ -210,6 +211,7 @@ export function useChat() {
       setSession(s => ({ ...s, cart, step: 'search' }))
       const count = cart.items.reduce((s, i) => s + i.quantity, 0)
 
+      // UPSERT — evita duplicar a mensagem de confirmação de adição
       upsertBotMessage({
         role: 'bot',
         text: `✅ **${product.title}** adicionado! ${count} ${count === 1 ? 'item' : 'itens'} no carrinho.`,
@@ -217,7 +219,7 @@ export function useChat() {
       })
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erro'
-      pushMessage({ role: 'bot', text: `N[o consegui adicionar ao carrinho: ${msg}`, idempotencyKey })
+      pushMessage({ role: 'bot', text: `Não consegui adicionar ao carrinho: ${msg}`, idempotencyKey })
     } finally {
       setIsTyping(false)
       addingProductsRef.current.delete(product.id)
@@ -345,11 +347,14 @@ export function useChat() {
     startFulfillmentSimulation(orderId, orderTotal)
   }, [pushMessage, advanceStep, session.confirmedTotal, startFulfillmentSimulation])
 
+
+  // Exibe o OrderTrackingCard já existente na conversa (sem chamar backend)
   const handleViewOrders = useCallback(() => {
     const orderMsg = [...messages].reverse().find(
       m => m.role === 'bot' && m.intent === 'order_status' && m.data?.type === 'order'
     )
     if (orderMsg) {
+      // Força re-render da mensagem para garantir visibilidade
       setMessages(prev => prev.map(m =>
         m.id === orderMsg.id ? { ...m, timestamp: new Date() } : m
       ))
