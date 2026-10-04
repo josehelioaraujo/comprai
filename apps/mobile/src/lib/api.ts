@@ -119,3 +119,32 @@ export async function getOrder(orderId: string): Promise<{ order: Order }> {
 export async function getOrders(sessionId: string): Promise<{ orders: Order[] }> {
   return get(`/api/orders?sessionId=${sessionId}`)
 }
+
+/** Persiste o pedido confirmado no Redis (fonte da verdade) */
+export async function persistOrder(order: Order, sessionId: string): Promise<void> {
+  try {
+    await fetch(`${BASE_URL}/api/orders/persist`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order, sessionId }),
+      cache: 'no-store',
+    })
+  } catch {
+    // falha silenciosa — localStorage ainda garante UX local
+  }
+}
+
+/** Busca pedidos da sessão no Redis */
+export async function getOrderBySession(sessionId: string): Promise<Order | null> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/orders/session/${sessionId}`, {
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    return data?.order ?? null
+  } catch {
+    return null
+  }
+}

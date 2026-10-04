@@ -1,4 +1,4 @@
-﻿using UcpAgent.SharedKernel.Ports;
+using UcpAgent.SharedKernel.Ports;
 namespace UcpAgent.Api.Mocks;
 public sealed class MockOrderPort : IOrderPort
 {
@@ -22,4 +22,10 @@ public sealed class MockOrderPort : IOrderPort
 
     public Task<string?> GetOrderIdBySessionAsync(string sessionId, CancellationToken ct = default)
         => Task.FromResult<string?>(null);
+
+    public Task SaveAsync(OrderStatusDto order, CancellationToken ct = default)
+        => Task.CompletedTask;
+
+    public Task SaveSessionOrderAsync(string sessionId, string orderId, CancellationToken ct = default)
+        => Task.CompletedTask;
 }

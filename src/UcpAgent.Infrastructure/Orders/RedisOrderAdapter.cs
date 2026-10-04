@@ -1,17 +1,21 @@
-﻿using System.Text.Json;
+using System.Text.Json;
+using Microsoft.Extensions.Configuration;
 using StackExchange.Redis;
 using UcpAgent.SharedKernel.Ports;
 
 namespace UcpAgent.Infrastructure.Orders;
 
-public sealed class RedisOrderAdapter(IConnectionMultiplexer redis) : IOrderPort
+public sealed class RedisOrderAdapter(IConnectionMultiplexer redis, IConfiguration config) : IOrderPort
 {
-    private static readonly TimeSpan Ttl = TimeSpan.FromDays(30);
     private static readonly JsonSerializerOptions JsonOpts = new() { PropertyNameCaseInsensitive = true };
+
+    private TimeSpan Ttl => TimeSpan.FromDays(
+        config.GetValue<int>("Orders:RetentionDays", 30));
 
     private IDatabase Db => redis.GetDatabase();
 
-    public static string Key(string orderId) => $"order:{orderId}";
+    public static string Key(string orderId)        => $"order:{orderId}";
+    public static string SessionKey(string sessionId) => $"order:session:{sessionId}";
 
     public async Task<OrderStatusDto?> GetStatusAsync(string orderId, CancellationToken ct = default)
     {
@@ -20,12 +24,16 @@ public sealed class RedisOrderAdapter(IConnectionMultiplexer redis) : IOrderPort
         return JsonSerializer.Deserialize<OrderStatusDto>((string)json!, JsonOpts);
     }
 
-    public async Task SaveAsync(OrderStatusDto order)
+    public async Task SaveAsync(OrderStatusDto order, CancellationToken ct = default)
     {
         var json = JsonSerializer.Serialize(order);
         await Db.StringSetAsync(Key(order.OrderId), json, Ttl);
     }
-    public static string SessionKey(string sessionId) => $"order:session:{sessionId}";
+
+    public async Task SaveSessionOrderAsync(string sessionId, string orderId, CancellationToken ct = default)
+    {
+        await Db.StringSetAsync(SessionKey(sessionId), orderId, Ttl);
+    }
 
     public async Task<string?> GetOrderIdBySessionAsync(string sessionId, CancellationToken ct = default)
     {

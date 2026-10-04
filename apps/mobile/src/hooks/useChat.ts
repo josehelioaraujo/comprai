@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { getSessionId } from '@/lib/session'
 import { newIdempotencyKey, getIdempotencyKey, cartAddKey, checkoutKey, paymentKey } from '@/lib/idempotency'
-import { postIntent, addToCart, getCart, createCheckout, createPayment } from '@/lib/api'
+import { postIntent, addToCart, getCart, createCheckout, createPayment, persistOrder, getOrderBySession } from '@/lib/api'
 import type {
   ChatMessage, SessionState, UcpStep, Product,
   PaymentMethod, PaymentProvider, Cart, Order,
@@ -43,6 +43,27 @@ const WELCOME: ChatMessage = {
   id: 'welcome', role: 'bot',
   text: 'Olá! Sou o Comprai 🛍️ — seu assistente de compras com IA. O que você quer encontrar hoje?',
   timestamp: new Date(0), // epoch: substituído no cliente via useEffect para evitar hydration mismatch
+}
+
+// Chave do localStorage para persistência local de pedidos
+const ORDERS_LS_KEY = 'comprai_orders'
+
+function saveOrderToLocalStorage(order: Order): void {
+  try {
+    const raw = localStorage.getItem(ORDERS_LS_KEY)
+    const orders: Order[] = raw ? JSON.parse(raw) : []
+    const idx = orders.findIndex(o => o.orderId === order.orderId)
+    if (idx >= 0) orders[idx] = order
+    else orders.unshift(order) // mais recente primeiro
+    localStorage.setItem(ORDERS_LS_KEY, JSON.stringify(orders))
+  } catch {}
+}
+
+function getOrdersFromLocalStorage(): Order[] {
+  try {
+    const raw = localStorage.getItem(ORDERS_LS_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch { return [] }
 }
 
 export function useChat() {
@@ -95,7 +116,10 @@ export function useChat() {
     setMessages(prev => prev.map(m => {
       if (m.intent !== 'order_status' || m.data?.type !== 'order') return m
       if (m.data.order.orderId !== orderId) return m
-      return { ...m, data: { type: 'order', order: updater(m.data.order) }, timestamp: new Date() }
+      const updatedOrder = updater(m.data.order)
+      // Sincroniza localStorage com o estado mais recente do fulfillment
+      saveOrderToLocalStorage(updatedOrder)
+      return { ...m, data: { type: 'order', order: updatedOrder }, timestamp: new Date() }
     }))
   }, [])
 
@@ -310,6 +334,7 @@ export function useChat() {
 
   const handlePaymentConfirmed = useCallback((orderId: string) => {
     advanceStep('order')
+    const sessionId  = sessionRef.current
     const orderTotal = confirmedTotalRef.current > 0 ? confirmedTotalRef.current : 0
 
     confirmedTotalRef.current = 0
@@ -326,43 +351,98 @@ export function useChat() {
       occurredAt: new Date().toISOString(),
     }]
 
+    const confirmedOrder: Order = {
+      orderId,
+      sessionId,
+      status: 'payment_confirmed',
+      fulfillmentStatus: 'payment_confirmed',
+      items: [],
+      total: orderTotal,
+      createdAt: new Date().toISOString(),
+      fulfillmentHistory: initialHistory,
+    }
+
+    // 1. Persiste no localStorage (acesso rápido / offline)
+    saveOrderToLocalStorage(confirmedOrder)
+
+    // 2. Persiste no Redis em background (fonte da verdade — falha silenciosa)
+    persistOrder(confirmedOrder, sessionId).catch(() => {})
+
     pushMessage({
       role: 'bot',
       text: `🎉 Pagamento confirmado! Seu pedido **#${orderId}** está sendo preparado.`,
       intent: 'order_status',
-      data: {
-        type: 'order', order: {
-          orderId,
-          sessionId: sessionRef.current,
-          status: 'payment_confirmed',
-          fulfillmentStatus: 'payment_confirmed',
-          items: [],
-          total: orderTotal,
-          createdAt: new Date().toISOString(),
-          fulfillmentHistory: initialHistory,
-        }
-      },
+      data: { type: 'order', order: confirmedOrder },
     })
 
     startFulfillmentSimulation(orderId, orderTotal)
   }, [pushMessage, advanceStep, session.confirmedTotal, startFulfillmentSimulation])
 
 
-  // Exibe o OrderTrackingCard já existente na conversa (sem chamar backend)
-  const handleViewOrders = useCallback(() => {
+  // Busca pedido: localStorage primeiro (rápido), Redis como fallback (fonte da verdade)
+  const handleViewOrders = useCallback(async () => {
+    const sessionId = getOrCreateSession()
+
+    // 1. Tenta memória da sessão atual (mais recente, tem fulfillment em tempo real)
     const orderMsg = [...messages].reverse().find(
       m => m.role === 'bot' && m.intent === 'order_status' && m.data?.type === 'order'
     )
     if (orderMsg) {
-      // Força re-render da mensagem para garantir visibilidade
       setMessages(prev => prev.map(m =>
         m.id === orderMsg.id ? { ...m, timestamp: new Date() } : m
       ))
       advanceStep('order')
-    } else {
-      pushMessage({ role: 'bot', text: 'Nenhum pedido encontrado nesta sessão. Faça uma compra para acompanhar!' })
+      return
     }
-  }, [messages, advanceStep, pushMessage])
+
+    // 2. Tenta localStorage (pedidos de sessões anteriores)
+    const localOrders = getOrdersFromLocalStorage()
+    if (localOrders.length > 0) {
+      advanceStep('order')
+      pushMessage({
+        role: 'bot',
+        text: 'Aqui está seu pedido mais recente:',
+        intent: 'order_status',
+        data: { type: 'order', order: localOrders[0] },
+      })
+
+      // 3. Sincroniza com Redis em background (fonte da verdade)
+      getOrderBySession(sessionId).then(redisOrder => {
+        if (redisOrder && redisOrder.orderId !== localOrders[0].orderId) {
+          saveOrderToLocalStorage(redisOrder)
+          pushMessage({
+            role: 'bot',
+            text: 'Pedido atualizado com dados do servidor:',
+            intent: 'order_status',
+            data: { type: 'order', order: redisOrder },
+          })
+        }
+      }).catch(() => {})
+      return
+    }
+
+    // 4. Fallback: consulta Redis diretamente
+    setIsTyping(true)
+    try {
+      const redisOrder = await getOrderBySession(sessionId)
+      if (redisOrder) {
+        saveOrderToLocalStorage(redisOrder)
+        advanceStep('order')
+        pushMessage({
+          role: 'bot',
+          text: 'Aqui está seu pedido:',
+          intent: 'order_status',
+          data: { type: 'order', order: redisOrder },
+        })
+      } else {
+        pushMessage({ role: 'bot', text: 'Nenhum pedido encontrado. Faça uma compra para acompanhar!' })
+      }
+    } catch {
+      pushMessage({ role: 'bot', text: 'Não foi possível recuperar seus pedidos. Tente novamente.' })
+    } finally {
+      setIsTyping(false)
+    }
+  }, [messages, advanceStep, pushMessage, getOrCreateSession])
 
   const handleQuantityChange = useCallback((productId: string, qty: number) => {
     setSession(s => {
