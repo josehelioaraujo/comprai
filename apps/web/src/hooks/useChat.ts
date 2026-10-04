@@ -362,7 +362,7 @@ export function useChat() {
     } finally { setIsTyping(false) }
   }, [pushMessage, advanceStep, session.cart, session.confirmedTotal])
 
-  const handlePaymentConfirmed = useCallback((orderId: string) => {
+  const handlePaymentConfirmed = useCallback((orderId: string, paymentDetail?: string) => {
     advanceStep('order')
     const orderTotal = confirmedTotalRef.current > 0 ? confirmedTotalRef.current : 0
     confirmedTotalRef.current = 0
@@ -409,6 +409,7 @@ export function useChat() {
       isFreeShipping:  shippingCostRef.current === 0,
       shippingMethod:  shippingMethodRef.current,
       paymentMethod:   paymentMethodRef.current,
+      paymentDetail:   paymentDetail,
       address:         addressRef.current ?? undefined,
       createdAt: new Date().toISOString(),
       fulfillmentHistory: initialHistory,
