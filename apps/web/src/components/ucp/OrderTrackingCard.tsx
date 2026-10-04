@@ -281,7 +281,9 @@ export default function OrderTrackingCard({ order, compact = false, onClose }: P
                 </span>
                 <span className="font-mono text-[10px] truncate max-w-[160px]" style={{ color: 'var(--muted)' }}>
                   {order.paymentMethod === 'pix'
-                    ? order.paymentDetail.slice(0, 40) + (order.paymentDetail.length > 40 ? '…' : '')
+                    ? (order.paymentDetail.length > 36
+                        ? '…' + order.paymentDetail.slice(-36)
+                        : order.paymentDetail)
                     : `•••• ${order.paymentDetail}`}
                 </span>
               </div>

@@ -134,9 +134,15 @@ export function useChat() {
     setMessages(prev => prev.filter(m => m.id !== id))
   }, [])
 
-  // Remove mensagem sem alterar o step (fechar card mantém stepper e botões)
+  // Remove mensagem; se for card de lista de pedidos, volta step para idle
   const handleDismissAndReset = useCallback((id: string) => {
-    setMessages(prev => prev.filter(m => m.id !== id))
+    setMessages(prev => {
+      const msg = prev.find(m => m.id === id)
+      if (msg?.intent === 'order_list') {
+        setSession(s => ({ ...s, step: 'idle' }))
+      }
+      return prev.filter(m => m.id !== id)
+    })
   }, [])
 
   function normalizeCart(raw: any, sessionId: string): Cart {
