@@ -134,6 +134,12 @@ export function useChat() {
     setMessages(prev => prev.filter(m => m.id !== id))
   }, [])
 
+  // Remove mensagem e volta step para idle (usado ao fechar card de pedidos)
+  const handleDismissAndReset = useCallback((id: string) => {
+    setMessages(prev => prev.filter(m => m.id !== id))
+    setSession(s => ({ ...s, step: 'idle' }))
+  }, [])
+
   function normalizeCart(raw: any, sessionId: string): Cart {
     return {
       sessionId,
@@ -480,6 +486,6 @@ export function useChat() {
     messages, session, cartCount, isTyping, hasPreviousOrder, sendMessage,
     handleAddToCart, handleViewCart, handleViewOrders, handleCheckout,
     handlePayment, handlePaymentConfirmed, handleQuantityChange,
-    handleRestorePreviousOrder, handleDismissMessage,
+    handleRestorePreviousOrder, handleDismissMessage, handleDismissAndReset,
   }
 }
