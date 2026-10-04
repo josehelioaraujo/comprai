@@ -76,6 +76,7 @@ export function useChat() {
   const shippingCostRef       = useRef<number>(0)
   const shippingMethodRef     = useRef<'standard' | 'express'>('standard')
   const paymentMethodRef      = useRef<PaymentMethod>('pix')
+  const addressRef            = useRef<import('@/types/ucp').Address | null>(null)
 
   useEffect(() => {
     try {
@@ -296,6 +297,16 @@ export function useChat() {
       confirmedTotalRef.current = totalWithShipping
       shippingCostRef.current   = shippingCost
       shippingMethodRef.current = shippingMethod
+      addressRef.current = {
+        name:         customer.name,
+        street:       customer.street,
+        number:       customer.number,
+        complement:   customer.complement,
+        neighborhood: customer.neighborhood,
+        city:         customer.city,
+        state:        customer.state,
+        zipCode:      customer.cep,
+      }
       pushMessage({
         role: 'bot', text: `Pedido **${orderId}** criado! Como você quer pagar?`,
         intent: 'checkout', data: { type: 'checkout', checkout: checkoutData }, idempotencyKey,
@@ -387,6 +398,7 @@ export function useChat() {
       isFreeShipping:  shippingCostRef.current === 0,
       shippingMethod:  shippingMethodRef.current,
       paymentMethod:   paymentMethodRef.current,
+      address:         addressRef.current ?? undefined,
       createdAt: new Date().toISOString(),
       fulfillmentHistory: initialHistory,
     }

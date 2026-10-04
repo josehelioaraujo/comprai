@@ -73,9 +73,88 @@ function BtnClose({ onClose }: { onClose: () => void }) {
   )
 }
 
-export default function OrderTrackingCard({ order, compact = false, onClose }: Props) {
-  const [showHistory, setShowHistory] = useState(false)
+// Bloco de rastreio colapsável — reutilizado em entregue e em andamento
+function TrackingCollapsible({ history, tracking }: { history: FulfillmentEvent[]; tracking?: string }) {
+  const [open, setOpen] = useState(false)
+  if (history.length === 0 && !tracking) return null
+  return (
+    <div style={{ borderBottom: '1px solid var(--border)' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full px-4 py-2.5 flex items-center justify-between text-[11px] transition-colors"
+        style={{ color: 'var(--muted)' }}
+      >
+        <span className="flex items-center gap-1.5">
+          📦 Rastreio da entrega
+          {history.length > 0 && (
+            <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold"
+              style={{ background: 'var(--surface)', color: 'var(--muted)' }}>
+              {history.length}
+            </span>
+          )}
+        </span>
+        <span>{open ? '▲' : '▼'}</span>
+      </button>
 
+      {open && (
+        <div className="px-4 pb-3 flex flex-col gap-2.5"
+          style={{ borderTop: '1px solid var(--border)', paddingTop: '12px' }}>
+          {tracking && (
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px]" style={{ color: 'var(--muted)' }}>Código</span>
+              <code className="text-[11px] font-mono font-bold" style={{ color: 'var(--accent)' }}>
+                {tracking}
+              </code>
+            </div>
+          )}
+          {history.length > 0 ? [...history].reverse().map((evt, i) => {
+            const step = FULFILLMENT_FLOW.find(s => s.status === evt.status)
+            return (
+              <div key={i} className="flex gap-3">
+                <div className="flex flex-col items-center pt-0.5">
+                  <div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] flex-shrink-0"
+                    style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                    {step?.icon ?? '•'}
+                  </div>
+                  {i < history.length - 1 && (
+                    <div className="w-px flex-1 mt-1" style={{ background: 'var(--border)' }} />
+                  )}
+                </div>
+                <div className="pb-2">
+                  <p className="text-[11px] font-medium" style={{ color: 'var(--text)' }}>
+                    {step?.label ?? evt.status}
+                  </p>
+                  <p className="text-[10px] mt-0.5" style={{ color: 'var(--muted)' }}>
+                    {evt.description}
+                  </p>
+                  {evt.location && (
+                    <p className="text-[9px] mt-0.5" style={{ color: 'var(--muted)' }}>
+                      📍 {evt.location}
+                    </p>
+                  )}
+                  {evt.trackingCode && (
+                    <p className="text-[9px] mt-0.5 font-mono" style={{ color: 'var(--accent)' }}>
+                      🏷️ {evt.trackingCode}
+                    </p>
+                  )}
+                  <p className="text-[9px] mt-0.5" style={{ color: 'var(--border)' }}>
+                    {fmtDatetime(evt.occurredAt)}
+                  </p>
+                </div>
+              </div>
+            )
+          }) : (
+            <p className="text-[11px]" style={{ color: 'var(--muted)' }}>
+              Histórico não disponível.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function OrderTrackingCard({ order, compact = false, onClose }: Props) {
   const currentStatus = inferFulfillmentStatus(order)
   const currentIndex  = STATUS_INDEX[currentStatus] ?? 0
   const history       = order.fulfillmentHistory ?? []
@@ -156,8 +235,7 @@ export default function OrderTrackingCard({ order, compact = false, onClose }: P
         </p>
       </div>
 
-
-      {/* Resumo de produtos */}
+      {/* Produtos */}
       {order.items && order.items.length > 0 && (
         <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
           <p className="text-[10px] font-semibold mb-2 uppercase tracking-wide" style={{ color: 'var(--muted)' }}>
@@ -166,12 +244,8 @@ export default function OrderTrackingCard({ order, compact = false, onClose }: P
           {order.items.map((item, i) => (
             <div key={i} className="flex items-center justify-between gap-2 mb-1.5">
               <div className="flex-1 min-w-0">
-                <p className="text-[12px] truncate" style={{ color: 'var(--text)' }}>
-                  {item.title}
-                </p>
-                <p className="text-[10px]" style={{ color: 'var(--muted)' }}>
-                  Qtd: {item.quantity}
-                </p>
+                <p className="text-[12px] truncate" style={{ color: 'var(--text)' }}>{item.title}</p>
+                <p className="text-[10px]" style={{ color: 'var(--muted)' }}>Qtd: {item.quantity}</p>
               </div>
               <span className="text-[12px] font-mono font-semibold flex-shrink-0" style={{ color: 'var(--accent)' }}>
                 {fmt(item.price * item.quantity)}
@@ -204,84 +278,27 @@ export default function OrderTrackingCard({ order, compact = false, onClose }: P
         </div>
       )}
 
-      {/* Ações pós-entrega (drilldown) ou Timeline */}
-      {isDelivered ? (
-        <div style={{ borderBottom: '1px solid var(--border)' }}>
-          {/* Botão único colapsável */}
-          <button
-            onClick={() => setShowHistory(h => !h)}
-            className="w-full px-4 py-2.5 flex items-center justify-between text-[11px] transition-colors"
-            style={{ color: 'var(--muted)' }}
-          >
-            <span className="flex items-center gap-1.5">
-              📦 Rastreio da entrega
-              {history.length > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold"
-                  style={{ background: 'var(--surface)', color: 'var(--muted)' }}>
-                  {history.length}
-                </span>
-              )}
-            </span>
-            <span>{showHistory ? '▲' : '▼'}</span>
-          </button>
+      {/* Endereço de entrega */}
+      {order.address && (
+        <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
+          <p className="text-[10px] font-semibold mb-1.5 uppercase tracking-wide" style={{ color: 'var(--muted)' }}>
+            Endereço de entrega
+          </p>
+          <p className="text-[12px]" style={{ color: 'var(--text)' }}>
+            {order.address.street}, {order.address.number}
+            {order.address.complement ? ` — ${order.address.complement}` : ''}
+          </p>
+          <p className="text-[11px] mt-0.5" style={{ color: 'var(--muted)' }}>
+            {order.address.neighborhood} · {order.address.city}/{order.address.state}
+          </p>
+          <p className="text-[10px] mt-0.5 font-mono" style={{ color: 'var(--muted)' }}>
+            CEP {order.address.zipCode}
+          </p>
+        </div>
+      )}
 
-          {showHistory && (
-            <div className="px-4 pb-3 flex flex-col gap-2.5"
-              style={{ borderTop: '1px solid var(--border)', paddingTop: '12px' }}>
-              {/* Código de rastreio */}
-              {order.tracking && (
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px]" style={{ color: 'var(--muted)' }}>Código</span>
-                  <code className="text-[11px] font-mono font-bold" style={{ color: 'var(--accent)' }}>
-                    {order.tracking}
-                  </code>
-                </div>
-              )}
-              {/* Timeline */}
-              {history.length > 0 ? [...history].reverse().map((evt, i) => {
-                const step = FULFILLMENT_FLOW.find(s => s.status === evt.status)
-                return (
-                  <div key={i} className="flex gap-3">
-                    <div className="flex flex-col items-center pt-0.5">
-                      <div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] flex-shrink-0"
-                        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                        {step?.icon ?? '•'}
-                      </div>
-                      {i < history.length - 1 && (
-                        <div className="w-px flex-1 mt-1" style={{ background: 'var(--border)' }} />
-                      )}
-                    </div>
-                    <div className="pb-2">
-                      <p className="text-[11px] font-medium" style={{ color: 'var(--text)' }}>
-                        {step?.label ?? evt.status}
-                      </p>
-                      <p className="text-[10px] mt-0.5" style={{ color: 'var(--muted)' }}>
-                        {evt.description}
-                      </p>
-                      {evt.location && (
-                        <p className="text-[9px] mt-0.5" style={{ color: 'var(--muted)' }}>
-                          📍 {evt.location}
-                        </p>
-                      )}
-                      {evt.trackingCode && (
-                        <p className="text-[9px] mt-0.5 font-mono" style={{ color: 'var(--accent)' }}>
-                          🏷️ {evt.trackingCode}
-                        </p>
-                      )}
-                      <p className="text-[9px] mt-0.5" style={{ color: 'var(--border)' }}>
-                        {fmtDatetime(evt.occurredAt)}
-                      </p>
-                    </div>
-                  </div>
-                )
-              }) : (
-                <p className="text-[11px]" style={{ color: 'var(--muted)' }}>
-                  Histórico de entrega não disponível.
-                </p>
-              )}
-            </div>
-          )}
-        </div>ne (só quando não entregue) */
+      {/* Timeline em andamento (quando não entregue) */}
+      {!isDelivered && (
         <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
           {FULFILLMENT_FLOW.map((step, i) => {
             const done    = i <= currentIndex
@@ -338,79 +355,9 @@ export default function OrderTrackingCard({ order, compact = false, onClose }: P
         </div>
       )}
 
-      {/* Rastreio (quando não entregue) */}
-      {!isDelivered && order.tracking && (
-        <div className="px-4 py-2.5 flex items-center justify-between"
-          style={{ borderBottom: '1px solid var(--border)', background: 'rgba(34,197,94,0.04)' }}>
-          <span className="text-[10px]" style={{ color: 'var(--muted)' }}>Rastreio</span>
-          <code className="text-[11px] font-mono font-bold" style={{ color: 'var(--accent)' }}>
-            {order.tracking}
-          </code>
-        </div>
-      )}
+      {/* Rastreio colapsável — entregue: histórico completo / em andamento: histórico parcial */}
+      <TrackingCollapsible history={history} tracking={order.tracking} />
 
-      {/* Histórico toggle (quando não entregue) */}
-      {!isDelivered && history.length > 0 && (
-        <div>
-          <button
-            onClick={() => setShowHistory(h => !h)}
-            className="w-full px-4 py-2.5 flex items-center justify-between text-[11px] transition-colors"
-            style={{ color: 'var(--muted)', borderBottom: showHistory ? '1px solid var(--border)' : 'none' }}>
-            <span className="flex items-center gap-1.5">
-              🕐 Histórico de entrega
-              <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold"
-                style={{ background: 'var(--surface)', color: 'var(--muted)' }}>
-                {history.length}
-              </span>
-            </span>
-            <span>{showHistory ? '▲' : '▼'}</span>
-          </button>
-          {showHistory && (
-            <div className="px-4 py-3 flex flex-col gap-2.5">
-              <p className="text-[10px] font-semibold mb-1" style={{ color: 'var(--muted)' }}>
-                Histórico de entrega
-              </p>
-              {[...history].reverse().map((evt, i) => {
-                const step = FULFILLMENT_FLOW.find(s => s.status === evt.status)
-                return (
-                  <div key={i} className="flex gap-3">
-                    <div className="flex flex-col items-center pt-0.5">
-                      <div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] flex-shrink-0"
-                        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                        {step?.icon ?? '•'}
-                      </div>
-                      {i < history.length - 1 && (
-                        <div className="w-px flex-1 mt-1" style={{ background: 'var(--border)' }} />
-                      )}
-                    </div>
-                    <div className="pb-2">
-                      <p className="text-[11px] font-medium" style={{ color: 'var(--text)' }}>
-                        {step?.label ?? evt.status}
-                      </p>
-                      <p className="text-[10px] mt-0.5" style={{ color: 'var(--muted)' }}>
-                        {evt.description}
-                      </p>
-                      {evt.location && (
-                        <p className="text-[9px] mt-0.5" style={{ color: 'var(--muted)' }}>
-                          📍 {evt.location}
-                        </p>
-                      )}
-                      {evt.trackingCode && (
-                        <p className="text-[9px] mt-0.5 font-mono" style={{ color: 'var(--accent)' }}>
-                          🏷️ {evt.trackingCode}
-                        </p>
-                      )}
-                      <p className="text-[9px] mt-0.5" style={{ color: 'var(--border)' }}>
-                        {fmtDatetime(evt.occurredAt)}
-                      </p>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   )
 }
