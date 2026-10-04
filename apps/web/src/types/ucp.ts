@@ -137,6 +137,8 @@ export interface Order {
   total: number
   shippingCost?: number
   isFreeShipping?: boolean
+  shippingMethod?: 'standard' | 'express'
+  paymentMethod?: PaymentMethod           // método de pagamento usado
   createdAt: string
   tracking?: string
   events?: OrderEvent[]

@@ -157,6 +157,54 @@ export default function OrderTrackingCard({ order, compact = false, onClose }: P
         </p>
       </div>
 
+
+      {/* Resumo de produtos */}
+      {order.items && order.items.length > 0 && (
+        <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
+          <p className="text-[10px] font-semibold mb-2 uppercase tracking-wide" style={{ color: 'var(--muted)' }}>
+            Produtos
+          </p>
+          {order.items.map((item, i) => (
+            <div key={i} className="flex items-center justify-between gap-2 mb-1.5">
+              <div className="flex-1 min-w-0">
+                <p className="text-[12px] truncate" style={{ color: 'var(--text)' }}>
+                  {item.title}
+                </p>
+                <p className="text-[10px]" style={{ color: 'var(--muted)' }}>
+                  Qtd: {item.quantity}
+                </p>
+              </div>
+              <span className="text-[12px] font-mono font-semibold flex-shrink-0" style={{ color: 'var(--accent)' }}>
+                {fmt(item.price * item.quantity)}
+              </span>
+            </div>
+          ))}
+          {/* Valores */}
+          <div className="mt-2 pt-2" style={{ borderTop: '1px solid var(--border)' }}>
+            {order.shippingCost !== undefined && (
+              <div className="flex justify-between text-[11px] mb-1">
+                <span style={{ color: 'var(--muted)' }}>Frete</span>
+                <span style={{ color: order.isFreeShipping ? 'var(--accent)' : 'var(--text)' }}>
+                  {order.isFreeShipping ? 'Grátis' : fmt(order.shippingCost ?? 0)}
+                </span>
+              </div>
+            )}
+            <div className="flex justify-between text-[12px] font-bold mt-1">
+              <span style={{ color: 'var(--text)' }}>Total</span>
+              <span style={{ color: 'var(--accent)' }}>{fmt(order.total)}</span>
+            </div>
+            {order.paymentMethod && (
+              <div className="flex justify-between text-[10px] mt-1.5">
+                <span style={{ color: 'var(--muted)' }}>Pagamento</span>
+                <span style={{ color: 'var(--text)' }}>
+                  {order.paymentMethod === 'pix' ? '🔵 Pix' : '💳 Cartão de crédito'}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Ações pós-entrega (drilldown) ou Timeline */}
       {isDelivered ? (
         <div className="flex flex-col" style={{ borderBottom: '1px solid var(--border)' }}>

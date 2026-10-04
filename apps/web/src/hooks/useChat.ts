@@ -73,6 +73,9 @@ export function useChat() {
   const fulfillmentHistoryRef = useRef<Record<string, FulfillmentEvent[]>>({})
   const addingProductsRef     = useRef<Set<string>>(new Set())
   const confirmedTotalRef     = useRef<number>(0)
+  const shippingCostRef       = useRef<number>(0)
+  const shippingMethodRef     = useRef<'standard' | 'express'>('standard')
+  const paymentMethodRef      = useRef<PaymentMethod>('pix')
 
   useEffect(() => {
     try {
@@ -291,6 +294,8 @@ export function useChat() {
       }
       setSession(s => ({ ...s, confirmedTotal: totalWithShipping }))
       confirmedTotalRef.current = totalWithShipping
+      shippingCostRef.current   = shippingCost
+      shippingMethodRef.current = shippingMethod
       pushMessage({
         role: 'bot', text: `Pedido **${orderId}** criado! Como você quer pagar?`,
         intent: 'checkout', data: { type: 'checkout', checkout: checkoutData }, idempotencyKey,
@@ -305,6 +310,7 @@ export function useChat() {
     orderId: string, _provider: PaymentProvider, method: PaymentMethod
   ) => {
     const idempotencyKey = getIdempotencyKey(paymentKey(orderId, method))
+    paymentMethodRef.current = method
     pushMessage({ role: 'user', text: method === 'pix' ? 'Pagar com Pix' : 'Pagar com cartão', idempotencyKey })
     setIsTyping(true)
     try {
@@ -339,7 +345,10 @@ export function useChat() {
     const orderTotal = confirmedTotalRef.current > 0 ? confirmedTotalRef.current : 0
     confirmedTotalRef.current = 0
 
-    // FIX #3: zera o carrinho e cria novo sessionId para evitar duplicação na 2ª compra
+    // Captura itens ANTES de zerar o carrinho
+    const cartSnapshot = session.cart?.items ?? []
+
+    // Novo sessionId — evita duplicação de itens na 2ª compra
     clearSession()
     const newSessionId = createSession()
     sessionRef.current = newSessionId
@@ -354,6 +363,7 @@ export function useChat() {
         ? { ...s.currentOrder, status: 'payment_confirmed', total: orderTotal }
         : null,
     }))
+
     try {
       localStorage.setItem(LS_ORDER_KEY,   orderId)
       localStorage.setItem(LS_SESSION_KEY, newSessionId)
@@ -371,8 +381,12 @@ export function useChat() {
       sessionId: newSessionId,
       status: 'payment_confirmed',
       fulfillmentStatus: 'payment_confirmed',
-      items: [],
+      items: cartSnapshot,
       total: orderTotal,
+      shippingCost:    shippingCostRef.current,
+      isFreeShipping:  shippingCostRef.current === 0,
+      shippingMethod:  shippingMethodRef.current,
+      paymentMethod:   paymentMethodRef.current,
       createdAt: new Date().toISOString(),
       fulfillmentHistory: initialHistory,
     }
@@ -387,7 +401,7 @@ export function useChat() {
     })
 
     startFulfillmentSimulation(orderId, orderTotal)
-  }, [pushMessage, advanceStep, startFulfillmentSimulation])
+  }, [pushMessage, advanceStep, startFulfillmentSimulation, session.cart, session.confirmedTotal])
 
   // FIX #1: handleViewOrders — sem pushMessage de texto, direto o card
   const handleViewOrders = useCallback(() => {
