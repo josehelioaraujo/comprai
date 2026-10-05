@@ -20,20 +20,20 @@ public static class ResilienceExtensions
             pipeline.AddTimeout(TimeSpan.FromSeconds(options.Timeout.TimeoutSeconds));
 
             // 2⃣ Retry — backoff exponencial + jitter
-            //   ShouldHandle default: HttpRequestException + 5xx + 408 + 429
+            //   BackoffType e UseJitter omitidos: defaults de HttpRetryStrategyOptions
+            //   ja sao Exponential + true respectivamente.
+            //   ShouldHandle default cobre HttpRequestException + 5xx + 408 + 429.
             if (options.Retry.MaxAttempts > 0)
             {
                 pipeline.AddRetry(new HttpRetryStrategyOptions
                 {
                     MaxRetryAttempts = options.Retry.MaxAttempts,
-                    BackoffType      = Polly.DelayBackoffType.Exponential,
-                    UseJitter        = true,
                     Delay            = TimeSpan.FromSeconds(options.Retry.BaseDelaySeconds)
                 });
             }
 
             // 3⃣ Circuit Breaker — abre quando taxa de falha excede o limiar
-            //   ShouldHandle default: HttpRequestException + 5xx
+            //   ShouldHandle default cobre HttpRequestException + 5xx.
             pipeline.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
             {
                 FailureRatio      = options.CircuitBreaker.FailureRatio,
