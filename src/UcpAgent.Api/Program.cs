@@ -206,6 +206,18 @@ else if (paymentProvider == "efipay")
 else
     builder.Services.AddSingleton<IPaymentPort, MockPaymentAdapter>();
 
+// F2: decorator de persistencia — envolve IPaymentPort quando UsarPostgres=true
+if (usarPostgres)
+{
+    builder.Services.Decorate<IPaymentPort>((inner, sp) =>
+        new UcpAgent.Infrastructure.Payment.PersistingPaymentAdapter(
+            inner,
+            sp.GetRequiredService<UcpAgent.Infrastructure.Persistence.Repositories.PaymentRepository>(),
+            sp.GetRequiredService<UcpAgent.Infrastructure.Persistence.Repositories.OrderRepository>(),
+            sp.GetRequiredService<IConfiguration>(),
+            sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<UcpAgent.Infrastructure.Payment.PersistingPaymentAdapter>>()));
+}
+
 // ── F2: Decorator de persistência — envolve IPaymentPort quando UsarPostgres=true ──
 if (usarPostgres)
 {
