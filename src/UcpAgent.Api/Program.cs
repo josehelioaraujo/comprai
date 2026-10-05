@@ -206,49 +206,6 @@ else if (paymentProvider == "efipay")
 else
     builder.Services.AddSingleton<IPaymentPort, MockPaymentAdapter>();
 
-// F2: PersistingPaymentAdapter — resolve inner + registra novo singleton quando UsarPostgres=true
-if (usarPostgres)
-{
-    var innerDescriptor = builder.Services.Last(s => s.ServiceType == typeof(IPaymentPort));
-    builder.Services.AddSingleton<IPaymentPort>(sp =>
-    {
-        var inner = (IPaymentPort)sp.GetRequiredService(
-            innerDescriptor.ImplementationType
-            ?? innerDescriptor.ImplementationInstance?.GetType()
-            ?? typeof(UcpAgent.Api.Mocks.MockPaymentAdapter));
-        return new UcpAgent.Infrastructure.Payment.PersistingPaymentAdapter(
-            inner,
-            sp.GetRequiredService<UcpAgent.Infrastructure.Persistence.Repositories.PaymentRepository>(),
-            sp.GetRequiredService<UcpAgent.Infrastructure.Persistence.Repositories.OrderRepository>(),
-            sp.GetRequiredService<IConfiguration>(),
-            sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<UcpAgent.Infrastructure.Payment.PersistingPaymentAdapter>>());
-    });
-}
-
-// F2: decorator de persistencia — envolve IPaymentPort quando UsarPostgres=true
-if (usarPostgres)
-{
-    builder.Services.Decorate<IPaymentPort>((inner, sp) =>
-        new UcpAgent.Infrastructure.Payment.PersistingPaymentAdapter(
-            inner,
-            sp.GetRequiredService<UcpAgent.Infrastructure.Persistence.Repositories.PaymentRepository>(),
-            sp.GetRequiredService<UcpAgent.Infrastructure.Persistence.Repositories.OrderRepository>(),
-            sp.GetRequiredService<IConfiguration>(),
-            sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<UcpAgent.Infrastructure.Payment.PersistingPaymentAdapter>>()));
-}
-
-// ── F2: Decorator de persistência — envolve IPaymentPort quando UsarPostgres=true ──
-if (usarPostgres)
-{
-    builder.Services.Decorate<IPaymentPort>((inner, sp) =>
-        new UcpAgent.Infrastructure.Payment.PersistingPaymentAdapter(
-            inner,
-            sp.GetRequiredService<UcpAgent.Infrastructure.Persistence.Repositories.PaymentRepository>(),
-            sp.GetRequiredService<UcpAgent.Infrastructure.Persistence.Repositories.OrderRepository>(),
-            sp.GetRequiredService<IConfiguration>(),
-            sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<UcpAgent.Infrastructure.Payment.PersistingPaymentAdapter>>()));
-}
-
 builder.Services.AddSingleton<IIntentRouterService, IntentRouterService>();
 
 
