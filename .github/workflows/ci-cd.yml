@@ -216,6 +216,7 @@ jobs:
           Features__UsarRedis: 'false'
           Features__UsarKafka: 'false'
           Features__UsarRabbitMQ: 'false'
+          Features__UsarPostgres: 'false'
           MercadoLivre__AccessToken: ${{ secrets.ML_ACCESS_TOKEN }}
           Shopify__AccessToken: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
           Shopify__StoreUrl: 'comprai-dev.myshopify.com'
@@ -475,11 +476,12 @@ jobs:
           NEW_RELIC_USER_KEY: ${{ secrets.NEW_RELIC_USER_KEY }}
           NEW_RELIC_ACCOUNT_ID: ${{ secrets.NEW_RELIC_ACCOUNT_ID }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
         with:
           host: ${{ env.VPS_HOST }}
           username: ${{ env.VPS_USER }}
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
-          envs: DATADOG_API_KEY,BUILD_VERSION,GH_PAT,ADMIN_RESTART_PASSWORD,ML_CLIENT_ID,ML_CLIENT_SECRET,NEW_RELIC_LICENSE_KEY,NEW_RELIC_USER_KEY,NEW_RELIC_ACCOUNT_ID,RESEND_API_KEY
+          envs: DATADOG_API_KEY,BUILD_VERSION,GH_PAT,ADMIN_RESTART_PASSWORD,ML_CLIENT_ID,ML_CLIENT_SECRET,NEW_RELIC_LICENSE_KEY,NEW_RELIC_USER_KEY,NEW_RELIC_ACCOUNT_ID,RESEND_API_KEY,POSTGRES_PASSWORD
           command_timeout: 15m
           script: |
             set -e
@@ -538,12 +540,17 @@ jobs:
               && sed -i "s|^Resend__FromEmail=.*|Resend__FromEmail=helioandrade@hotmail.com|" .env \
               || echo "Resend__FromEmail=helioandrade@hotmail.com" >> .env
 
+            # Injetar POSTGRES_PASSWORD no .env
+            grep -q '^POSTGRES_PASSWORD=' .env \
+              && sed -i "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=${POSTGRES_PASSWORD}|" .env \
+              || echo "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" >> .env
+
             # Garantir Redis connection string correta
             grep -q '^ConnectionStrings__Redis=' .env \
               && sed -i "s|^ConnectionStrings__Redis=.*|ConnectionStrings__Redis=comprai-redis:6379,connectTimeout=2000,syncTimeout=2000,abortConnect=false|" .env \
               || echo "ConnectionStrings__Redis=comprai-redis:6379,connectTimeout=2000,syncTimeout=2000,abortConnect=false" >> .env
 
-            # Feature flags — cenário real (sem mocks, com Redis, Kafka, RabbitMQ)
+            # Feature flags — cenário real (sem mocks, com Redis, Kafka, RabbitMQ, Postgres)
             grep -q '^USAR_REDIS=' .env \
               && sed -i "s|^USAR_REDIS=.*|USAR_REDIS=true|" .env \
               || echo "USAR_REDIS=true" >> .env
@@ -553,6 +560,9 @@ jobs:
             grep -q '^USAR_RABBITMQ=' .env \
               && sed -i "s|^USAR_RABBITMQ=.*|USAR_RABBITMQ=true|" .env \
               || echo "USAR_RABBITMQ=true" >> .env
+            grep -q '^USAR_POSTGRES=' .env \
+              && sed -i "s|^USAR_POSTGRES=.*|USAR_POSTGRES=true|" .env \
+              || echo "USAR_POSTGRES=true" >> .env
 
             # Garantir OTEL_ENDPOINT aponta para otel-collector (envia para Datadog + New Relic)
             grep -q '^OTEL_ENDPOINT=' .env \
@@ -566,7 +576,21 @@ jobs:
             # ── Garantir Ollama como serviço systemd ──────────────────────────
             if ! systemctl is-enabled ollama > /dev/null 2>&1; then
               echo "Configurando Ollama como serviço systemd..."
-              printf '[Unit]\nDescription=Ollama Service\nAfter=network.target\n\n[Service]\nType=simple\nUser=root\nExecStart=/usr/local/bin/ollama serve\nRestart=always\nRestartSec=3\nEnvironment=OLLAMA_HOST=0.0.0.0:11434\n\n[Install]\nWantedBy=multi-user.target\n' > /etc/systemd/system/ollama.service
+              printf '[Unit]
+Description=Ollama Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/ollama serve
+Restart=always
+RestartSec=3
+Environment=OLLAMA_HOST=0.0.0.0:11434
+
+[Install]
+WantedBy=multi-user.target
+' > /etc/systemd/system/ollama.service
               systemctl daemon-reload
               systemctl enable ollama
               echo "Ollama registrado como serviço"
@@ -584,14 +608,18 @@ jobs:
             echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
 
             # Pull da nova imagem ANTES de derrubar a atual
-            docker pull ghcr.io/josehelioaraujo/comprai-api:latest               && echo "✅ Pull OK"               || { echo "❌ Pull falhou — abortando deploy, API continua rodando"; exit 1; }
+            docker pull ghcr.io/josehelioaraujo/comprai-api:latest \
+              && echo "✅ Pull OK" \
+              || { echo "❌ Pull falhou — abortando deploy, API continua rodando"; exit 1; }
 
             # Só derruba depois que o pull garantiu a nova imagem
             docker compose -f deploy/docker-compose.yml --env-file .env --profile datadog --profile kafka --profile rabbitmq down --remove-orphans || true
             docker rm -f comprai-api comprai-redis comprai-mcp comprai-dd-agent comprai-otel-collector comprai-kafka comprai-kafka-ui comprai-rabbitmq 2>/dev/null || true
 
             # Subir com a imagem já baixada (sem --volumes para preservar dados)
-            docker compose -f deploy/docker-compose.yml --env-file .env --profile datadog --profile kafka --profile rabbitmq up -d               && echo "✅ Containers up"               || { echo "❌ Up falhou"; exit 1; }
+            docker compose -f deploy/docker-compose.yml --env-file .env --profile datadog --profile kafka --profile rabbitmq up -d \
+              && echo "✅ Containers up" \
+              || { echo "❌ Up falhou"; exit 1; }
             # Aguardar API subir — Kafka + RabbitMQ aumentam o tempo de inicialização
             echo "Aguardando API iniciar..."
             for i in $(seq 1 12); do
@@ -688,10 +716,3 @@ jobs:
           name: smoke-test-report
           path: ./newman-report/smoke-report.html
           if-no-files-found: ignore
-
-
-
-
-
-
-
