@@ -1,8 +1,8 @@
-using System.Data;
+using Npgsql;
 
 namespace UcpAgent.Infrastructure.Persistence;
 
 public interface IDbConnectionFactory
 {
-    Task<IDbConnection> CreateAsync(CancellationToken ct = default);
+    Task<NpgsqlConnection> CreateAsync(CancellationToken ct = default);
 }
