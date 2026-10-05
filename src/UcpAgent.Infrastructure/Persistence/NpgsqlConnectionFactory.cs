@@ -1,4 +1,3 @@
-using System.Data;
 using Npgsql;
 
 namespace UcpAgent.Infrastructure.Persistence;
@@ -13,7 +12,7 @@ public sealed class NpgsqlConnectionFactory : IDbConnectionFactory
         _connectionString = connectionString;
     }
 
-    public async Task<IDbConnection> CreateAsync(CancellationToken ct = default)
+    public async Task<NpgsqlConnection> CreateAsync(CancellationToken ct = default)
     {
         var conn = new NpgsqlConnection(_connectionString);
         await conn.OpenAsync(ct);
