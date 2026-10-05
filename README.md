@@ -879,6 +879,7 @@ http://<VPS>:3003          # app mobile independente
 | **V035** | OpsWatch — Painel Testes de Carga: VUs slider, Duração, Rounds sequenciais com progress dots, botão Parar, `populate-metrics.yml` |
 | **V036** | OpsWatch — Métricas de Código: Complexidade Ciclomática (Python regex, modal com código + marcadores SonarCloud) + Dependências Ca/Ce (Robert C. Martin, pills Ca/Ce, Ca reverso); Code Review automático em PRs via Groq AI; nova dinâmica de branches/PRs |
 | **V037–V039** | Observabilidade Dual — New Relic via OTel Collector: pipeline `HttpProtobuf :4318`, painel APM no OpsWatch (Apdex/Error%/Req/min/p95), 93 spans confirmados, collector exporta para Datadog + New Relic simultaneamente |
+| **V048** | Persistência PostgreSQL + Outbox Pattern: 17 tabelas, DbUp migrations, Dapper, IDbConnectionFactory, CustomerRepository, OrderRepository (+ outbox atômico), PaymentRepository (+ outbox atômico), PostgresFulfillmentRepository, OutboxRepository (FOR UPDATE SKIP LOCKED), 3 OutboxWorkers (Kafka + RabbitMQ), backoff exponencial, feature flag UsarPostgres, db-migrate.yml workflow |
 | **V040** | OpsWatch — New Relic APM Drill-Down Interativo: gauge SVG Apdex, cards Satisfied/Tolerating/Frustrated clicáveis com tabela de rotas (p50/p90/p99/Avg/Req/s), sparkline com tooltip hover, seletor de janela 5m–24h, chevron colapsável universal, fix NerdGraph percentis como objeto aninhado |
 
 ### 🔜 Próximas Versões

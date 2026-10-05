@@ -1,5 +1,47 @@
 # Changelog
 
+## [1.0.48] — V048 — 2026-10-05
+
+### Feat — Persistência PostgreSQL + Outbox Pattern (Dapper + DbUp)
+
+#### Infraestrutura
+- **`comprai-postgres`** adicionado ao `docker-compose.yml` e `deploy/docker-compose.yml` — `postgres:16-alpine`, porta 5432, `TZ=UTC`/`PGTZ=UTC`, volume `postgres_data`, healthcheck `pg_isready`
+- **`POSTGRES_PASSWORD`** via GitHub Secret — injeção no `.env` da VPS via `grep -q + sed -i` no `ci-cd.yml`; `.env.example` criado com todas as variáveis documentadas
+- **`db-migrate.yml`** — workflow manual com `dry_run` e `target` (ex: rodar só até V002)
+
+#### Schema — 17 tabelas
+- **`V001__initial_schema.sql`** em `src/UcpAgent.Infrastructure/Persistence/Migrations/` — embutido no assembly como `EmbeddedResource`
+- Grupos: `customer`/`customer_address`/`session` · `order`/`order_item`/`order_history` · `fulfillment_event` (append-only) · `payment`/`refund` · `webhook_event` · `order_outbox`/`payment_outbox`/`notification_outbox` · `notification` · `search_log`/`cart_snapshot`/`idempotency_key`
+- `TIMESTAMPTZ` em todos os campos de data/hora; `IdempotencyKey UNIQUE` nas tabelas retentáveis; índices parciais `WHERE status IN ('pending','failed')` nas 3 outboxes
+
+#### Migrations — DbUp
+- **`dbup-postgresql 5.0.x`** adicionado ao `.csproj` — substitui initializer manual
+- **`CompraiDbInitializer`** — `EnsureDatabase` + `WithScriptsEmbeddedInAssembly` + `WithTransactionPerScript` + `LogToConsole`
+- Roda na startup via `initializer.Initialize()` após `app.UseCors()`
+- Novo script = novo `V00X__descricao.sql` — DbUp aplica automaticamente no próximo deploy
+
+#### Dapper + Factory
+- **`IDbConnectionFactory`** / **`NpgsqlConnectionFactory`** — retorna `NpgsqlConnection` (implementa `IAsyncDisposable` — `await using` funciona)
+- Dapper `2.1.35` + Npgsql `9.0.3` adicionados ao `UcpAgent.Infrastructure.csproj`
+
+#### Repositórios
+- **`CustomerRepository`** — `UpsertAsync` com `ON CONFLICT (email) DO UPDATE`
+- **`OrderRepository`** — `SaveAsync`: INSERT `order` + `order_item` + `order_outbox` em **1 transação atômica**
+- **`PaymentRepository`** — `ConfirmAsync`: INSERT `payment` + `payment_outbox` em **1 transação atômica**
+- **`PostgresFulfillmentRepository`** — implementa `IFulfillmentRepository`; append-only `fulfillment_event`; `Reconstitute` do agregado via histórico
+- **`OutboxRepository`** — polling das 3 outboxes com `FOR UPDATE SKIP LOCKED`; `MarkSent/Failed` com backoff exponencial
+
+#### Outbox Workers
+- **`OrderOutboxWorker`** — `PeriodicTimer(5s)` → Kafka (`ucp.order.*`)
+- **`PaymentOutboxWorker`** — `PeriodicTimer(5s)` → Kafka (`ucp.payment.*`)
+- **`NotificationOutboxWorker`** — `PeriodicTimer(5s)` → RabbitMQ (`notifications.*`)
+- Backoff exponencial: `30s → 60s → 120s → ... → 300s (máx)`
+
+#### Program.cs
+- Feature flag `UsarPostgres` adicionada
+- DI: `IDbConnectionFactory`, `CompraiDbInitializer`, 4 repositórios, `IFulfillmentRepository`, 3 workers (condicionados por `UsarKafka`/`UsarRabbitMQ`)
+
+
 ## [1.0.48] — V047 — 2026-10-04
 
 ### Fix
