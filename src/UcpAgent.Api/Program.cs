@@ -624,9 +624,7 @@ app.MapPost("/api/k6/analyze", async (K6AnalyzeRequest req, IHttpClientFactory f
     var ollamaBody = new
         {
             model = ollamaModel,
-            prompt = $"Sistema: {systemPrompt}
-
-UsuÃ¡rio: {userPrompt}",
+            prompt = $"Sistema: {systemPrompt}\n\nUsuario: {userPrompt}",
             stream = false
         };
 
