@@ -29,10 +29,10 @@ public sealed class OrderRepository
             // 1. INSERT order
             await conn.ExecuteAsync("""
                 INSERT INTO "order" (
-                    id, idempotency_key, session_id, customer_id,
+                    id, idempotency_key, session_id,
                     status, total_amount, created_at, updated_at
                 ) VALUES (
-                    @id::uuid, @idempotencyKey, @sessionId::uuid, NULL,
+                    @id::uuid, @idempotencyKey, @sessionId::uuid,
                     @status, @total, @createdAt, @updatedAt
                 )
                 ON CONFLICT (idempotency_key) DO NOTHING
@@ -71,14 +71,14 @@ public sealed class OrderRepository
                     }, tx);
             }
 
-            // 3. INSERT order_outbox — atomico com o pedido
+            // 3. INSERT order_outbox — atômico com o pedido
             var payload = JsonSerializer.Serialize(new
             {
-                orderId   = order.Id,
-                sessionId = order.SessionId,
-                status    = order.Status.ToString(),
-                total     = order.Total,
-                items     = order.Items.Select(i => new
+                orderId    = order.Id,
+                sessionId  = order.SessionId,
+                status     = order.Status.ToString(),
+                total      = order.Total,
+                items      = order.Items.Select(i => new
                 {
                     productId = i.ProductId,
                     title     = i.ProductTitle,
@@ -122,19 +122,26 @@ public sealed class OrderRepository
             new { id = orderId, status = status.ToString().ToLower() });
     }
 
-    public async Task<OrderStatusDto?> GetStatusAsync(string orderId,
+    public async Task<OrderSummary?> GetByIdAsync(string orderId,
         CancellationToken ct = default)
     {
         await using var conn = await _factory.CreateAsync(ct);
-        return await conn.QuerySingleOrDefaultAsync<OrderStatusDto>("""
-            SELECT o.id         AS OrderId,
-                   o.status,
-                   o.total_amount AS Total,
-                   o.tracking_code AS TrackingCode,
-                   o.created_at
-              FROM "order" o
-             WHERE o.id = @id::uuid
+        return await conn.QuerySingleOrDefaultAsync<OrderSummary>("""
+            SELECT id           AS OrderId,
+                   status,
+                   total_amount AS Total,
+                   tracking_code AS TrackingCode,
+                   created_at
+              FROM "order"
+             WHERE id = @id::uuid
             """,
             new { id = orderId });
     }
+
+    public sealed record OrderSummary(
+        string   OrderId,
+        string   Status,
+        decimal  Total,
+        string?  TrackingCode,
+        DateTime CreatedAt);
 }
