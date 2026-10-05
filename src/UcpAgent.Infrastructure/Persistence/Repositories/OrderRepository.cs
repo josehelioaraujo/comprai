@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Dapper;
-using Npgsql;
 using UcpAgent.Domain.Entities;
 using UcpAgent.Domain.Enums;
 using UcpAgent.Infrastructure.Persistence;
@@ -19,14 +18,13 @@ public sealed class OrderRepository
     /// </summary>
     public async Task SaveAsync(Order order, CancellationToken ct = default)
     {
-        await using var conn = (NpgsqlConnection) await _factory.CreateAsync(ct);
+        await using var conn = await _factory.CreateAsync(ct);
         await using var tx   = await conn.BeginTransactionAsync(ct);
 
         try
         {
             var idempotencyKey = Guid.NewGuid();
 
-            // 1. INSERT order
             await conn.ExecuteAsync("""
                 INSERT INTO "order" (
                     id, idempotency_key, session_id,
@@ -48,7 +46,6 @@ public sealed class OrderRepository
                     updatedAt      = order.UpdatedAt
                 }, tx);
 
-            // 2. INSERT order_items
             foreach (var item in order.Items)
             {
                 await conn.ExecuteAsync("""
@@ -71,7 +68,6 @@ public sealed class OrderRepository
                     }, tx);
             }
 
-            // 3. INSERT order_outbox — atômico com o pedido
             var payload = JsonSerializer.Serialize(new
             {
                 orderId    = order.Id,
@@ -93,12 +89,7 @@ public sealed class OrderRepository
                 VALUES (@key, @topic, @payload::jsonb)
                 ON CONFLICT (idempotency_key) DO NOTHING
                 """,
-                new
-                {
-                    key     = idempotencyKey,
-                    topic   = "ucp.order.created",
-                    payload
-                }, tx);
+                new { key = idempotencyKey, topic = "ucp.order.created", payload }, tx);
 
             await tx.CommitAsync(ct);
         }
@@ -127,9 +118,9 @@ public sealed class OrderRepository
     {
         await using var conn = await _factory.CreateAsync(ct);
         return await conn.QuerySingleOrDefaultAsync<OrderSummary>("""
-            SELECT id           AS OrderId,
+            SELECT id            AS OrderId,
                    status,
-                   total_amount AS Total,
+                   total_amount  AS Total,
                    tracking_code AS TrackingCode,
                    created_at
               FROM "order"
