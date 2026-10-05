@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Http.Resilience;
+using Polly;
 using System.Diagnostics.CodeAnalysis;
 
 namespace UcpAgent.Api.Resilience;
@@ -20,9 +21,8 @@ public static class ResilienceExtensions
             pipeline.AddTimeout(TimeSpan.FromSeconds(options.Timeout.TimeoutSeconds));
 
             // 2⃣ Retry — backoff exponencial + jitter
-            //   BackoffType e UseJitter omitidos: defaults de HttpRetryStrategyOptions
-            //   ja sao Exponential + true respectivamente.
-            //   ShouldHandle default cobre HttpRequestException + 5xx + 408 + 429.
+            //   BackoffType (Exponential) e UseJitter (true) sao defaults de HttpRetryStrategyOptions.
+            //   ShouldHandle default ja cobre HttpRequestException + 5xx + 408 + 429.
             if (options.Retry.MaxAttempts > 0)
             {
                 pipeline.AddRetry(new HttpRetryStrategyOptions
@@ -33,7 +33,7 @@ public static class ResilienceExtensions
             }
 
             // 3⃣ Circuit Breaker — abre quando taxa de falha excede o limiar
-            //   ShouldHandle default cobre HttpRequestException + 5xx.
+            //   ShouldHandle default ja cobre HttpRequestException + 5xx.
             pipeline.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
             {
                 FailureRatio      = options.CircuitBreaker.FailureRatio,
