@@ -9,18 +9,18 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:5020
       ConnectionStrings__Redis: "comprai-redis:6379,connectTimeout=2000,syncTimeout=2000,abortConnect=false"
+      ConnectionStrings__Default: "Host=comprai-postgres;Port=5432;Database=comprai;Username=comprai;Password=${POSTGRES_PASSWORD};Timezone=UTC"
       RabbitMQ__Host: comprai-rabbitmq
       Kafka__BootstrapServers: comprai-kafka:9094
       Features__UsarRedis:    ${USAR_REDIS:-true}
       Features__UsarRabbitMQ: ${USAR_RABBITMQ:-false}
       Features__UsarKafka:    ${USAR_KAFKA:-false}
+      Features__UsarPostgres: ${USAR_POSTGRES:-true}
       Features__UsarPriceWatcher: ${USAR_PRICE_WATCHER:-true}
       GitHub__Pat: ${GH_PAT:-}
       Admin__RestartPassword: ${ADMIN_RESTART_PASSWORD:-}
       Logging__LogLevel__Default: Information
       Logging__LogLevel__Microsoft.AspNetCore: Warning
-      # Em producao: OTEL_ENDPOINT=http://comprai-dd-agent:4317 (Datadog)
-      # Em dev local: OTEL_ENDPOINT=http://comprai-jaeger:4319  (Jaeger)
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_ENDPOINT:-http://comprai-otel-collector:4318}
       OTEL_SERVICE_NAME: "comprai-api"
       DOTNET_SYSTEM_NET_HTTP_SOCKETSHTTPHANDLER_HTTP2UNENCRYPTEDSUPORT: "1"
@@ -28,14 +28,14 @@ services:
       Ollama__BaseUrl: "http://host-gateway:11434"
       MercadoLivre__ClientId: ${ML_CLIENT_ID:-}
       MercadoLivre__ClientSecret: ${ML_CLIENT_SECRET:-}
-      # New Relic — NerdGraph proxy
       NEW_RELIC_USER_KEY: ${NEW_RELIC_USER_KEY:-}
       NEW_RELIC_ACCOUNT_ID: ${NEW_RELIC_ACCOUNT_ID:-}
-
     extra_hosts:
       - "host-gateway:host-gateway"
     depends_on:
       comprai-redis:
+        condition: service_healthy
+      comprai-postgres:
         condition: service_healthy
     group_add:
       - "988"
@@ -51,6 +51,28 @@ services:
         max-size: "10m"
         max-file: "3"
         tag: "{{.Name}}"
+
+  comprai-postgres:
+    image: postgres:16-alpine
+    container_name: comprai-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB:       comprai
+      POSTGRES_USER:     comprai
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ:                UTC
+      PGTZ:              UTC
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U comprai -d comprai"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - comprai-network
+    restart: unless-stopped
 
   comprai-redis:
     image: redis:7-alpine
@@ -229,9 +251,6 @@ services:
     profiles:
       - tools
 
-  # ── OTel Collector ────────────────────────────────────────────────────────────
-  # Recebe traces OTel via gRPC (4317) e exporta para Datadog Cloud (US1)
-  # Subir com: docker compose --profile datadog up -d
   comprai-otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
     container_name: comprai-otel-collector
@@ -247,8 +266,6 @@ services:
       - datadog
     restart: unless-stopped
 
-  # ── Datadog Agent ─────────────────────────────────────────────────────────────
-  # Coleta métricas de infra/containers e encaminha para Datadog Cloud (US1)
   comprai-dd-agent:
     image: gcr.io/datadoghq/agent:7
     container_name: comprai-dd-agent
@@ -277,6 +294,7 @@ volumes:
   redis_data:
   rabbitmq_data:
   kafka_data:
+  postgres_data:
   prometheus_data:
   grafana_data:
   loki_data:
@@ -284,8 +302,3 @@ volumes:
 networks:
   comprai-network:
     driver: bridge
-
-
-
-
-
