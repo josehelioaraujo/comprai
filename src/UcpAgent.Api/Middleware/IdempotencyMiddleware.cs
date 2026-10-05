@@ -1,146 +1,89 @@
-using System.Collections.Concurrent;
-using StackExchange.Redis;
+using Dapper;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
+using UcpAgent.Infrastructure.Persistence;
 
 namespace UcpAgent.Api.Middleware;
 
 /// <summary>
-/// Garante idempotência nos endpoints de escrita via header X-Idempotency-Key.
-///
-/// Funciona SEMPRE — Redis é upgrade de durabilidade, não requisito:
-///   - Com Redis:  cache distribuído, TTL 24h, sobrevive restart da aplicação
-///   - Sem Redis:  cache em memória, TTL 30min, escopo do processo
-///
-/// A mesma X-Idempotency-Key NUNCA processa duas vezes, independente de
-/// infraestrutura — consistência de pedido garantida em qualquer ambiente.
-///
-/// Endpoints cobertos: POST /api/cart/*, /api/checkout/*, /api/payment/*
+/// Middleware de idempotência via PostgreSQL (F7).
+/// Lê/grava idempotency_key no BD com TTL 24h.
+/// Fallback transparente se BD indisponível.
 /// </summary>
 public sealed class IdempotencyMiddleware(
     RequestDelegate next,
-    IServiceProvider sp,
+    IDbConnectionFactory? factory,
     ILogger<IdempotencyMiddleware> logger)
 {
-    private static readonly string[] IdempotentPaths =
-        ["/api/cart", "/api/checkout", "/api/payment"];
-
-    private static readonly TimeSpan RedisTtl  = TimeSpan.FromHours(24);
-    private static readonly TimeSpan MemoryTtl = TimeSpan.FromMinutes(30);
-
-    // Cache em memória — singleton, vive com o processo
-    private static readonly ConcurrentDictionary<string, (string Body, DateTimeOffset Expires)>
-        _memCache = new();
-    private static DateTimeOffset _lastCleanup = DateTimeOffset.UtcNow;
+    private const string Header = "X-Idempotency-Key";
 
     public async Task InvokeAsync(HttpContext ctx)
     {
-        if (ctx.Request.Method != HttpMethods.Post
-            || !IdempotentPaths.Any(p => ctx.Request.Path.StartsWithSegments(p)))
+        if (factory is null ||
+            !ctx.Request.Headers.TryGetValue(Header, out var keyValue) ||
+            string.IsNullOrWhiteSpace(keyValue))
         {
             await next(ctx);
             return;
         }
 
-        var key = ctx.Request.Headers["X-Idempotency-Key"].FirstOrDefault();
-        if (string.IsNullOrWhiteSpace(key))
+        var key    = keyValue.ToString().Trim();
+        var path   = ctx.Request.Path.Value ?? "";
+        var method = ctx.Request.Method;
+
+        if (method is "GET" or "HEAD" or "OPTIONS")
         {
             await next(ctx);
             return;
         }
 
-        var redis = sp.GetService<IConnectionMultiplexer>();
-
-        if (redis is not null)
-            await HandleWithRedisAsync(ctx, redis, key);
-        else
-            await HandleWithMemoryAsync(ctx, key);
-    }
-
-    // ── Redis ─────────────────────────────────────────────────────────────────
-
-    private async Task HandleWithRedisAsync(
-        HttpContext ctx, IConnectionMultiplexer redis, string key)
-    {
-        var redisKey = $"idempotency:{key}";
-        var db       = redis.GetDatabase();
-
-        var cached = await db.StringGetAsync(redisKey);
-        if (cached.HasValue)
+        try
         {
-            logger.LogInformation("[Idempotency/Redis] Hit key={Key}", key);
-            await ReturnCachedAsync(ctx, cached.ToString());
-            return;
+            await using var conn = await factory.CreateAsync(ctx.RequestAborted);
+
+            var existing = await conn.QuerySingleOrDefaultAsync<IdempotencyRecord>("""
+                SELECT status_code AS StatusCode, response_body AS ResponseBody
+                  FROM idempotency_key
+                 WHERE key = @key AND path = @path AND expires_at > NOW()
+                """, new { key, path });
+
+            if (existing is not null)
+            {
+                logger.LogInformation("[Idempotency] Cache hit: {Key}", key);
+                ctx.Response.StatusCode  = existing.StatusCode;
+                ctx.Response.ContentType = "application/json";
+                await ctx.Response.WriteAsync(existing.ResponseBody, ctx.RequestAborted);
+                return;
+            }
+
+            var originalBody = ctx.Response.Body;
+            using var buffer = new MemoryStream();
+            ctx.Response.Body = buffer;
+
+            await next(ctx);
+
+            buffer.Seek(0, SeekOrigin.Begin);
+            var responseBody = await new StreamReader(buffer).ReadToEndAsync();
+            buffer.Seek(0, SeekOrigin.Begin);
+            await buffer.CopyToAsync(originalBody, ctx.RequestAborted);
+            ctx.Response.Body = originalBody;
+
+            if (ctx.Response.StatusCode is >= 200 and < 300)
+            {
+                await conn.ExecuteAsync("""
+                    INSERT INTO idempotency_key (key, path, method, status_code, response_body, expires_at)
+                    VALUES (@key, @path, @method, @statusCode, @responseBody, NOW() + INTERVAL '24 hours')
+                    ON CONFLICT (key, path) DO NOTHING
+                    """,
+                    new { key, path, method, statusCode = ctx.Response.StatusCode, responseBody });
+            }
         }
-
-        var body = await CaptureAsync(ctx);
-        if (body is not null)
+        catch (Exception ex)
         {
-            await db.StringSetAsync(redisKey, body, RedisTtl);
-            logger.LogInformation("[Idempotency/Redis] Stored key={Key} TTL=24h", key);
-        }
-    }
-
-    // ── Memória (fallback) ────────────────────────────────────────────────────
-
-    private async Task HandleWithMemoryAsync(HttpContext ctx, string key)
-    {
-        PurgeExpired();
-
-        if (_memCache.TryGetValue(key, out var hit) && hit.Expires > DateTimeOffset.UtcNow)
-        {
-            logger.LogInformation("[Idempotency/Memory] Hit key={Key}", key);
-            await ReturnCachedAsync(ctx, hit.Body);
-            return;
-        }
-
-        var body = await CaptureAsync(ctx);
-        if (body is not null)
-        {
-            _memCache[key] = (body, DateTimeOffset.UtcNow.Add(MemoryTtl));
-            logger.LogInformation("[Idempotency/Memory] Stored key={Key} TTL=30min", key);
+            logger.LogWarning(ex, "[Idempotency] Falha no BD — passando sem idempotência");
+            await next(ctx);
         }
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
-
-    private static async Task ReturnCachedAsync(HttpContext ctx, string body)
-    {
-        ctx.Response.StatusCode  = 200;
-        ctx.Response.ContentType = "application/json";
-        await ctx.Response.WriteAsync(body);
-    }
-
-    /// <summary>
-    /// Executa o pipeline e captura o body da resposta.
-    /// Retorna null se a resposta não foi 2xx.
-    /// </summary>
-    private async Task<string?> CaptureAsync(HttpContext ctx)
-    {
-        var originalBody = ctx.Response.Body;
-        using var buffer = new MemoryStream();
-        ctx.Response.Body = buffer;
-
-        await next(ctx);   // executa o restante do pipeline
-
-        buffer.Position  = 0;
-        var responseBody = await new StreamReader(buffer).ReadToEndAsync();
-
-        // Devolve o body ao stream original
-        buffer.Position = 0;
-        await buffer.CopyToAsync(originalBody);
-        ctx.Response.Body = originalBody;
-
-        return ctx.Response.StatusCode is >= 200 and < 300 ? responseBody : null;
-    }
-
-    /// <summary>Remove entradas expiradas do cache em memória (a cada 5 min).</summary>
-    private static void PurgeExpired()
-    {
-        var now = DateTimeOffset.UtcNow;
-        if (now - _lastCleanup < TimeSpan.FromMinutes(5)) return;
-        _lastCleanup = now;
-
-        foreach (var k in _memCache.Keys)
-            if (_memCache.TryGetValue(k, out var e) && e.Expires <= now)
-                _memCache.TryRemove(k, out _);
-    }
+    private sealed record IdempotencyRecord(int StatusCode, string ResponseBody);
 }

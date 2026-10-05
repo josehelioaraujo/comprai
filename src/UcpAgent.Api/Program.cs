@@ -342,7 +342,7 @@ var app = builder.Build();
 
 // F7: Idempotência via PostgreSQL
 if (usarPostgres)
-    app.UseMiddleware<UcpAgent.Infrastructure.Idempotency.IdempotencyMiddleware>();
+    app.UseMiddleware<UcpAgent.Api.Middleware.IdempotencyMiddleware>();
 
 app.UseCors("AllowAll");
 
