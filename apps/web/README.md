@@ -67,6 +67,15 @@ Para adicionar o chat em qualquer site:
 | OpsWatch | http://2.25.122.11/k6/dashboard |
 | Kafka UI | http://2.25.122.11:8083 |
 
+## 📋 Histórico de Versões (Mobile)
+
+| Versão | Data | Destaque |
+|--------|------|----------|
+| V046 | 2026-10-04 | Meus Pedidos com drilldown, rastreio unificado, × em todos os cards, bug 2ª compra corrigido |
+| V045 | 2026-10-02 | Dismiss de cards, persistência localStorage, fulfillment history |
+| V044 | 2026-10-01 | Layout mobile-first, MobileIntentRenderer, MobileProductCarousel |
+| V043 | 2026-09-30 | Web chat UX: sidebar, carrinho, modal UCP, dark/light |
+
 ## 🏗️ Arquitetura
 
 ```

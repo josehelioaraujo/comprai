@@ -14,7 +14,7 @@ interface Props {
   onAddToCart: (product: Product) => void
   onCheckout: (customer: CustomerDto, shipping: 'standard' | 'express', total: number) => void
   onPayment: (orderId: string, provider: PaymentProvider, method: PaymentMethod) => void
-  onPaymentConfirmed: (orderId: string) => void
+  onPaymentConfirmed: (orderId: string, detail?: string) => void
   onQuantityChange?: (productId: string, qty: number) => void
 }
 
@@ -38,11 +38,11 @@ export default function IntentRenderer({ message, onAddToCart, onCheckout, onPay
       return null
     case 'payment_pix': case 'payment_mock':
       if (data.type === 'payment')
-        return <PixCard payment={data.payment} onConfirmed={() => onPaymentConfirmed(data.payment.orderId)} />
+        return <PixCard payment={data.payment} onConfirmed={(detail) => onPaymentConfirmed(data.payment.orderId, detail)} />
       return null
     case 'payment_card':
       if (data.type === 'payment')
-        return <StripeCard payment={data.payment} onConfirmed={() => onPaymentConfirmed(data.payment.orderId)} />
+        return <StripeCard payment={data.payment} onConfirmed={(detail) => onPaymentConfirmed(data.payment.orderId, detail)} />
       return null
     case 'order_status': case 'order_list':
       if (data.type === 'order') return <OrderTrackingCard order={data.order} />

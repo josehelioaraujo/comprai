@@ -48,10 +48,13 @@ export default function MobileChatBubble({ message, children }: Props) {
     )
   }
 
+  // Fix #1: texto vazio → não renderiza o balão, só o slot de cards UCP
+  const hasText = message.text && message.text.trim().length > 0
+
   return (
     <div className="flex flex-col gap-2">
-      {/* Balão principal */}
-      <div className="flex items-start gap-3 max-w-[88%]">
+      {/* Balão principal — suprimido quando texto vazio */}
+      {hasText && <div className="flex items-start gap-3 max-w-[88%]">
         {/* Avatar IA */}
         <div className="
           w-8 h-8 rounded-full shrink-0
@@ -75,7 +78,7 @@ export default function MobileChatBubble({ message, children }: Props) {
             {formatTime(message.timestamp)}
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* Slot para cards UCP — alinhado com recuo do balão */}
       {children && (

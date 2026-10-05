@@ -15,7 +15,7 @@ export default function MobilePage() {
     messages, session, cartCount, isTyping, hasPreviousOrder,
     sendMessage, handleAddToCart, handleViewCart, handleViewOrders,
     handleCheckout, handlePayment, handlePaymentConfirmed, handleQuantityChange,
-    handleRestorePreviousOrder,
+    handleRestorePreviousOrder, handleDismissMessage, handleDismissAndReset,
   } = useChat()
 
   const chatRef = useRef<HTMLDivElement>(null)
@@ -46,6 +46,7 @@ export default function MobilePage() {
         onPayment={handlePayment}
         onPaymentConfirmed={handlePaymentConfirmed}
         onQuantityChange={handleQuantityChange}
+        onDismiss={handleDismissAndReset}
       />
 
       <MobileUcpProgressBar

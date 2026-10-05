@@ -1,5 +1,22 @@
 # 🗺️ Roadmap — Comprai
 
+## V047 — Pendências Mobile + CI Fix
+
+### 🔴 Alta Prioridade
+- [ ] **CI falha em "Run Unit Tests"** desde commit `62756de` — investigar Domain/Application/Catalog separados
+- [ ] **Pix detail não exibido** — `pixCopyPaste` gerado mas não persistido corretamente no `paymentDetail`; verificar fluxo `PixCard.onConfirmed` → `handlePaymentConfirmed` → `saveOrderToList`
+
+### 🟡 Média Prioridade
+- [ ] **apps/mobile standalone** (porta 3003) — separar do apps/web quando mobile estiver estável; reverter deploy-web.yml para excluir paths mobile
+- [ ] **PixCard/StripeCard sem onClose** — decidir se permite fechar após confirmação de pagamento
+- [ ] **Validação de endereço** — CEP inválido não bloqueia o checkout; adicionar feedback de erro no CartCard
+
+### 🟢 Melhorias
+- [ ] **Timeline ao vivo** — atualizar `OrderTrackingCard` em tempo real via polling `/api/orders/{id}` (hoje é simulação client-side)
+- [ ] **Persistência no banco** — migrar `comprai_orders_list` do localStorage para PostgreSQL (`order_history`)
+- [ ] **Notificações push** — Service Worker + Web Push quando pedido mudar de status
+
+
 ## ✅ Concluído
 
 ### Backend + Observabilidade (V039–V041)

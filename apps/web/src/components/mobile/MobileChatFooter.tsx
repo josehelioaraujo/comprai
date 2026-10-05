@@ -14,14 +14,13 @@ interface Props {
   onRestorePreviousOrder?: () => void
 }
 
-const SUGGESTIONS_BY_STEP: Partial<Record<UcpStep | 'idle', { label: string; msg: string | null; action?: 'viewOrders' }[]>> = {
-  idle:     [{ label: 'Buscar produto', msg: null }],
-  search:   [{ label: 'Buscar produto', msg: null }],
+const BASE_SUGGESTIONS: Partial<Record<UcpStep | 'idle', { label: string; msg: string | null; action?: 'viewOrders' }[]>> = {
+  idle:     [],
+  search:   [],
   cart:     [{ label: 'Finalizar compra', msg: 'Quero finalizar minha compra' }],
   checkout: [{ label: 'Finalizar compra', msg: 'Quero finalizar minha compra' }],
   payment:  [],
   order:    [
-    { label: 'Nova busca',   msg: null },
     { label: 'Meus pedidos', msg: null, action: 'viewOrders' },
   ],
 }
@@ -33,7 +32,11 @@ export default function MobileChatFooter({
   const [text, setText] = useState('')
   const textareaRef     = useRef<HTMLTextAreaElement>(null)
 
-  const suggestions = SUGGESTIONS_BY_STEP[step] ?? SUGGESTIONS_BY_STEP['idle']!
+  const baseSuggestions = BASE_SUGGESTIONS[step] ?? []
+  // No idle, mostrar "Meus pedidos" se houver pedidos anteriores
+  const suggestions = (step === 'idle' || step === 'search') && hasPreviousOrder
+    ? [{ label: 'Meus pedidos', msg: null as null, action: 'viewOrders' as const }, ...baseSuggestions]
+    : baseSuggestions
 
   function handleSend() {
     const trimmed = text.trim()
@@ -62,18 +65,6 @@ export default function MobileChatFooter({
 
   return (
     <footer className="w-full bg-zinc-950/90 backdrop-blur-lg border-t border-zinc-900 px-3 pt-2 pb-3 flex flex-col gap-2 shrink-0">
-      {/* Botão "Ver pedido anterior" — aparece só ao reabrir com pedido salvo */}
-      {hasPreviousOrder && step === 'idle' && onRestorePreviousOrder && (
-        <button
-          onClick={onRestorePreviousOrder}
-          disabled={disabled}
-          className="w-full py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border transition-all duration-150 active:scale-[0.98] disabled:opacity-40"
-          style={{ background: 'rgba(34,197,94,0.08)', borderColor: 'rgba(34,197,94,0.3)', color: 'var(--accent, #10b981)' }}
-        >
-          📦 Meus pedidos
-        </button>
-      )}
-
       {suggestions.length > 0 && (
         <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
           {suggestions.map(s => (

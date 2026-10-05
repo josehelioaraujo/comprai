@@ -12,12 +12,13 @@ interface Props {
   onAddToCart: (product: Product) => void
   onCheckout: (customer: CustomerDto, shipping: 'standard' | 'express', total: number) => void
   onPayment: (orderId: string, provider: PaymentProvider, method: PaymentMethod) => void
-  onPaymentConfirmed: (orderId: string) => void
+  onPaymentConfirmed: (orderId: string, detail?: string) => void
   onQuantityChange?: (productId: string, qty: number) => void
+  onDismiss?: (id: string) => void
 }
 
 const MobileChatWindow = forwardRef<HTMLElement, Props>(function MobileChatWindow(
-  { messages, isTyping, onAddToCart, onCheckout, onPayment, onPaymentConfirmed, onQuantityChange },
+  { messages, isTyping, onAddToCart, onCheckout, onPayment, onPaymentConfirmed, onQuantityChange, onDismiss },
   ref
 ) {
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -41,6 +42,7 @@ const MobileChatWindow = forwardRef<HTMLElement, Props>(function MobileChatWindo
               onPayment={onPayment}
               onPaymentConfirmed={onPaymentConfirmed}
               onQuantityChange={onQuantityChange}
+              onClose={onDismiss ? () => onDismiss(msg.id) : undefined}
             />
           )}
         </MobileChatBubble>
