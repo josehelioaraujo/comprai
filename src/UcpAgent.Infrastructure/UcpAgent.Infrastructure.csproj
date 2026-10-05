@@ -11,7 +11,6 @@
     <PackageReference Include="StackExchange.Redis" Version="2.*" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.*" />
     <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="9.4.0" />
-    <PackageReference Include="Polly.Core" Version="8.*" />
     <PackageReference Include="Dapper" Version="2.1.35" />
     <PackageReference Include="Npgsql" Version="9.0.3" />
     <PackageReference Include="dbup-postgresql" Version="5.0.23" />
