@@ -1,4 +1,4 @@
-﻿services:
+services:
 
   comprai-api:
     build:
@@ -14,6 +14,7 @@
       Features__UsarRedis:     'false'
       Features__UsarKafka:     'true'
       Features__UsarRabbitMQ:  'true'
+      Features__UsarPostgres:  'true'
       Redis__ConnectionString: redis:6379
       Kafka__BootstrapServers: comprai-kafka:9094
       RabbitMQ__Host:          rabbitmq
@@ -23,8 +24,10 @@
       Otel__ServiceName: comprai-api
       Shopify__AccessToken: ${SHOPIFY_ACCESS_TOKEN}
       Shopify__StoreUrl:    ${SHOPIFY_STORE_URL:-comprai-dev.myshopify.com}
+      ConnectionStrings__Default: "Host=comprai-postgres;Port=5432;Database=comprai;Username=comprai;Password=${POSTGRES_PASSWORD};Timezone=UTC"
     depends_on:
       - redis
+      - comprai-postgres
     networks:
       - comprai-network
     restart: unless-stopped
@@ -61,6 +64,28 @@
         max-size: 10m
         max-file: '3'
         tag: '{{.Name}}'
+
+  comprai-postgres:
+    image: postgres:16-alpine
+    container_name: comprai-postgres
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_DB:       comprai
+      POSTGRES_USER:     comprai
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ:                UTC
+      PGTZ:              UTC
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - comprai-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U comprai -d comprai"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
@@ -214,6 +239,7 @@ volumes:
   redis_data:
   kafka_data:
   rabbitmq_data:
+  postgres_data:
   prometheus_data:
   grafana_data:
   loki_data:
