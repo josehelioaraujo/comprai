@@ -317,6 +317,11 @@ if (usarPostgres)
     builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.OrderRepository>();
     builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.PaymentRepository>();
     builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.OutboxRepository>();
+    // F4+F5: queries de pedidos e fulfillment
+    builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.OrdersQueryRepository>();
+    // F6: log de buscas
+    builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.ISearchLogPort,
+        UcpAgent.Infrastructure.Persistence.Repositories.SearchLogRepository>();
     // F3: PostgresFulfillmentRepository — fulfillment_event append-only + order_history
     builder.Services.AddSingleton<UcpAgent.Infrastructure.Fulfillment.IFulfillmentRepository,
         UcpAgent.Infrastructure.Fulfillment.PostgresFulfillmentRepository>();
@@ -334,6 +339,10 @@ if (usarPostgres)
 }
 
 var app = builder.Build();
+
+// F7: Idempotência via PostgreSQL
+if (usarPostgres)
+    app.UseMiddleware<UcpAgent.Infrastructure.Idempotency.IdempotencyMiddleware>();
 
 app.UseCors("AllowAll");
 
@@ -523,6 +532,7 @@ app.MapPost("/api/payment/{orderId}", async (
 .WithTags("Payment").WithName("ProcessPayment");
 
 app.MapIntentEndpoints();
+app.MapOrdersEndpoints();  // F4+F5
 app.MapObservabilityEndpoints();
 app.MapNewRelicEndpoints();
 app.MapContainerEndpoints();

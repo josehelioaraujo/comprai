@@ -10,7 +10,8 @@ namespace UcpAgent.Application.Search;
 public sealed class SearchProductsHandler(
     IEnumerable<IProductCatalogPort> catalogs,
     IEventPublisher events,
-    UcpMetrics metrics)
+    UcpMetrics metrics,
+    ISearchLogPort? searchLog = null)
     : IRequestHandler<SearchProductsQuery, Result<SearchResult>>
 {
     public async Task<Result<SearchResult>> Handle(
@@ -23,7 +24,6 @@ public sealed class SearchProductsHandler(
             request.Query, request.Page, request.PageSize,
             request.Category, request.MinPrice, request.MaxPrice);
 
-        // Fan-out paralelo — falhas individuais não derrubam a busca
         var tasks = catalogs.Select(async c =>
         {
             var pluginSw = Stopwatch.StartNew();
@@ -51,7 +51,6 @@ public sealed class SearchProductsHandler(
 
         var results = await Task.WhenAll(tasks);
 
-        // Agrega, deduplica por (Id+Source) e rankeia
         var seen  = new HashSet<string>();
         var items = results
             .SelectMany(r => r.Items)
@@ -66,7 +65,16 @@ public sealed class SearchProductsHandler(
         metrics.SearchDurationMs.Record(sw.Elapsed.TotalMilliseconds);
         metrics.SearchResultsCount.Record(items.Count);
 
-        // Publica evento de busca (fire-and-forget — nunca bloqueia o fluxo)
+        // F6 — INSERT search_log (fire-and-forget, nao bloqueia busca)
+        if (searchLog is not null)
+            _ = searchLog.LogAsync(new SearchLogEntry(
+                Query:       request.Query,
+                ResultCount: items.Count,
+                Sources:     string.Join(",", results.Select(r => r.Source).Distinct()),
+                DurationMs:  (int)sw.Elapsed.TotalMilliseconds,
+                SessionId:   request.SessionId,
+                OccurredAt:  DateTime.UtcNow), cancellationToken);
+
         _ = events.PublishAsync(
             UcpTopics.SearchQueried,
             new SearchQueryLoggedEvent(request.Query, items.Count, "aggregated", DateTime.UtcNow),
