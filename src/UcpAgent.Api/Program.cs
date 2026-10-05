@@ -317,8 +317,9 @@ if (usarPostgres)
     builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.OrderRepository>();
     builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.PaymentRepository>();
     builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.OutboxRepository>();
-    builder.Services.AddSingleton<UcpAgent.Domain.Fulfillment.IFulfillmentRepository,
-        UcpAgent.Infrastructure.Persistence.Repositories.PostgresFulfillmentRepository>();
+    // F3: PostgresFulfillmentRepository — fulfillment_event append-only + order_history
+    builder.Services.AddSingleton<UcpAgent.Infrastructure.Fulfillment.IFulfillmentRepository,
+        UcpAgent.Infrastructure.Fulfillment.PostgresFulfillmentRepository>();
 
     // OutboxWorkers (BackgroundService)
     if (usarKafka)
