@@ -18,8 +18,10 @@ public sealed class RedisCheckoutAdapter(
     CustomerRepository? customerRepo = null,
     OrderRepository? orderRepo = null) : ICheckoutPort
 {
+    // GetValue<bool> requer Binder — usar comparação de string direta
     private readonly bool _usarPostgres =
-        configuration.GetValue<bool>("Features:UsarPostgres");
+        string.Equals(configuration["Features:UsarPostgres"], "true",
+            StringComparison.OrdinalIgnoreCase);
 
     public async Task<CheckoutResultDto> ProcessAsync(
         string sessionId, CustomerDto customer, CancellationToken ct = default)
@@ -43,8 +45,6 @@ public sealed class RedisCheckoutAdapter(
                 logger.LogInformation("[F1] Customer upserted: {CustomerId}", customerId);
 
                 // Etapa 2 — Salva order + items + order_outbox em 1 TX
-                // CartItemDto: record(ItemId, Product, Quantity, Subtotal)
-                // OrderItem:   factory via private set — usar OrderRepository direto com dados primitivos
                 var order = new Domain.Entities.Order
                 {
                     Id         = orderId,
@@ -55,7 +55,6 @@ public sealed class RedisCheckoutAdapter(
                     UpdatedAt  = DateTime.UtcNow
                 };
 
-                // Popula itens via factory interna que aceita dados primitivos
                 foreach (var item in items)
                     order.AddItemFromCart(item);
 
