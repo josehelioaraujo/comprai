@@ -436,3 +436,4 @@ aplicar-fase*.ps1
 
 test-results/
 newman-report/
+"**/.write_test" 
