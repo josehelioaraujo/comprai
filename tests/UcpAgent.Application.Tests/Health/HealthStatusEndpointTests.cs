@@ -12,6 +12,20 @@ public class HealthApiFactory : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Test");
+        // Garante que nenhuma infra é necessária no startup durante os testes
+        builder.ConfigureAppConfiguration((_, config) =>
+        {
+            config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Features:UsarMockDados"]          = "true",
+                ["Features:UsarRedis"]              = "false",
+                ["Features:UsarKafka"]              = "false",
+                ["Features:UsarRabbitMQ"]           = "false",
+                ["Features:UsarPostgres"]           = "false",
+                ["Features:UsarPriceWatcher"]       = "false",
+                ["Features:UsarFulfillmentSimulator"] = "false",
+            });
+        });
     }
 }
 
