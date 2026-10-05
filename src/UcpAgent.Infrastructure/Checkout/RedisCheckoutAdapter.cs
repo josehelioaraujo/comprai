@@ -2,6 +2,9 @@ using System.Text.Json;
 using UcpAgent.SharedKernel.Events;
 using UcpAgent.SharedKernel.Ports;
 using UcpAgent.Infrastructure.Orders;
+using UcpAgent.Infrastructure.Persistence.Repositories;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 
 namespace UcpAgent.Infrastructure.Checkout;
 
@@ -9,8 +12,15 @@ public sealed class RedisCheckoutAdapter(
     ICartPort cart,
     RedisOrderAdapter orders,
     IEventPublisher events,
-    INotificationPublisher notifications) : ICheckoutPort
+    INotificationPublisher notifications,
+    IConfiguration configuration,
+    ILogger<RedisCheckoutAdapter> logger,
+    CustomerRepository? customerRepo = null,
+    OrderRepository? orderRepo = null) : ICheckoutPort
 {
+    private readonly bool _usarPostgres =
+        configuration.GetValue<bool>("Features:UsarPostgres");
+
     public async Task<CheckoutResultDto> ProcessAsync(
         string sessionId, CustomerDto customer, CancellationToken ct = default)
     {
@@ -21,30 +31,67 @@ public sealed class RedisCheckoutAdapter(
         var orderId = $"ORDER-{Guid.NewGuid().ToString("N")[..8].ToUpper()}";
         var total   = items.Sum(i => i.Subtotal);
 
-        var order = new OrderStatusDto(
+        // ── F1: Persistência PostgreSQL ──────────────────────────────────
+        if (_usarPostgres && customerRepo is not null && orderRepo is not null)
+        {
+            try
+            {
+                // Etapa 1 — Upsert cliente
+                var customerId = await customerRepo.UpsertAsync(
+                    customer.Name, customer.Email, customer.Phone,
+                    channel: "web", ct);
+                logger.LogInformation("[F1] Customer upserted: {CustomerId}", customerId);
+
+                // Etapa 2 — Salva order + items + order_outbox em 1 TX
+                var order = new Domain.Entities.Order
+                {
+                    Id         = orderId,
+                    SessionId  = sessionId,
+                    CustomerId = customerId,
+                    Status     = Domain.Enums.OrderStatus.Pending,
+                    CreatedAt  = DateTime.UtcNow,
+                    UpdatedAt  = DateTime.UtcNow
+                };
+
+                foreach (var item in items)
+                    order.AddItem(new Domain.Entities.OrderItem
+                    {
+                        ProductId    = item.ProductId,
+                        ProductTitle = item.Name,
+                        Quantity     = item.Quantity,
+                        UnitPrice    = item.Price,
+                        Source       = item.Source ?? "unknown"
+                    });
+
+                await orderRepo.SaveAsync(order, ct);
+                logger.LogInformation("[F1] Order saved: {OrderId}", orderId);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "[F1] Falha ao persistir no BD — continuando com Redis");
+            }
+        }
+
+        // ── Redis: source of truth operacional (cache quente / fallback) ─
+        var redisOrder = new OrderStatusDto(
             orderId, "Pending", total, customer,
             JsonSerializer.Serialize(items), DateTime.UtcNow);
 
-        await orders.SaveAsync(order);
+        await orders.SaveAsync(redisOrder);
         await cart.ClearAsync(sessionId, ct);
 
-        // Kafka — evento de domínio (fluxo UCP)
+        // Kafka — evento de domínio
         await events.PublishAsync(
             UcpTopics.OrderCreated,
             new OrderCreatedEvent(orderId, sessionId, total, items.Count, DateTime.UtcNow),
             ct);
 
-        // RabbitMQ — notificação ao usuário (email)
+        // RabbitMQ — notificação ao usuário
         _ = notifications.PublishAsync(
             NotificationQueues.OrderConfirmation,
             new OrderConfirmationNotification(
-                orderId,
-                sessionId,
-                customer.Email,
-                customer.Name,
-                total,
-                items.Count,
-                DateTime.UtcNow),
+                orderId, sessionId, customer.Email, customer.Name,
+                total, items.Count, DateTime.UtcNow),
             ct);
 
         return new CheckoutResultDto(orderId, true, null);
