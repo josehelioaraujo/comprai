@@ -118,7 +118,7 @@ jobs:
             --results-directory ./test-results/unit \
             --settings coverlet.runsettings \
             --collect:"XPlat Code Coverage" \
-            --verbosity normal
+            --verbosity normal || (grep -o 'testName="[^"]*"[^/]*outcome="Failed"' ./test-results/unit/unit-app.trx 2>/dev/null; exit 1)
 
       - name: Run Application Tests
         run: |
