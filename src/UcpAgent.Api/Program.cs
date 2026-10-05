@@ -206,6 +206,18 @@ else if (paymentProvider == "efipay")
 else
     builder.Services.AddSingleton<IPaymentPort, MockPaymentAdapter>();
 
+// ── F2: Decorator de persistência — envolve IPaymentPort quando UsarPostgres=true ──
+if (usarPostgres)
+{
+    builder.Services.Decorate<IPaymentPort>((inner, sp) =>
+        new UcpAgent.Infrastructure.Payment.PersistingPaymentAdapter(
+            inner,
+            sp.GetRequiredService<UcpAgent.Infrastructure.Persistence.Repositories.PaymentRepository>(),
+            sp.GetRequiredService<UcpAgent.Infrastructure.Persistence.Repositories.OrderRepository>(),
+            sp.GetRequiredService<IConfiguration>(),
+            sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<UcpAgent.Infrastructure.Payment.PersistingPaymentAdapter>>()));
+}
+
 builder.Services.AddSingleton<IIntentRouterService, IntentRouterService>();
 
 
@@ -600,7 +612,9 @@ app.MapPost("/api/k6/analyze", async (K6AnalyzeRequest req, IHttpClientFactory f
     var ollamaBody = new
         {
             model = ollamaModel,
-            prompt = $"Sistema: {systemPrompt}\n\nUsuÃ¡rio: {userPrompt}",
+            prompt = $"Sistema: {systemPrompt}
+
+UsuÃ¡rio: {userPrompt}",
             stream = false
         };
 
@@ -947,11 +961,3 @@ record K6AnalyzeRequest(string Summary, string Question, string? Model);
 record AdminRestartRequest(string? Target, string? Password);
 
 record GitHubDispatchRequest(string? Repo, string? Workflow, string? Ref, Dictionary<string, string>? Inputs = null);
-
-
-
-
-
-
-
-
