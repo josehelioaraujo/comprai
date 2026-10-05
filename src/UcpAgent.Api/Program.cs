@@ -199,12 +199,33 @@ else
 
 // Ã¢ÂÂÃ¢ÂÂ Payment Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 var paymentProvider = builder.Configuration["Features:PaymentProvider"] ?? "mock";
+
+// Registra o adapter concreto com chave "payment:inner" — agnóstico ao tipo
 if (paymentProvider == "stripe")
-    builder.Services.AddSingleton<IPaymentPort, StripePaymentAdapter>();
+    builder.Services.AddKeyedSingleton<IPaymentPort, StripePaymentAdapter>("payment:inner");
 else if (paymentProvider == "efipay")
-    builder.Services.AddEfiPayment(builder.Configuration);
+    builder.Services.AddEfiPayment(builder.Configuration); // AddEfiPayment já registra IPaymentPort
 else
-    builder.Services.AddSingleton<IPaymentPort, MockPaymentAdapter>();
+    builder.Services.AddKeyedSingleton<IPaymentPort, MockPaymentAdapter>("payment:inner");
+
+// Registra IPaymentPort público:
+// - UsarPostgres=true  → PersistingPaymentAdapter (persiste BD) recebendo o inner via chave
+// - UsarPostgres=false → resolve direto o keyed (exceto efipay que já registrou IPaymentPort)
+if (usarPostgres && paymentProvider != "efipay")
+{
+    builder.Services.AddSingleton<IPaymentPort>(sp =>
+        new UcpAgent.Infrastructure.Payment.PersistingPaymentAdapter(
+            sp.GetRequiredKeyedService<IPaymentPort>("payment:inner"),
+            sp.GetRequiredService<UcpAgent.Infrastructure.Persistence.Repositories.PaymentRepository>(),
+            sp.GetRequiredService<UcpAgent.Infrastructure.Persistence.Repositories.OrderRepository>(),
+            sp.GetRequiredService<IConfiguration>(),
+            sp.GetRequiredService<ILogger<UcpAgent.Infrastructure.Payment.PersistingPaymentAdapter>>()));
+}
+else if (paymentProvider != "efipay")
+{
+    builder.Services.AddSingleton<IPaymentPort>(sp =>
+        sp.GetRequiredKeyedService<IPaymentPort>("payment:inner"));
+}
 
 builder.Services.AddSingleton<IIntentRouterService, IntentRouterService>();
 
