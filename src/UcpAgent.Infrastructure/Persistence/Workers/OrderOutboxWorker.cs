@@ -1,31 +1,33 @@
-using Confluent.Kafka;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using UcpAgent.Infrastructure.Persistence.Repositories;
+using UcpAgent.SharedKernel.Ports;
 
 namespace UcpAgent.Infrastructure.Persistence.Workers;
 
+/// <summary>Wrapper para publicar payload JSON raw via IEventPublisher.</summary>
+internal sealed record RawOutboxMessage(string Json);
+
 public sealed class OrderOutboxWorker : BackgroundService
 {
-    private readonly OutboxRepository          _outbox;
-    private readonly IProducer<string, string> _producer;
+    private readonly OutboxRepository           _outbox;
+    private readonly IEventPublisher            _publisher;
     private readonly ILogger<OrderOutboxWorker> _logger;
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(5);
 
     public OrderOutboxWorker(
         OutboxRepository outbox,
-        IProducer<string, string> producer,
+        IEventPublisher publisher,
         ILogger<OrderOutboxWorker> logger)
     {
-        _outbox   = outbox;
-        _producer = producer;
-        _logger   = logger;
+        _outbox    = outbox;
+        _publisher = publisher;
+        _logger    = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
         _logger.LogInformation("[OrderOutboxWorker] iniciado");
-
         using var timer = new PeriodicTimer(Interval);
 
         while (!ct.IsCancellationRequested && await timer.WaitForNextTickAsync(ct))
@@ -41,13 +43,7 @@ public sealed class OrderOutboxWorker : BackgroundService
                 {
                     try
                     {
-                        await _producer.ProduceAsync(msg.Topic,
-                            new Message<string, string>
-                            {
-                                Key   = msg.Id.ToString(),
-                                Value = msg.Payload
-                            }, ct);
-
+                        await _publisher.PublishAsync(msg.Topic, new RawOutboxMessage(msg.Payload), ct);
                         await _outbox.MarkOrderSentAsync(msg.Id, ct);
                         _logger.LogInformation("[OrderOutboxWorker] ✅ {Id} → {Topic}", msg.Id, msg.Topic);
                     }
@@ -61,10 +57,7 @@ public sealed class OrderOutboxWorker : BackgroundService
                 }
             }
             catch (OperationCanceledException) { break; }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[OrderOutboxWorker] erro no loop");
-            }
+            catch (Exception ex) { _logger.LogError(ex, "[OrderOutboxWorker] erro no loop"); }
         }
 
         _logger.LogInformation("[OrderOutboxWorker] encerrado");

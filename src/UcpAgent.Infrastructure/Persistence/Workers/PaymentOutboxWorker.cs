@@ -1,31 +1,30 @@
-using Confluent.Kafka;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using UcpAgent.Infrastructure.Persistence.Repositories;
+using UcpAgent.SharedKernel.Ports;
 
 namespace UcpAgent.Infrastructure.Persistence.Workers;
 
 public sealed class PaymentOutboxWorker : BackgroundService
 {
     private readonly OutboxRepository             _outbox;
-    private readonly IProducer<string, string>    _producer;
+    private readonly IEventPublisher              _publisher;
     private readonly ILogger<PaymentOutboxWorker> _logger;
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(5);
 
     public PaymentOutboxWorker(
         OutboxRepository outbox,
-        IProducer<string, string> producer,
+        IEventPublisher publisher,
         ILogger<PaymentOutboxWorker> logger)
     {
-        _outbox   = outbox;
-        _producer = producer;
-        _logger   = logger;
+        _outbox    = outbox;
+        _publisher = publisher;
+        _logger    = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
         _logger.LogInformation("[PaymentOutboxWorker] iniciado");
-
         using var timer = new PeriodicTimer(Interval);
 
         while (!ct.IsCancellationRequested && await timer.WaitForNextTickAsync(ct))
@@ -41,13 +40,7 @@ public sealed class PaymentOutboxWorker : BackgroundService
                 {
                     try
                     {
-                        await _producer.ProduceAsync(msg.Topic,
-                            new Message<string, string>
-                            {
-                                Key   = msg.Id.ToString(),
-                                Value = msg.Payload
-                            }, ct);
-
+                        await _publisher.PublishAsync(msg.Topic, new RawOutboxMessage(msg.Payload), ct);
                         await _outbox.MarkPaymentSentAsync(msg.Id, ct);
                         _logger.LogInformation("[PaymentOutboxWorker] ✅ {Id} → {Topic}", msg.Id, msg.Topic);
                     }
@@ -61,10 +54,7 @@ public sealed class PaymentOutboxWorker : BackgroundService
                 }
             }
             catch (OperationCanceledException) { break; }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[PaymentOutboxWorker] erro no loop");
-            }
+            catch (Exception ex) { _logger.LogError(ex, "[PaymentOutboxWorker] erro no loop"); }
         }
 
         _logger.LogInformation("[PaymentOutboxWorker] encerrado");
