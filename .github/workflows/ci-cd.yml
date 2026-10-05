@@ -129,7 +129,7 @@ jobs:
             --results-directory ./test-results/unit \
             --settings coverlet.runsettings \
             --collect:"XPlat Code Coverage" \
-            --verbosity normal
+            --verbosity normal || (echo "=== TRX ===" && cat ./test-results/unit/unit-app.trx && exit 1)
 
       - name: Run Catalog Tests
         run: |
