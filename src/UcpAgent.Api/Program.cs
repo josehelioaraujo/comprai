@@ -112,6 +112,7 @@ var usarMock    = builder.Configuration.GetValue<bool>("Features:UsarMockDados")
 var usarRedis   = builder.Configuration.GetValue<bool>("Features:UsarRedis");
 var usarKafka   = builder.Configuration.GetValue<bool>("Features:UsarKafka");
 var usarRabbitMq = builder.Configuration.GetValue<bool>("Features:UsarRabbitMQ");
+var usarPostgres = builder.Configuration.GetValue<bool>("Features:UsarPostgres");
 
 if (usarMock)
 {
@@ -276,9 +277,52 @@ builder.Services.AddHttpClient("github", (sp, client) =>
     client.DefaultRequestHeaders.Add("Accept", "application/vnd.github+json");
 });
 
+// ── PostgreSQL + Dapper + DbUp + Repositórios + OutboxWorkers ────────────────
+if (usarPostgres)
+{
+    var connStr = builder.Configuration.GetConnectionString("Default")
+        ?? throw new InvalidOperationException("ConnectionStrings:Default não configurado.");
+
+    // Factory de conexão
+    builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.IDbConnectionFactory>(
+        _ => new UcpAgent.Infrastructure.Persistence.NpgsqlConnectionFactory(connStr));
+
+    // DbInitializer — executa migrations DbUp na startup
+    builder.Services.AddSingleton(
+        _ => new UcpAgent.Infrastructure.Persistence.CompraiDbInitializer(connStr));
+
+    // Repositórios
+    builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.CustomerRepository>();
+    builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.OrderRepository>();
+    builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.PaymentRepository>();
+    builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.OutboxRepository>();
+    builder.Services.AddSingleton<UcpAgent.Domain.Fulfillment.IFulfillmentRepository,
+        UcpAgent.Infrastructure.Persistence.Repositories.PostgresFulfillmentRepository>();
+
+    // OutboxWorkers (BackgroundService)
+    if (usarKafka)
+    {
+        builder.Services.AddHostedService<UcpAgent.Infrastructure.Persistence.Workers.OrderOutboxWorker>();
+        builder.Services.AddHostedService<UcpAgent.Infrastructure.Persistence.Workers.PaymentOutboxWorker>();
+    }
+    if (usarRabbitMq)
+    {
+        builder.Services.AddHostedService<UcpAgent.Infrastructure.Persistence.Workers.NotificationOutboxWorker>();
+    }
+}
+
 var app = builder.Build();
 
 app.UseCors("AllowAll");
+
+// ── DbUp migrations na startup ───────────────────────────────────────────────
+if (app.Configuration.GetValue<bool>("Features:UsarPostgres"))
+{
+    var initializer = app.Services.GetRequiredService<UcpAgent.Infrastructure.Persistence.CompraiDbInitializer>();
+    initializer.Initialize();
+}
+
+
 
 // ââ Access Log Middleware ââââââââââââââââââââââââââââââââââââââââââââââââââââ
 app.Use(async (ctx, next) =>
