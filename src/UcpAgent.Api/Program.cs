@@ -381,7 +381,6 @@ app.Use(async (ctx, next) =>
         clientIp,
         ua);
 });
-app.UseMiddleware<IdempotencyMiddleware>();
 app.UseRateLimiter();
 app.UseDefaultFiles();
 app.UseStaticFiles();
