@@ -14,6 +14,9 @@
     <PackageReference Include="Npgsql" Version="9.0.3" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Persistence\Migrations\*.sql" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\UcpAgent.SharedKernel\UcpAgent.SharedKernel.csproj" />
     <ProjectReference Include="..\UcpAgent.Domain\UcpAgent.Domain.csproj" />
   </ItemGroup>
