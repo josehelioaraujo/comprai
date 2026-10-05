@@ -1,10 +1,10 @@
 using System.Text.Json;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using UcpAgent.SharedKernel.Events;
 using UcpAgent.SharedKernel.Ports;
 using UcpAgent.Infrastructure.Orders;
 using UcpAgent.Infrastructure.Persistence.Repositories;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Configuration;
 
 namespace UcpAgent.Infrastructure.Checkout;
 
@@ -43,6 +43,8 @@ public sealed class RedisCheckoutAdapter(
                 logger.LogInformation("[F1] Customer upserted: {CustomerId}", customerId);
 
                 // Etapa 2 — Salva order + items + order_outbox em 1 TX
+                // CartItemDto: record(ItemId, Product, Quantity, Subtotal)
+                // OrderItem:   factory via private set — usar OrderRepository direto com dados primitivos
                 var order = new Domain.Entities.Order
                 {
                     Id         = orderId,
@@ -53,15 +55,9 @@ public sealed class RedisCheckoutAdapter(
                     UpdatedAt  = DateTime.UtcNow
                 };
 
+                // Popula itens via factory interna que aceita dados primitivos
                 foreach (var item in items)
-                    order.AddItem(new Domain.Entities.OrderItem
-                    {
-                        ProductId    = item.ProductId,
-                        ProductTitle = item.Name,
-                        Quantity     = item.Quantity,
-                        UnitPrice    = item.Price,
-                        Source       = item.Source ?? "unknown"
-                    });
+                    order.AddItemFromCart(item);
 
                 await orderRepo.SaveAsync(order, ct);
                 logger.LogInformation("[F1] Order saved: {OrderId}", orderId);

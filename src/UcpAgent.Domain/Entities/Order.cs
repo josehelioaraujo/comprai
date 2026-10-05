@@ -1,28 +1,41 @@
 using UcpAgent.Domain.Enums;
+using UcpAgent.SharedKernel.Ports;
 
 namespace UcpAgent.Domain.Entities;
 
 public class Order
 {
-    public string Id { get; set; } = Guid.NewGuid().ToString("N");
-    public string SessionId { get; set; } = string.Empty;
-    public Guid? CustomerId { get; set; }
+    public string       Id            { get; set; } = Guid.NewGuid().ToString("N");
+    public string       SessionId     { get; set; } = string.Empty;
+    public Guid?        CustomerId    { get; set; }
+    public OrderStatus  Status        { get; set; }
+    public string       CustomerName  { get; private set; } = string.Empty;
+    public string       CustomerEmail { get; private set; } = string.Empty;
+    public string?      TrackingCode  { get; private set; }
+    public DateTime     CreatedAt     { get; set; } = DateTime.UtcNow;
+    public DateTime     UpdatedAt     { get; set; } = DateTime.UtcNow;
+
     public IReadOnlyList<OrderItem> Items => _items.AsReadOnly();
     public decimal Total => _items.Sum(i => i.Subtotal);
-    public OrderStatus Status { get; set; }
-    public string CustomerName { get; private set; } = string.Empty;
-    public string CustomerEmail { get; private set; } = string.Empty;
-    public string? TrackingCode { get; private set; }
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     private readonly List<OrderItem> _items = [];
 
-    public void AddItem(OrderItem item) => _items.Add(item);
+    /// <summary>
+    /// Adiciona item a partir de CartItemDto (fluxo F1 — Redis→PG).
+    /// CartItemDto: record(ItemId, Product, Quantity, Subtotal)
+    /// </summary>
+    public void AddItemFromCart(CartItemDto item)
+        => _items.Add(OrderItem.FromPrimitives(
+            item.Product.Id,
+            item.Product.Title,
+            item.Product.Source,
+            item.Product.Price,
+            item.Quantity));
 
     public static Order FromCart(Cart cart, string customerName, string customerEmail)
     {
-        if (cart.IsEmpty) throw new InvalidOperationException("Não é possível criar pedido com carrinho vazio.");
+        if (cart.IsEmpty)
+            throw new InvalidOperationException("Não é possível criar pedido com carrinho vazio.");
         ArgumentException.ThrowIfNullOrWhiteSpace(customerName);
         ArgumentException.ThrowIfNullOrWhiteSpace(customerEmail);
 
@@ -36,7 +49,6 @@ public class Order
             CreatedAt     = DateTime.UtcNow,
             UpdatedAt     = DateTime.UtcNow
         };
-
         order._items.AddRange(cart.Items.Select(OrderItem.FromCartItem));
         return order;
     }
