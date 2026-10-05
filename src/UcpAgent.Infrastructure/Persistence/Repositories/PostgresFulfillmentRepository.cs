@@ -19,14 +19,10 @@ public sealed class PostgresFulfillmentRepository : IFulfillmentRepository
         return FulfillmentAggregate.Reconstitute(orderId, history);
     }
 
-    /// <summary>
-    /// Append-only — persiste apenas os eventos NOVOS do agregado.
-    /// </summary>
     public async Task SaveAsync(FulfillmentAggregate aggregate, CancellationToken ct = default)
     {
         await using var conn = await _factory.CreateAsync(ct);
 
-        // Busca eventos já persistidos para não duplicar
         var existingCount = await conn.QuerySingleAsync<int>(
             "SELECT COUNT(*) FROM fulfillment_event WHERE order_id = @orderId::uuid",
             new { orderId = aggregate.OrderId });
@@ -97,9 +93,9 @@ public sealed class PostgresFulfillmentRepository : IFulfillmentRepository
             new { status = status.ToString().ToLower() });
 
         var result = new List<FulfillmentAggregate>();
-        foreach (var orderId in orderIds)
+        foreach (var id in orderIds)
         {
-            var agg = await GetByOrderIdAsync(orderId, ct);
+            var agg = await GetByOrderIdAsync(id, ct);
             if (agg is not null) result.Add(agg);
         }
         return result;
