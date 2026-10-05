@@ -1,0 +1,136 @@
+name: 🗄️ DB Migrate
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Migration alvo (ex: V002 para rodar até V002, vazio = todas pendentes)'
+        required: false
+        default: ''
+      dry_run:
+        description: 'Dry run — lista pendentes sem aplicar'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['true', 'false']
+
+env:
+  VPS_HOST: '2.25.122.11'
+  VPS_USER: 'root'
+  VPS_PATH: '/home/projetos/comprai'
+
+jobs:
+  migrate:
+    name: 🗄️ Executar Migrations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Listar scripts de migration
+        run: |
+          echo "📂 Scripts disponíveis em Migrations/:"
+          find src/UcpAgent.Infrastructure/Persistence/Migrations -name "*.sql" | sort
+
+      - name: Executar migrations via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          TARGET_VERSION:    ${{ github.event.inputs.target }}
+          DRY_RUN:           ${{ github.event.inputs.dry_run }}
+        with:
+          host:     ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key:      ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          envs:     POSTGRES_PASSWORD,TARGET_VERSION,DRY_RUN
+          command_timeout: 10m
+          script: |
+            set -e
+            cd ${{ env.VPS_PATH }}
+
+            PGCONN="postgresql://comprai:${POSTGRES_PASSWORD}@localhost:5432/comprai"
+
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "🗄️  Comprai DB Migrate"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "Dry run : ${DRY_RUN}"
+            echo "Target  : ${TARGET_VERSION:-todas pendentes}"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+            # Garantir tabela de controle
+            docker exec comprai-postgres psql -U comprai -d comprai -c "
+              CREATE TABLE IF NOT EXISTS schema_version (
+                version    VARCHAR(100) PRIMARY KEY,
+                applied_at TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+                checksum   VARCHAR(64)
+              );" > /dev/null
+
+            # Listar migrations já aplicadas
+            APPLIED=$(docker exec comprai-postgres psql -U comprai -d comprai -t -c \
+              "SELECT version FROM schema_version ORDER BY version;" | tr -d ' ')
+
+            echo ""
+            echo "✅ Migrations já aplicadas:"
+            echo "$APPLIED" | grep -v '^$' | while read v; do echo "   • $v"; done
+
+            # Listar scripts disponíveis no repo
+            SCRIPTS=$(find src/UcpAgent.Infrastructure/Persistence/Migrations -name "V*.sql" | sort)
+
+            echo ""
+            echo "📋 Migrations pendentes:"
+            PENDING=()
+            for SCRIPT in $SCRIPTS; do
+              NAME=$(basename "$SCRIPT" .sql)
+              # Filtrar por target se informado
+              if [ -n "$TARGET_VERSION" ] && [[ "$NAME" > "$TARGET_VERSION" ]]; then
+                continue
+              fi
+              if ! echo "$APPLIED" | grep -qx "$NAME"; then
+                echo "   • $NAME"
+                PENDING+=("$SCRIPT")
+              fi
+            done
+
+            if [ ${#PENDING[@]} -eq 0 ]; then
+              echo "   Nenhuma migration pendente."
+              exit 0
+            fi
+
+            if [ "$DRY_RUN" = "true" ]; then
+              echo ""
+              echo "⏭️  Dry run — nenhuma migration foi aplicada."
+              exit 0
+            fi
+
+            echo ""
+            echo "🚀 Aplicando migrations..."
+            for SCRIPT in "${PENDING[@]}"; do
+              NAME=$(basename "$SCRIPT" .sql)
+              CHECKSUM=$(sha256sum "$SCRIPT" | cut -c1-16)
+              echo ""
+              echo "  ▶ $NAME"
+
+              # Executar em transação
+              docker exec -i comprai-postgres psql -U comprai -d comprai \
+                --single-transaction \
+                --set ON_ERROR_STOP=1 \
+                < "$SCRIPT"
+
+              # Registrar na schema_version
+              docker exec comprai-postgres psql -U comprai -d comprai -c "
+                INSERT INTO schema_version (version, checksum)
+                VALUES ('$NAME', '$CHECKSUM')
+                ON CONFLICT (version) DO NOTHING;"
+
+              echo "  ✅ $NAME aplicada"
+            done
+
+            echo ""
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "✅ Migrations concluídas com sucesso"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+            # Histórico final
+            echo ""
+            echo "📊 schema_version atual:"
+            docker exec comprai-postgres psql -U comprai -d comprai -c \
+              "SELECT version, applied_at, checksum FROM schema_version ORDER BY version;"
