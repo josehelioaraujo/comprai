@@ -37,7 +37,7 @@ public sealed class PaymentRepository
                         status, amount, card_last4, card_brand,
                         pix_key, pix_qr_code, paid_at
                     ) VALUES (
-                        @idempotencyKey, @orderId::uuid, @provider, @method,
+                        @idempotencyKey, @orderId, @provider, @method,
                         'confirmed', @amount, @cardLast4, @cardBrand,
                         @pixKey, @pixQrCode, NOW()
                     )
