@@ -12,6 +12,7 @@ interface Props {
   onCheckout: (customer: CustomerDto, shipping: 'standard' | 'express', total: number) => void
   onPayment: (orderId: string, provider: PaymentProvider, method: PaymentMethod) => void
   onPaymentConfirmed: (orderId: string, detail?: string) => void
+  onDismissMessage: (id: string) => void
   onQuantityChange?: (productId: string, qty: number) => void
 }
 
@@ -33,7 +34,7 @@ function isErrorMsg(text: string) {
 
 export default function ChatWindow({
   messages, isTyping,
-  onAddToCart, onCheckout, onPayment, onPaymentConfirmed, onQuantityChange,
+  onAddToCart, onCheckout, onPayment, onPaymentConfirmed, onDismissMessage, onQuantityChange,
 }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const [mounted, setMounted] = useState(false)
@@ -122,6 +123,7 @@ export default function ChatWindow({
                 onCheckout={onCheckout}
                 onPayment={onPayment}
                 onPaymentConfirmed={onPaymentConfirmed}
+                onDismissMessage={onDismissMessage}
                 onQuantityChange={onQuantityChange}
               />
             </div>

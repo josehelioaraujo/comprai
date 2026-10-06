@@ -15,10 +15,14 @@ interface Props {
   onCheckout: (customer: CustomerDto, shipping: 'standard' | 'express', total: number) => void
   onPayment: (orderId: string, provider: PaymentProvider, method: PaymentMethod) => void
   onPaymentConfirmed: (orderId: string, detail?: string) => void
+  onDismissMessage: (id: string) => void
   onQuantityChange?: (productId: string, qty: number) => void
 }
 
-export default function IntentRenderer({ message, onAddToCart, onCheckout, onPayment, onPaymentConfirmed, onQuantityChange }: Props) {
+export default function IntentRenderer({
+  message, onAddToCart, onCheckout, onPayment,
+  onPaymentConfirmed, onDismissMessage, onQuantityChange,
+}: Props) {
   const { intent, data } = message
   if (!intent || !data) return null
 
@@ -27,30 +31,52 @@ export default function IntentRenderer({ message, onAddToCart, onCheckout, onPay
       if (data.type === 'search' && data.products.length > 0)
         return <ProductCarousel products={data.products} onAddToCart={onAddToCart} />
       return null
+
     case 'cart_add': case 'cart_view': case 'cart_remove':
       if (data.type === 'cart')
         return <CartCard cart={data.cart} onCheckout={onCheckout} onQuantityChange={onQuantityChange} />
       return null
+
     case 'checkout':
       if (data.type === 'checkout')
         return <CheckoutCard checkout={data.checkout}
           onPayment={(method) => onPayment(data.checkout.orderId, 'mock', method)} />
       return null
+
     case 'payment_pix': case 'payment_mock':
       if (data.type === 'payment')
-        return <PixCard payment={data.payment} onConfirmed={(detail) => onPaymentConfirmed(data.payment.orderId, detail)} />
+        return <PixCard
+          payment={data.payment}
+          onConfirmed={(detail) => {
+            onPaymentConfirmed(data.payment.orderId, detail)
+            // Opção A: fecha o card automaticamente após confirmação
+            setTimeout(() => onDismissMessage(message.id), 800)
+          }}
+        />
       return null
+
     case 'payment_card':
       if (data.type === 'payment')
-        return <StripeCard payment={data.payment} onConfirmed={(detail) => onPaymentConfirmed(data.payment.orderId, detail)} />
+        return <StripeCard
+          payment={data.payment}
+          onConfirmed={(detail) => {
+            onPaymentConfirmed(data.payment.orderId, detail)
+            // Opção A: fecha o card automaticamente após confirmação
+            setTimeout(() => onDismissMessage(message.id), 800)
+          }}
+        />
       return null
+
     case 'order_status': case 'order_list':
       if (data.type === 'order') return <OrderTrackingCard order={data.order} />
       if (data.type === 'orders')
-        return <div className="flex flex-col gap-2">
-          {data.orders.map(o => <OrderTrackingCard key={o.orderId} order={o} compact />)}
-        </div>
+        return (
+          <div className="flex flex-col gap-2">
+            {data.orders.map(o => <OrderTrackingCard key={o.orderId} order={o} compact />)}
+          </div>
+        )
       return null
+
     default: return null
   }
 }
