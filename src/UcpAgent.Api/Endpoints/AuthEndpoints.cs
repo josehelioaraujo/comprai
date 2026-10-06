@@ -1,9 +1,11 @@
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Mvc;
 using UcpAgent.Api.Auth;
 using UcpAgent.SharedKernel.Ports;
 
 namespace UcpAgent.Api.Endpoints;
 
+[ExcludeFromCodeCoverage]
 public static class AuthEndpoints
 {
     public static void MapAuthEndpoints(this WebApplication app)

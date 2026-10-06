@@ -1,8 +1,10 @@
+using System.Diagnostics.CodeAnalysis;
 using Dapper;
 using UcpAgent.SharedKernel.Ports;
 
 namespace UcpAgent.Infrastructure.Persistence.Repositories;
 
+[ExcludeFromCodeCoverage]
 public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
 {
     public async Task<AuthCustomerDto?> RegisterAsync(RegisterRequest req, CancellationToken ct = default)

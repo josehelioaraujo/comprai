@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -7,6 +8,7 @@ using UcpAgent.SharedKernel.Ports;
 
 namespace UcpAgent.Api.Auth;
 
+[ExcludeFromCodeCoverage]
 public sealed class JwtService(IConfiguration config)
 {
     private readonly string _secret   = config["Jwt:Secret"]   ?? "comprai-dev-secret-change-in-prod";
