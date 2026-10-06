@@ -10,18 +10,19 @@ import ChatInput from '@/components/chat/ChatInput'
 export default function CompraiWidget() {
   const [open, setOpen] = useState(false)
   const { theme } = useTheme()
-  const { messages, session, isTyping, sendMessage, handleAddToCart,
-    handleCheckout, handlePayment, handlePaymentConfirmed } = useChat()
+  const {
+    messages, session, isTyping, sendMessage,
+    handleAddToCart, handleCheckout, handlePayment,
+    handlePaymentConfirmed, handleDismissMessage,
+  } = useChat()
 
   const cartCount = session.cart?.items.reduce((s, i) => s + i.quantity, 0) ?? 0
 
   return (
     <>
-      {/* painel do chat */}
       {open && (
         <div className="comprai-widget-panel" data-theme={theme}>
           <div className="flex flex-col h-full" style={{ background: 'var(--bg)' }}>
-            {/* header do widget */}
             <div className="flex items-center justify-between px-4 py-3"
               style={{ background: 'var(--panel)', borderBottom: '1px solid var(--border)' }}>
               <div className="flex items-center gap-2">
@@ -36,15 +37,20 @@ export default function CompraiWidget() {
                 style={{ color: 'var(--muted)', background: 'var(--surface)' }}>✕</button>
             </div>
             <UcpProgressBar step={session.step} />
-            <ChatWindow messages={messages} isTyping={isTyping}
-              onAddToCart={handleAddToCart} onCheckout={handleCheckout}
-              onPayment={handlePayment} onPaymentConfirmed={handlePaymentConfirmed} />
+            <ChatWindow
+              messages={messages}
+              isTyping={isTyping}
+              onAddToCart={handleAddToCart}
+              onCheckout={handleCheckout}
+              onPayment={handlePayment}
+              onPaymentConfirmed={handlePaymentConfirmed}
+              onDismissMessage={handleDismissMessage}
+            />
             <ChatInput onSend={sendMessage} disabled={isTyping} />
           </div>
         </div>
       )}
 
-      {/* botão flutuante */}
       <div className="comprai-widget">
         <button onClick={() => setOpen(o => !o)}
           className="w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-2xl relative transition-transform hover:scale-110"

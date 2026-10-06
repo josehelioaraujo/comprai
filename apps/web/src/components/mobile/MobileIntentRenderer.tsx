@@ -18,17 +18,10 @@ interface Props {
   onPayment: (orderId: string, provider: PaymentProvider, method: PaymentMethod) => void
   onPaymentConfirmed: (orderId: string, detail?: string) => void
   onQuantityChange?: (productId: string, qty: number) => void
-  onClose?: () => void          // dismiss da mensagem inteira
+  onClose?: () => void
 }
 
-// ── Lista de pedidos com drilldown ────────────────────────────────────────────
-function OrderList({
-  orders,
-  onClose,
-}: {
-  orders: Order[]
-  onClose?: () => void
-}) {
+function OrderList({ orders, onClose }: { orders: Order[]; onClose?: () => void }) {
   const [selected, setSelected] = useState<Order | null>(null)
 
   function fmt(v: number) {
@@ -52,7 +45,6 @@ function OrderList({
 
   return (
     <div className="mt-2 rounded-xl overflow-hidden" style={{ background: 'var(--panel)', border: '1px solid var(--border)' }}>
-      {/* Header */}
       <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)' }}>
         <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
           📋 Meus pedidos
@@ -75,7 +67,6 @@ function OrderList({
         </div>
       </div>
 
-      {/* Linhas: só nº pedido + valor */}
       {orders.map((order, i) => {
         const isLast = i === orders.length - 1
         return (
@@ -83,10 +74,7 @@ function OrderList({
             key={order.orderId}
             onClick={() => setSelected(order)}
             className="w-full px-4 py-3.5 flex items-center justify-between gap-3 text-left transition-colors active:opacity-70"
-            style={{
-              borderBottom: isLast ? 'none' : '1px solid var(--border)',
-              background: 'transparent',
-            }}
+            style={{ borderBottom: isLast ? 'none' : '1px solid var(--border)', background: 'transparent' }}
           >
             <p className="text-[12px] font-mono" style={{ color: 'var(--text)' }}>
               #{order.orderId.length > 18 ? order.orderId.slice(0, 18) + '…' : order.orderId}
@@ -106,7 +94,6 @@ function OrderList({
   )
 }
 
-// ── Renderer principal ────────────────────────────────────────────────────────
 export default function MobileIntentRenderer({
   message, onAddToCart, onCheckout,
   onPayment, onPaymentConfirmed, onQuantityChange, onClose,
@@ -124,14 +111,7 @@ export default function MobileIntentRenderer({
     case 'cart_view':
     case 'cart_remove':
       if (data.type === 'cart')
-        return (
-          <CartCard
-            cart={data.cart}
-            onCheckout={onCheckout}
-            onQuantityChange={onQuantityChange}
-            onClose={onClose}
-          />
-        )
+        return <CartCard cart={data.cart} onCheckout={onCheckout} onQuantityChange={onQuantityChange} onClose={onClose} />
       return null
 
     case 'checkout':
@@ -148,12 +128,30 @@ export default function MobileIntentRenderer({
     case 'payment_pix':
     case 'payment_mock':
       if (data.type === 'payment')
-        return <PixCard payment={data.payment} onConfirmed={(detail) => onPaymentConfirmed(data.payment.orderId, detail)} />
+        return (
+          <PixCard
+            payment={data.payment}
+            onConfirmed={(detail) => {
+              onPaymentConfirmed(data.payment.orderId, detail)
+              // Opção A: fecha automaticamente 800ms após confirmação
+              if (onClose) setTimeout(onClose, 800)
+            }}
+          />
+        )
       return null
 
     case 'payment_card':
       if (data.type === 'payment')
-        return <StripeCard payment={data.payment} onConfirmed={(detail) => onPaymentConfirmed(data.payment.orderId, detail)} />
+        return (
+          <StripeCard
+            payment={data.payment}
+            onConfirmed={(detail) => {
+              onPaymentConfirmed(data.payment.orderId, detail)
+              // Opção A: fecha automaticamente 800ms após confirmação
+              if (onClose) setTimeout(onClose, 800)
+            }}
+          />
+        )
       return null
 
     case 'order_status':
