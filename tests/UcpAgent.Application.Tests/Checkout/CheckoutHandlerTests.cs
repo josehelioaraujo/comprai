@@ -21,7 +21,7 @@ public sealed class CheckoutHandlerTests
         var customer = MakeCustomer();
         var command  = new CheckoutCommand("session-1", customer);
 
-        checkout.Setup(c => c.ProcessAsync("session-1", customer, default))
+        checkout.Setup(c => c.ProcessAsync("session-1", customer, It.IsAny<Guid?>(), default))
                 .ReturnsAsync(new CheckoutResultDto("ORDER-001", true, null));
 
         var result = await handler.Handle(command, default);
@@ -39,12 +39,12 @@ public sealed class CheckoutHandlerTests
         var customer = MakeCustomer();
         var command  = new CheckoutCommand("session-42", customer);
 
-        checkout.Setup(c => c.ProcessAsync(It.IsAny<string>(), It.IsAny<CustomerDto>(), default))
+        checkout.Setup(c => c.ProcessAsync(It.IsAny<string>(), It.IsAny<CustomerDto>(), It.IsAny<Guid?>(), default))
                 .ReturnsAsync(new CheckoutResultDto("ORDER-042", true, null));
 
         await handler.Handle(command, default);
 
-        checkout.Verify(c => c.ProcessAsync("session-42", customer, default), Times.Once);
+        checkout.Verify(c => c.ProcessAsync("session-42", customer, null, default), Times.Once);
     }
 
     [Fact]
@@ -55,7 +55,7 @@ public sealed class CheckoutHandlerTests
         var customer = MakeCustomer();
         var command  = new CheckoutCommand("session-empty", customer);
 
-        checkout.Setup(c => c.ProcessAsync("session-empty", customer, default))
+        checkout.Setup(c => c.ProcessAsync("session-empty", customer, It.IsAny<Guid?>(), default))
                 .ReturnsAsync(new CheckoutResultDto(string.Empty, false, "Carrinho vazio"));
 
         var result = await handler.Handle(command, default);
