@@ -134,19 +134,7 @@ jobs:
         if: failure()
         run: |
           echo "=== TESTES FALHANDO ==="
-          python3 - << 'EOF'
-import xml.etree.ElementTree as ET, glob, sys
-ns = "http://microsoft.com/schemas/VisualStudio/TeamTest/2010"
-for f in glob.glob("./test-results/unit/unit-app.trx"):
-    tree = ET.parse(f)
-    for r in tree.findall(f".//{{{ns}}}UnitTestResult[@outcome='Failed']"):
-        print(f"FAIL: {r.get('testName')}")
-        msg = r.find(f"{{{ns}}}Output/{{{ns}}}ErrorInfo/{{{ns}}}Message")
-        st  = r.find(f"{{{ns}}}Output/{{{ns}}}ErrorInfo/{{{ns}}}StackTrace")
-        if msg is not None: print("  MSG:", msg.text[:500])
-        if st  is not None: print("  ST:",  st.text[:300])
-        print()
-EOF
+          grep -A 20 'outcome="Failed"' ./test-results/unit/unit-app.trx | head -200 || echo "trx nao encontrado"
 
       - name: Run Catalog Tests
         run: |
