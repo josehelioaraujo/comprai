@@ -2,10 +2,6 @@ using UcpAgent.SharedKernel.Ports;
 
 namespace UcpAgent.Application.Cart;
 
-/// <summary>
-/// Implementação padrão do ICartSnapshotService.
-/// Delega persistência ao ICartSnapshotPort (infraestrutura) e centraliza a lógica de negócio.
-/// </summary>
 public sealed class CartSnapshotService(ICartSnapshotPort port) : ICartSnapshotService
 {
     public async Task PersistAsync(string sessionId, ICartPort cart, CancellationToken ct = default)

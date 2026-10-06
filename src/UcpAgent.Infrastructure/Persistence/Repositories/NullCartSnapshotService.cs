@@ -4,7 +4,6 @@ using UcpAgent.SharedKernel.Ports;
 
 namespace UcpAgent.Infrastructure.Persistence.Repositories;
 
-/// <summary>Stub no-op do ICartSnapshotService — usado quando UsarPostgres=false.</summary>
 [ExcludeFromCodeCoverage]
 public sealed class NullCartSnapshotService : ICartSnapshotService
 {
