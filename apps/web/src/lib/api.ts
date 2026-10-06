@@ -64,7 +64,12 @@ function messageForIntent(intent: string, success: boolean): string {
 }
 
 export async function searchProducts(query: string, sessionId: string) {
-  return get<{ products: Product[] }>(`/api/search?q=${encodeURIComponent(query)}&sessionId=${sessionId}`)
+  const res = await fetch(`${BASE_URL}/api/search?q=${encodeURIComponent(query)}`, {
+    headers: { 'Content-Type': 'application/json', 'X-Session-Id': sessionId },
+    cache: 'no-store',
+  })
+  if (!res.ok) throw new ApiError(res.status, await res.text())
+  return res.json() as Promise<{ products: Product[] }>
 }
 
 export async function getCart(sessionId: string) {
@@ -98,11 +103,13 @@ export async function createPayment(
   method: PaymentMethod,
   amount: number,
   idempotencyKey: string,
+  sessionId?: string,
 ): Promise<any> {
   const amountStr = amount.toFixed(2)
   const body = {
     amount: amountStr,
     currency: 'BRL',
+    sessionId: sessionId ?? null,
     method: {
       provider: 'mock',
       cardToken: method === 'credit_card' ? 'mock-card-token' : null,
@@ -133,5 +140,15 @@ export async function getFulfillmentTimeline(orderId: string): Promise<Fulfillme
     return Array.isArray(res) ? res : (res as any).timeline ?? []
   } catch {
     return []
+  }
+}
+
+export async function getCartSnapshot(sessionId: string) {
+  try {
+    return await get<{ sessionId: string; items: any[]; totalAmount: number; updatedAt: string } | null>(
+      `/api/cart/${sessionId}/snapshot`
+    )
+  } catch {
+    return null
   }
 }

@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { getSessionId, clearSession, createSession } from '@/lib/session'
 import { newIdempotencyKey, getIdempotencyKey, cartAddKey, checkoutKey, paymentKey } from '@/lib/idempotency'
-import { postIntent, addToCart, getCart, createCheckout, createPayment, getOrders, getFulfillmentTimeline } from '@/lib/api'
+import { postIntent, addToCart, getCart, createCheckout, createPayment, getOrders, getFulfillmentTimeline, getCartSnapshot } from '@/lib/api'
 import type {
   ChatMessage, SessionState, UcpStep, Product,
   PaymentMethod, PaymentProvider, Cart, Order,
@@ -86,6 +86,26 @@ export function useChat() {
       const savedSessionId = localStorage.getItem(LS_SESSION_KEY)
       if (savedOrderId && savedSessionId) setHasPreviousOrder(true)
     } catch { }
+  }, [])
+
+  // Restaura carrinho abandonado via snapshot salvo no BD
+  useEffect(() => {
+    const sessionId = getSessionId()
+    if (!sessionId) return
+    getCartSnapshot(sessionId).then(snapshot => {
+      if (!snapshot || !snapshot.items || snapshot.items.length === 0) return
+      const cart = normalizeCart({ items: snapshot.items, total: snapshot.totalAmount }, sessionId)
+      if (cart.items.length === 0) return
+      sessionRef.current = sessionId
+      setSession(s => ({ ...s, sessionId, cart }))
+      pushMessage({
+        role: 'bot',
+        text: `🛒 Encontrei seu carrinho anterior com ${cart.items.length} ${cart.items.length === 1 ? 'item' : 'itens'}. Deseja continuar de onde parou?`,
+        intent: 'cart_view',
+        data: { type: 'cart', cart },
+      })
+    }).catch(() => { /* silencioso — snapshot é best-effort */ })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -382,7 +402,7 @@ export function useChat() {
     setIsTyping(true)
     try {
       const amount = confirmedTotalRef.current > 0 ? confirmedTotalRef.current : (session.cart?.total ?? 0)
-      const res    = await createPayment(orderId, method, amount, idempotencyKey)
+      const res    = await createPayment(orderId, method, amount, idempotencyKey, getOrCreateSession())
       advanceStep('payment')
       const intent  = method === 'pix' ? 'payment_pix' : 'payment_card'
       const payment = {
