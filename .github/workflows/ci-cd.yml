@@ -128,9 +128,7 @@ jobs:
             --results-directory ./test-results/unit \
             --settings coverlet.runsettings \
             --collect:"XPlat Code Coverage" \
-            --verbosity normal 2>&1 | tee /tmp/test-out.txt; \
-          grep -E "FAIL|Error Message|Assert|Exception" /tmp/test-out.txt || true; \
-          exit ${PIPESTATUS[0]}
+            --verbosity normal
 
       - name: Run Catalog Tests
         run: |
