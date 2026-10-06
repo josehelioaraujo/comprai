@@ -2,7 +2,11 @@ namespace UcpAgent.SharedKernel.Ports;
 
 public interface ICheckoutPort
 {
-    Task<CheckoutResultDto> ProcessAsync(string sessionId, CustomerDto customer, CancellationToken cancellationToken = default);
+    Task<CheckoutResultDto> ProcessAsync(
+        string      sessionId,
+        CustomerDto customer,
+        Guid?       authenticatedCustomerId = null,
+        CancellationToken cancellationToken = default);
 }
 
 public record CustomerDto(

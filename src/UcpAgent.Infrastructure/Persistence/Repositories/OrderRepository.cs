@@ -30,13 +30,13 @@ public sealed class OrderRepository
 
                 await conn.ExecuteAsync("""
                     INSERT INTO "order" (
-                        id, idempotency_key, session_id,
+                        id, idempotency_key, session_id, customer_id,
                         status, total_amount,
                         shipping_zip, shipping_street, shipping_number,
                         shipping_complement, shipping_city, shipping_state,
                         created_at, updated_at
                     ) VALUES (
-                        @id::uuid, @idempotencyKey, @sessionId::uuid,
+                        @id::uuid, @idempotencyKey, @sessionId::uuid, @customerId,
                         @status, @total,
                         @shippingZip, @shippingStreet, @shippingNumber,
                         @shippingComplement, @shippingCity, @shippingState,
@@ -49,6 +49,7 @@ public sealed class OrderRepository
                         id                 = order.Id,
                         idempotencyKey,
                         sessionId          = order.SessionId,
+                        customerId         = order.CustomerId,
                         status             = order.Status.ToString().ToLower(),
                         total              = order.Total,
                         shippingZip        = order.ShippingZip,

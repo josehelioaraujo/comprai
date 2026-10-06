@@ -25,7 +25,9 @@ public sealed class RedisCheckoutAdapter(
             StringComparison.OrdinalIgnoreCase);
 
     public async Task<CheckoutResultDto> ProcessAsync(
-        string sessionId, CustomerDto customer, CancellationToken ct = default)
+        string sessionId, CustomerDto customer,
+        Guid? authenticatedCustomerId = null,
+        CancellationToken ct = default)
     {
         var items = await cart.GetItemsAsync(sessionId, ct);
         if (items.Count == 0)
@@ -40,10 +42,13 @@ public sealed class RedisCheckoutAdapter(
         {
             try
             {
-                var customerId = await customerRepo.UpsertAsync(
-                    customer.Name, customer.Email, customer.Phone,
-                    channel: "web", ct);
-                logger.LogInformation("[F1] Customer upserted: {CustomerId}", customerId);
+                // V057-F2: usa customer_id do JWT se autenticado, senão upsert por email
+                var customerId = authenticatedCustomerId
+                    ?? await customerRepo.UpsertAsync(
+                           customer.Name, customer.Email, customer.Phone,
+                           channel: "web", ct);
+                logger.LogInformation("[F1] Customer resolved: {CustomerId} (auth={IsAuth})",
+                    customerId, authenticatedCustomerId.HasValue);
 
                 var order = new Domain.Entities.Order
                 {
