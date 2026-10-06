@@ -9,7 +9,7 @@ public static class OrdersEndpoints
     {
         var grp = app.MapGroup("/api/orders").WithTags("Orders");
 
-        // F4 — Meus Pedidos: lê order_history por sessionId
+        // GET /api/orders?sessionId — lista pedidos do sessionId via BD
         grp.MapGet("", async (
             [FromQuery] string sessionId,
             [FromServices] OrdersQueryRepository repo,
@@ -19,12 +19,28 @@ public static class OrdersEndpoints
                 return Results.BadRequest("sessionId obrigatório");
 
             var orders = await repo.GetHistoryBySessionAsync(sessionId, ct);
-            return Results.Ok(orders);
+
+            // Mapeia para o shape que o front espera
+            var result = orders.Select(o => new
+            {
+                orderId        = o.OrderId,
+                status         = o.Status,
+                total          = o.Total,
+                tracking       = o.TrackingCode,
+                paymentMethod  = o.PaymentMethod,
+                shippingCity   = o.ShippingCity,
+                shippingState  = o.ShippingState,
+                itemCount      = o.ItemCount,
+                createdAt      = o.CreatedAt,
+                fulfillmentHistory = Array.Empty<object>(),
+            });
+
+            return Results.Ok(result);
         })
         .WithName("GetOrdersBySession")
-        .WithSummary("Lista pedidos finalizados por sessionId (order_history)");
+        .WithSummary("Lista pedidos por sessionId (tabela order + payment)");
 
-        // F5 — Timeline ao vivo: lê fulfillment_event por orderId
+        // GET /api/orders/{orderId}/fulfillment — timeline ao vivo
         grp.MapGet("{orderId}/fulfillment", async (
             string orderId,
             [FromServices] OrdersQueryRepository repo,
@@ -36,10 +52,17 @@ public static class OrdersEndpoints
             var timeline = await repo.GetFulfillmentTimelineAsync(orderId, ct);
             return timeline.Count == 0
                 ? Results.NotFound()
-                : Results.Ok(timeline);
+                : Results.Ok(timeline.Select(e => new
+                {
+                    status       = e.Status,
+                    description  = e.Description,
+                    occurredAt   = e.OccurredAt,
+                    trackingCode = e.TrackingCode,
+                    location     = e.Location,
+                }));
         })
         .WithName("GetFulfillmentTimeline")
-        .WithSummary("Timeline de fulfillment ao vivo por orderId (fulfillment_event)");
+        .WithSummary("Timeline de fulfillment ao vivo por orderId");
 
         return app;
     }

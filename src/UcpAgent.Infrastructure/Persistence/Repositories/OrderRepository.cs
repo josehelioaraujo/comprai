@@ -31,22 +31,34 @@ public sealed class OrderRepository
                 await conn.ExecuteAsync("""
                     INSERT INTO "order" (
                         id, idempotency_key, session_id,
-                        status, total_amount, created_at, updated_at
+                        status, total_amount,
+                        shipping_zip, shipping_street, shipping_number,
+                        shipping_complement, shipping_city, shipping_state,
+                        created_at, updated_at
                     ) VALUES (
                         @id::uuid, @idempotencyKey, @sessionId::uuid,
-                        @status, @total, @createdAt, @updatedAt
+                        @status, @total,
+                        @shippingZip, @shippingStreet, @shippingNumber,
+                        @shippingComplement, @shippingCity, @shippingState,
+                        @createdAt, @updatedAt
                     )
                     ON CONFLICT (idempotency_key) DO NOTHING
                     """,
                     new
                     {
-                        id             = order.Id,
+                        id                 = order.Id,
                         idempotencyKey,
-                        sessionId      = order.SessionId,
-                        status         = order.Status.ToString().ToLower(),
-                        total          = order.Total,
-                        createdAt      = order.CreatedAt,
-                        updatedAt      = order.UpdatedAt
+                        sessionId          = order.SessionId,
+                        status             = order.Status.ToString().ToLower(),
+                        total              = order.Total,
+                        shippingZip        = order.ShippingZip,
+                        shippingStreet     = order.ShippingStreet,
+                        shippingNumber     = order.ShippingNumber,
+                        shippingComplement = order.ShippingComplement,
+                        shippingCity       = order.ShippingCity,
+                        shippingState      = order.ShippingState,
+                        createdAt          = order.CreatedAt,
+                        updatedAt          = order.UpdatedAt
                     }, tx);
 
                 foreach (var item in order.Items)
@@ -117,7 +129,6 @@ public sealed class OrderRepository
                 """,
                 new { id = orderId, status = status.ToString().ToLower() });
 
-            // Invalida cache após mudança de status
             if (_cache is not null)
                 await _cache.RemoveAsync($"order:{orderId}", token);
         }, ct);

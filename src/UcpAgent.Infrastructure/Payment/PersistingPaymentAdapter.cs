@@ -1,20 +1,24 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using UcpAgent.Domain.Fulfillment;
+using UcpAgent.Infrastructure.Fulfillment;
 using UcpAgent.Infrastructure.Persistence.Repositories;
 using UcpAgent.SharedKernel.Ports;
 
 namespace UcpAgent.Infrastructure.Payment;
 
 /// <summary>
-/// Decorator de IPaymentPort — persiste pagamento + atualiza order.status no BD
-/// após o adapter real (Mock/Stripe/Efi) confirmar. Registrado via Decorate quando UsarPostgres=true.
+/// Decorator de IPaymentPort — persiste pagamento + atualiza order.status +
+/// insere fulfillment_event (payment_confirmed) + enfileira simulator.
 /// </summary>
 public sealed class PersistingPaymentAdapter(
     IPaymentPort inner,
     PaymentRepository paymentRepo,
     OrderRepository orderRepo,
+    PostgresFulfillmentRepository fulfillmentRepo,
     IConfiguration configuration,
-    ILogger<PersistingPaymentAdapter> logger) : IPaymentPort
+    ILogger<PersistingPaymentAdapter> logger,
+    FulfillmentSimulator? fulfillmentSimulator = null) : IPaymentPort
 {
     private readonly bool _usarPostgres =
         string.Equals(configuration["Features:UsarPostgres"], "true",
@@ -34,7 +38,7 @@ public sealed class PersistingPaymentAdapter(
 
         try
         {
-            // Etapa 4 — INSERT payment + payment_outbox em 1 TX (com retry+CB via PaymentRepository)
+            // Etapa 4 — INSERT payment + payment_outbox em 1 TX
             var record = new PaymentRecord(
                 OrderId:   orderId,
                 Provider:  method.Provider,
@@ -47,12 +51,25 @@ public sealed class PersistingPaymentAdapter(
             var paymentId = await paymentRepo.ConfirmAsync(record, cancellationToken);
             logger.LogInformation("[F2] Payment persisted: {PaymentId}", paymentId);
 
-            // Etapa 5 — UPDATE order.status: pending → confirmed (com retry+CB via OrderRepository)
+            // Etapa 5 — UPDATE order.status: pending → confirmed
             await orderRepo.UpdateStatusAsync(
                 orderId,
                 Domain.Enums.OrderStatus.Confirmed,
                 cancellationToken);
             logger.LogInformation("[F2] Order {OrderId} status → Confirmed", orderId);
+
+            // Etapa 6 — Insere fulfillment_event: payment_confirmed
+            var agg = await fulfillmentRepo.GetByOrderIdAsync(orderId, cancellationToken);
+            if (agg is null)
+            {
+                agg = FulfillmentAggregate.Create(orderId);
+                await fulfillmentRepo.SaveAsync(agg, cancellationToken);
+                logger.LogInformation("[F2] FulfillmentAggregate criado: {OrderId}", orderId);
+            }
+
+            // Enqueue simulator para progressão automática
+            fulfillmentSimulator?.Enqueue(orderId);
+            logger.LogInformation("[F2] Fulfillment enqueued: {OrderId}", orderId);
         }
         catch (Exception ex)
         {

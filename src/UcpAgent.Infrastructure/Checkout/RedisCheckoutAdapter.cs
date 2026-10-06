@@ -5,6 +5,7 @@ using UcpAgent.SharedKernel.Events;
 using UcpAgent.SharedKernel.Ports;
 using UcpAgent.Infrastructure.Orders;
 using UcpAgent.Infrastructure.Persistence.Repositories;
+using UcpAgent.Infrastructure.Fulfillment;
 
 namespace UcpAgent.Infrastructure.Checkout;
 
@@ -15,10 +16,10 @@ public sealed class RedisCheckoutAdapter(
     INotificationPublisher notifications,
     IConfiguration configuration,
     ILogger<RedisCheckoutAdapter> logger,
-    CustomerRepository? customerRepo = null,
-    OrderRepository? orderRepo = null) : ICheckoutPort
+    FulfillmentSimulator? fulfillmentSimulator = null,
+    CustomerRepository?   customerRepo         = null,
+    OrderRepository?      orderRepo            = null) : ICheckoutPort
 {
-    // GetValue<bool> requer Binder — usar comparação de string direta
     private readonly bool _usarPostgres =
         string.Equals(configuration["Features:UsarPostgres"], "true",
             StringComparison.OrdinalIgnoreCase);
@@ -30,21 +31,20 @@ public sealed class RedisCheckoutAdapter(
         if (items.Count == 0)
             return new CheckoutResultDto(string.Empty, false, "Carrinho vazio");
 
-        var orderId = $"ORDER-{Guid.NewGuid().ToString("N")[..8].ToUpper()}";
+        // orderId = UUID puro — compatível com order.id (UUID) no PostgreSQL
+        var orderId = Guid.NewGuid().ToString();
         var total   = items.Sum(i => i.Subtotal);
 
-        // ── F1: Persistência PostgreSQL ──────────────────────────────────
+        // ── F1: Persistência PostgreSQL ──────────────────────────────────────
         if (_usarPostgres && customerRepo is not null && orderRepo is not null)
         {
             try
             {
-                // Etapa 1 — Upsert cliente
                 var customerId = await customerRepo.UpsertAsync(
                     customer.Name, customer.Email, customer.Phone,
                     channel: "web", ct);
                 logger.LogInformation("[F1] Customer upserted: {CustomerId}", customerId);
 
-                // Etapa 2 — Salva order + items + order_outbox em 1 TX
                 var order = new Domain.Entities.Order
                 {
                     Id         = orderId,
@@ -52,7 +52,14 @@ public sealed class RedisCheckoutAdapter(
                     CustomerId = customerId,
                     Status     = Domain.Enums.OrderStatus.Pending,
                     CreatedAt  = DateTime.UtcNow,
-                    UpdatedAt  = DateTime.UtcNow
+                    UpdatedAt  = DateTime.UtcNow,
+                    // endereço snapshot
+                    ShippingZip        = customer.Cep?.Replace("-", ""),
+                    ShippingStreet     = customer.Street,
+                    ShippingNumber     = customer.Number,
+                    ShippingComplement = customer.Complement,
+                    ShippingCity       = customer.City,
+                    ShippingState      = customer.State,
                 };
 
                 foreach (var item in items)
@@ -67,12 +74,13 @@ public sealed class RedisCheckoutAdapter(
             }
         }
 
-        // ── Redis: source of truth operacional (cache quente / fallback) ─
+        // ── Redis: source of truth operacional ──────────────────────────────
         var redisOrder = new OrderStatusDto(
             orderId, "Pending", total, customer,
             JsonSerializer.Serialize(items), DateTime.UtcNow);
 
         await orders.SaveAsync(redisOrder);
+        await orders.SaveSessionOrderAsync(sessionId, orderId, ct);
         await cart.ClearAsync(sessionId, ct);
 
         // Kafka — evento de domínio
@@ -81,13 +89,16 @@ public sealed class RedisCheckoutAdapter(
             new OrderCreatedEvent(orderId, sessionId, total, items.Count, DateTime.UtcNow),
             ct);
 
-        // RabbitMQ — notificação ao usuário
+        // RabbitMQ — notificação
         _ = notifications.PublishAsync(
             NotificationQueues.OrderConfirmation,
             new OrderConfirmationNotification(
                 orderId, sessionId, customer.Email, customer.Name,
                 total, items.Count, DateTime.UtcNow),
             ct);
+
+        // Enqueue fulfillment simulation (se ativo)
+        fulfillmentSimulator?.Enqueue(orderId);
 
         return new CheckoutResultDto(orderId, true, null);
     }

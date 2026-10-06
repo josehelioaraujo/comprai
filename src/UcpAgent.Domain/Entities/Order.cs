@@ -5,25 +5,28 @@ namespace UcpAgent.Domain.Entities;
 
 public class Order
 {
-    public string       Id            { get; set; } = Guid.NewGuid().ToString("N");
-    public string       SessionId     { get; set; } = string.Empty;
-    public Guid?        CustomerId    { get; set; }
-    public OrderStatus  Status        { get; set; }
-    public string       CustomerName  { get; private set; } = string.Empty;
-    public string       CustomerEmail { get; private set; } = string.Empty;
-    public string?      TrackingCode  { get; private set; }
-    public DateTime     CreatedAt     { get; set; } = DateTime.UtcNow;
-    public DateTime     UpdatedAt     { get; set; } = DateTime.UtcNow;
+    public string       Id                 { get; set; } = Guid.NewGuid().ToString();
+    public string       SessionId          { get; set; } = string.Empty;
+    public Guid?        CustomerId         { get; set; }
+    public OrderStatus  Status             { get; set; }
+    public string       CustomerName       { get; private set; } = string.Empty;
+    public string       CustomerEmail      { get; private set; } = string.Empty;
+    public string?      TrackingCode       { get; private set; }
+    // Endereço snapshot
+    public string?      ShippingZip        { get; set; }
+    public string?      ShippingStreet     { get; set; }
+    public string?      ShippingNumber     { get; set; }
+    public string?      ShippingComplement { get; set; }
+    public string?      ShippingCity       { get; set; }
+    public string?      ShippingState      { get; set; }
+    public DateTime     CreatedAt          { get; set; } = DateTime.UtcNow;
+    public DateTime     UpdatedAt          { get; set; } = DateTime.UtcNow;
 
     public IReadOnlyList<OrderItem> Items => _items.AsReadOnly();
     public decimal Total => _items.Sum(i => i.Subtotal);
 
     private readonly List<OrderItem> _items = [];
 
-    /// <summary>
-    /// Adiciona item a partir de CartItemDto (fluxo F1 — Redis→PG).
-    /// CartItemDto: record(ItemId, Product, Quantity, Subtotal)
-    /// </summary>
     public void AddItemFromCart(CartItemDto item)
         => _items.Add(OrderItem.FromPrimitives(
             item.Product.Id,
@@ -41,7 +44,7 @@ public class Order
 
         var order = new Order
         {
-            Id            = Guid.NewGuid().ToString("N"),
+            Id            = Guid.NewGuid().ToString(),
             SessionId     = cart.SessionId,
             CustomerName  = customerName,
             CustomerEmail = customerEmail,
