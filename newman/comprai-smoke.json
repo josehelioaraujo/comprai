@@ -205,7 +205,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\"customerName\":\"Smoke Test\",\"customerEmail\":\"smoke@comprai.app\",\"phone\":\"11999999999\",\"address\":\"Rua Smoke, 123\"}"
+          "raw": "{\"name\": \"Smoke Test\", \"email\": \"smoke@comprai.app\", \"phone\": \"11999999999\", \"address\": \"Rua Smoke, 123\", \"cep\": \"01310-100\", \"street\": \"Av. Paulista\", \"number\": \"1000\", \"neighborhood\": \"Bela Vista\", \"city\": \"S\\u00e3o Paulo\", \"state\": \"SP\"}"
         }
       },
       "event": [
