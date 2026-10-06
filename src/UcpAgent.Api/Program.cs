@@ -325,6 +325,14 @@ if (usarPostgres)
     builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.SessionRepository>();
     builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.ISessionPort,
         UcpAgent.Infrastructure.Persistence.Repositories.SessionRepository>();
+    // V055-F1: cart_snapshot — recuperação de abandono
+    builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.CartSnapshotRepository>();
+    builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.ICartSnapshotPort,
+        UcpAgent.Infrastructure.Persistence.Repositories.CartSnapshotRepository>();
+    // V055-F2: webhook_event idempotência (Stripe/Efi)
+    builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.WebhookEventRepository>();
+    builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.IWebhookEventPort,
+        UcpAgent.Infrastructure.Persistence.Repositories.WebhookEventRepository>();
     // V054-F2: histórico de pedidos finalizados
     builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.OrderHistoryRepository>();
     builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.IOrderHistoryPort,
@@ -533,18 +541,133 @@ app.MapPost("/webhook/ml", async (
     return Results.Ok(result);
 }).WithTags("MercadoLivre");
 
+// ── Webhooks Stripe / Efi — idempotência via BD ─────────────────────────────
+app.MapPost("/webhook/stripe", async (
+    HttpContext http,
+    [FromServices] UcpAgent.SharedKernel.Ports.IWebhookEventPort? webhookRepo,
+    ILogger<Program> logger,
+    CancellationToken ct) =>
+{
+    using var sr = new StreamReader(http.Request.Body);
+    var payload = await sr.ReadToEndAsync(ct);
+
+    string? eventId   = null;
+    string? eventType = null;
+
+    try
+    {
+        using var doc = System.Text.Json.JsonDocument.Parse(payload);
+        var root = doc.RootElement;
+        root.TryGetProperty("id",   out var idProp)   ; eventId   = idProp.GetString();
+        root.TryGetProperty("type", out var typeProp) ; eventType = typeProp.GetString();
+    }
+    catch (Exception ex)
+    {
+        logger.LogWarning(ex, "[Webhook/Stripe] Payload inválido");
+        return Results.BadRequest("Payload inválido");
+    }
+
+    if (string.IsNullOrEmpty(eventId) || string.IsNullOrEmpty(eventType))
+        return Results.BadRequest("id/type ausentes");
+
+    if (webhookRepo is not null)
+    {
+        var isNew = await webhookRepo.TryRecordAsync("stripe", eventId, eventType, payload, ct);
+        if (!isNew)
+        {
+            logger.LogInformation("[Webhook/Stripe] Duplicado ignorado: {EventId}", eventId);
+            return Results.Ok(new { status = "duplicate_ignored" });
+        }
+    }
+
+    logger.LogInformation("[Webhook/Stripe] Evento processado: {EventType} {EventId}", eventType, eventId);
+    // TODO: rotear eventType para handlers específicos (payment_intent.succeeded, etc.)
+    return Results.Ok(new { status = "processed" });
+})
+.WithTags("Webhook").WithName("StripeWebhook");
+
+app.MapPost("/webhook/efi", async (
+    HttpContext http,
+    [FromServices] UcpAgent.SharedKernel.Ports.IWebhookEventPort? webhookRepo,
+    ILogger<Program> logger,
+    CancellationToken ct) =>
+{
+    using var sr = new StreamReader(http.Request.Body);
+    var payload = await sr.ReadToEndAsync(ct);
+
+    string? txid      = null;
+    string? eventType = "pix.received";
+
+    try
+    {
+        using var doc = System.Text.Json.JsonDocument.Parse(payload);
+        var root = doc.RootElement;
+        if (root.TryGetProperty("pix", out var pixArr) && pixArr.ValueKind == System.Text.Json.JsonValueKind.Array)
+        {
+            foreach (var pix in pixArr.EnumerateArray())
+            {
+                if (pix.TryGetProperty("txid", out var t)) { txid = t.GetString(); break; }
+                if (pix.TryGetProperty("endToEndId", out var e)) { txid = e.GetString(); break; }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        logger.LogWarning(ex, "[Webhook/Efi] Payload inválido");
+        return Results.BadRequest("Payload inválido");
+    }
+
+    // Efi pode não ter txid em notificações de cancelamento — usa hash do payload
+    var externalId = txid ?? Convert.ToHexString(
+        System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(payload)))[..16];
+
+    if (webhookRepo is not null)
+    {
+        var isNew = await webhookRepo.TryRecordAsync("efipay", externalId, eventType!, payload, ct);
+        if (!isNew)
+        {
+            logger.LogInformation("[Webhook/Efi] Duplicado ignorado: {ExternalId}", externalId);
+            return Results.Ok(new { status = "duplicate_ignored" });
+        }
+    }
+
+    logger.LogInformation("[Webhook/Efi] Pix recebido: {ExternalId}", externalId);
+    // TODO: confirmar pagamento do pedido associado ao txid
+    return Results.Ok(new { status = "processed" });
+})
+.WithTags("Webhook").WithName("EfiWebhook");
+
 // Ã¢ÂÂÃ¢ÂÂ Payment Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 app.MapPost("/api/payment/{orderId}", async (
     string orderId, PaymentRequestDto req,
-    IMediator mediator, CancellationToken ct) =>
+    IMediator mediator,
+    [FromServices] UcpAgent.SharedKernel.Ports.ICartSnapshotPort? cartSnapshot,
+    CancellationToken ct) =>
 {
     var result = await mediator.Send(
         new ProcessPaymentCommand(orderId, req.Amount, req.Currency, req.Method), ct);
+
+    if (result.IsSuccess && cartSnapshot is not null && req.SessionId is not null)
+        _ = cartSnapshot.DeleteAsync(req.SessionId, ct);
+
     return result.IsSuccess
         ? Results.Ok(result.Value)
         : Results.BadRequest(new { error = result.Error });
 })
 .WithTags("Payment").WithName("ProcessPayment");
+
+// ── Cart Snapshot — recuperação de abandono ─────────────────────────────────
+app.MapGet("/api/cart/{sessionId}/snapshot", async (
+    string sessionId,
+    [FromServices] UcpAgent.SharedKernel.Ports.ICartSnapshotPort? snapshot,
+    CancellationToken ct) =>
+{
+    if (snapshot is null) return Results.NoContent();
+    var snap = await snapshot.GetAsync(sessionId, ct);
+    return snap is null ? Results.NoContent() : Results.Ok(snap);
+})
+.WithTags("Cart").WithName("GetCartSnapshot");
 
 app.MapIntentEndpoints();
 app.MapOrdersEndpoints();  // F4+F5
@@ -987,7 +1110,8 @@ record AddToCartRequest(UcpAgent.SharedKernel.Models.ProductDto Product, int Qua
 record PaymentRequestDto(
     decimal Amount,
     string Currency,
-    UcpAgent.SharedKernel.Ports.PaymentMethodDto Method);
+    UcpAgent.SharedKernel.Ports.PaymentMethodDto Method,
+    string? SessionId = null);
 
 record K6AnalyzeRequest(string Summary, string Question, string? Model);
 

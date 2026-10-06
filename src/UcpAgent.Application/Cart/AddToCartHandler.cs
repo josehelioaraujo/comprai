@@ -5,7 +5,11 @@ using UcpAgent.SharedKernel.Ports;
 
 namespace UcpAgent.Application.Cart;
 
-public sealed class AddToCartHandler(ICartPort cart, IEventPublisher events, UcpMetrics metrics)
+public sealed class AddToCartHandler(
+    ICartPort cart,
+    IEventPublisher events,
+    UcpMetrics metrics,
+    ICartSnapshotPort? snapshot = null)
     : IRequestHandler<AddToCartCommand, Result<string>>
 {
     public async Task<Result<string>> Handle(AddToCartCommand request, CancellationToken cancellationToken)
@@ -13,7 +17,7 @@ public sealed class AddToCartHandler(ICartPort cart, IEventPublisher events, Ucp
         var itemId = await cart.AddItemAsync(request.SessionId, request.Product, request.Quantity, cancellationToken);
         metrics.CartAddTotal.Add(1);
 
-        // Publica evento de item adicionado (fire-and-forget)
+        // Publica evento (fire-and-forget)
         _ = events.PublishAsync(
             UcpTopics.CartItemAdded,
             new CartItemAddedEvent(
@@ -25,6 +29,24 @@ public sealed class AddToCartHandler(ICartPort cart, IEventPublisher events, Ucp
                 DateTime.UtcNow),
             cancellationToken);
 
+        // Persiste snapshot para recuperação de abandono (fire-and-forget)
+        if (snapshot is not null)
+            _ = PersistSnapshotAsync(request.SessionId, cart, snapshot, cancellationToken);
+
         return Result<string>.Ok(itemId);
+    }
+
+    private static async Task PersistSnapshotAsync(
+        string sessionId, ICartPort cart, ICartSnapshotPort snapshot, CancellationToken ct)
+    {
+        try
+        {
+            var items = await cart.GetItemsAsync(sessionId, ct);
+            await snapshot.SaveAsync(sessionId, items, ct);
+        }
+        catch
+        {
+            // snapshot opcional — nunca bloqueia o add
+        }
     }
 }
