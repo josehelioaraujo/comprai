@@ -358,6 +358,16 @@ if (usarPostgres)
     }
 }
 
+// Null-safe: registra stubs para interfaces opcionais quando UsarPostgres=false
+// Minimal API .NET 10 não consegue inferir interfaces nullable não registradas no DI
+if (!usarPostgres)
+{
+    builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.ICartSnapshotPort,
+        UcpAgent.Infrastructure.Persistence.Repositories.NullCartSnapshotPort>();
+    builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.IWebhookEventPort,
+        UcpAgent.Infrastructure.Persistence.Repositories.NullWebhookEventPort>();
+}
+
 var app = builder.Build();
 
 // F7: Idempotência via PostgreSQL
