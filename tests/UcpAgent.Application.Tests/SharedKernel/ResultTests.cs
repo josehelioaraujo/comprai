@@ -1,3 +1,4 @@
+// ci-debug-trigger
 using UcpAgent.SharedKernel;
 using Xunit;
 using FluentAssertions;
