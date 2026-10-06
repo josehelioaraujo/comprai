@@ -25,6 +25,7 @@ public class HealthApiFactory : WebApplicationFactory<Program>
                 ["Features:UsarPostgres"]             = "false",
                 ["Features:UsarPriceWatcher"]         = "false",
                 ["Features:UsarFulfillmentSimulator"] = "false",
+                ["Jwt:Secret"]                        = "test-secret-for-unit-tests",
             });
         });
     }

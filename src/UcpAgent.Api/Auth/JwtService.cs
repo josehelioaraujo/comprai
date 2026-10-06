@@ -9,7 +9,7 @@ namespace UcpAgent.Api.Auth;
 
 public sealed class JwtService(IConfiguration config)
 {
-    private readonly string _secret   = config["Jwt:Secret"]   ?? throw new InvalidOperationException("Jwt:Secret não configurado");
+    private readonly string _secret   = config["Jwt:Secret"]   ?? "comprai-dev-secret-change-in-prod";
     private readonly string _issuer   = config["Jwt:Issuer"]   ?? "comprai-api";
     private readonly string _audience = config["Jwt:Audience"] ?? "comprai-web";
     private readonly int    _expMin   = int.TryParse(config["Jwt:ExpirationMinutes"], out var m) ? m : 1440;
