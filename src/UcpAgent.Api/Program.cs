@@ -218,8 +218,10 @@ if (usarPostgres && paymentProvider != "efipay")
             sp.GetRequiredKeyedService<IPaymentPort>("payment:inner"),
             sp.GetRequiredService<UcpAgent.Infrastructure.Persistence.Repositories.PaymentRepository>(),
             sp.GetRequiredService<UcpAgent.Infrastructure.Persistence.Repositories.OrderRepository>(),
+            sp.GetRequiredService<UcpAgent.Infrastructure.Persistence.Repositories.PostgresFulfillmentRepository>(),
             sp.GetRequiredService<IConfiguration>(),
-            sp.GetRequiredService<ILogger<UcpAgent.Infrastructure.Payment.PersistingPaymentAdapter>>()));
+            sp.GetRequiredService<ILogger<UcpAgent.Infrastructure.Payment.PersistingPaymentAdapter>>(),
+            sp.GetService<UcpAgent.Infrastructure.Fulfillment.FulfillmentSimulator>()));
 }
 else if (paymentProvider != "efipay")
 {
