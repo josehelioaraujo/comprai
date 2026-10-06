@@ -885,15 +885,16 @@ http://<VPS>:3003          # app mobile independente
 | **V044–V047** | Mobile-First UI, Fulfillment Domain (Event Sourcing), OrderList drilldown, fixes UX |
 | **V048** | Persistência PostgreSQL + Outbox Pattern: 17 tabelas, DbUp, Dapper, 3 OutboxWorkers |
 | **V049–V050** | Fix testes de integração: ResilienceExtensions, IdempotencyMiddleware, HealthApiFactory |
+| **V052** | BD como source of truth: UUID order, endereço snapshot, fulfillment_event, DI corrigido, smoke test fix |
 | **V051** | Testes CI verdes; F5 polling real de fulfillment; auto-dismiss PixCard/StripeCard pós-confirmação |
 
 ### 🔜 Próximas Versões
 
 | Fase | Descrição | Versão |
 |------|-----------|--------|
-| **apps/mobile standalone** | Separar `apps/mobile` do `apps/web`; deploy independente porta 3003 | V052 |
-| **BD no fluxo de compra** | Integrar `CustomerRepository`, `OrderRepository`, `PaymentRepository` no CheckoutService e PaymentService | V052 |
-| **PostgresFulfillmentRepository ativo** | FulfillmentSimulator persiste `fulfillment_event` no BD em vez de só Redis | V052 |
+| **Front localStorage → BD** | Sincronizar `saveOrderToList` com BD; manter localStorage só como fallback | V053 |
+| **apps/mobile standalone** | Separar `apps/mobile` do `apps/web`; deploy independente porta 3003 | V053 |
+| **OMS + WMS + Carrier (plugins)** | Plugins hexagonais extensíveis: `Oms.Simulated/Vtex`, `Wms.Simulated/Totvs`, `Carrier.Simulated/Correios` | Futuro |
 | **LLM Diagnóstico** | `/api/ai/analyze` → Ollama + fallback Claude; botão "Analisar" no OpsWatch | Futuro |
 | **GROQ_MODEL_SELECTOR** | Seletor de modelo no `workflow_dispatch` do code-review | Futuro |
 | **K3s + Helm + Argo CD** | Migração Docker Compose → K3s na VPS com GitOps | Futuro |

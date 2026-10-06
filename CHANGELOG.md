@@ -1,37 +1,65 @@
 # Changelog
 
+## [1.0.52] — V052 — 2026-10-06
+
+### Feat — BD como source of truth no fluxo de compra
+
+- **`CustomerDto`** expandido com campos individuais de endereço (`Cep`, `Street`, `Number`, `Complement`, `Neighborhood`, `City`, `State`, `Document`) — campo `Address` mantido como legado para compatibilidade
+- **`Order.Id`** migrado de `"ORDER-XXXXXXXX"` para `Guid.NewGuid().ToString()` — compatível com `order.id UUID` no PostgreSQL
+- **`OrderRepository.SaveAsync`** — persiste `shipping_zip/street/number/complement/city/state` no INSERT
+- **`RedisCheckoutAdapter`** — UUID real + endereço snapshot + `SaveSessionOrderAsync` + enqueue `FulfillmentSimulator`
+- **`PersistingPaymentAdapter`** — insere `fulfillment_event` (`payment_confirmed`) via `FulfillmentAggregate.Create` + enqueue simulator após confirmar pagamento
+- **`OrdersQueryRepository.GetHistoryBySessionAsync`** — reescrito para ler tabela `order` diretamente (não `order_history`) com JOIN em `order_item` e `payment`; inclui `itemCount`, `shippingCity/State`
+- **`OrdersEndpoints`** — `GET /api/orders?sessionId` mapeia response para shape esperado pelo front (`orderId`, `status`, `total`, `tracking`, etc.)
+- **`MockCheckoutPort`** — injeta `IOrderPort` e persiste pedido em memória via `SaveAsync` + `SaveSessionOrderAsync`
+- **`MockOrderPort`** — usa `ConcurrentDictionary` em memória; retorna qualquer `orderId` conhecido; fallback `Pending` para IDs desconhecidos
+- **`PaymentRepository.ConfirmAsync`** — removido `::uuid` cast do `@orderId` (Npgsql resolve automaticamente)
+- **Program.cs DI** — `PostgresFulfillmentRepository` (Persistence.Repositories) registrado como concreto para `PersistingPaymentAdapter`; `IFulfillmentRepository` (Fulfillment) registrado separadamente para `FulfillmentSimulator`
+- **Smoke test** — body do checkout alinhado com `CustomerDto` (`name/email/phone` + campos de endereço individuais)
+
+#### Commits V052
+| Hash | Descrição |
+|------|-----------|
+| `1c02d2c9` | `[F1-F2-DB]` BD como source of truth — 7 arquivos |
+| `80f8a306` | fix CS0104: alias `PostgresFulfillmentRepo` em `PersistingPaymentAdapter` |
+| `fb4b3c67` | fix Program.cs: `PostgresFulfillmentRepository` + `FulfillmentSimulator` no registro |
+| `709784de` | fix: `MockCheckoutPort` UUID puro; `PaymentRepository` remove `::uuid` cast |
+| `d4fdcada` | fix: `GET /api/orders/{orderId}` restaurado em `OrdersEndpoints` |
+| `e841ff00` | fix: remove `GET /{orderId}` duplicado (já existe em Program.cs — `AmbiguousMatchException`) |
+| `e91b918b` | fix: `MockOrderPort` em memória; `MockCheckoutPort` injeta `IOrderPort` |
+| `61f40e7f` | fix: smoke test body alinhado com `CustomerDto` |
+| `71b4b403` | fix: `PostgresFulfillmentRepository` registrado como concreto + interface |
+| `6d85366c` | fix: DI separado — `Persistence.Repositories.PostgresFulfillmentRepository` + `IFulfillmentRepository` |
+
+---
+
 ## [1.0.51] — V051 — 2026-10-06
 
 ### Fix — Testes de Integração (CI verde)
 
-- **`[FromServices]`** adicionado em `OrdersEndpoints.cs` nos dois `MapGet` (`GET /api/orders` e `GET /api/orders/{id}/fulfillment`) — corrige `InvalidOperationException: Body was inferred` em 5 testes
-- **`RemoveAll(typeof(IPaymentPort))`** em `EfiPayFactory` no lugar de `SingleOrDefault` — corrige `InvalidOperationException: Sequence contains more than one matching element` quando há 2 registros de `IPaymentPort` (keyed + normal)
-- **`using Microsoft.Extensions.DependencyInjection.Extensions`** adicionado em `EfiPaymentIntegrationTest` — `RemoveAll` é extension method, não está no using base
-- **`[Fact(Skip)]`** em `PollyResilienceIntegrationTest` — requer rede externa (`dummyjson.com`) bloqueada no CI; teste preservado para execução local
+- **`[FromServices]`** adicionado em `OrdersEndpoints.cs` nos dois `MapGet`
+- **`RemoveAll(typeof(IPaymentPort))`** em `EfiPayFactory`
+- **`using Microsoft.Extensions.DependencyInjection.Extensions`** em `EfiPaymentIntegrationTest`
+- **`[Fact(Skip)]`** em `PollyResilienceIntegrationTest`
 
 ### Feat — F5: Fulfillment Polling Real + Orders API-First (Front)
 
-- **`api.ts`** — `getFulfillmentTimeline(orderId)` → `GET /api/orders/{id}/fulfillment`; `getOrders(sessionId)` normalizado (suporta array direto ou `{ orders: [] }`)
-- **`useChat.ts`** — `startFulfillmentPolling`: polling real a cada 5s (máx 60 tentativas); fallback automático para simulação local quando API retorna vazio (`UsarPostgres=false`)
-- **`handleViewOrders`** — API-first: `getOrders(sessionId)` → mescla dados de fulfillment do localStorage → fallback localStorage completo se API falhar
+- **`api.ts`** — `getFulfillmentTimeline(orderId)` → `GET /api/orders/{id}/fulfillment`; `getOrders` normalizado
+- **`useChat.ts`** — `startFulfillmentPolling`: polling real a cada 5s; fallback simulação local
+- **`handleViewOrders`** — API-first + mescla localStorage + fallback
 
 ### Feat — Opção A: Auto-dismiss PixCard e StripeCard pós-confirmação
 
-- `IntentRenderer.tsx` — recebe `onDismissMessage` e dispara `setTimeout(dismiss, 800ms)` após `onPaymentConfirmed` nos cases `payment_pix`, `payment_mock` e `payment_card`
-- `ChatWindow.tsx` — repassa `onDismissMessage` para `IntentRenderer`
-- `chat/page.tsx` — desestrutura `handleDismissMessage` do `useChat` e passa para `ChatWindow`
-- `CompraiWidget.tsx` — alinhado com `onDismissMessage`
-- `MobileIntentRenderer.tsx` — auto-dismiss Pix/Stripe via `onClose` com `setTimeout 800ms`
+- `IntentRenderer`, `ChatWindow`, `chat/page.tsx`, `CompraiWidget`, `MobileIntentRenderer` — auto-dismiss 800ms
 
 #### Commits V051
 | Hash | Descrição |
 |------|-----------|
-| `d8dddd93` | `[FromServices]`, `RemoveAll`, `[Fact(Skip)]` nos testes |
+| `d8dddd93` | `[FromServices]`, `RemoveAll`, `[Fact(Skip)]` |
 | `c3d92916` | `using DependencyInjection.Extensions` em `EfiPaymentIntegrationTest` |
-| `73db5650` | F5: `getFulfillmentTimeline` + `getOrders` API-first + `startFulfillmentPolling` |
+| `73db5650` | F5: `getFulfillmentTimeline` + `getOrders` API-first + polling |
 | `ec768773` | Opção A: auto-dismiss `IntentRenderer` + `ChatWindow` |
 | `c530a425` | `chat/page.tsx` com `onDismissMessage` |
-| `a58a9eed` | `CompraiWidget` + `MobileIntentRenderer` alinhados |
 
 ---
 
@@ -39,12 +67,10 @@
 
 ### Fix — CI e Testes de Integração
 
-- `ResilienceExtensions.cs`: `using Polly` mantido (ext methods); `using Polly.CircuitBreaker` removido; `ShouldHandle` restaurado (HTTP 5xx precisa de `HandleResult`)
-- `UseMiddleware<IdempotencyMiddleware>` duplicado removido do `Program.cs`
-- `HealthApiFactory` com `ConfigureAppConfiguration` — `UsarMockDados=true`, todas features infra `false`
-- `using Microsoft.Extensions.Configuration` adicionado no `HealthStatusEndpointTests`
-- `ResilienceTests` CB usa `HttpRequestException` (determinístico); `timeoutSeconds` default 30s
-- `ci-cd.yml` limpo (removidos logs de diagnóstico)
+- `ResilienceExtensions.cs`: `ShouldHandle` restaurado (HTTP 5xx via `HandleResult`)
+- `UseMiddleware<IdempotencyMiddleware>` duplicado removido
+- `HealthApiFactory` com `ConfigureAppConfiguration`
+- Testes de resiliência com `HttpRequestException` determinístico
 
 ---
 
@@ -52,101 +78,28 @@
 
 ### Feat — Persistência PostgreSQL + Outbox Pattern (Dapper + DbUp)
 
-#### Infraestrutura
-- **`comprai-postgres`** adicionado ao `docker-compose.yml` e `deploy/docker-compose.yml` — `postgres:16-alpine`, porta 5432, `TZ=UTC`/`PGTZ=UTC`, volume `postgres_data`, healthcheck `pg_isready`
-- **`POSTGRES_PASSWORD`** via GitHub Secret — injeção no `.env` da VPS via `grep -q + sed -i` no `ci-cd.yml`; `.env.example` criado com todas as variáveis documentadas
-- **`db-migrate.yml`** — workflow manual com `dry_run` e `target` (ex: rodar só até V002)
-
-#### Schema — 17 tabelas
-- **`V001__initial_schema.sql`** em `src/UcpAgent.Infrastructure/Persistence/Migrations/` — embutido no assembly como `EmbeddedResource`
-- Grupos: `customer`/`customer_address`/`session` · `order`/`order_item`/`order_history` · `fulfillment_event` (append-only) · `payment`/`refund` · `webhook_event` · `order_outbox`/`payment_outbox`/`notification_outbox` · `notification` · `search_log`/`cart_snapshot`/`idempotency_key`
-- `TIMESTAMPTZ` em todos os campos de data/hora; `IdempotencyKey UNIQUE` nas tabelas retentáveis; índices parciais `WHERE status IN ('pending','failed')` nas 3 outboxes
-
-#### Migrations — DbUp
-- **`dbup-postgresql 5.0.x`** adicionado ao `.csproj` — substitui initializer manual
-- **`CompraiDbInitializer`** — `EnsureDatabase` + `WithScriptsEmbeddedInAssembly` + `WithTransactionPerScript` + `LogToConsole`
-- Roda na startup via `initializer.Initialize()` após `app.UseCors()`
-
-#### Dapper + Factory
-- **`IDbConnectionFactory`** / **`NpgsqlConnectionFactory`** — retorna `NpgsqlConnection` (implementa `IAsyncDisposable` — `await using` funciona)
-- Dapper `2.1.35` + Npgsql `9.0.3`
-
-#### Repositórios
-- **`CustomerRepository`** — `UpsertAsync` com `ON CONFLICT (email) DO UPDATE`
-- **`OrderRepository`** — `SaveAsync`: INSERT `order` + `order_item` + `order_outbox` em 1 transação atômica
-- **`PaymentRepository`** — `ConfirmAsync`: INSERT `payment` + `payment_outbox` em 1 transação atômica
-- **`PostgresFulfillmentRepository`** — implementa `IFulfillmentRepository`; append-only `fulfillment_event`
-- **`OutboxRepository`** — polling das 3 outboxes com `FOR UPDATE SKIP LOCKED`
-
-#### Outbox Workers
-- **`OrderOutboxWorker`** / **`PaymentOutboxWorker`** → Kafka; **`NotificationOutboxWorker`** → RabbitMQ
-- `PeriodicTimer(5s)` · Backoff exponencial: `30s → 60s → 120s → 300s (máx)`
+- `comprai-postgres` no `docker-compose.yml` e `deploy/docker-compose.yml`
+- `V001__initial_schema.sql` — 17 tabelas, índices, índices parciais outbox
+- DbUp — migrations automáticas na startup
+- `CustomerRepository`, `OrderRepository`, `PaymentRepository`, `PostgresFulfillmentRepository`, `OutboxRepository`
+- `OrderOutboxWorker` / `PaymentOutboxWorker` → Kafka; `NotificationOutboxWorker` → RabbitMQ
+- Backoff exponencial: 30s → 60s → 120s → 300s
 
 ---
 
-## [1.0.47] — V047 — 2026-10-04
+## [V044–V047] — Mobile UX + Fulfillment (2026-10-01 a 2026-10-04)
 
-### Fix
-- **paymentDetail propagado corretamente ao Order** — `IntentRenderer` e `ChatWindow` passam `detail?` de `PixCard`/`StripeCard` para `handlePaymentConfirmed`
-- `useChat.handlePaymentConfirmed` recebe `paymentDetail?` e persiste em `newOrder.paymentDetail`
-
----
-
-## [1.0.47] — V046/V047 — Mobile UX (2026-10-04)
-
-### Fixes e Melhorias
-- OrderList simplificado — lista nº pedido + valor; drilldown com `OrderTrackingCard`
-- Bug carrinho 2ª compra corrigido — `clearSession + createSession` após pagamento
-- Botão × universal em `OrderTrackingCard` e `OrderList`
-- Stepper oculto em `idle`; dismiss `order_list` reseta step para `idle`
-- `handleViewOrders` usa `upsertBotMessage` — sem duplicação de cards
-- Rastreio unificado em accordion colapsável
-- Forma de pagamento: label + detalhe (chave Pix truncada ou `•••• 4242`)
+- `apps/mobile/` — Next.js independente porta 3003
+- `FulfillmentAggregate` (Event Sourcing append-only) + `FulfillmentSimulator` + pipeline 6 etapas
+- `OrderTrackingCard` — timeline 7 etapas, rastreio colapsável
 
 ---
 
-## [v1.0.x] — V044 — Mobile-First UI + Fulfillment Domain (2026-10-01)
+## [V042–V043] — Web Chat Frontend (2026-09-30)
 
-### Adicionado
-- `apps/mobile/` — app Next.js independente porta 3003
-- Layout Mobile-First `/mobile` — shell 420px smartphone
-- `MobileUcpHeader`, `MobileUcpProgressBar`, `MobileChatBubble/Window/Footer`
-- `MobileProductCard` + `MobileProductCarousel`
-- `MobileIntentRenderer`
-- `FulfillmentAggregate` (Event Sourcing append-only) + `FulfillmentSimulator` + `RedisFulfillmentRepository`
-- `OrderTrackingCard` — timeline 7 etapas + código de rastreio
-- Frete grátis acima de R$ 1.000
-
----
-
-## [v1.0.x] — V043 — Web Chat Front-end (2026-09-30)
-
-### Adicionado
-- `comprai-web` — Next.js 15 App Router + Tailwind + TypeScript
-- Fluxo UCP completo: Search → Cart → Checkout → Payment → Order
-- `ProductCarousel`, `CartCard`, `CheckoutCard`, `PixCard`, `StripeCard`, `OrderTrackingCard`
-- `UcpProgressBar`, `Sidebar`, dark/light mode
-- Widget embeddável 🛍️
-- Painel de logs 🔍
-
----
-
-## [V041] — Health Checks + Kafka (2026-09-30)
-- `/health/live` e `/health/ready` com checks condicionais por feature flag
-- Kafka ativado: `comprai-kafka:9094`, tópicos canônicos em `UcpTopics.cs`
-
----
-
-## [V040] — OpsWatch New Relic APM Drill-down (2026-09-29)
-- Cards Apdex/Error%/Req/min/p95 clicáveis com breakdown interativo
-- Gauge SVG Apdex, sparkline com área gradiente e tooltip hover
-- Seletor de janela temporal: 5m → 24h
-
----
-
-## [V039] — New Relic OTel Pipeline (2026-09-28)
-- Pipeline OTel: `comprai-api` → HttpProtobuf → `otel-collector` → New Relic
-- 93 spans confirmados no APM & Services
+- Next.js 15 App Router + Tailwind v4 + TypeScript
+- Fluxo UCP completo: Search → Cart → Checkout → Pix/Cartão → Entrega
+- `deploy-web.yml` — Docker build + push GHCR + deploy VPS
 
 ---
 
