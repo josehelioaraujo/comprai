@@ -21,11 +21,8 @@ public sealed class EfiPaymentIntegrationTest
 
             builder.ConfigureTestServices(services =>
             {
-                // Remove qualquer IPaymentPort registrado pelo Program.cs
-                var existing = services.SingleOrDefault(
-                    d => d.ServiceType == typeof(IPaymentPort));
-                if (existing is not null)
-                    services.Remove(existing);
+                // Remove TODOS os registros de IPaymentPort (pode haver keyed + normal)
+                services.RemoveAll(typeof(IPaymentPort));
 
                 // Registrar EfiPayOptions com valores de CI
                 var opts = new EfiPayOptions

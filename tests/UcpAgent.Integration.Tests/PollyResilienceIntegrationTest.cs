@@ -23,7 +23,7 @@ namespace UcpAgent.Integration.Tests;
 /// </summary>
 public sealed class PollyResilienceIntegrationTest
 {
-    [Fact]
+    [Fact(Skip = "Requer rede externa (dummyjson.com) — bloqueada no CI")]
     public async Task Search_ComPollyRetry_ReintentaApos500_ERetorna200()
     {
         // Arrange – configuração com delay curto para o teste não demorar

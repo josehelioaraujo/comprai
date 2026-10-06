@@ -12,7 +12,7 @@ public static class OrdersEndpoints
         // F4 — Meus Pedidos: lê order_history por sessionId
         grp.MapGet("", async (
             [FromQuery] string sessionId,
-            OrdersQueryRepository repo,
+            [FromServices] OrdersQueryRepository repo,
             CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(sessionId))
@@ -27,7 +27,7 @@ public static class OrdersEndpoints
         // F5 — Timeline ao vivo: lê fulfillment_event por orderId
         grp.MapGet("{orderId}/fulfillment", async (
             string orderId,
-            OrdersQueryRepository repo,
+            [FromServices] OrdersQueryRepository repo,
             CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(orderId))
