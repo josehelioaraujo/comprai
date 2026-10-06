@@ -544,7 +544,7 @@ app.MapPost("/webhook/ml", async (
 // ── Webhooks Stripe / Efi — idempotência via BD ─────────────────────────────
 app.MapPost("/webhook/stripe", async (
     HttpContext http,
-    [FromServices] UcpAgent.SharedKernel.Ports.IWebhookEventPort? webhookRepo,
+    UcpAgent.SharedKernel.Ports.IWebhookEventPort? webhookRepo,
     ILogger<Program> logger,
     CancellationToken ct) =>
 {
@@ -588,7 +588,7 @@ app.MapPost("/webhook/stripe", async (
 
 app.MapPost("/webhook/efi", async (
     HttpContext http,
-    [FromServices] UcpAgent.SharedKernel.Ports.IWebhookEventPort? webhookRepo,
+    UcpAgent.SharedKernel.Ports.IWebhookEventPort? webhookRepo,
     ILogger<Program> logger,
     CancellationToken ct) =>
 {
@@ -642,7 +642,7 @@ app.MapPost("/webhook/efi", async (
 app.MapPost("/api/payment/{orderId}", async (
     string orderId, PaymentRequestDto req,
     IMediator mediator,
-    [FromServices] UcpAgent.SharedKernel.Ports.ICartSnapshotPort? cartSnapshot,
+    UcpAgent.SharedKernel.Ports.ICartSnapshotPort? cartSnapshot,
     CancellationToken ct) =>
 {
     var result = await mediator.Send(
@@ -660,7 +660,7 @@ app.MapPost("/api/payment/{orderId}", async (
 // ── Cart Snapshot — recuperação de abandono ─────────────────────────────────
 app.MapGet("/api/cart/{sessionId}/snapshot", async (
     string sessionId,
-    [FromServices] UcpAgent.SharedKernel.Ports.ICartSnapshotPort? snapshot,
+    UcpAgent.SharedKernel.Ports.ICartSnapshotPort? snapshot,
     CancellationToken ct) =>
 {
     if (snapshot is null) return Results.NoContent();
