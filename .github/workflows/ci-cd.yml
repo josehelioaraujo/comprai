@@ -128,7 +128,25 @@ jobs:
             --results-directory ./test-results/unit \
             --settings coverlet.runsettings \
             --collect:"XPlat Code Coverage" \
-            --verbosity normal
+            --verbosity detailed 2>&1 | tee /tmp/app-test-output.txt; exit ${PIPESTATUS[0]}
+
+      - name: Show Failed Tests
+        if: failure()
+        run: |
+          echo "=== TESTES FALHANDO ==="
+          python3 - << 'EOF'
+import xml.etree.ElementTree as ET, glob, sys
+ns = "http://microsoft.com/schemas/VisualStudio/TeamTest/2010"
+for f in glob.glob("./test-results/unit/unit-app.trx"):
+    tree = ET.parse(f)
+    for r in tree.findall(f".//{{{ns}}}UnitTestResult[@outcome='Failed']"):
+        print(f"FAIL: {r.get('testName')}")
+        msg = r.find(f"{{{ns}}}Output/{{{ns}}}ErrorInfo/{{{ns}}}Message")
+        st  = r.find(f"{{{ns}}}Output/{{{ns}}}ErrorInfo/{{{ns}}}StackTrace")
+        if msg is not None: print("  MSG:", msg.text[:500])
+        if st  is not None: print("  ST:",  st.text[:300])
+        print()
+EOF
 
       - name: Run Catalog Tests
         run: |
@@ -705,4 +723,5 @@ jobs:
           name: smoke-test-report
           path: ./newman-report/smoke-report.html
           if-no-files-found: ignore
+
 
