@@ -1,94 +1,105 @@
 # 🗺️ Roadmap — Comprai
 
-## V049 — Integração BD no Fluxo de Compra
+## 🔜 V052 — Próxima versão
 
 ### 🔴 Alta Prioridade
+- [ ] **apps/mobile standalone** (porta 3003) — separar do `apps/web`; `deploy-mobile.yml` independente com trigger `apps/mobile/**`; reverter `deploy-web.yml` para excluir paths mobile
+
+### 🟡 Média Prioridade
 - [ ] **Integrar CustomerRepository + OrderRepository no CheckoutService** — `INSERT customer + order + order_item + order_outbox` em 1 transação quando checkout é confirmado (hoje salva só no Redis)
 - [ ] **Integrar PaymentRepository no PaymentService** — `INSERT payment + payment_outbox` quando pagamento é confirmado (Stripe/Efi/Mock)
 - [ ] **Integrar PostgresFulfillmentRepository no FulfillmentSimulator** — cada etapa do pipeline persiste `fulfillment_event` no BD
-
-### 🟡 Média Prioridade
 - [ ] **INSERT order_history no status final** — FulfillmentService grava snapshot consolidado quando `delivered|cancelled|returned`
-- [ ] **GET /api/orders?sessionId** — lê `order_history` no BD; substitui localStorage no front ("Meus pedidos")
-- [ ] **GET /api/orders/{id}/fulfillment** — lê `fulfillment_event` append-only; base do polling no OrderTrackingCard (timeline ao vivo)
-- [ ] **apps/mobile standalone** (porta 3003) — separar do apps/web; reverter `deploy-web.yml` para excluir paths mobile
-- [ ] **PixCard/StripeCard sem onClose** — decidir se permite fechar após confirmação de pagamento
 
 ### 🟢 Melhorias
 - [ ] **session no BD** — criar/recuperar `session` no PostgreSQL na chegada de cada requisição
-- [ ] **search_log no BD** — `SearchProductsHandler` persiste cada busca em `search_log` para analytics
+- [ ] **search_log no BD** — `SearchProductsHandler` persiste cada busca em `search_log`
 - [ ] **cart_snapshot no BD** — snapshot do carrinho para recuperação de abandono
 - [ ] **webhook_event idempotência via BD** — Stripe/Efi webhook verifica `webhook_event` antes de processar
-- [ ] **Polly retry + DLQ** — retry exponencial com jitter no `EmailNotificationWorker` + Dead Letter Queue no RabbitMQ
-- [ ] **ucp.order.updated** — PATCH `/api/orders/{orderId}/status` + `PublishAsync` (nunca implementado)
-- [ ] **Notificações push** — Service Worker + Web Push quando pedido mudar de status
 
 ---
 
 ## ✅ Concluído
 
+### V051 — Testes de Integração + F5 Polling + Auto-dismiss (2026-10-06)
+- [x] `[FromServices]` em `OrdersEndpoints.cs` — corrige 5 testes com `InvalidOperationException: Body was inferred`
+- [x] `RemoveAll(typeof(IPaymentPort))` em `EfiPayFactory` — corrige `Sequence contains more than one matching element`
+- [x] `using DependencyInjection.Extensions` em `EfiPaymentIntegrationTest`
+- [x] `[Fact(Skip)]` em `PollyResilienceIntegrationTest` — rede externa bloqueada no CI
+- [x] `getFulfillmentTimeline(orderId)` → `GET /api/orders/{id}/fulfillment` em `api.ts`
+- [x] `startFulfillmentPolling` — polling real a cada 5s; fallback simulação local (`UsarPostgres=false`)
+- [x] `handleViewOrders` — API-first + mescla localStorage + fallback
+- [x] Opção A: auto-dismiss `PixCard`/`StripeCard` 800ms após confirmação em todos os consumers (`IntentRenderer`, `ChatWindow`, `CompraiWidget`, `MobileIntentRenderer`)
+
+### V049/V050 — Fix CI e Testes (2026-10-05)
+- [x] `ResilienceExtensions.cs`: `ShouldHandle` restaurado (HTTP 5xx via `HandleResult`)
+- [x] `UseMiddleware<IdempotencyMiddleware>` duplicado removido
+- [x] `HealthApiFactory` com `ConfigureAppConfiguration`
+- [x] Testes de resiliência com `HttpRequestException` determinístico
+
 ### V048 — Persistência PostgreSQL + Outbox Pattern (2026-10-05)
 - [x] `comprai-postgres` no `docker-compose.yml` e `deploy/docker-compose.yml`
-- [x] `POSTGRES_PASSWORD` via GitHub Secret + `.env.example` + injeção VPS no `ci-cd.yml`
-- [x] `db-migrate.yml` — workflow manual com `dry_run` e `target`
-- [x] `V001__initial_schema.sql` — 17 tabelas + índices + índices parciais outbox (`TIMESTAMPTZ`, `IdempotencyKey UNIQUE`)
-- [x] DbUp (`dbup-postgresql`) — migrations automáticas na startup + versionamento `V00X__descricao.sql`
-- [x] `IDbConnectionFactory` / `NpgsqlConnectionFactory` — retorna `NpgsqlConnection` (`await using` seguro)
-- [x] Dapper `2.1.35` + Npgsql `9.0.3`
-- [x] `CustomerRepository` — upsert por email
-- [x] `OrderRepository` — INSERT `order + order_item + order_outbox` em 1 transação atômica
-- [x] `PaymentRepository` — INSERT `payment + payment_outbox` em 1 transação atômica
-- [x] `PostgresFulfillmentRepository` — append-only, implementa `IFulfillmentRepository`
-- [x] `OutboxRepository` — polling `FOR UPDATE SKIP LOCKED` nas 3 outboxes
+- [x] `POSTGRES_PASSWORD` via GitHub Secret + `.env.example`
+- [x] `db-migrate.yml` — workflow manual `dry_run` + `target`
+- [x] `V001__initial_schema.sql` — 17 tabelas, índices, índices parciais outbox
+- [x] DbUp — migrations automáticas na startup
+- [x] `IDbConnectionFactory` / `NpgsqlConnectionFactory`
+- [x] `CustomerRepository`, `OrderRepository`, `PaymentRepository`, `PostgresFulfillmentRepository`, `OutboxRepository`
 - [x] `OrderOutboxWorker` / `PaymentOutboxWorker` → Kafka; `NotificationOutboxWorker` → RabbitMQ
-- [x] Backoff exponencial: 30s → 60s → 120s → 300s (máx)
-- [x] `Program.cs` — feature flag `UsarPostgres` + DI completo + `initializer.Initialize()` na startup
+- [x] Backoff exponencial: 30s → 60s → 120s → 300s
 
 ### V047 — Fix paymentDetail + CI verde (2026-10-04)
-- [x] `IntentRenderer` propaga `detail` para `onPaymentConfirmed(orderId, detail)`
-- [x] `useChat.handlePaymentConfirmed` persiste `paymentDetail` no `newOrder`
-- [x] `ChatWindow.Props` TypeScript alinhado
+- [x] `paymentDetail` propagado via `IntentRenderer` → `onPaymentConfirmed` → `newOrder`
 
-### Backend + Observabilidade (V039–V041)
+### V044–V047 — Mobile UX + Fulfillment (2026-10-01 a 2026-10-04)
+- [x] `apps/mobile/` — Next.js independente porta 3003
+- [x] Layout Mobile-First `/mobile` — shell 420px smartphone, stepper bottom nav
+- [x] `MobileIntentRenderer`, `MobileProductCarousel`, `MobileChatBubble/Window/Footer`
+- [x] `FulfillmentAggregate` (Event Sourcing append-only) + `FulfillmentSimulator` + pipeline 6 etapas
+- [x] `OrderTrackingCard` — timeline 7 etapas, rastreio colapsável
+- [x] OrderList + drilldown completo
+- [x] Bug carrinho 2ª compra corrigido
+
+### V042–V043 — Web Chat Frontend (2026-09-29 a 2026-09-30)
+- [x] Next.js 15 App Router + Tailwind v4 + TypeScript
+- [x] Fluxo UCP completo: Search → Cart → Checkout → Pix/Cartão → Entrega
+- [x] `ProductCarousel`, `CartCard`, `CheckoutCard`, `PixCard`, `StripeCard`, `OrderTrackingCard`
+- [x] `UcpProgressBar`, `Sidebar`, dark/light mode
+- [x] Widget embeddável, painel de logs 🔍
+- [x] `deploy-web.yml` — Docker build + push GHCR + deploy VPS
+
+### Backend + Observabilidade (V033–V041)
 - [x] Fluxo UCP completo: Search → Cart → Checkout → Payment → Order
-- [x] Plugins de catálogo: DummyJSON, Mock, Shopify, MercadoLivre
-- [x] Pagamento: Mock, Stripe (cartão teste), Efi/Pix (aguardando cert produção)
+- [x] Plugins: DummyJSON, Mock, Shopify, MercadoLivre, VTEX, OpenFoodFacts
+- [x] Pagamento: Mock, Stripe, Efi/Pix
 - [x] Redis cache + HybridCache .NET 10
-- [x] Kafka: tópicos canônicos + events de domínio
-- [x] OTel pipeline: comprai-api → collector → Datadog + New Relic
-- [x] OpsWatch: dashboard QA, observabilidade, pentest OWASP ZAP, K6, New Relic APM drill-down
-- [x] Health checks condicionais por feature flag
-- [x] SonarCloud: Quality Gate Passed, cobertura 97%+
+- [x] Kafka: tópicos canônicos + domain events
+- [x] OTel pipeline: `comprai-api` → OTel Collector → Datadog + New Relic simultaneamente
+- [x] OpsWatch: QA, observabilidade, K6, New Relic APM drill-down
+- [x] SonarCloud Quality Gate Passed, cobertura 97%+
 - [x] CI/CD: unit-tests → integration-tests → sonar → deploy → smoke-tests
-
-### 🌐 Web Chat Frontend (V042–V046)
-- [x] Next.js 15 App Router + Tailwind + TypeScript
-- [x] Fluxo UCP completo via chat: Search → Cart → Checkout → Pix/Cartão → Entrega
-- [x] Layout Mobile-First `/mobile` — shell 420px smartphone
-- [x] OrderList + drilldown completo (produtos, frete, total, pagamento, endereço, rastreio)
-- [x] Bug carrinho 2ª compra corrigido — `clearSession + createSession` após pagamento
-- [x] Stepper oculto em idle; badge carrinho; botão "Meus pedidos" contextual
-- [x] FulfillmentAggregate + pipeline 6 etapas + 19 testes
-- [x] localStorage com persistência entre sessões (order_history + fulfillment + tracking)
 
 ---
 
 ## Roadmap Futuro
 
-### Mensageria e Resiliência
-- [ ] Polly retry com jitter backoff (KafkaEventPublisher + EmailNotificationWorker)
-- [ ] Dead Letter Queue (DLQ): `notifications.dlq` no RabbitMQ
-- [ ] DLQ worker: consome, loga, alerta, reprocessa manualmente
-
-### Canal Plugável
-- [ ] WhatsApp Bot: Meta Cloud API + mesmo Hub SignalR + `IChannelPort`
-- [ ] `WebChatChannelAdapter` + `WhatsAppChannelAdapter` via `[FromKeyedServices(ChannelType)]`
+### AI/LLM
+- [ ] **LLM_DIAGNOSTICO** — `/api/ai/analyze` → Ollama + fallback Claude; botão "Analisar" no OpsWatch
+- [ ] **GROQ_MODEL_SELECTOR** — seletor de modelo no `workflow_dispatch` do code-review
+- [ ] **HERMES_ORCHESTRATOR** — NousResearch Hermes-3 via Ollama; agente autônomo com tools
+- [ ] **Ollama na VPS** — `docker run ollama/ollama` + pull `gemma3:latest`
 
 ### Infraestrutura
-- [ ] K3s + Helm + Argo CD — migração Docker Compose → K3s na VPS
-- [ ] StressForge — gerador agnóstico de stress tests a partir de Swagger/OpenAPI
+- [ ] **K3s + Helm + Argo CD** — migração Docker Compose → K3s na VPS; repo `comprai-infra`
+- [ ] **StressForge** — gerador agnóstico de stress tests a partir de Swagger/OpenAPI
+- [ ] **StatusForge** — status page self-hosted
 
-### AI/LLM
-- [ ] GROQ_MODEL_SELECTOR — seletor de modelo no workflow code-review
-- [ ] LLM_DIAGNOSTICO — `/api/ai/analyze` → Ollama + fallback Claude no OpsWatch
-- [ ] HERMES_ORCHESTRATOR — NousResearch Hermes-3 via Ollama, agente autônomo com tools
+### Canais
+- [ ] **WhatsApp Bot** — Meta Cloud API + mesmo Hub SignalR + `IChannelPort`; reutiliza 100% do core UCP
+- [ ] **Extensão Chrome** — Price Watcher + Universal Cart + Intent Bar
+- [ ] **Canal Teams** — Bot Framework SDK
+
+### Mensageria e Resiliência
+- [ ] **Polly retry + DLQ** — backoff jitter no `EmailNotificationWorker` + Dead Letter Queue no RabbitMQ
+- [ ] **ucp.order.updated** — PATCH `/api/orders/{orderId}/status` + `PublishAsync`
+- [ ] **Notificações push** — Service Worker + Web Push por mudança de status

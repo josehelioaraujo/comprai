@@ -864,50 +864,44 @@ http://<VPS>:3003          # app mobile independente
 | **V014–V019** | CI/CD completo, Smoke Tests Newman, Observabilidade OTel → Datadog, Stryker mutation 84%+ |
 | **V020–V023** | QA Hub — Stress Tests K6, SonarCloud, OWASP Top 10, PCI DSS, Mutação, Gráficos, Rotas |
 | **V024** | QA Hub → OpsWatch — Status Page, Testes Integrados, Runbook, PAT server-side, Coverage 100% |
-| **V025** | OpsWatch — Evolução das Métricas, CVEs NuGet, Admin Restart, Stress Test polling real-time, Drill down por run e por job |
-| **V026** | OpsWatch — Seção Observabilidade completa: Métricas (Prometheus), Logs (Loki), Traces (Jaeger), Erros Recentes, KPI cards com tooltips |
-| **V027** | Observabilidade Hub — ObservabilityEndpoints.cs, proxy Prometheus/Loki/Jaeger, Uptime 99.90%, CHANGELOG v3.6.0 |
-| **V028** | Monitor de Containers — accordion compacto, ações Start/Stop/Restart com modal + proteção críticos, métricas req/s e p99 funcionais, logs ANSI-clean |
-| **V029** | Promtail fix definitivo (docker_sd_configs), Health Map SVG interativo com modal de detalhes, TCP health check Prometheus/Loki/Jaeger |
-| **V030** | OpsWatch (renomeação), Health Map modal com Container Stats CPU/mem, Dependency Scanner, ícones sidebar, edges reais do compose |
-| **V030-QS** | Quality Score 0-100: gauge, 4 dimensões, drill-down com código real, botão ∑, Notable Events, Quality Trend com tooltip delta |
-| **V031** | Drill-down inline Quality Trend (CI/CD/Mutation/CVEs), Correlação K6×Mutation com índice de risco, drill-down por endpoint com diagnóstico e recomendações, ícone 🔭 OpsWatch |
-| **V031-Live** | Gráfico ao vivo durante Stress Test K6 (Prometheus dual-Y, polling 5s, alerta p95>1000ms), botão ✕ Cancelar run com endpoint `POST /api/github/run/{id}/cancel` |
-| **V033** | Instrumentação OTel granular: `UcpMetrics` em SharedKernel, 17 instrumentos, nomes underscore para Prometheus 3.x |
-| **V034** | OpsWatch — 5 abas de Métricas (Funil UCP, Plugins, Cache Redis, LLM/Ollama), hints dinâmicos 🟢🟡🔴, `populate-metrics.ps1` |
-| **V034-cont** | Cache Strategy (TTL/Aside/Read-Through/Hybrid), Access Log com aba Acesso completa (filtros, paginação, drill-down, rotas mais chamadas), versionamento SemVer automático no CI |
-| **V035** | OpsWatch — Painel Testes de Carga: VUs slider, Duração, Rounds sequenciais com progress dots, botão Parar, `populate-metrics.yml` |
-| **V036** | OpsWatch — Métricas de Código: Complexidade Ciclomática (Python regex, modal com código + marcadores SonarCloud) + Dependências Ca/Ce (Robert C. Martin, pills Ca/Ce, Ca reverso); Code Review automático em PRs via Groq AI; nova dinâmica de branches/PRs |
-| **V037–V039** | Observabilidade Dual — New Relic via OTel Collector: pipeline `HttpProtobuf :4318`, painel APM no OpsWatch (Apdex/Error%/Req/min/p95), 93 spans confirmados, collector exporta para Datadog + New Relic simultaneamente |
-| **V048** | Persistência PostgreSQL + Outbox Pattern: 17 tabelas, DbUp migrations, Dapper, IDbConnectionFactory, CustomerRepository, OrderRepository (+ outbox atômico), PaymentRepository (+ outbox atômico), PostgresFulfillmentRepository, OutboxRepository (FOR UPDATE SKIP LOCKED), 3 OutboxWorkers (Kafka + RabbitMQ), backoff exponencial, feature flag UsarPostgres, db-migrate.yml workflow |
-| **V040** | OpsWatch — New Relic APM Drill-Down Interativo: gauge SVG Apdex, cards Satisfied/Tolerating/Frustrated clicáveis com tabela de rotas (p50/p90/p99/Avg/Req/s), sparkline com tooltip hover, seletor de janela 5m–24h, chevron colapsável universal, fix NerdGraph percentis como objeto aninhado |
+| **V025** | OpsWatch — Evolução das Métricas, CVEs NuGet, Admin Restart, Stress Test polling real-time |
+| **V026** | OpsWatch — Seção Observabilidade completa: Métricas (Prometheus), Logs (Loki), Traces (Jaeger) |
+| **V027** | Observabilidade Hub — ObservabilityEndpoints.cs, proxy Prometheus/Loki/Jaeger |
+| **V028** | Monitor de Containers — accordion, ações Start/Stop/Restart, métricas req/s e p99 |
+| **V029** | Promtail fix definitivo, Health Map SVG interativo, TCP health check |
+| **V030** | OpsWatch renomeação, Health Map modal CPU/mem, Dependency Scanner |
+| **V030-QS** | Quality Score 0-100: gauge, 4 dimensões, drill-down, Notable Events, Quality Trend |
+| **V031** | Drill-down inline Quality Trend, Correlação K6×Mutation, drill-down por endpoint |
+| **V031-Live** | Gráfico ao vivo durante K6 (Prometheus dual-Y, polling 5s, alertas p95) |
+| **V033** | Instrumentação OTel granular: `UcpMetrics` em SharedKernel, 17 instrumentos |
+| **V034** | OpsWatch — 5 abas de Métricas (Funil UCP, Plugins, Cache Redis, LLM/Ollama) |
+| **V034-cont** | Cache Strategy, Access Log, versionamento SemVer automático no CI |
+| **V035** | OpsWatch — Painel Testes de Carga: VUs slider, Duração, Rounds, botão Parar |
+| **V036** | Métricas de Código: Complexidade Ciclomática + Dependências Ca/Ce; Code Review automático Groq AI |
+| **V037–V039** | Observabilidade Dual — New Relic via OTel Collector; painel APM; 93 spans confirmados |
+| **V040** | OpsWatch — New Relic APM Drill-Down: gauge Apdex, sparkline, seletor 5m–24h |
+| **V041** | Health Checks condicionais por feature flag; Kafka ativado com tópicos canônicos |
+| **V042–V043** | Web Chat Frontend: Next.js 15 + Tailwind v4, fluxo UCP completo, widget embeddável |
+| **V044–V047** | Mobile-First UI, Fulfillment Domain (Event Sourcing), OrderList drilldown, fixes UX |
+| **V048** | Persistência PostgreSQL + Outbox Pattern: 17 tabelas, DbUp, Dapper, 3 OutboxWorkers |
+| **V049–V050** | Fix testes de integração: ResilienceExtensions, IdempotencyMiddleware, HealthApiFactory |
+| **V051** | Testes CI verdes; F5 polling real de fulfillment; auto-dismiss PixCard/StripeCard pós-confirmação |
 
 ### 🔜 Próximas Versões
 
 | Fase | Descrição | Versão |
 |------|-----------|--------|
-| **Gargalo p95/p99** | Investigar `/api/health/status` (avg 2843ms) e `/api/search` (avg 12110ms) — health check síncrono + Ollama sem timeout; circuit breaker e separação live/ready | V041 |
-| **LLM Diagnóstico** | `/api/ai/analyze` — Ollama analisa p95 + logs + mutation score e gera diagnóstico em PT-BR; botão "Analisar" no OpsWatch | V041 |
-| **Notificações Slack/Teams** | Mensagem gerada por LLM ao detectar degradação; webhook simples, alto impacto em demo | V041 |
-| **Locust — segunda engine** | OpsWatch orquestra K6 e Locust: seletor de engine, proxy `/api/locust/*`, métricas ao vivo sem pipeline | V038 |
-| **Hermes Orchestrator** | NousResearch Hermes-3 via Ollama — agente autônomo que decide sequência de tools (search, cart, checkout, diagnose) | V038 |
-| **Pentest OWASP ZAP** | DAST dinâmico via Docker: `pentest.yml` semanal + sob demanda, findings por severidade com referência OWASP Top 10 | V037 |
-| **GROQ_MODEL_SELECTOR** | Seletor de modelo no `workflow_dispatch` do code-review — escolha de modelo sem editar o workflow | V037 |
-| **ELK Stack** | Traces waterfall com correlação log↔trace; exige upgrade VPS KVM4 | Futuro |
-| **Alertas ntfy.sh** | Push quando qualquer suite falha — ntfy já na VPS | Futuro |
-| **DAST com OWASP ZAP** | Análise dinâmica contra API em staging — fecha gap do SonarCloud estático | Futuro |
-| **Padrão Saga** | 3 implementações chaveáveis (Wolverine, MassTransit, Nativo) via feature flag | Futuro |
-| **Instrumentação OTel** | Funil UCP ✅, erro/fallback por plugin ✅, LLM/intent ✅ — cache hit/miss e eventos Kafka pendentes | Futuro |
-| **K3s + Helm + Argo CD** | Migração Docker Compose → Kubernetes leve na VPS com GitOps | Futuro |
-| **Graphify — Grafo de Arquitetura** | Mermaid no README + página interativa com hover (hints/interações) + JSON para contexto de IA | Futuro |
-| **Request-ID + Jaeger correlation** | Access Log sem payload no Loki — correlation-id linka ao trace completo em Jaeger | Futuro |
-| **Canal Web — Demo** | Next.js 15 + Tailwind + shadcn/ui — interface conversacional com raciocínio visível | Futuro |
-| **AIOps com Ollama** | Detecção de anomalias, RCA automático (Prometheus + Loki + Jaeger) | Futuro |
+| **apps/mobile standalone** | Separar `apps/mobile` do `apps/web`; deploy independente porta 3003 | V052 |
+| **BD no fluxo de compra** | Integrar `CustomerRepository`, `OrderRepository`, `PaymentRepository` no CheckoutService e PaymentService | V052 |
+| **PostgresFulfillmentRepository ativo** | FulfillmentSimulator persiste `fulfillment_event` no BD em vez de só Redis | V052 |
+| **LLM Diagnóstico** | `/api/ai/analyze` → Ollama + fallback Claude; botão "Analisar" no OpsWatch | Futuro |
+| **GROQ_MODEL_SELECTOR** | Seletor de modelo no `workflow_dispatch` do code-review | Futuro |
+| **K3s + Helm + Argo CD** | Migração Docker Compose → K3s na VPS com GitOps | Futuro |
+| **WhatsApp Bot** | Meta Cloud API + Hub SignalR + `IChannelPort`; reutiliza 100% do core UCP | Futuro |
+| **Ollama na VPS** | `docker run ollama/ollama` + pull `gemma3:latest` | Futuro |
 | **StressForge** | Gerador agnóstico de stress tests a partir de Swagger/OpenAPI | Futuro |
-| **StatusForge** | Gerador de status pages self-hosted no padrão Atlassian/Instatus | Futuro |
-| **Canal WhatsApp** | Evolution API self-hosted na VPS — compra por mensagem | Futuro |
-| **Extensão Chrome** | Price Watcher, Universal Cart e Intent Bar nativos no browser | Futuro |
-| **Canal Teams** | Bot Framework SDK | Futuro |
+| **ELK Stack** | Traces waterfall com correlação log↔trace | Futuro |
+| **Padrão Saga** | 3 implementações chaveáveis (Wolverine, MassTransit, Nativo) | Futuro |
 
 </details>
 
