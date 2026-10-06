@@ -4,6 +4,7 @@ using UcpAgent.Domain.Fulfillment;
 using UcpAgent.Infrastructure.Fulfillment;
 using UcpAgent.Infrastructure.Persistence.Repositories;
 using UcpAgent.SharedKernel.Ports;
+using PostgresFulfillmentRepo = UcpAgent.Infrastructure.Persistence.Repositories.PostgresFulfillmentRepository;
 
 namespace UcpAgent.Infrastructure.Payment;
 
@@ -15,7 +16,7 @@ public sealed class PersistingPaymentAdapter(
     IPaymentPort inner,
     PaymentRepository paymentRepo,
     OrderRepository orderRepo,
-    PostgresFulfillmentRepository fulfillmentRepo,
+    PostgresFulfillmentRepo fulfillmentRepo,
     IConfiguration configuration,
     ILogger<PersistingPaymentAdapter> logger,
     FulfillmentSimulator? fulfillmentSimulator = null) : IPaymentPort
