@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { getSessionId, clearSession, createSession } from '@/lib/session'
 import { newIdempotencyKey, getIdempotencyKey, cartAddKey, checkoutKey, paymentKey } from '@/lib/idempotency'
-import { postIntent, addToCart, getCart, createCheckout, createPayment } from '@/lib/api'
+import { postIntent, addToCart, getCart, createCheckout, createPayment, getOrders, getFulfillmentTimeline } from '@/lib/api'
 import type {
   ChatMessage, SessionState, UcpStep, Product,
   PaymentMethod, PaymentProvider, Cart, Order,
@@ -22,20 +22,16 @@ export function calcShipping(subtotal: number, method: 'standard' | 'express'): 
   return method === 'express' ? EXPRESS_COST : STANDARD_COST
 }
 
-const FULFILLMENT_PIPELINE: { status: FulfillmentStatus; description: string; delay: number; location?: string }[] = [
-  { status: 'preparing',         description: 'Separando e embalando os itens',          delay: 8000  },
-  { status: 'ready_to_ship',     description: 'Embalado — aguardando coleta',             delay: 6000  },
-  { status: 'handed_to_carrier', description: 'Coletado pela transportadora',             delay: 5000  },
-  { status: 'in_transit',        description: 'Em trânsito — Centro de Distribuição SP', delay: 8000, location: 'São Paulo, SP' },
-  { status: 'out_for_delivery',  description: 'Saiu para entrega',                        delay: 6000  },
-  { status: 'delivered',         description: 'Entregue ao destinatário',                 delay: 5000  },
-]
-
+// Constantes de localStorage (mantidas como fallback quando UsarPostgres=false)
 const LS_ORDER_KEY       = 'comprai_last_order_id'
 const LS_SESSION_KEY     = 'comprai_last_session_id'
 const LS_FULFILLMENT_KEY = 'comprai_last_fulfillment'
 const LS_TRACKING_KEY    = 'comprai_last_tracking'
 const LS_ORDERS_KEY      = 'comprai_orders_list'
+
+// Intervalo de polling para fulfillment (ms)
+const POLL_INTERVAL_MS   = 5_000
+const POLL_MAX_ATTEMPTS  = 60 // 5 min
 
 const INITIAL_SESSION: SessionState = {
   sessionId: '', step: 'idle', cart: null, currentOrder: null,
@@ -54,6 +50,7 @@ function loadOrdersList(): Order[] {
     return raw ? JSON.parse(raw) : []
   } catch { return [] }
 }
+
 function saveOrderToList(order: Order) {
   try {
     const list = loadOrdersList()
@@ -71,6 +68,8 @@ export function useChat() {
   const [hasPreviousOrder, setHasPreviousOrder] = useState(false)
   const sessionRef            = useRef<string>('')
   const fulfillmentHistoryRef = useRef<Record<string, FulfillmentEvent[]>>({})
+  const pollTimersRef         = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+  const pollAttemptsRef       = useRef<Record<string, number>>({})
   const addingProductsRef     = useRef<Set<string>>(new Set())
   const confirmedTotalRef     = useRef<number>(0)
   const shippingCostRef       = useRef<number>(0)
@@ -84,6 +83,13 @@ export function useChat() {
       const savedSessionId = localStorage.getItem(LS_SESSION_KEY)
       if (savedOrderId && savedSessionId) setHasPreviousOrder(true)
     } catch { }
+  }, [])
+
+  // Limpa timers de polling ao desmontar
+  useEffect(() => {
+    return () => {
+      Object.values(pollTimersRef.current).forEach(t => clearTimeout(t))
+    }
   }, [])
 
   const getOrCreateSession = useCallback((): string => {
@@ -134,7 +140,6 @@ export function useChat() {
     setMessages(prev => prev.filter(m => m.id !== id))
   }, [])
 
-  // Remove mensagem; se for card de lista de pedidos, volta step para idle
   const handleDismissAndReset = useCallback((id: string) => {
     setMessages(prev => {
       const msg = prev.find(m => m.id === id)
@@ -161,53 +166,99 @@ export function useChat() {
 
   const cartCount = session.cart?.items?.reduce((s, i) => s + i.quantity, 0) ?? 0
 
-  const startFulfillmentSimulation = useCallback((orderId: string, orderTotal: number) => {
-    const history: FulfillmentEvent[] = [{
-      status: 'payment_confirmed',
-      description: 'Pagamento confirmado — seu pedido está sendo preparado',
-      occurredAt: new Date().toISOString(),
-    }]
-    fulfillmentHistoryRef.current[orderId] = history
+  /**
+   * F5 — Polling real de fulfillment via GET /api/orders/{id}/fulfillment
+   * Fallback: mantém simulação local se a API retornar vazio (UsarPostgres=false)
+   */
+  const startFulfillmentPolling = useCallback((orderId: string, initialHistory: FulfillmentEvent[]) => {
+    fulfillmentHistoryRef.current[orderId] = initialHistory
+    pollAttemptsRef.current[orderId] = 0
 
-    let accDelay = 0
-    for (const step of FULFILLMENT_PIPELINE) {
-      accDelay += step.delay
-      const stepCopy = { ...step }
-      const histCopy = history
+    const SIMULATION_PIPELINE: { status: FulfillmentStatus; description: string; delay: number; location?: string }[] = [
+      { status: 'preparing',         description: 'Separando e embalando os itens',          delay: 8000  },
+      { status: 'ready_to_ship',     description: 'Embalado — aguardando coleta',             delay: 6000  },
+      { status: 'handed_to_carrier', description: 'Coletado pela transportadora',             delay: 5000  },
+      { status: 'in_transit',        description: 'Em trânsito — Centro de Distribuição SP', delay: 8000, location: 'São Paulo, SP' },
+      { status: 'out_for_delivery',  description: 'Saiu para entrega',                        delay: 6000  },
+      { status: 'delivered',         description: 'Entregue ao destinatário',                 delay: 5000  },
+    ]
 
-      setTimeout(() => {
-        const newEvent: FulfillmentEvent = {
-          status:       stepCopy.status,
-          description:  stepCopy.description,
-          occurredAt:   new Date().toISOString(),
-          location:     stepCopy.location,
-          trackingCode: stepCopy.status === 'handed_to_carrier'
-            ? `BR${orderId.slice(0, 6).toUpperCase()}001` : undefined,
-        }
-        histCopy.push(newEvent)
-        fulfillmentHistoryRef.current[orderId] = [...histCopy]
-        try { localStorage.setItem(LS_FULFILLMENT_KEY, JSON.stringify([...histCopy])) } catch { }
-        if (newEvent.trackingCode) {
-          try { localStorage.setItem(LS_TRACKING_KEY, newEvent.trackingCode) } catch { }
-        }
-
-        const orderStatusMap: Partial<Record<FulfillmentStatus, Order['status']>> = {
-          preparing:         'preparing',
-          handed_to_carrier: 'shipped',
-          in_transit:        'shipped',
-          out_for_delivery:  'shipped',
-          delivered:         'delivered',
-        }
-
-        updateOrderMessage(orderId, order => ({
-          ...order,
-          status:             orderStatusMap[stepCopy.status] ?? order.status,
-          fulfillmentStatus:  stepCopy.status,
-          fulfillmentHistory: [...histCopy],
-          tracking:           newEvent.trackingCode ?? order.tracking,
-        }))
-      }, accDelay)
+    const orderStatusMap: Partial<Record<FulfillmentStatus, Order['status']>> = {
+      preparing:         'preparing',
+      handed_to_carrier: 'shipped',
+      in_transit:        'shipped',
+      out_for_delivery:  'shipped',
+      delivered:         'delivered',
     }
+
+    const poll = async () => {
+      const attempt = (pollAttemptsRef.current[orderId] ?? 0) + 1
+      pollAttemptsRef.current[orderId] = attempt
+
+      if (attempt > POLL_MAX_ATTEMPTS) return // para de fazer polling
+
+      try {
+        const timeline = await getFulfillmentTimeline(orderId)
+
+        if (timeline.length > 0) {
+          // API retornou dados reais — usa polling real
+          const prev = fulfillmentHistoryRef.current[orderId] ?? []
+          if (timeline.length !== prev.length) {
+            fulfillmentHistoryRef.current[orderId] = timeline
+            const last = timeline[timeline.length - 1]
+            updateOrderMessage(orderId, order => ({
+              ...order,
+              status:             orderStatusMap[last.status] ?? order.status,
+              fulfillmentStatus:  last.status,
+              fulfillmentHistory: timeline,
+              tracking:           last.trackingCode ?? order.tracking,
+            }))
+          }
+          // Continua polling até entregar
+          const last = timeline[timeline.length - 1]
+          if (last.status !== 'delivered' && last.status !== 'cancelled') {
+            pollTimersRef.current[orderId] = setTimeout(poll, POLL_INTERVAL_MS)
+          }
+          return
+        }
+      } catch { /* API indisponível — cai no fallback */ }
+
+      // Fallback: simulação local (UsarPostgres=false)
+      if (attempt === 1) {
+        let accDelay = 0
+        const history = fulfillmentHistoryRef.current[orderId]
+        for (const step of SIMULATION_PIPELINE) {
+          accDelay += step.delay
+          const stepCopy = { ...step }
+          setTimeout(() => {
+            const newEvent: FulfillmentEvent = {
+              status:       stepCopy.status,
+              description:  stepCopy.description,
+              occurredAt:   new Date().toISOString(),
+              location:     stepCopy.location,
+              trackingCode: stepCopy.status === 'handed_to_carrier'
+                ? `BR${orderId.slice(0, 6).toUpperCase()}001` : undefined,
+            }
+            history.push(newEvent)
+            fulfillmentHistoryRef.current[orderId] = [...history]
+            try { localStorage.setItem(LS_FULFILLMENT_KEY, JSON.stringify([...history])) } catch { }
+            if (newEvent.trackingCode) {
+              try { localStorage.setItem(LS_TRACKING_KEY, newEvent.trackingCode) } catch { }
+            }
+            updateOrderMessage(orderId, order => ({
+              ...order,
+              status:             orderStatusMap[stepCopy.status] ?? order.status,
+              fulfillmentStatus:  stepCopy.status,
+              fulfillmentHistory: [...history],
+              tracking:           newEvent.trackingCode ?? order.tracking,
+            }))
+          }, accDelay)
+        }
+      }
+    }
+
+    // Primeira chamada após 3s (dá tempo do backend registrar o evento)
+    pollTimersRef.current[orderId] = setTimeout(poll, 3000)
   }, [updateOrderMessage])
 
   const sendMessage = useCallback(async (text: string) => {
@@ -367,10 +418,8 @@ export function useChat() {
     const orderTotal = confirmedTotalRef.current > 0 ? confirmedTotalRef.current : 0
     confirmedTotalRef.current = 0
 
-    // Captura itens ANTES de zerar o carrinho
     const cartSnapshot = session.cart?.items ?? []
 
-    // Novo sessionId — evita duplicação de itens na 2ª compra
     clearSession()
     const newSessionId = createSession()
     sessionRef.current = newSessionId
@@ -424,11 +473,40 @@ export function useChat() {
       data: { type: 'order', order: newOrder },
     })
 
-    startFulfillmentSimulation(orderId, orderTotal)
-  }, [pushMessage, advanceStep, startFulfillmentSimulation, session.cart, session.confirmedTotal])
+    // F5: inicia polling real (com fallback local)
+    startFulfillmentPolling(orderId, initialHistory)
+  }, [pushMessage, advanceStep, startFulfillmentPolling, session.cart, session.confirmedTotal])
 
-  // FIX #1: handleViewOrders — sem pushMessage de texto, direto o card
-  const handleViewOrders = useCallback(() => {
+  /**
+   * F5 — handleViewOrders: busca na API primeiro, fallback localStorage
+   */
+  const handleViewOrders = useCallback(async () => {
+    const sessionId = getOrCreateSession()
+
+    // Tenta API primeiro
+    try {
+      const apiOrders = await getOrders(sessionId)
+      if (apiOrders.length > 0) {
+        // Mescla com localStorage para manter dados de fulfillment local
+        const localList = loadOrdersList()
+        const merged = apiOrders.map(apiOrder => {
+          const local = localList.find(o => o.orderId === apiOrder.orderId)
+          return local ? {
+            ...apiOrder,
+            fulfillmentHistory: local.fulfillmentHistory ?? apiOrder.fulfillmentHistory,
+            tracking:           local.tracking ?? apiOrder.tracking,
+          } : apiOrder
+        })
+        upsertBotMessage({
+          role: 'bot', text: '', intent: 'order_list',
+          data: { type: 'orders', orders: merged },
+        })
+        advanceStep('order')
+        return
+      }
+    } catch { /* fallback localStorage */ }
+
+    // Fallback: localStorage
     const list = loadOrdersList()
 
     if (list.length === 0) {
@@ -449,7 +527,6 @@ export function useChat() {
             createdAt:  new Date().toISOString(),
             fulfillmentHistory: savedFulfillment ? JSON.parse(savedFulfillment) : [],
           }
-          // upsert para não duplicar ao clicar várias vezes
           upsertBotMessage({
             role: 'bot', text: '', intent: 'order_list',
             data: { type: 'orders', orders: [order] },
@@ -462,14 +539,13 @@ export function useChat() {
       return
     }
 
-    // sem texto na bolha — só o card
     setMessages(prev => [...prev, {
       id: makeId(), role: 'bot' as const, timestamp: new Date(),
       text: '', intent: 'order_list',
       data: { type: 'orders', orders: list },
     }])
     advanceStep('order')
-  }, [pushMessage, advanceStep])
+  }, [getOrCreateSession, pushMessage, upsertBotMessage, advanceStep])
 
   const handleRestorePreviousOrder = useCallback(() => {
     handleViewOrders()

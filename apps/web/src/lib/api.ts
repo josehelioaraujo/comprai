@@ -1,6 +1,7 @@
 import type {
   IntentResponse, Cart, CartItem, CheckoutData,
   PaymentResult, Order, PaymentMethod, PaymentProvider, Product,
+  FulfillmentEvent,
 } from '@/types/ucp'
 import type { CustomerDto } from '@/components/ucp/CartCard'
 
@@ -92,14 +93,13 @@ export async function createCheckout(
   return post(`/api/checkout/${sessionId}`, customer, idempotencyKey)
 }
 
-// payload correto: { amount: "string", currency: "BRL", method: { provider, cardToken, pixKey } }
 export async function createPayment(
   orderId: string,
   method: PaymentMethod,
   amount: number,
   idempotencyKey: string,
 ): Promise<any> {
-  const amountStr = amount.toFixed(2) // string com 2 casas — evita problema de precisão float
+  const amountStr = amount.toFixed(2)
   const body = {
     amount: amountStr,
     currency: 'BRL',
@@ -112,10 +112,26 @@ export async function createPayment(
   return post(`/api/payment/${orderId}`, body, idempotencyKey)
 }
 
-export async function getOrder(orderId: string): Promise<{ order: Order }> {
+export async function getOrder(orderId: string): Promise<Order> {
   return get(`/api/orders/${orderId}`)
 }
 
-export async function getOrders(sessionId: string): Promise<{ orders: Order[] }> {
-  return get(`/api/orders?sessionId=${sessionId}`)
+export async function getOrders(sessionId: string): Promise<Order[]> {
+  try {
+    const res = await get<Order[] | { orders: Order[] }>(`/api/orders?sessionId=${encodeURIComponent(sessionId)}`)
+    return Array.isArray(res) ? res : (res as any).orders ?? []
+  } catch {
+    return []
+  }
+}
+
+/** Retorna a timeline de fulfillment do pedido. 404 → array vazio. */
+export async function getFulfillmentTimeline(orderId: string): Promise<FulfillmentEvent[]> {
+  try {
+    const res = await get<FulfillmentEvent[] | { timeline: FulfillmentEvent[] }>(
+      `/api/orders/${encodeURIComponent(orderId)}/fulfillment`)
+    return Array.isArray(res) ? res : (res as any).timeline ?? []
+  } catch {
+    return []
+  }
 }
