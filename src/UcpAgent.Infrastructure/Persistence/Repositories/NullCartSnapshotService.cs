@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using UcpAgent.Application.Cart;
 using UcpAgent.SharedKernel.Ports;
 
 namespace UcpAgent.Infrastructure.Persistence.Repositories;
