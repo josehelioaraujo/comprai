@@ -325,8 +325,10 @@ if (usarPostgres)
     builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.ISearchLogPort,
         UcpAgent.Infrastructure.Persistence.Repositories.SearchLogRepository>();
     // F3: PostgresFulfillmentRepository — fulfillment_event append-only + order_history
-    builder.Services.AddSingleton<UcpAgent.Infrastructure.Fulfillment.IFulfillmentRepository,
-        UcpAgent.Infrastructure.Fulfillment.PostgresFulfillmentRepository>();
+    // Registro duplo: interface (FulfillmentSimulator) + concreto (PersistingPaymentAdapter)
+    builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.PostgresFulfillmentRepository>();
+    builder.Services.AddSingleton<UcpAgent.Infrastructure.Fulfillment.IFulfillmentRepository>(
+        sp => sp.GetRequiredService<UcpAgent.Infrastructure.Persistence.Repositories.PostgresFulfillmentRepository>());
 
     // OutboxWorkers (BackgroundService)
     if (usarKafka)
