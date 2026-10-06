@@ -7,7 +7,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
 {
     public async Task<AuthCustomerDto?> RegisterAsync(RegisterRequest req, CancellationToken ct = default)
     {
-        using var conn = db.Create();
+        using var conn = await db.CreateAsync(ct);
         var exists = await conn.ExecuteScalarAsync<bool>(
             "SELECT EXISTS(SELECT 1 FROM customer WHERE email = @Email)",
             new { req.Email });
@@ -28,7 +28,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
 
     public async Task<AuthCustomerDto?> LoginAsync(string email, string password, CancellationToken ct = default)
     {
-        using var conn = db.Create();
+        using var conn = await db.CreateAsync(ct);
         var row = await conn.QuerySingleOrDefaultAsync<CustomerRow>(
             """
             SELECT id, name, email, provider, avatar_url, email_verified, password_hash
@@ -45,7 +45,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
 
     public async Task<AuthCustomerDto> SsoCallbackAsync(SsoCallbackRequest req, CancellationToken ct = default)
     {
-        using var conn = db.Create();
+        using var conn = await db.CreateAsync(ct);
         var row = await conn.QuerySingleAsync<CustomerRow>(
             """
             INSERT INTO customer (name, email, provider, provider_id, avatar_url, email_verified, channel)
@@ -63,7 +63,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
 
     public async Task<AuthCustomerDto?> GetByIdAsync(string customerId, CancellationToken ct = default)
     {
-        using var conn = db.Create();
+        using var conn = await db.CreateAsync(ct);
         var row = await conn.QuerySingleOrDefaultAsync<CustomerRow>(
             "SELECT id, name, email, provider, avatar_url, email_verified FROM customer WHERE id = @Id",
             new { Id = customerId });
