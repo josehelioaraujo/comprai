@@ -2,13 +2,23 @@ using UcpAgent.SharedKernel.Ports;
 
 namespace UcpAgent.Api.Mocks;
 
-public sealed class MockCheckoutPort : ICheckoutPort
+public sealed class MockCheckoutPort(IOrderPort orders) : ICheckoutPort
 {
-    public Task<CheckoutResultDto> ProcessAsync(
+    public async Task<CheckoutResultDto> ProcessAsync(
         string sessionId, CustomerDto customer, CancellationToken ct = default)
     {
-        // UUID puro — compatível com order.id (UUID) no PostgreSQL
         var orderId = Guid.NewGuid().ToString();
-        return Task.FromResult(new CheckoutResultDto(orderId, true, null));
+        var dto = new OrderStatusDto(
+            OrderId:   orderId,
+            Status:    "Pending",
+            Total:     0,
+            Customer:  customer,
+            ItemsJson: null,
+            CreatedAt: DateTime.UtcNow);
+
+        await orders.SaveAsync(dto, ct);
+        await orders.SaveSessionOrderAsync(sessionId, orderId, ct);
+
+        return new CheckoutResultDto(orderId, true, null);
     }
 }

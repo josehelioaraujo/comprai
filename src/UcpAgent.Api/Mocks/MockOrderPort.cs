@@ -1,18 +1,21 @@
+using System.Collections.Concurrent;
 using UcpAgent.SharedKernel.Ports;
+
 namespace UcpAgent.Api.Mocks;
+
 public sealed class MockOrderPort : IOrderPort
 {
-    private static readonly string[] Statuses =
-        ["Pending", "Confirmed", "Processing", "Shipped", "Delivered"];
+    // Armazena pedidos em memória para testes (sem Redis)
+    private static readonly ConcurrentDictionary<string, OrderStatusDto> _store = new();
+    private static readonly ConcurrentDictionary<string, string> _sessionStore  = new();
 
     public Task<OrderStatusDto?> GetStatusAsync(string orderId, CancellationToken ct = default)
     {
-        if (!orderId.StartsWith("MOCK-") && !orderId.StartsWith("ORDER-"))
-            return Task.FromResult<OrderStatusDto?>(null);
-        var status = Statuses[Random.Shared.Next(Statuses.Length)];
-        var dto = new OrderStatusDto(
+        _store.TryGetValue(orderId, out var dto);
+        // Fallback: qualquer orderId desconhecido retorna Pending (compatibilidade)
+        dto ??= new OrderStatusDto(
             OrderId:   orderId,
-            Status:    status,
+            Status:    "Pending",
             Total:     0,
             Customer:  null,
             ItemsJson: null,
@@ -21,11 +24,20 @@ public sealed class MockOrderPort : IOrderPort
     }
 
     public Task<string?> GetOrderIdBySessionAsync(string sessionId, CancellationToken ct = default)
-        => Task.FromResult<string?>(null);
+    {
+        _sessionStore.TryGetValue(sessionId, out var orderId);
+        return Task.FromResult(orderId);
+    }
 
     public Task SaveAsync(OrderStatusDto order, CancellationToken ct = default)
-        => Task.CompletedTask;
+    {
+        _store[order.OrderId] = order;
+        return Task.CompletedTask;
+    }
 
     public Task SaveSessionOrderAsync(string sessionId, string orderId, CancellationToken ct = default)
-        => Task.CompletedTask;
+    {
+        _sessionStore[sessionId] = orderId;
+        return Task.CompletedTask;
+    }
 }
