@@ -22,16 +22,15 @@ export function calcShipping(subtotal: number, method: 'standard' | 'express'): 
   return method === 'express' ? EXPRESS_COST : STANDARD_COST
 }
 
-// Constantes de localStorage (mantidas como fallback quando UsarPostgres=false)
+// localStorage — usado apenas como fallback quando UsarPostgres=false
 const LS_ORDER_KEY       = 'comprai_last_order_id'
 const LS_SESSION_KEY     = 'comprai_last_session_id'
 const LS_FULFILLMENT_KEY = 'comprai_last_fulfillment'
 const LS_TRACKING_KEY    = 'comprai_last_tracking'
 const LS_ORDERS_KEY      = 'comprai_orders_list'
 
-// Intervalo de polling para fulfillment (ms)
-const POLL_INTERVAL_MS   = 5_000
-const POLL_MAX_ATTEMPTS  = 60 // 5 min
+const POLL_INTERVAL_MS  = 5_000
+const POLL_MAX_ATTEMPTS = 60 // 5 min
 
 const INITIAL_SESSION: SessionState = {
   sessionId: '', step: 'idle', cart: null, currentOrder: null,
@@ -44,6 +43,7 @@ const WELCOME: ChatMessage = {
   timestamp: new Date(),
 }
 
+// ── localStorage helpers (fallback) ─────────────────────────────────────────
 function loadOrdersList(): Order[] {
   try {
     const raw = localStorage.getItem(LS_ORDERS_KEY)
@@ -51,7 +51,8 @@ function loadOrdersList(): Order[] {
   } catch { return [] }
 }
 
-function saveOrderToList(order: Order) {
+/** Salva pedido no LS apenas como fallback (UsarPostgres=false). */
+function saveOrderToListFallback(order: Order) {
   try {
     const list = loadOrdersList()
     const exists = list.findIndex(o => o.orderId === order.orderId)
@@ -76,6 +77,8 @@ export function useChat() {
   const shippingMethodRef     = useRef<'standard' | 'express'>('standard')
   const paymentMethodRef      = useRef<PaymentMethod>('pix')
   const addressRef            = useRef<import('@/types/ucp').Address | null>(null)
+  // flag: pedido foi persistido na API com sucesso (UsarPostgres=true)
+  const apiPersistedRef       = useRef<Record<string, boolean>>({})
 
   useEffect(() => {
     try {
@@ -85,11 +88,8 @@ export function useChat() {
     } catch { }
   }, [])
 
-  // Limpa timers de polling ao desmontar
   useEffect(() => {
-    return () => {
-      Object.values(pollTimersRef.current).forEach(t => clearTimeout(t))
-    }
+    return () => { Object.values(pollTimersRef.current).forEach(t => clearTimeout(t)) }
   }, [])
 
   const getOrCreateSession = useCallback((): string => {
@@ -127,7 +127,10 @@ export function useChat() {
       if (m.intent !== 'order_status' || m.data?.type !== 'order') return m
       if (m.data.order.orderId !== orderId) return m
       const updated = updater(m.data.order)
-      saveOrderToList(updated)
+      // Sincroniza LS só se não foi persistido na API (fallback)
+      if (!apiPersistedRef.current[orderId]) {
+        saveOrderToListFallback(updated)
+      }
       return { ...m, data: { type: 'order', order: updated }, timestamp: new Date() }
     }))
   }, [])
@@ -166,10 +169,6 @@ export function useChat() {
 
   const cartCount = session.cart?.items?.reduce((s, i) => s + i.quantity, 0) ?? 0
 
-  /**
-   * F5 — Polling real de fulfillment via GET /api/orders/{id}/fulfillment
-   * Fallback: mantém simulação local se a API retornar vazio (UsarPostgres=false)
-   */
   const startFulfillmentPolling = useCallback((orderId: string, initialHistory: FulfillmentEvent[]) => {
     fulfillmentHistoryRef.current[orderId] = initialHistory
     pollAttemptsRef.current[orderId] = 0
@@ -194,14 +193,11 @@ export function useChat() {
     const poll = async () => {
       const attempt = (pollAttemptsRef.current[orderId] ?? 0) + 1
       pollAttemptsRef.current[orderId] = attempt
-
-      if (attempt > POLL_MAX_ATTEMPTS) return // para de fazer polling
+      if (attempt > POLL_MAX_ATTEMPTS) return
 
       try {
         const timeline = await getFulfillmentTimeline(orderId)
-
         if (timeline.length > 0) {
-          // API retornou dados reais — usa polling real
           const prev = fulfillmentHistoryRef.current[orderId] ?? []
           if (timeline.length !== prev.length) {
             fulfillmentHistoryRef.current[orderId] = timeline
@@ -214,16 +210,15 @@ export function useChat() {
               tracking:           last.trackingCode ?? order.tracking,
             }))
           }
-          // Continua polling até entregar
           const last = timeline[timeline.length - 1]
           if (last.status !== 'delivered' && last.status !== 'cancelled') {
             pollTimersRef.current[orderId] = setTimeout(poll, POLL_INTERVAL_MS)
           }
           return
         }
-      } catch { /* API indisponível — cai no fallback */ }
+      } catch { /* fallback local */ }
 
-      // Fallback: simulação local (UsarPostgres=false)
+      // Fallback simulação local (UsarPostgres=false)
       if (attempt === 1) {
         let accDelay = 0
         const history = fulfillmentHistoryRef.current[orderId]
@@ -257,7 +252,6 @@ export function useChat() {
       }
     }
 
-    // Primeira chamada após 3s (dá tempo do backend registrar o evento)
     pollTimersRef.current[orderId] = setTimeout(poll, 3000)
   }, [updateOrderMessage])
 
@@ -464,7 +458,21 @@ export function useChat() {
       fulfillmentHistory: initialHistory,
     }
 
-    saveOrderToList(newOrder)
+    // Verifica se API persistiu (UsarPostgres=true) — se sim, não duplica no LS
+    getOrders(newSessionId)
+      .then(apiOrders => {
+        const found = apiOrders.some(o => o.orderId === orderId)
+        if (found) {
+          apiPersistedRef.current[orderId] = true
+        } else {
+          // API não tem o pedido (UsarPostgres=false) — salva no LS como fallback
+          saveOrderToListFallback(newOrder)
+        }
+      })
+      .catch(() => {
+        // Falha de rede → salva no LS como fallback
+        saveOrderToListFallback(newOrder)
+      })
 
     pushMessage({
       role: 'bot',
@@ -473,21 +481,17 @@ export function useChat() {
       data: { type: 'order', order: newOrder },
     })
 
-    // F5: inicia polling real (com fallback local)
     startFulfillmentPolling(orderId, initialHistory)
   }, [pushMessage, advanceStep, startFulfillmentPolling, session.cart, session.confirmedTotal])
 
-  /**
-   * F5 — handleViewOrders: busca na API primeiro, fallback localStorage
-   */
   const handleViewOrders = useCallback(async () => {
     const sessionId = getOrCreateSession()
 
-    // Tenta API primeiro
+    // 1. API primeiro (UsarPostgres=true)
     try {
       const apiOrders = await getOrders(sessionId)
       if (apiOrders.length > 0) {
-        // Mescla com localStorage para manter dados de fulfillment local
+        apiOrders.forEach(o => { apiPersistedRef.current[o.orderId] = true })
         const localList = loadOrdersList()
         const merged = apiOrders.map(apiOrder => {
           const local = localList.find(o => o.orderId === apiOrder.orderId)
@@ -506,7 +510,7 @@ export function useChat() {
       }
     } catch { /* fallback localStorage */ }
 
-    // Fallback: localStorage
+    // 2. Fallback: localStorage (UsarPostgres=false)
     const list = loadOrdersList()
 
     if (list.length === 0) {
