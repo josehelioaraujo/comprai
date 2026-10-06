@@ -4,29 +4,52 @@ using UcpAgent.SharedKernel.Ports;
 
 namespace UcpAgent.Infrastructure.Persistence.Repositories;
 
-public sealed class SearchLogRepository(IDbConnectionFactory factory) : ISearchLogPort
+public sealed class SearchLogRepository(
+    IDbConnectionFactory factory,
+    ISessionPort? sessionPort = null) : ISearchLogPort
 {
     public Task LogAsync(SearchLogEntry entry, CancellationToken ct = default)
         => DbResiliencePolicy.ExecuteAsync(async token =>
         {
+            Guid? resolvedSessionId = null;
+
+            // Resolve session UUID no BD (fire-and-forget safe — já estamos em background)
+            if (sessionPort is not null && entry.SessionId is not null)
+            {
+                try
+                {
+                    resolvedSessionId = await sessionPort.GetOrCreateAsync(
+                        entry.SessionId, ct: token);
+                }
+                catch
+                {
+                    // session opcional — não bloqueia o log
+                }
+            }
+
             await using var conn = await factory.CreateAsync(token);
+
+            // sources: TEXT[] no PostgreSQL — converter string "A,B,C" para array
+            var sourcesArray = entry.Sources
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
             await conn.ExecuteAsync("""
                 INSERT INTO search_log (
-                    query, result_count, sources,
-                    duration_ms, session_id, occurred_at
+                    session_id, query, results_count,
+                    sources, duration_ms, created_at
                 ) VALUES (
-                    @query, @resultCount, @sources,
-                    @durationMs, @sessionId::uuid, @occurredAt
+                    @sessionId::uuid, @query, @resultsCount,
+                    @sources, @durationMs, @createdAt
                 )
                 """,
                 new
                 {
-                    query       = entry.Query,
-                    resultCount = entry.ResultCount,
-                    sources     = entry.Sources,
-                    durationMs  = entry.DurationMs,
-                    sessionId   = entry.SessionId,
-                    occurredAt  = entry.OccurredAt
+                    sessionId    = resolvedSessionId?.ToString(),
+                    query        = entry.Query,
+                    resultsCount = entry.ResultCount,
+                    sources      = sourcesArray,
+                    durationMs   = entry.DurationMs,
+                    createdAt    = entry.OccurredAt
                 });
         }, ct);
 }

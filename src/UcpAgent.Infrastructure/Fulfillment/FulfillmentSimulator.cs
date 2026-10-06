@@ -1,16 +1,20 @@
+using System.Text.Json;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using UcpAgent.Domain.Fulfillment;
+using UcpAgent.SharedKernel.Ports;
 
 namespace UcpAgent.Infrastructure.Fulfillment;
 
 /// <summary>
 /// Simula a progressão automática do fulfillment para ambiente de demo/dev.
-/// Em produção: substituir por integrações reais com WMS e transportadoras.
+/// Ao atingir status final (Delivered / Cancelled / Returned),
+/// insere registro em order_history como source of truth histórico.
 /// </summary>
 public sealed class FulfillmentSimulator(
     IFulfillmentRepository repository,
-    ILogger<FulfillmentSimulator> logger) : IHostedService
+    ILogger<FulfillmentSimulator> logger,
+    IOrderHistoryPort? orderHistory = null) : IHostedService
 {
     private static readonly (FulfillmentStatus Status, TimeSpan Delay, string Description, string? Tracking)[]
         Pipeline =
@@ -62,6 +66,8 @@ public sealed class FulfillmentSimulator(
             await repository.SaveAsync(agg, ct);
         }
 
+        FulfillmentStatus finalStatus = FulfillmentStatus.Delivered;
+
         foreach (var (status, delay, description, trackingPattern) in Pipeline)
         {
             await Task.Delay(delay, ct);
@@ -74,11 +80,40 @@ public sealed class FulfillmentSimulator(
                 agg.AdvanceTo(status, description, tracking);
                 await repository.SaveAsync(agg, ct);
                 logger.LogInformation("[Fulfillment] {OrderId} → {Status}", orderId, status);
+                finalStatus = status;
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "[Fulfillment] Erro ao avançar {OrderId} para {Status}", orderId, status);
                 break;
+            }
+        }
+
+        // INSERT order_history ao atingir status final
+        var isFinal = finalStatus is FulfillmentStatus.Delivered
+                                  or FulfillmentStatus.Cancelled
+                                  or FulfillmentStatus.Returned;
+
+        if (isFinal && orderHistory is not null)
+        {
+            try
+            {
+                var itemsJson = JsonSerializer.Serialize(
+                    agg.Events.Select(e => new { status = e.Status.ToString(), e.Description, e.OccurredAt }));
+
+                await orderHistory.InsertAsync(new OrderHistoryEntry(
+                    OrderId:       orderId,
+                    CustomerId:    null,       // sem customer_id no simulator (preenchido via order)
+                    Status:        finalStatus.ToString().ToLower(),
+                    TotalAmount:   0m,         // valor real na tabela order — aqui é apenas registro histórico
+                    ItemsSnapshot: itemsJson), ct);
+
+                logger.LogInformation("[Fulfillment] order_history inserido: {OrderId} → {Status}",
+                    orderId, finalStatus);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "[Fulfillment] Falha ao inserir order_history para {OrderId}", orderId);
             }
         }
 

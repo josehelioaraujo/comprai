@@ -321,7 +321,15 @@ if (usarPostgres)
     builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.OutboxRepository>();
     // F4+F5: queries de pedidos e fulfillment
     builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.OrdersQueryRepository>();
-    // F6: log de buscas
+    // V054-F1: session no BD
+    builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.SessionRepository>();
+    builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.ISessionPort,
+        UcpAgent.Infrastructure.Persistence.Repositories.SessionRepository>();
+    // V054-F2: histórico de pedidos finalizados
+    builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.OrderHistoryRepository>();
+    builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.IOrderHistoryPort,
+        UcpAgent.Infrastructure.Persistence.Repositories.OrderHistoryRepository>();
+    // F6: log de buscas (corrigido V054-F3)
     builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.ISearchLogPort,
         UcpAgent.Infrastructure.Persistence.Repositories.SearchLogRepository>();
     // F3: PostgresFulfillmentRepository (Persistence.Repositories) — usado pelo PersistingPaymentAdapter
@@ -398,8 +406,10 @@ app.MapGet("/api/search", async (
     IMediator mediator,
     UcpAgent.SharedKernel.Ports.ICacheService cacheService,
     UcpMetrics metrics,
+    HttpContext http,
     CancellationToken ct) =>
 {
+    var sessionId = http.Request.Headers["X-Session-Id"].FirstOrDefault();
     var cacheKey = $"search:{q.ToLowerInvariant().Trim()}:{page}:{pageSize}:{category}:{minPrice}:{maxPrice}";
     bool fromCache = true;
 
@@ -410,7 +420,8 @@ app.MapGet("/api/search", async (
             fromCache = false;
             metrics.CacheMissTotal.Add(1);
             var r = await mediator.Send(
-                new SearchProductsQuery(q, page, pageSize, category, minPrice, maxPrice), token);
+                new SearchProductsQuery(q, page, pageSize, category, minPrice, maxPrice,
+                    SessionId: sessionId), token);
             // Nao cacheia resultado vazio
             return (r.IsSuccess && r.Value.Items.Count > 0) ? r : null;
         },
@@ -421,7 +432,8 @@ app.MapGet("/api/search", async (
 
     // Se factory retornou null (sem resultados), executa sem cachear
     var final = result ?? await mediator.Send(
-        new SearchProductsQuery(q, page, pageSize, category, minPrice, maxPrice), ct);
+        new SearchProductsQuery(q, page, pageSize, category, minPrice, maxPrice,
+            SessionId: sessionId), ct);
 
     return final.IsSuccess ? Results.Ok(final.Value) : Results.Problem(final.Error);
 })
