@@ -5,20 +5,18 @@ namespace UcpAgent.Api.Mocks;
 
 public sealed class MockOrderPort : IOrderPort
 {
-    // Armazena pedidos em memória para testes (sem Redis)
     private static readonly ConcurrentDictionary<string, OrderStatusDto> _store = new();
     private static readonly ConcurrentDictionary<string, string> _sessionStore  = new();
 
     public Task<OrderStatusDto?> GetStatusAsync(string orderId, CancellationToken ct = default)
     {
         _store.TryGetValue(orderId, out var dto);
-        // Fallback: qualquer orderId desconhecido retorna Pending (compatibilidade)
         dto ??= new OrderStatusDto(
             OrderId:   orderId,
             Status:    "Pending",
             Total:     0,
-            Customer:  null,
-            ItemsJson: null,
+            Customer:  new CustomerDto("", "", "", ""),
+            ItemsJson: "[]",
             CreatedAt: DateTime.UtcNow);
         return Task.FromResult<OrderStatusDto?>(dto);
     }
