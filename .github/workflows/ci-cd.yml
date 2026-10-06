@@ -657,6 +657,7 @@ jobs:
   smoke-tests:
     name: 💨 Smoke Tests Newman
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: deploy
     steps:
       - uses: actions/checkout@v4
@@ -682,6 +683,8 @@ jobs:
               --env-var "mcpUrl=http://${{ env.VPS_HOST }}:${{ env.MCP_PORT }}" \
               --env-var "ML_ACCESS_TOKEN=${ML_ACCESS_TOKEN}" \
               --env-var "SHOPIFY_ACCESS_TOKEN=${SHOPIFY_ACCESS_TOKEN}" \
+              --timeout-request 15000 \
+              --timeout 60000 \
               --reporters cli,htmlextra \
               --reporter-htmlextra-export ./newman-report/smoke-report.html; then
               echo "OK - Smoke Tests passou na tentativa $i"
