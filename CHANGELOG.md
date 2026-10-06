@@ -1,28 +1,101 @@
 # Changelog
 
+## [Unreleased] — V057 — Autenticação e Área do Usuário
+
+### Planejado
+- Tela de cadastro/login (web + mobile) — inspiração AIdemy, identidade visual Comprai
+- Login social Google (NextAuth.js / Auth.js)
+- Cadastro com tabela `customer` existente (name, email, password hash, document, address)
+- Histórico de pedidos vinculado ao `customer_id` — refazer compra, acompanhar status
+- Backend: `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/me`
+- JWT para autenticação nas chamadas subsequentes
+- Vinculação `session_id` → `customer_id` após login
+- Futuro: dashboard administrativo para consulta de pedidos
+
+---
+
+## [1.0.56] — V056 — 2026-10-06
+
+### Feat — ICartSnapshotService (Clean Architecture) + Frontend: Session tracking
+
+#### Backend — ICartSnapshotService
+
+- **`ICartSnapshotService`** criado em `SharedKernel.Ports` — interface de negócio acima do `ICartSnapshotPort`; métodos: `PersistAsync`, `DeleteAsync`, `GetAsync`
+- **`CartSnapshotService`** em `Application.Cart` — implementação que delega ao `ICartSnapshotPort`; `PersistAsync` chama `GetItemsAsync` → `SaveAsync` (itens > 0) ou `DeleteAsync` (carrinho vazio); exceções sempre engolidas (best-effort)
+- **`NullCartSnapshotService`** em `Infrastructure.Persistence.Repositories` — stub `[ExcludeFromCodeCoverage]` para `UsarPostgres=false`
+- **`AddToCartHandler`** e **`RemoveFromCartCommandHandler`** — injetam `ICartSnapshotService?` em vez de `ICartSnapshotPort?`; lógica `PersistSnapshotAsync` removida dos handlers
+- **`Program.cs`** — `AddSingleton<ICartSnapshotService, CartSnapshotService>` no bloco `usarPostgres`; `AddSingleton<ICartSnapshotService, NullCartSnapshotService>` no bloco `!usarPostgres`
+- **`CartSnapshotServiceTests`** — 7 testes cobrindo todos os caminhos: `PersistAsync` (com itens, sem itens, null, exceção), `DeleteAsync`, `GetAsync` (com e sem snapshot)
+- **`CartHandlerTests`** — atualizado para injetar `ICartSnapshotService` via Mock; TODO removido
+
+#### Frontend — Session tracking
+
+- **`api.ts`** — `searchProducts` usa `X-Session-Id` header em vez de query param; `createPayment` aceita `sessionId?` no body; `getCartSnapshot` nova função (`GET /api/cart/{sessionId}/snapshot`)
+- **`useChat.ts`** — `useEffect` de inicialização chama `getCartSnapshot` e exibe card de carrinho abandonado se houver itens; `createPayment` passa `sessionId` corretamente
+
+#### Commits V056
+| Hash | Descrição |
+|------|-----------|
+| `8f0ce3a8` | feat(web/V056): X-Session-Id no search, sessionId no payment, restore carrinho abandonado |
+| `2f4f672b` | feat(V056): ICartSnapshotService criado (7 arquivos) |
+| `5f8d3f0c` | fix(build): using UcpAgent.SharedKernel.Ports em ICartSnapshotService e stubs |
+| `9e20909b` | fix(build): NullCartSnapshotService e Program.cs — ICartSnapshotService em SharedKernel.Ports |
+| `c3031af1` | fix(build): criar ICartSnapshotService em SharedKernel.Ports (estava faltando no repo) |
+
+---
+
+## [1.0.55] — V055 — 2026-10-06
+
+### Feat — cart_snapshot + webhook_event idempotência + CI fixes
+
+- **`ICartSnapshotPort`** + **`CartSnapshotRepository`** — upsert `ON CONFLICT` em `cart_snapshot` a cada add/remove; delete após pagamento; `GET /api/cart/{sessionId}/snapshot` para recuperação de abandono
+- **`IWebhookEventPort`** + **`WebhookEventRepository`** — `INSERT ON CONFLICT DO NOTHING`; `TryRecordAsync` retorna `false` se duplicado
+- **`POST /webhook/stripe`** e **`POST /webhook/efi`** — idempotência via `webhook_event`
+- **`AddToCartHandler`** / **`RemoveFromCartCommandHandler`** — `ICartSnapshotPort` opcional; snapshot fire-and-forget; null-safe `GetItemsAsync`
+- **`PaymentRequestDto`** — `SessionId?` adicionado; endpoint `/api/payment/{orderId}` deleta `cart_snapshot` após pagamento
+- **CI fixes** — `NullCartSnapshotPort`, `NullWebhookEventPort`, `NullCartSnapshotService` para `WebApplicationFactory` sem Postgres; `COVERAGE_THRESHOLD` → 80%
+
+#### Commits V055
+| Hash | Descrição |
+|------|-----------|
+| `6fe01045` | feat(db): V055 — cart_snapshot e webhook_event idempotência |
+| `2e17a8af` | fix(build): remove [FromServices] — Minimal API .NET 10 resolve automaticamente |
+| `b0c08f7e` | fix(tests): null-safe GetItemsAsync nos handlers |
+| `b9912e27` | fix(tests): MockOrderPort null-safe CustomerDto + HealthApiFactory |
+| `3810fcb9` | fix(tests): NullCartSnapshotPort + NullWebhookEventPort |
+| `5641e198` | fix(build): NullCartSnapshotPort retorno correto Task<CartSnapshotDto?> |
+| `ac128f1e` | fix(coverage): [ExcludeFromCodeCoverage] nos stubs Null*Port |
+| `f26a7ad3` | ci: COVERAGE_THRESHOLD → 80 |
+
+---
+
+## [1.0.54] — V054 — 2026-10-06
+
+### Feat — order_history + session + search_log no BD
+
+- **`ISessionPort`** + **`SessionRepository`** — get-or-create session no BD; ON CONFLICT renova `expires_at`; TTL 2h
+- **`IOrderHistoryPort`** + **`OrderHistoryRepository`** — INSERT ON CONFLICT DO NOTHING; FulfillmentSimulator grava ao atingir Delivered/Cancelled/Returned
+- **`SearchLogRepository`** — coluna `results_count`; sources: `TEXT[]`; `session_id` via `ISessionPort`
+- **`FulfillmentSimulator`** — `IOrderHistoryPort` injetado como opcional
+- **`/api/search`** — lê `X-Session-Id` do header e passa para `SearchProductsQuery`
+
+---
+
 ## [1.0.53] — V053 — 2026-10-06
 
 ### Feat — Frontend: localStorage como fallback + Mobile standalone
 
-- **`useChat.ts` (web)** — `saveOrderToList` renomeada para `saveOrderToListFallback`; localStorage usado apenas quando a API (`UsarPostgres=false`) não retorna o pedido
-- **`apiPersistedRef`** — novo `useRef<Record<string, boolean>>` que rastreia pedidos confirmados no BD; impede que `updateOrderMessage` duplique no localStorage durante o polling de fulfillment
-- **`handlePaymentConfirmed`** — após confirmar pagamento, chama `getOrders` em background; se API retornar o pedido, marca `apiPersisted[orderId] = true` e não salva no LS
-- **`handleViewOrders`** — marca todos os pedidos vindos da API como `apiPersisted` antes de mesclar com o localStorage
-- **`apps/web/src/components/mobile/*`** — 9 componentes removidos (`MobileChatBubble`, `MobileChatFooter`, `MobileChatShell`, `MobileChatWindow`, `MobileIntentRenderer`, `MobileProductCard`, `MobileProductCarousel`, `MobileUcpHeader`, `MobileUcpProgressBar`)
-- **`apps/web/src/app/mobile/page.tsx`** — removido; interface mobile agora vive exclusivamente em `apps/mobile`
-- **`apps/mobile`** confirmado standalone — porta `3003`, `deploy-mobile.yml` independente, `Dockerfile` próprio
-
-### Fix — CI: smoke-tests timeout
-
-- **`timeout-minutes: 10`** adicionado no job `smoke-tests` do `ci-cd.yml`
-- **Newman** — `--timeout-request 15000` e `--timeout 60000` adicionados; resolve travamento indefinido quando a VPS não responde
+- **`useChat.ts` (web)** — `saveOrderToList` renomeada para `saveOrderToListFallback`; localStorage usado apenas quando a API não retorna o pedido
+- **`apiPersistedRef`** — novo `useRef<Record<string, boolean>>` que rastreia pedidos confirmados no BD
+- **`apps/mobile`** confirmado standalone — porta `3003`, `deploy-mobile.yml` independente
+- **CI smoke-tests** — `timeout-minutes: 10` + Newman `--timeout-request 15000`
 
 #### Commits V053
 | Hash | Descrição |
 |------|-----------|
 | `a4a302c6` | feat(web): localStorage como fallback — BD é source of truth (V053-F1) |
 | `0ce9b582` | chore(web): remove componentes mobile duplicados de apps/web (V053-F2) |
-| `7ea3c82b` | fix(ci): smoke-tests timeout-minutes:10 + newman --timeout-request 15s --timeout 60s (V053-F3) |
+| `7ea3c82b` | fix(ci): smoke-tests timeout-minutes:10 + newman --timeout-request 15s (V053-F3) |
 
 ---
 
@@ -30,73 +103,28 @@
 
 ### Feat — BD como source of truth no fluxo de compra
 
-- **`CustomerDto`** expandido com campos individuais de endereço (`Cep`, `Street`, `Number`, `Complement`, `Neighborhood`, `City`, `State`, `Document`) — campo `Address` mantido como legado para compatibilidade
-- **`Order.Id`** migrado de `"ORDER-XXXXXXXX"` para `Guid.NewGuid().ToString()` — compatível com `order.id UUID` no PostgreSQL
-- **`OrderRepository.SaveAsync`** — persiste `shipping_zip/street/number/complement/city/state` no INSERT
-- **`RedisCheckoutAdapter`** — UUID real + endereço snapshot + `SaveSessionOrderAsync` + enqueue `FulfillmentSimulator`
-- **`PersistingPaymentAdapter`** — insere `fulfillment_event` (`payment_confirmed`) via `FulfillmentAggregate.Create` + enqueue simulator após confirmar pagamento
-- **`OrdersQueryRepository.GetHistoryBySessionAsync`** — reescrito para ler tabela `order` diretamente (não `order_history`) com JOIN em `order_item` e `payment`; inclui `itemCount`, `shippingCity/State`
-- **`OrdersEndpoints`** — `GET /api/orders?sessionId` mapeia response para shape esperado pelo front (`orderId`, `status`, `total`, `tracking`, etc.)
-- **`MockCheckoutPort`** — injeta `IOrderPort` e persiste pedido em memória via `SaveAsync` + `SaveSessionOrderAsync`
-- **`MockOrderPort`** — usa `ConcurrentDictionary` em memória; retorna qualquer `orderId` conhecido; fallback `Pending` para IDs desconhecidos
-- **`PaymentRepository.ConfirmAsync`** — removido `::uuid` cast do `@orderId` (Npgsql resolve automaticamente)
-- **Program.cs DI** — `PostgresFulfillmentRepository` (Persistence.Repositories) registrado como concreto para `PersistingPaymentAdapter`; `IFulfillmentRepository` (Fulfillment) registrado separadamente para `FulfillmentSimulator`
-- **Smoke test** — body do checkout alinhado com `CustomerDto` (`name/email/phone` + campos de endereço individuais)
+- **`CustomerDto`** expandido com campos individuais de endereço
+- **`Order.Id`** migrado para UUID puro (compatível com PostgreSQL)
+- **`OrderRepository.SaveAsync`** — persiste `shipping_zip/street/number/complement/city/state`
+- **`PersistingPaymentAdapter`** — insere `fulfillment_event` (`payment_confirmed`) + enqueue simulator
+- **`MockCheckoutPort`** — UUID real + persiste via `IOrderPort.SaveAsync`
 
 #### Commits V052
 | Hash | Descrição |
 |------|-----------|
 | `1c02d2c9` | `[F1-F2-DB]` BD como source of truth — 7 arquivos |
-| `80f8a306` | fix CS0104: alias `PostgresFulfillmentRepo` em `PersistingPaymentAdapter` |
-| `fb4b3c67` | fix Program.cs: `PostgresFulfillmentRepository` + `FulfillmentSimulator` no registro |
-| `709784de` | fix: `MockCheckoutPort` UUID puro; `PaymentRepository` remove `::uuid` cast |
-| `d4fdcada` | fix: `GET /api/orders/{orderId}` restaurado em `OrdersEndpoints` |
-| `e841ff00` | fix: remove `GET /{orderId}` duplicado (já existe em Program.cs — `AmbiguousMatchException`) |
-| `e91b918b` | fix: `MockOrderPort` em memória; `MockCheckoutPort` injeta `IOrderPort` |
-| `61f40e7f` | fix: smoke test body alinhado com `CustomerDto` |
-| `71b4b403` | fix: `PostgresFulfillmentRepository` registrado como concreto + interface |
-| `6d85366c` | fix: DI separado — `Persistence.Repositories.PostgresFulfillmentRepository` + `IFulfillmentRepository` |
+| `80f8a306` | fix CS0104: alias `PostgresFulfillmentRepo` |
+| `709784de` | fix: `MockCheckoutPort` UUID puro; `PaymentRepository` sem `::uuid` cast |
 
 ---
 
 ## [1.0.51] — V051 — 2026-10-06
 
-### Fix — Testes de Integração (CI verde)
+### Fix — Testes de Integração + F5 Fulfillment Polling + Auto-dismiss
 
-- **`[FromServices]`** adicionado em `OrdersEndpoints.cs` nos dois `MapGet`
-- **`RemoveAll(typeof(IPaymentPort))`** em `EfiPayFactory`
-- **`using Microsoft.Extensions.DependencyInjection.Extensions`** em `EfiPaymentIntegrationTest`
-- **`[Fact(Skip)]`** em `PollyResilienceIntegrationTest`
-
-### Feat — F5: Fulfillment Polling Real + Orders API-First (Front)
-
-- **`api.ts`** — `getFulfillmentTimeline(orderId)` → `GET /api/orders/{id}/fulfillment`; `getOrders` normalizado
-- **`useChat.ts`** — `startFulfillmentPolling`: polling real a cada 5s; fallback simulação local
-- **`handleViewOrders`** — API-first + mescla localStorage + fallback
-
-### Feat — Opção A: Auto-dismiss PixCard e StripeCard pós-confirmação
-
-- `IntentRenderer`, `ChatWindow`, `chat/page.tsx`, `CompraiWidget`, `MobileIntentRenderer` — auto-dismiss 800ms
-
-#### Commits V051
-| Hash | Descrição |
-|------|-----------|
-| `d8dddd93` | `[FromServices]`, `RemoveAll`, `[Fact(Skip)]` |
-| `c3d92916` | `using DependencyInjection.Extensions` em `EfiPaymentIntegrationTest` |
-| `73db5650` | F5: `getFulfillmentTimeline` + `getOrders` API-first + polling |
-| `ec768773` | Opção A: auto-dismiss `IntentRenderer` + `ChatWindow` |
-| `c530a425` | `chat/page.tsx` com `onDismissMessage` |
-
----
-
-## [1.0.49] — V049/V050 — 2026-10-05
-
-### Fix — CI e Testes de Integração
-
-- `ResilienceExtensions.cs`: `ShouldHandle` restaurado (HTTP 5xx via `HandleResult`)
-- `UseMiddleware<IdempotencyMiddleware>` duplicado removido
-- `HealthApiFactory` com `ConfigureAppConfiguration`
-- Testes de resiliência com `HttpRequestException` determinístico
+- `[FromServices]`, `RemoveAll`, `[Fact(Skip)]` — CI verde
+- `getFulfillmentTimeline` → `GET /api/orders/{id}/fulfillment`; polling real 5s; fallback local
+- Auto-dismiss PixCard/StripeCard 800ms pós-confirmação
 
 ---
 
@@ -104,20 +132,18 @@
 
 ### Feat — Persistência PostgreSQL + Outbox Pattern (Dapper + DbUp)
 
-- `comprai-postgres` no `docker-compose.yml` e `deploy/docker-compose.yml`
-- `V001__initial_schema.sql` — 17 tabelas, índices, índices parciais outbox
+- `comprai-postgres` no `docker-compose.yml`
+- `V001__initial_schema.sql` — 17 tabelas, índices, outbox
 - DbUp — migrations automáticas na startup
-- `CustomerRepository`, `OrderRepository`, `PaymentRepository`, `PostgresFulfillmentRepository`, `OutboxRepository`
-- `OrderOutboxWorker` / `PaymentOutboxWorker` → Kafka; `NotificationOutboxWorker` → RabbitMQ
-- Backoff exponencial: 30s → 60s → 120s → 300s
+- `OrderOutboxWorker` / `PaymentOutboxWorker` / `NotificationOutboxWorker`
 
 ---
 
 ## [V044–V047] — Mobile UX + Fulfillment (2026-10-01 a 2026-10-04)
 
 - `apps/mobile/` — Next.js independente porta 3003
-- `FulfillmentAggregate` (Event Sourcing append-only) + `FulfillmentSimulator` + pipeline 6 etapas
-- `OrderTrackingCard` — timeline 7 etapas, rastreio colapsável
+- `FulfillmentAggregate` (Event Sourcing) + `FulfillmentSimulator` + pipeline 6 etapas
+- `OrderTrackingCard` — timeline 7 etapas
 
 ---
 

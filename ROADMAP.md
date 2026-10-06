@@ -1,107 +1,92 @@
 # 🗺️ Roadmap — Comprai
 
-## ✅ V053 — Concluído (2026-10-06)
+## 🔜 V057 — Autenticação e Área do Usuário (próxima)
 
-### Front + CI
-- [x] **Front (web) — localStorage como fallback** — `saveOrderToListFallback`; `apiPersistedRef` controla sincronização com BD
-- [x] **apps/mobile standalone** — componentes mobile removidos de `apps/web`; `apps/mobile` porta 3003 confirmado independente
-- [x] **CI smoke-tests** — `timeout-minutes: 10` + `--timeout-request 15s` + `--timeout 60s` no Newman
+### 🔴 Alta Prioridade
+- [ ] **Tela de cadastro/login** — web + mobile; design inspirado no template AIdemy (dark, CTA laranja, Google SSO) com identidade visual Comprai
+- [ ] **Login social Google** — NextAuth.js / Auth.js
+- [ ] **Cadastro com `customer`** — name, email, password hash, document (CPF opcional), address
+- [ ] **Backend auth** — `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/me`
+- [ ] **JWT** — token para autenticação nas chamadas subsequentes
+- [ ] **Vinculação session → customer** — `session_id` → `customer_id` após login
+
+### 🟡 Média Prioridade
+- [ ] **Histórico do usuário** — pedidos vinculados ao `customer_id`; refazer compra anterior; acompanhar status
+- [ ] **Área do usuário** — página "Meus Pedidos" com listagem, status e rastreio
+
+### 🟢 Futuro
+- [ ] **Dashboard administrativo** — consulta de pedidos por admin; filtros, exportação
 
 ---
 
-## 🔜 V054 — Próxima versão
+## ✅ V056 — Concluído (2026-10-06)
 
-### 🔴 Alta Prioridade
-- [ ] **INSERT order_history no status final** — `FulfillmentService` grava snapshot consolidado quando `delivered|cancelled|returned`
-- [ ] **session no BD** — criar/recuperar `session` no PostgreSQL na chegada de cada requisição
-- [ ] **search_log no BD** — `SearchProductsHandler` persiste cada busca em `search_log`
+### ICartSnapshotService + Frontend Session tracking
+- [x] `ICartSnapshotService` em `SharedKernel.Ports` — interface de negócio acima do port
+- [x] `CartSnapshotService` em `Application.Cart` — `PersistAsync` orquestra GetItems → Save/Delete
+- [x] `NullCartSnapshotService` — stub no-op para `UsarPostgres=false`
+- [x] Handlers migrados: `AddToCartHandler` + `RemoveFromCartCommandHandler` injetam `ICartSnapshotService?`
+- [x] 7 testes unitários `CartSnapshotServiceTests` cobrindo todos os caminhos
+- [x] Front: `X-Session-Id` header no search, `sessionId` no payment body, restore carrinho abandonado
 
-### 🟡 Média Prioridade
-- [ ] **cart_snapshot no BD** — snapshot do carrinho para recuperação de abandono
-- [ ] **webhook_event idempotência via BD** — Stripe/Efi webhook verifica `webhook_event` antes de processar
+---
 
-### 🟡 Média Prioridade
-- [ ] **INSERT order_history no status final** — `FulfillmentService` grava snapshot consolidado quando `delivered|cancelled|returned`
-- [ ] **session no BD** — criar/recuperar `session` no PostgreSQL na chegada de cada requisição
-- [ ] **search_log no BD** — `SearchProductsHandler` persiste cada busca em `search_log`
-- [ ] **cart_snapshot no BD** — snapshot do carrinho para recuperação de abandono
-- [ ] **webhook_event idempotência via BD** — Stripe/Efi webhook verifica `webhook_event` antes de processar
+## ✅ V055 — Concluído (2026-10-06)
+
+### cart_snapshot + webhook_event idempotência
+- [x] `ICartSnapshotPort` + `CartSnapshotRepository` — upsert / get / delete
+- [x] `IWebhookEventPort` + `WebhookEventRepository` — idempotência Stripe/Efi
+- [x] Handlers com snapshot fire-and-forget + null-safe
+- [x] Stubs Null*Port e Null*Service para WebApplicationFactory
+- [x] `COVERAGE_THRESHOLD` → 80%
+
+---
+
+## ✅ V054 — Concluído (2026-10-06)
+
+### order_history + session + search_log no BD
+- [x] `ISessionPort` + `SessionRepository`
+- [x] `IOrderHistoryPort` + `OrderHistoryRepository`
+- [x] `SearchLogRepository`
+- [x] `X-Session-Id` no endpoint `/api/search`
+
+---
+
+## ✅ V053 — Concluído (2026-10-06)
+
+### Frontend localStorage como fallback + Mobile standalone + CI fix
+- [x] `saveOrderToListFallback`; `apiPersistedRef`
+- [x] Componentes mobile removidos de `apps/web`
+- [x] CI smoke-tests: timeout fix
+
+---
+
+## ✅ V052 — Concluído (2026-10-06)
+
+### BD como source of truth
+- [x] UUID order, endereço snapshot, `fulfillment_event`, DI corrigido
 
 ---
 
 ## 🔭 Roadmap Futuro
 
 ### 🏭 OMS + WMS + Carrier (plugins hexagonais extensíveis)
-- [ ] `UcpAgent.Oms.Core` + `UcpAgent.Oms.Simulated` + `UcpAgent.Oms.Vtex` (futuro)
-- [ ] `UcpAgent.Wms.Core` + `UcpAgent.Wms.Simulated` + `UcpAgent.Wms.Totvs` (futuro)
-- [ ] `UcpAgent.Carrier.Core` + `UcpAgent.Carrier.Simulated` + `UcpAgent.Carrier.Correios/Jadlog` (futuro)
-- [ ] Portas hexagonais: `IOrderManagementPort`, `IWarehousePort`, `ICarrierPort` em SharedKernel
-- [ ] Feature flags: `OmsProvider`, `WmsProvider`, `CarrierProvider`
-- [ ] `V002__oms_wms_schema.sql`: `stock`, `stock_reservation`, `invoice`, `shipment`, `shipment_event`, `return_request`, `cancellation`
-- [ ] Fluxo completo: compra → cancelamento → devolução, cada etapa gravando `fulfillment_event`
+- [ ] `UcpAgent.Oms.Core` + `UcpAgent.Oms.Simulated` + `UcpAgent.Oms.Vtex`
+- [ ] `UcpAgent.Wms.Core` + `UcpAgent.Wms.Simulated` + `UcpAgent.Wms.Totvs`
+- [ ] `UcpAgent.Carrier.Core` + `UcpAgent.Carrier.Simulated` + `UcpAgent.Carrier.Correios/Jadlog`
+- [ ] Portas: `IOrderManagementPort`, `IWarehousePort`, `ICarrierPort`
+- [ ] `V002__oms_wms_schema.sql`: stock, stock_reservation, invoice, shipment, shipment_event, return_request, cancellation
 
 ### 🤖 AI/LLM
-- [ ] **LLM_DIAGNOSTICO** — `/api/ai/analyze` → Ollama + fallback Claude; botão "Analisar" no OpsWatch
-- [ ] **GROQ_MODEL_SELECTOR** — seletor de modelo no `workflow_dispatch` do code-review
+- [ ] **LLM_DIAGNOSTICO** — `/api/ai/analyze` → Ollama + fallback Claude
+- [ ] **GROQ_MODEL_SELECTOR** — seletor de modelo no `workflow_dispatch`
 - [ ] **Ollama na VPS** — `docker run ollama/ollama` + pull `gemma3:latest`
 
 ### ☁️ Infraestrutura
-- [ ] **K3s + Helm + Argo CD** — migração Docker Compose → K3s na VPS; repo `comprai-infra`
+- [ ] **K3s + Helm + Argo CD** — migração Docker Compose → K3s na VPS
 - [ ] **StressForge** — gerador agnóstico de stress tests a partir de Swagger/OpenAPI
 - [ ] **StatusForge** — status page self-hosted
 
 ### 📱 Canais
-- [ ] **WhatsApp Bot** — Meta Cloud API + Hub SignalR + `IChannelPort`; reutiliza 100% do core UCP
+- [ ] **WhatsApp Bot** — Meta Cloud API + Hub SignalR + `IChannelPort`
 - [ ] **Extensão Chrome** — Price Watcher + Universal Cart + Intent Bar
-
----
-
-## ✅ Concluído
-
-### V053 — Frontend localStorage como fallback + Mobile standalone + CI fix (2026-10-06)
-- [x] `saveOrderToListFallback` — localStorage só quando API não tem o pedido
-- [x] `apiPersistedRef` — fulfillment polling não duplica no LS
-- [x] Componentes mobile removidos de `apps/web` (9 componentes + page.tsx)
-- [x] CI smoke-tests: `timeout-minutes: 10` + Newman timeouts
-
-### V052 — BD como source of truth no fluxo de compra (2026-10-06)
-- [x] `CustomerDto` com campos individuais de endereço
-- [x] `Order.Id` migrado para UUID puro (compatível com PostgreSQL)
-- [x] `OrderRepository.SaveAsync` persiste endereço snapshot
-- [x] `RedisCheckoutAdapter` — UUID + endereço + enqueue `FulfillmentSimulator`
-- [x] `PersistingPaymentAdapter` — insere `fulfillment_event` (payment_confirmed) + enqueue simulator
-- [x] `OrdersQueryRepository` lê tabela `order` (não `order_history`) + itens + pagamento
-- [x] `MockCheckoutPort` persiste via `IOrderPort`; `MockOrderPort` usa `ConcurrentDictionary`
-- [x] `PaymentRepository` sem `::uuid` cast (Npgsql resolve automaticamente)
-- [x] DI corrigido: `PostgresFulfillmentRepository` (Persistence) concreto + `IFulfillmentRepository` (Fulfillment) separados
-- [x] Smoke test body alinhado com `CustomerDto`
-
-### V051 — Testes CI verdes + F5 Polling + Auto-dismiss (2026-10-06)
-- [x] `[FromServices]`, `RemoveAll`, `[Fact(Skip)]` — CI verde
-- [x] F5: polling real de fulfillment a cada 5s; fallback simulação local
-- [x] `handleViewOrders` API-first + mescla localStorage
-- [x] Auto-dismiss PixCard/StripeCard 800ms pós-confirmação
-
-### V048–V050 — PostgreSQL + Outbox + Fix CI (2026-10-05)
-- [x] 17 tabelas, DbUp, Dapper + Npgsql
-- [x] 3 OutboxWorkers (Kafka + RabbitMQ)
-- [x] Fix ResilienceExtensions, IdempotencyMiddleware, HealthApiFactory
-
-### V044–V047 — Mobile UX + Fulfillment Domain (2026-10-01 a 2026-10-04)
-- [x] `apps/mobile/` Next.js porta 3003
-- [x] `FulfillmentAggregate` Event Sourcing + `FulfillmentSimulator` pipeline 6 etapas
-- [x] `OrderTrackingCard` timeline 7 etapas
-
-### V042–V043 — Web Chat Frontend (2026-09-30)
-- [x] Next.js 15 App Router + Tailwind v4 + TypeScript
-- [x] Fluxo UCP completo no front
-- [x] `deploy-web.yml` — Docker + GHCR + VPS
-
-### Backend + Observabilidade (V033–V041)
-- [x] Fluxo UCP completo backend
-- [x] Plugins: DummyJSON, Mock, Shopify, MercadoLivre, VTEX, OpenFoodFacts
-- [x] Pagamento: Mock, Stripe, Efi/Pix
-- [x] Redis + HybridCache .NET 10
-- [x] Kafka + OTel → Datadog + New Relic
-- [x] OpsWatch: K6, SonarCloud, New Relic APM drill-down
-- [x] CI/CD: build → unit → integration → sonar → deploy → smoke
