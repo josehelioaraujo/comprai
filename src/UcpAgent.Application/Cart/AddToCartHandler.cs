@@ -9,7 +9,7 @@ public sealed class AddToCartHandler(
     ICartPort cart,
     IEventPublisher events,
     UcpMetrics metrics,
-    ICartSnapshotPort? snapshot = null)
+    ICartSnapshotService? snapshotService = null)
     : IRequestHandler<AddToCartCommand, Result<string>>
 {
     public async Task<Result<string>> Handle(AddToCartCommand request, CancellationToken cancellationToken)
@@ -28,21 +28,9 @@ public sealed class AddToCartHandler(
                 DateTime.UtcNow),
             cancellationToken);
 
-        if (snapshot is not null)
-            _ = PersistSnapshotAsync(request.SessionId, cart, snapshot, cancellationToken);
+        if (snapshotService is not null)
+            _ = snapshotService.PersistAsync(request.SessionId, cart, cancellationToken);
 
         return Result<string>.Ok(itemId);
-    }
-
-    private static async Task PersistSnapshotAsync(
-        string sessionId, ICartPort cart, ICartSnapshotPort snapshot, CancellationToken ct)
-    {
-        try
-        {
-            var items = await cart.GetItemsAsync(sessionId, ct);
-            if (items is null || items.Count == 0) return;
-            await snapshot.SaveAsync(sessionId, items, ct);
-        }
-        catch { }
     }
 }

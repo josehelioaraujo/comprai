@@ -9,11 +9,6 @@ using FluentAssertions;
 
 namespace UcpAgent.Application.Tests.Cart;
 
-// TODO(V056): cobrir PersistSnapshotAsync nos handlers AddToCartHandler e RemoveFromCartCommandHandler
-// Métodos a cobrir:
-//   AddToCartHandler.PersistSnapshotAsync   — caminho: items > 0 → SaveAsync; items == 0 → sem chamada
-//   RemoveFromCartCommandHandler.PersistSnapshotAsync — caminho: items > 0 → SaveAsync; items == 0 → DeleteAsync
-// Nota: fire-and-forget com Task.Delay é flaky em CI; usar await + handler síncrono ou expor método interno para teste.
 public sealed class CartHandlerTests
 {
     private static ProductDto MakeProduct(string id = "P1") =>
@@ -30,11 +25,9 @@ public sealed class CartHandlerTests
         var cart    = new Mock<ICartPort>();
         var handler = new AddToCartHandler(cart.Object, _events, _metrics);
         var product = MakeProduct();
-        var command = new AddToCartCommand("session-1", product, 2);
-        cart.Setup(c => c.AddItemAsync("session-1", product, 2, default))
-            .ReturnsAsync("item-abc");
+        cart.Setup(c => c.AddItemAsync("session-1", product, 2, default)).ReturnsAsync("item-abc");
 
-        var result = await handler.Handle(command, default);
+        var result = await handler.Handle(new AddToCartCommand("session-1", product, 2), default);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be("item-abc");
@@ -45,12 +38,10 @@ public sealed class CartHandlerTests
     {
         var cart    = new Mock<ICartPort>();
         var handler = new AddToCartHandler(cart.Object, _events, _metrics);
-        var product = MakeProduct();
-        var command = new AddToCartCommand("session-1", product, 1);
         cart.Setup(c => c.AddItemAsync(It.IsAny<string>(), It.IsAny<ProductDto>(), It.IsAny<int>(), default))
             .ReturnsAsync("item-especifico-xyz");
 
-        var result = await handler.Handle(command, default);
+        var result = await handler.Handle(new AddToCartCommand("session-1", MakeProduct(), 1), default);
 
         result.Value.Should().Be("item-especifico-xyz");
     }
@@ -61,11 +52,10 @@ public sealed class CartHandlerTests
         var cart    = new Mock<ICartPort>();
         var handler = new AddToCartHandler(cart.Object, _events, _metrics);
         var product = MakeProduct("P99");
-        var command = new AddToCartCommand("session-x", product, 3);
         cart.Setup(c => c.AddItemAsync(It.IsAny<string>(), It.IsAny<ProductDto>(), It.IsAny<int>(), default))
             .ReturnsAsync("item-xyz");
 
-        await handler.Handle(command, default);
+        await handler.Handle(new AddToCartCommand("session-x", product, 3), default);
 
         cart.Verify(c => c.AddItemAsync("session-x", product, 3, default), Times.Once);
     }
@@ -81,6 +71,23 @@ public sealed class CartHandlerTests
         var result = await handler.Handle(new AddToCartCommand("s", MakeProduct(), 1), default);
 
         result.IsSuccess.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task AddToCart_ComSnapshotService_ChamaSnapshotServicePersistAsync()
+    {
+        var cart     = new Mock<ICartPort>();
+        var snapshot = new Mock<ICartSnapshotService>();
+        var handler  = new AddToCartHandler(cart.Object, _events, _metrics, snapshot.Object);
+        cart.Setup(c => c.AddItemAsync(It.IsAny<string>(), It.IsAny<ProductDto>(), It.IsAny<int>(), default))
+            .ReturnsAsync("item-1");
+        snapshot.Setup(s => s.PersistAsync(It.IsAny<string>(), It.IsAny<ICartPort>(), default))
+            .Returns(Task.CompletedTask);
+
+        await handler.Handle(new AddToCartCommand("session-1", MakeProduct(), 1), default);
+        await Task.Yield(); // cede o controle para o fire-and-forget completar
+
+        snapshot.Verify(s => s.PersistAsync("session-1", cart.Object, default), Times.Once);
     }
 
     // ── RemoveFromCart ────────────────────────────────────────────────────────
@@ -108,7 +115,6 @@ public sealed class CartHandlerTests
         var result = await handler.Handle(new RemoveFromCartCommand("s", "p"), default);
 
         result.Value.Should().Be(true);
-        result.Value.Should().NotBe(false);
     }
 
     [Fact]
@@ -121,5 +127,21 @@ public sealed class CartHandlerTests
         await handler.Handle(new RemoveFromCartCommand("session-2", "item-xyz"), default);
 
         cart.Verify(c => c.RemoveItemAsync("session-2", "item-xyz", default), Times.Once);
+    }
+
+    [Fact]
+    public async Task RemoveFromCart_ComSnapshotService_ChamaSnapshotServicePersistAsync()
+    {
+        var cart     = new Mock<ICartPort>();
+        var snapshot = new Mock<ICartSnapshotService>();
+        var handler  = new RemoveFromCartCommandHandler(cart.Object, snapshot.Object);
+        cart.Setup(c => c.RemoveItemAsync(It.IsAny<string>(), It.IsAny<string>(), default)).Returns(Task.CompletedTask);
+        snapshot.Setup(s => s.PersistAsync(It.IsAny<string>(), It.IsAny<ICartPort>(), default))
+            .Returns(Task.CompletedTask);
+
+        await handler.Handle(new RemoveFromCartCommand("session-1", "item-abc"), default);
+        await Task.Yield();
+
+        snapshot.Verify(s => s.PersistAsync("session-1", cart.Object, default), Times.Once);
     }
 }

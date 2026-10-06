@@ -6,7 +6,7 @@ namespace UcpAgent.Application.Cart;
 
 public sealed class RemoveFromCartCommandHandler(
     ICartPort cart,
-    ICartSnapshotPort? snapshot = null)
+    ICartSnapshotService? snapshotService = null)
     : IRequestHandler<RemoveFromCartCommand, Result<bool>>
 {
     public async Task<Result<bool>> Handle(
@@ -14,23 +14,9 @@ public sealed class RemoveFromCartCommandHandler(
     {
         await cart.RemoveItemAsync(request.SessionId, request.ProductId, ct);
 
-        if (snapshot is not null)
-            _ = PersistSnapshotAsync(request.SessionId, cart, snapshot, ct);
+        if (snapshotService is not null)
+            _ = snapshotService.PersistAsync(request.SessionId, cart, ct);
 
         return Result<bool>.Ok(true);
-    }
-
-    private static async Task PersistSnapshotAsync(
-        string sessionId, ICartPort cart, ICartSnapshotPort snapshot, CancellationToken ct)
-    {
-        try
-        {
-            var items = await cart.GetItemsAsync(sessionId, ct);
-            if (items is null || items.Count == 0)
-                await snapshot.DeleteAsync(sessionId, ct);
-            else
-                await snapshot.SaveAsync(sessionId, items, ct);
-        }
-        catch { }
     }
 }

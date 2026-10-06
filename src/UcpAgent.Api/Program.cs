@@ -329,6 +329,8 @@ if (usarPostgres)
     builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.CartSnapshotRepository>();
     builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.ICartSnapshotPort,
         UcpAgent.Infrastructure.Persistence.Repositories.CartSnapshotRepository>();
+    builder.Services.AddSingleton<UcpAgent.Application.Cart.ICartSnapshotService,
+        UcpAgent.Application.Cart.CartSnapshotService>();
     // V055-F2: webhook_event idempotência (Stripe/Efi)
     builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.WebhookEventRepository>();
     builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.IWebhookEventPort,
@@ -364,6 +366,8 @@ if (!usarPostgres)
 {
     builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.ICartSnapshotPort,
         UcpAgent.Infrastructure.Persistence.Repositories.NullCartSnapshotPort>();
+    builder.Services.AddSingleton<UcpAgent.Application.Cart.ICartSnapshotService,
+        UcpAgent.Infrastructure.Persistence.Repositories.NullCartSnapshotService>();
     builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.IWebhookEventPort,
         UcpAgent.Infrastructure.Persistence.Repositories.NullWebhookEventPort>();
 }
