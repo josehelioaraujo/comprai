@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using UcpAgent.Infrastructure.Persistence.Repositories;
-using UcpAgent.SharedKernel.Ports;
 
 namespace UcpAgent.Api.Endpoints;
 
@@ -39,36 +38,6 @@ public static class OrdersEndpoints
         })
         .WithName("GetOrdersBySession")
         .WithSummary("Lista pedidos por sessionId (tabela order + payment)");
-
-        // GET /api/orders/{orderId} — busca pedido por ID (usado pelos testes de integração e smoke)
-        grp.MapGet("{orderId}", async (
-            string orderId,
-            [FromServices] IOrderPort orderPort,
-            [FromServices] OrdersQueryRepository repo,
-            CancellationToken ct) =>
-        {
-            if (string.IsNullOrWhiteSpace(orderId))
-                return Results.BadRequest("orderId obrigatório");
-
-            // Tenta Redis primeiro (source of truth operacional)
-            var redisOrder = await orderPort.GetStatusAsync(orderId, ct);
-            if (redisOrder is not null)
-                return Results.Ok(new
-                {
-                    orderId = redisOrder.OrderId,
-                    status  = redisOrder.Status,
-                    total   = redisOrder.Total,
-                });
-
-            // Fallback: BD
-            var timeline = await repo.GetFulfillmentTimelineAsync(orderId, ct);
-            if (timeline.Count > 0)
-                return Results.Ok(new { orderId, status = timeline.Last().Status });
-
-            return Results.NotFound();
-        })
-        .WithName("GetOrderById")
-        .WithSummary("Busca pedido por orderId (Redis → BD)");
 
         // GET /api/orders/{orderId}/fulfillment — timeline ao vivo
         grp.MapGet("{orderId}/fulfillment", async (
