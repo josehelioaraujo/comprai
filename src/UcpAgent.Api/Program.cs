@@ -400,6 +400,9 @@ if (!usarPostgres)
     // V057-F1: Auth stub para quando UsarPostgres=false
     builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.IAuthPort,
         UcpAgent.Infrastructure.Persistence.Repositories.NullAuthPort>();
+    // V057-F2: Session stub para quando UsarPostgres=false
+    builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.ISessionPort,
+        UcpAgent.Infrastructure.Persistence.Repositories.NullSessionPort>();
 }
 
 var app = builder.Build();
