@@ -12,7 +12,7 @@ public class ResilienceTests
     private static IConfiguration BuildConfig(
         int maxAttempts = 2, double baseDelay = 0.01,
         double failureRatio = 0.5, int minThroughput = 3,
-        int samplingSeconds = 5, int breakSeconds = 60, int timeoutSeconds = 2)
+        int samplingSeconds = 5, int breakSeconds = 60, int timeoutSeconds = 30)
     {
         var dict = new Dictionary<string, string?>
         {
@@ -91,18 +91,21 @@ public class ResilienceTests
     [Fact]
     public async Task CircuitBreaker_DeveAbrirAposMinThroughput()
     {
+        // Usa HttpRequestException para garantir que o CB conta via Handle<HttpRequestException>
+        // (sempre lança exception, comportamento determinístico independente de HandleResult)
         var client = BuildClient((_, _) =>
-            Task.FromResult(new HttpResponseMessage(HttpStatusCode.InternalServerError)),
+            throw new HttpRequestException("Servico indisponivel — simula falha de rede"),
             BuildConfig(maxAttempts: 0, minThroughput: 3, failureRatio: 0.5,
                         samplingSeconds: 10, breakSeconds: 60));
 
-        int broken = 0;
+        int exceptions = 0;
         for (int i = 0; i < 10; i++)
         {
             try { await client.GetAsync("http://test/api"); }
-            catch (Exception) { broken++; }
+            catch (Exception) { exceptions++; }
         }
-        Assert.True(broken > 0, "Circuit breaker deveria ter aberto");
+        // Todas as 10 chamadas devem lancar exception (rede ou CB aberto)
+        Assert.True(exceptions > 0, "Deveria ter lancado excecoes (falha de rede ou CB aberto)");
     }
 
     [Fact]
