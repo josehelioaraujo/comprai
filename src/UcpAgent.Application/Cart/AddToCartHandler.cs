@@ -17,7 +17,6 @@ public sealed class AddToCartHandler(
         var itemId = await cart.AddItemAsync(request.SessionId, request.Product, request.Quantity, cancellationToken);
         metrics.CartAddTotal.Add(1);
 
-        // Publica evento (fire-and-forget)
         _ = events.PublishAsync(
             UcpTopics.CartItemAdded,
             new CartItemAddedEvent(
@@ -29,7 +28,6 @@ public sealed class AddToCartHandler(
                 DateTime.UtcNow),
             cancellationToken);
 
-        // Persiste snapshot para recuperação de abandono (fire-and-forget)
         if (snapshot is not null)
             _ = PersistSnapshotAsync(request.SessionId, cart, snapshot, cancellationToken);
 
@@ -42,11 +40,9 @@ public sealed class AddToCartHandler(
         try
         {
             var items = await cart.GetItemsAsync(sessionId, ct);
+            if (items is null || items.Count == 0) return;
             await snapshot.SaveAsync(sessionId, items, ct);
         }
-        catch
-        {
-            // snapshot opcional — nunca bloqueia o add
-        }
+        catch { }
     }
 }

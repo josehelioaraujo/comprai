@@ -14,7 +14,6 @@ public sealed class RemoveFromCartCommandHandler(
     {
         await cart.RemoveItemAsync(request.SessionId, request.ProductId, ct);
 
-        // Atualiza snapshot (fire-and-forget)
         if (snapshot is not null)
             _ = PersistSnapshotAsync(request.SessionId, cart, snapshot, ct);
 
@@ -27,7 +26,7 @@ public sealed class RemoveFromCartCommandHandler(
         try
         {
             var items = await cart.GetItemsAsync(sessionId, ct);
-            if (items.Count == 0)
+            if (items is null || items.Count == 0)
                 await snapshot.DeleteAsync(sessionId, ct);
             else
                 await snapshot.SaveAsync(sessionId, items, ct);
