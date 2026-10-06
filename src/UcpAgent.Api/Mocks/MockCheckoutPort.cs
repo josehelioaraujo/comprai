@@ -5,7 +5,9 @@ namespace UcpAgent.Api.Mocks;
 public sealed class MockCheckoutPort(IOrderPort orders) : ICheckoutPort
 {
     public async Task<CheckoutResultDto> ProcessAsync(
-        string sessionId, CustomerDto customer, CancellationToken ct = default)
+        string sessionId, CustomerDto customer,
+        Guid? authenticatedCustomerId = null,
+        CancellationToken ct = default)
     {
         var orderId = Guid.NewGuid().ToString();
         var dto = new OrderStatusDto(
