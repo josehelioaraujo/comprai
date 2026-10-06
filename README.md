@@ -32,6 +32,7 @@ Comprai é um ecossistema modular open-source que implementa o **Universal Comme
 - [🔁 CI/CD Pipeline](#-cicd-pipeline)
 - [🧪 Qualidade & Testes](#-qualidade--testes)
 - [📊 OpsWatch](#-dev-quality-hub)
+- [💻 Frontend](#-frontend)
 - [🗺️ Roadmap](#%EF%B8%8F-roadmap)
 - [📄 Licença](#-licença)
 
@@ -825,29 +826,73 @@ O **OpsWatch** é um portal operacional integrado ao pipeline CI/CD que consolid
 
 ---
 
-## 📱 Interface Mobile
+## 💻 Frontend
 
-O Comprai possui uma interface mobile dedicada, acessível em `/mobile` (porta `3002`) e como app independente na porta `3003`.
+O Comprai possui dois frontends independentes construídos com **Next.js 15 + TypeScript + Tailwind CSS**, ambos consumindo a mesma API backend (`http://<VPS>:5020`).
 
-### Características
-- **Shell 420px** — simula tela de smartphone com bordas arredondadas
-- **Stepper bottom nav** — barra de progresso fixa no rodapé com 5 steps: Busca → Carrinho → Pedido → Pagamento → Entrega
-- **Atalhos contextuais** — sugestões no footer mudam automaticamente conforme o step atual
-- **Carrossel de produtos** — navegação por setas e arrasto (touch + mouse)
-- **Fulfillment em tempo real** — timeline de 7 etapas simulada automaticamente após pagamento
+---
 
-### Acesso
-```
-http://<VPS>:3002/mobile   # via app web
-http://<VPS>:3003          # app mobile independente
-```
+### 🖥️ Interface Web
 
-### Variáveis de Ambiente
+Interface full desktop com sidebar de navegação, modo escuro/claro e fluxo UCP completo via chat.
+
+**Stack:** Next.js 15 App Router · Tailwind CSS v3 · TypeScript  
+**Porta:** `3002` · **Deploy:** `apps/web/` — `deploy-web.yml`  
+**Acesso:** `http://<VPS>:3002`
+
+#### Características
+- **Chat AG-UI** — interface conversacional onde cada intent renderiza um componente dedicado: `ProductCarousel`, `CartCard`, `CheckoutCard`, `PixCard`, `StripeCard`, `OrderTrackingCard`, `OrderListCard`
+- **Sidebar colapsável** — exibe step atual do UCP, contagem de itens no carrinho e sessão ativa
+- **UCP Progress Bar** — barra de progresso horizontal (Busca → Carrinho → Checkout → Pagamento → Pedido)
+- **Fulfillment polling real** — `GET /api/orders/{id}/fulfillment` a cada 5s; fallback para simulação local quando `UsarPostgres=false`
+- **localStorage como fallback** — pedidos salvos localmente apenas quando a API não os retorna (`apiPersistedRef` controla duplicação)
+- **Idempotência no front** — `X-Idempotency-Key` gerado por ação; retry reutiliza a mesma chave
+- **Tema escuro/claro** — CSS vars com `prefers-color-scheme` + toggle manual
+- **Widget embeddável** — rota `/widget` exporta `<CompraiWidget>` para integração em sites externos
+
+#### Variáveis de Ambiente
 | Variável | Descrição | Padrão |
 |---|---|---|
-| `NEXT_PUBLIC_APP_VERSION` | Versão exibida no header | `1.0.0` |
-| `NEXT_PUBLIC_FULFILLMENT_SIMULATION` | Ativa simulação de entrega | `true` |
 | `NEXT_PUBLIC_API_URL` | URL da API backend | `http://localhost:5020` |
+| `NEXT_PUBLIC_APP_VERSION` | Versão exibida no header | `1.0.0` |
+| `NEXT_PUBLIC_GIT_SHA` | SHA do commit (injetado no CI) | `dev` |
+
+#### Acesso
+```
+http://<VPS>:3002        # Chat principal
+http://<VPS>:3002/widget # Widget embeddável
+```
+
+---
+
+### 📱 Interface Mobile
+
+Interface mobile-first que simula um smartphone, com navegação por gestos e layout 420px.
+
+**Stack:** Next.js 15 App Router · Tailwind CSS v3 · TypeScript  
+**Porta:** `3003` · **Deploy:** `apps/mobile/` — `deploy-mobile.yml`  
+**Acesso:** `http://<VPS>:3003`
+
+#### Características
+- **Shell 420px** — simula tela de smartphone com bordas arredondadas e safe-area insets
+- **Stepper bottom nav** — barra de progresso fixa no rodapé com 5 steps: Busca → Carrinho → Pedido → Pagamento → Entrega
+- **Atalhos contextuais** — sugestões no footer mudam automaticamente conforme o step atual do UCP
+- **Carrossel de produtos** — navegação por setas e arrasto (touch + mouse drag)
+- **Fulfillment simulado** — timeline de 7 etapas (`payment_confirmed → preparing → ready_to_ship → handed_to_carrier → in_transit → out_for_delivery → delivered`) com delays progressivos
+- **Persistência local** — pedidos em `localStorage` + sincronização com Redis (`persistOrder`)
+- **Deploy standalone** — imagem Docker própria (`comprai-mobile`), workflow independente do `apps/web`
+
+#### Variáveis de Ambiente
+| Variável | Descrição | Padrão |
+|---|---|---|
+| `NEXT_PUBLIC_API_URL` | URL da API backend | `http://localhost:5020` |
+| `NEXT_PUBLIC_APP_VERSION` | Versão exibida no header | `1.0.0` |
+| `NEXT_PUBLIC_FULFILLMENT_SIMULATION` | Ativa simulação local de entrega | `true` |
+
+#### Acesso
+```
+http://<VPS>:3003   # App mobile independente
+```
 
 
 ## 🗺️ Roadmap
@@ -885,6 +930,7 @@ http://<VPS>:3003          # app mobile independente
 | **V044–V047** | Mobile-First UI, Fulfillment Domain (Event Sourcing), OrderList drilldown, fixes UX |
 | **V048** | Persistência PostgreSQL + Outbox Pattern: 17 tabelas, DbUp, Dapper, 3 OutboxWorkers |
 | **V049–V050** | Fix testes de integração: ResilienceExtensions, IdempotencyMiddleware, HealthApiFactory |
+| **V053** | Frontend: localStorage fallback, mobile standalone limpo, CI smoke-tests timeout fix |
 | **V052** | BD como source of truth: UUID order, endereço snapshot, fulfillment_event, DI corrigido, smoke test fix |
 | **V051** | Testes CI verdes; F5 polling real de fulfillment; auto-dismiss PixCard/StripeCard pós-confirmação |
 
@@ -892,8 +938,9 @@ http://<VPS>:3003          # app mobile independente
 
 | Fase | Descrição | Versão |
 |------|-----------|--------|
-| **Front localStorage → BD** | Sincronizar `saveOrderToList` com BD; manter localStorage só como fallback | V053 |
-| **apps/mobile standalone** | Separar `apps/mobile` do `apps/web`; deploy independente porta 3003 | V053 |
+| **Front localStorage → BD** | ~~Sincronizar `saveOrderToList` com BD; manter localStorage só como fallback~~ ✅ V053 | — |
+| **apps/mobile standalone** | ~~Separar `apps/mobile` do `apps/web`; deploy independente porta 3003~~ ✅ V053 | — |
+| **order_history + session + search_log no BD** | Persistência das etapas restantes do fluxo UCP | V054 |
 | **OMS + WMS + Carrier (plugins)** | Plugins hexagonais extensíveis: `Oms.Simulated/Vtex`, `Wms.Simulated/Totvs`, `Carrier.Simulated/Correios` | Futuro |
 | **LLM Diagnóstico** | `/api/ai/analyze` → Ollama + fallback Claude; botão "Analisar" no OpsWatch | Futuro |
 | **GROQ_MODEL_SELECTOR** | Seletor de modelo no `workflow_dispatch` do code-review | Futuro |

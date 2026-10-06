@@ -1,10 +1,24 @@
 # 🗺️ Roadmap — Comprai
 
-## 🔜 V053 — Próxima versão
+## ✅ V053 — Concluído (2026-10-06)
+
+### Front + CI
+- [x] **Front (web) — localStorage como fallback** — `saveOrderToListFallback`; `apiPersistedRef` controla sincronização com BD
+- [x] **apps/mobile standalone** — componentes mobile removidos de `apps/web`; `apps/mobile` porta 3003 confirmado independente
+- [x] **CI smoke-tests** — `timeout-minutes: 10` + `--timeout-request 15s` + `--timeout 60s` no Newman
+
+---
+
+## 🔜 V054 — Próxima versão
 
 ### 🔴 Alta Prioridade
-- [ ] **Front (web) — sincronizar localStorage com BD** — remover `saveOrderToList` quando API retornar OK; manter só como fallback
-- [ ] **apps/mobile standalone** (porta 3003) — separar do `apps/web`; `deploy-mobile.yml` independente
+- [ ] **INSERT order_history no status final** — `FulfillmentService` grava snapshot consolidado quando `delivered|cancelled|returned`
+- [ ] **session no BD** — criar/recuperar `session` no PostgreSQL na chegada de cada requisição
+- [ ] **search_log no BD** — `SearchProductsHandler` persiste cada busca em `search_log`
+
+### 🟡 Média Prioridade
+- [ ] **cart_snapshot no BD** — snapshot do carrinho para recuperação de abandono
+- [ ] **webhook_event idempotência via BD** — Stripe/Efi webhook verifica `webhook_event` antes de processar
 
 ### 🟡 Média Prioridade
 - [ ] **INSERT order_history no status final** — `FulfillmentService` grava snapshot consolidado quando `delivered|cancelled|returned`
@@ -43,6 +57,12 @@
 ---
 
 ## ✅ Concluído
+
+### V053 — Frontend localStorage como fallback + Mobile standalone + CI fix (2026-10-06)
+- [x] `saveOrderToListFallback` — localStorage só quando API não tem o pedido
+- [x] `apiPersistedRef` — fulfillment polling não duplica no LS
+- [x] Componentes mobile removidos de `apps/web` (9 componentes + page.tsx)
+- [x] CI smoke-tests: `timeout-minutes: 10` + Newman timeouts
 
 ### V052 — BD como source of truth no fluxo de compra (2026-10-06)
 - [x] `CustomerDto` com campos individuais de endereço

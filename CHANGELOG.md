@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.0.53] — V053 — 2026-10-06
+
+### Feat — Frontend: localStorage como fallback + Mobile standalone
+
+- **`useChat.ts` (web)** — `saveOrderToList` renomeada para `saveOrderToListFallback`; localStorage usado apenas quando a API (`UsarPostgres=false`) não retorna o pedido
+- **`apiPersistedRef`** — novo `useRef<Record<string, boolean>>` que rastreia pedidos confirmados no BD; impede que `updateOrderMessage` duplique no localStorage durante o polling de fulfillment
+- **`handlePaymentConfirmed`** — após confirmar pagamento, chama `getOrders` em background; se API retornar o pedido, marca `apiPersisted[orderId] = true` e não salva no LS
+- **`handleViewOrders`** — marca todos os pedidos vindos da API como `apiPersisted` antes de mesclar com o localStorage
+- **`apps/web/src/components/mobile/*`** — 9 componentes removidos (`MobileChatBubble`, `MobileChatFooter`, `MobileChatShell`, `MobileChatWindow`, `MobileIntentRenderer`, `MobileProductCard`, `MobileProductCarousel`, `MobileUcpHeader`, `MobileUcpProgressBar`)
+- **`apps/web/src/app/mobile/page.tsx`** — removido; interface mobile agora vive exclusivamente em `apps/mobile`
+- **`apps/mobile`** confirmado standalone — porta `3003`, `deploy-mobile.yml` independente, `Dockerfile` próprio
+
+### Fix — CI: smoke-tests timeout
+
+- **`timeout-minutes: 10`** adicionado no job `smoke-tests` do `ci-cd.yml`
+- **Newman** — `--timeout-request 15000` e `--timeout 60000` adicionados; resolve travamento indefinido quando a VPS não responde
+
+#### Commits V053
+| Hash | Descrição |
+|------|-----------|
+| `a4a302c6` | feat(web): localStorage como fallback — BD é source of truth (V053-F1) |
+| `0ce9b582` | chore(web): remove componentes mobile duplicados de apps/web (V053-F2) |
+| `7ea3c82b` | fix(ci): smoke-tests timeout-minutes:10 + newman --timeout-request 15s --timeout 60s (V053-F3) |
+
+---
+
 ## [1.0.52] — V052 — 2026-10-06
 
 ### Feat — BD como source of truth no fluxo de compra
