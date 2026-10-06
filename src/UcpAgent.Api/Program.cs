@@ -397,6 +397,9 @@ if (!usarPostgres)
         UcpAgent.Infrastructure.Persistence.Repositories.NullCartSnapshotService>();
     builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.IWebhookEventPort,
         UcpAgent.Infrastructure.Persistence.Repositories.NullWebhookEventPort>();
+    // V057-F1: Auth stub para quando UsarPostgres=false
+    builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.IAuthPort,
+        UcpAgent.Infrastructure.Persistence.Repositories.NullAuthPort>();
 }
 
 var app = builder.Build();
