@@ -5,8 +5,8 @@ import MicrosoftEntraId from 'next-auth/providers/microsoft-entra-id'
 import Credentials      from 'next-auth/providers/credentials'
 import type { User }    from 'next-auth'
 
-// BASE_URL usa env sem NEXT_PUBLIC_ — server-side only
 const BASE_URL = process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5020'
+const tenantId = process.env.MICROSOFT_TENANT_ID ?? 'common'
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -21,7 +21,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     MicrosoftEntraId({
       clientId:     process.env.MICROSOFT_CLIENT_ID,
       clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
-      tenantId:     process.env.MICROSOFT_TENANT_ID ?? 'common',
+      issuer:       `https://login.microsoftonline.com/${tenantId}/v2.0`,
     }),
     Credentials({
       credentials: {
@@ -44,10 +44,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             customer: { id: string; name: string; email: string; avatarUrl?: string }
           }
           return {
-            id:       data.customer.id,
-            name:     data.customer.name,
-            email:    data.customer.email,
-            image:    data.customer.avatarUrl ?? null,
+            id:    data.customer.id,
+            name:  data.customer.name,
+            email: data.customer.email,
+            image: data.customer.avatarUrl ?? null,
           } as User
         } catch {
           return null
