@@ -791,68 +791,120 @@ Ajuste os valores em `appsettings.json` sem recompilar.
 
 ## 🔐 Segurança
 
-### Autenticação e Autorização
+<details open>
+<summary><strong>🔑 Autenticação e Autorização</strong></summary>
 
 | Mecanismo | Implementação |
 |---|---|
-| JWT HS256 | `Microsoft.AspNetCore.Authentication.JwtBearer 10.0.0` |
-| Senhas | `BCrypt.Net-Next 4.0.3` (work factor padrão) |
-| Sessões | `strategy: 'jwt'` no NextAuth.js v5 |
-| Proteção de rotas API | `RequireAuthorization()` nos endpoints sensíveis |
-| Proteção de rotas Web | Middleware Next.js — `/chat/*`, `/account/*`, `/profile/*` |
+| **JWT HS256** | `Microsoft.AspNetCore.Authentication.JwtBearer 10.0.0` — claims: Sub, Email, Name, provider, Jti; exp configurável via `Jwt:ExpirationMinutes` (padrão 1440 min) |
+| **Senhas** | `BCrypt.Net-Next 4.0.3` — hash com work factor padrão; nunca armazenada em texto claro |
+| **Sessões web** | `strategy: 'jwt'` no NextAuth.js v5 — sem cookies de sessão server-side |
+| **Proteção de rotas API** | `RequireAuthorization()` em `/api/auth/me`, `PUT /api/auth/me`, `POST /api/auth/me/address` |
+| **Proteção de rotas Web** | Middleware Next.js — `/chat/*`, `/account/*`, `/profile/*` → redireciona para `/auth/login` |
 
-### Login Social (OAuth 2.0 / OpenID Connect)
+</details>
+
+<details>
+<summary><strong>🌐 Login Social — OAuth 2.0 / OpenID Connect</strong></summary>
 
 Suportado via **NextAuth.js v5** no Web (porta 3002) e Mobile (porta 3003):
 
-| Provider | Callback URL Web | Callback URL Mobile |
-|---|---|---|
-| Google | `.../api/auth/callback/google` | `.../api/auth/callback/google` |
-| GitHub | `.../api/auth/callback/github` | `.../api/auth/callback/github` |
-| Microsoft Entra ID | `.../api/auth/callback/microsoft-entra-id` | `.../api/auth/callback/microsoft-entra-id` |
+| Provider | Protocolo | Callback Web | Callback Mobile |
+|---|---|---|---|
+| **Google** | OpenID Connect | `.../api/auth/callback/google` | `.../api/auth/callback/google` |
+| **GitHub** | OAuth 2.0 | `.../api/auth/callback/github` | `.../api/auth/callback/github` |
+| **Microsoft Entra ID** | OpenID Connect | `.../api/auth/callback/microsoft-entra-id` | `.../api/auth/callback/microsoft-entra-id` |
 
-Fluxo SSO: NextAuth → `POST /api/auth/callback` → upsert por `provider + provider_id` na tabela `customer`.
+**Fluxo SSO:**
+```
+NextAuth callback
+  ↓
+POST /api/auth/callback (backend)
+  ↓
+ON CONFLICT (provider, provider_id) DO UPDATE  ← upsert na tabela customer
+  ↓
+JwtService.GenerateToken()  ← JWT HS256 retornado ao frontend
+  ↓
+LinkCustomerAsync(sessionId, customerId)  ← session vinculada ao usuário
+```
 
-> Credentials (email/senha) também suportado — senha armazenada com BCrypt.
+> Credentials (email/senha) também suportados — senha armazenada com BCrypt.
 
-### Idempotência
+</details>
+
+<details>
+<summary><strong>🔁 Idempotência</strong></summary>
 
 Todas as operações críticas usam `X-Idempotency-Key` no header — gerado no frontend, reusado em retry, evita pedidos e pagamentos duplicados. Persistido na tabela `idempotency_key`.
 
-### Webhook Validation
+| Operação | Chave |
+|---|---|
+| Adicionar ao carrinho | `cart-add:{sessionId}:{productId}` |
+| Checkout | `checkout:{sessionId}` |
+| Pagamento | `payment:{orderId}:{method}` |
+| Webhook Stripe | `provider + external_id` em `webhook_event` |
+| Webhook Efi/Pix | `txid` ou `SHA256[:16]` do payload |
 
-- **Stripe**: assinatura `Stripe-Signature` validada via SDK antes de processar evento
+</details>
+
+<details>
+<summary><strong>🔒 Secrets e Credenciais</strong></summary>
+
+Nenhuma credencial hardcoded. Todos os segredos via **GitHub Actions Secrets**, injetados como variáveis de ambiente no `docker run`:
+
+| Secret | Destino |
+|---|---|
+| `JWT_SECRET` (`Jwt__Secret`) | API — assinatura JWT |
+| `NEXTAUTH_SECRET` | Web + Mobile — NextAuth.js |
+| `NEXTAUTH_URL_WEB` | Web — `http://2.25.122.11:3002` |
+| `NEXTAUTH_URL_MOBILE` | Mobile — `http://2.25.122.11:3003` |
+| `POSTGRES_PASSWORD` | API — conexão PostgreSQL |
+| `STRIPE_SECRET_KEY` | API — pagamentos Stripe |
+| `DATADOG_API_KEY` | OTel Collector — observabilidade |
+| `NEW_RELIC_LICENSE_KEY` | OTel Collector — observabilidade |
+| `GOOGLE_CLIENT_ID/SECRET` | Web + Mobile — SSO Google |
+| `GITHUB_CLIENT_ID/SECRET` | Web + Mobile — SSO GitHub |
+| `MICROSOFT_CLIENT_ID/SECRET/TENANT_ID` | Web + Mobile — SSO Microsoft |
+
+</details>
+
+<details>
+<summary><strong>✅ Webhook Validation</strong></summary>
+
+- **Stripe**: assinatura `Stripe-Signature` validada via SDK antes de processar o evento
 - **Efi (Pix)**: idempotência via `txid` ou `SHA256[:16]` do payload quando `txid` ausente
 
-### Secrets e Credenciais
+</details>
 
-Nenhuma credencial hardcoded. Todos os segredos via **GitHub Actions Secrets**:
+<details>
+<summary><strong>🛡️ Pentest — Strix (planejado)</strong></summary>
 
-`JWT_SECRET` · `NEXTAUTH_SECRET` · `POSTGRES_PASSWORD` · `STRIPE_SECRET_KEY` · `DATADOG_API_KEY` · `NEW_RELIC_LICENSE_KEY` · `GOOGLE_CLIENT_ID/SECRET` · `GITHUB_CLIENT_ID/SECRET` · `MICROSOFT_CLIENT_ID/SECRET/TENANT_ID`
+Integração planejada com **[Strix](https://www.strix.ai/)** para análise automatizada de vulnerabilidades pós-deploy:
 
-### Pentest — Strix
-
-Integração planejada com **[Strix](https://www.strix.ai/)** para análise automatizada de vulnerabilidades:
-
-- Varredura de endpoints expostos
-- Detecção de headers de segurança ausentes (`X-Content-Type-Options`, `Strict-Transport-Security`, `X-Frame-Options`)
+- Varredura de endpoints expostos e métodos HTTP indevidos
+- Detecção de headers de segurança ausentes (`CSP`, `HSTS`, `X-Frame-Options`, `X-Content-Type-Options`)
 - Testes de injeção SQL e XSS nos parâmetros de busca e checkout
 - Verificação de tokens JWT expirados e algoritmos fracos
-- Scan de dependências com vulnerabilidades conhecidas (CVE)
+- Scan de dependências com vulnerabilidades conhecidas (CVE NuGet)
 
 ```bash
-# Planejado — executar após deploy
+# Planejado — step pós-smoke-tests no CI/CD
 strix scan http://2.25.122.11:5020 --output report.html
 ```
 
-### Roadmap de Segurança
+</details>
+
+<details>
+<summary><strong>🗺️ Roadmap de Segurança (V059)</strong></summary>
 
 - [ ] Integração Strix no CI/CD (step pós-smoke-tests)
-- [ ] Headers de segurança HTTP (`CSP`, `HSTS`, `X-Frame-Options`)
+- [ ] Headers de segurança HTTP (`CSP`, `HSTS`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`)
 - [ ] Rate limiting por IP no login (brute force prevention)
 - [ ] Refresh token + rotação de JWT
 - [ ] Verificação de email pós-cadastro (credentials)
 - [ ] 2FA (TOTP) para providers credentials
+
+</details>
 
 ## 🔁 CI/CD Pipeline
 
