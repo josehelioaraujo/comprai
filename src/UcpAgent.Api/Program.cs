@@ -40,6 +40,10 @@ using UcpAgent.Api.Cache;
 using Resend;
 using UcpAgent.Api.Middleware;
 using UcpAgent.Api.Workers;
+using UcpAgent.Api.Auth;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.AddOpenTelemetry(logging =>
@@ -107,11 +111,31 @@ builder.Services.AddOpenApi();
 // ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ Health Checks ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬
 builder.Services.AddHealthChecks();
 
+// ── JWT Auth ─────────────────────────────────────────────────────────────────
+builder.Services.AddSingleton<JwtService>();
+var jwtSecret = builder.Configuration["Jwt:Secret"] ?? "comprai-dev-secret-change-in-prod";
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(opt =>
+    {
+        opt.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer           = true,
+            ValidateAudience         = true,
+            ValidateLifetime         = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer              = builder.Configuration["Jwt:Issuer"]   ?? "comprai-api",
+            ValidAudience            = builder.Configuration["Jwt:Audience"] ?? "comprai-web",
+            IssuerSigningKey         = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret))
+        };
+    });
+builder.Services.AddAuthorization();
+
 // ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ Ports / Adapters ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬
 var usarMock    = builder.Configuration.GetValue<bool>("Features:UsarMockDados");
 var usarRedis   = builder.Configuration.GetValue<bool>("Features:UsarRedis");
 var usarKafka   = builder.Configuration.GetValue<bool>("Features:UsarKafka");
 var usarRabbitMq = builder.Configuration.GetValue<bool>("Features:UsarRabbitMQ");
+var usarPostgres = builder.Configuration.GetValue<bool>("Features:UsarPostgres");
 
 if (usarMock)
 {
@@ -198,12 +222,35 @@ else
 
 // Ã¢ÂÂÃ¢ÂÂ Payment Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 var paymentProvider = builder.Configuration["Features:PaymentProvider"] ?? "mock";
+
+// Registra o adapter concreto com chave "payment:inner" — agnóstico ao tipo
 if (paymentProvider == "stripe")
-    builder.Services.AddSingleton<IPaymentPort, StripePaymentAdapter>();
+    builder.Services.AddKeyedSingleton<IPaymentPort, StripePaymentAdapter>("payment:inner");
 else if (paymentProvider == "efipay")
-    builder.Services.AddEfiPayment(builder.Configuration);
+    builder.Services.AddEfiPayment(builder.Configuration); // AddEfiPayment já registra IPaymentPort
 else
-    builder.Services.AddSingleton<IPaymentPort, MockPaymentAdapter>();
+    builder.Services.AddKeyedSingleton<IPaymentPort, MockPaymentAdapter>("payment:inner");
+
+// Registra IPaymentPort público:
+// - UsarPostgres=true  → PersistingPaymentAdapter (persiste BD) recebendo o inner via chave
+// - UsarPostgres=false → resolve direto o keyed (exceto efipay que já registrou IPaymentPort)
+if (usarPostgres && paymentProvider != "efipay")
+{
+    builder.Services.AddSingleton<IPaymentPort>(sp =>
+        new UcpAgent.Infrastructure.Payment.PersistingPaymentAdapter(
+            sp.GetRequiredKeyedService<IPaymentPort>("payment:inner"),
+            sp.GetRequiredService<UcpAgent.Infrastructure.Persistence.Repositories.PaymentRepository>(),
+            sp.GetRequiredService<UcpAgent.Infrastructure.Persistence.Repositories.OrderRepository>(),
+            sp.GetRequiredService<UcpAgent.Infrastructure.Persistence.Repositories.PostgresFulfillmentRepository>(),
+            sp.GetRequiredService<IConfiguration>(),
+            sp.GetRequiredService<ILogger<UcpAgent.Infrastructure.Payment.PersistingPaymentAdapter>>(),
+            sp.GetService<UcpAgent.Infrastructure.Fulfillment.FulfillmentSimulator>()));
+}
+else if (paymentProvider != "efipay")
+{
+    builder.Services.AddSingleton<IPaymentPort>(sp =>
+        sp.GetRequiredKeyedService<IPaymentPort>("payment:inner"));
+}
 
 builder.Services.AddSingleton<IIntentRouterService, IntentRouterService>();
 
@@ -276,9 +323,109 @@ builder.Services.AddHttpClient("github", (sp, client) =>
     client.DefaultRequestHeaders.Add("Accept", "application/vnd.github+json");
 });
 
+// ── PostgreSQL + Dapper + DbUp + Repositórios + OutboxWorkers ────────────────
+if (usarPostgres)
+{
+    var connStr = builder.Configuration.GetConnectionString("Default")
+        ?? throw new InvalidOperationException("ConnectionStrings:Default não configurado.");
+
+    // Factory de conexão
+    builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.IDbConnectionFactory>(
+        _ => new UcpAgent.Infrastructure.Persistence.NpgsqlConnectionFactory(connStr));
+
+    // DbInitializer — executa migrations DbUp na startup
+    builder.Services.AddSingleton(
+        _ => new UcpAgent.Infrastructure.Persistence.CompraiDbInitializer(connStr));
+
+    // Repositórios
+    builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.CustomerRepository>();
+    builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.OrderRepository>();
+    builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.PaymentRepository>();
+    builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.OutboxRepository>();
+    // F4+F5: queries de pedidos e fulfillment
+    builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.OrdersQueryRepository>();
+    // V054-F1: session no BD
+    builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.SessionRepository>();
+    builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.ISessionPort,
+        UcpAgent.Infrastructure.Persistence.Repositories.SessionRepository>();
+    // V055-F1: cart_snapshot — recuperação de abandono
+    builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.CartSnapshotRepository>();
+    builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.ICartSnapshotPort,
+        UcpAgent.Infrastructure.Persistence.Repositories.CartSnapshotRepository>();
+    builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.ICartSnapshotService,
+        UcpAgent.Application.Cart.CartSnapshotService>();
+    // V055-F2: webhook_event idempotência (Stripe/Efi)
+    builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.WebhookEventRepository>();
+    builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.IWebhookEventPort,
+        UcpAgent.Infrastructure.Persistence.Repositories.WebhookEventRepository>();
+    // V054-F2: histórico de pedidos finalizados
+    builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.OrderHistoryRepository>();
+    builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.IOrderHistoryPort,
+        UcpAgent.Infrastructure.Persistence.Repositories.OrderHistoryRepository>();
+    // F6: log de buscas (corrigido V054-F3)
+    builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.ISearchLogPort,
+        UcpAgent.Infrastructure.Persistence.Repositories.SearchLogRepository>();
+    // F3: PostgresFulfillmentRepository (Persistence.Repositories) — usado pelo PersistingPaymentAdapter
+    builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.PostgresFulfillmentRepository>();
+    // IFulfillmentRepository (Fulfillment namespace) — usado pelo FulfillmentSimulator
+    builder.Services.AddSingleton<UcpAgent.Infrastructure.Fulfillment.IFulfillmentRepository,
+        UcpAgent.Infrastructure.Fulfillment.PostgresFulfillmentRepository>();
+    // V057-F1: Auth — CustomerAuthRepository + IAuthPort
+    builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.CustomerAuthRepository>();
+    builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.IAuthPort,
+        UcpAgent.Infrastructure.Persistence.Repositories.CustomerAuthRepository>();
+
+    // OutboxWorkers (BackgroundService)
+    if (usarKafka)
+    {
+        builder.Services.AddHostedService<UcpAgent.Infrastructure.Persistence.Workers.OrderOutboxWorker>();
+        builder.Services.AddHostedService<UcpAgent.Infrastructure.Persistence.Workers.PaymentOutboxWorker>();
+    }
+    if (usarRabbitMq)
+    {
+        builder.Services.AddHostedService<UcpAgent.Infrastructure.Persistence.Workers.NotificationOutboxWorker>();
+    }
+}
+
+// Null-safe: registra stubs para interfaces opcionais quando UsarPostgres=false
+// Minimal API .NET 10 não consegue inferir interfaces nullable não registradas no DI
+if (!usarPostgres)
+{
+    builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.ICartSnapshotPort,
+        UcpAgent.Infrastructure.Persistence.Repositories.NullCartSnapshotPort>();
+    builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.ICartSnapshotService,
+        UcpAgent.Infrastructure.Persistence.Repositories.NullCartSnapshotService>();
+    builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.IWebhookEventPort,
+        UcpAgent.Infrastructure.Persistence.Repositories.NullWebhookEventPort>();
+    // V057-F1: Auth stub para quando UsarPostgres=false
+    builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.IAuthPort,
+        UcpAgent.Infrastructure.Persistence.Repositories.NullAuthPort>();
+    // V057-F2: Session stub para quando UsarPostgres=false
+    builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.ISessionPort,
+        UcpAgent.Infrastructure.Persistence.Repositories.NullSessionPort>();
+}
+
 var app = builder.Build();
 
+// F7: Idempotência via PostgreSQL
+if (usarPostgres)
+    app.UseMiddleware<UcpAgent.Api.Middleware.IdempotencyMiddleware>();
+
+// V059-F1A: Security headers (CSP, HSTS, X-Frame-Options, etc.)
+app.UseMiddleware<SecurityHeadersMiddleware>();
+
 app.UseCors("AllowAll");
+app.UseAuthentication();
+app.UseAuthorization();
+
+// ── DbUp migrations na startup ───────────────────────────────────────────────
+if (app.Configuration.GetValue<bool>("Features:UsarPostgres"))
+{
+    var initializer = app.Services.GetRequiredService<UcpAgent.Infrastructure.Persistence.CompraiDbInitializer>();
+    initializer.Initialize();
+}
+
+
 
 // ââ Access Log Middleware ââââââââââââââââââââââââââââââââââââââââââââââââââââ
 app.Use(async (ctx, next) =>
@@ -306,7 +453,6 @@ app.Use(async (ctx, next) =>
         clientIp,
         ua);
 });
-app.UseMiddleware<IdempotencyMiddleware>();
 app.UseRateLimiter();
 app.UseDefaultFiles();
 app.UseStaticFiles();
@@ -320,8 +466,10 @@ app.MapGet("/api/search", async (
     IMediator mediator,
     UcpAgent.SharedKernel.Ports.ICacheService cacheService,
     UcpMetrics metrics,
+    HttpContext http,
     CancellationToken ct) =>
 {
+    var sessionId = http.Request.Headers["X-Session-Id"].FirstOrDefault();
     var cacheKey = $"search:{q.ToLowerInvariant().Trim()}:{page}:{pageSize}:{category}:{minPrice}:{maxPrice}";
     bool fromCache = true;
 
@@ -332,7 +480,8 @@ app.MapGet("/api/search", async (
             fromCache = false;
             metrics.CacheMissTotal.Add(1);
             var r = await mediator.Send(
-                new SearchProductsQuery(q, page, pageSize, category, minPrice, maxPrice), token);
+                new SearchProductsQuery(q, page, pageSize, category, minPrice, maxPrice,
+                    SessionId: sessionId), token);
             // Nao cacheia resultado vazio
             return (r.IsSuccess && r.Value.Items.Count > 0) ? r : null;
         },
@@ -343,7 +492,8 @@ app.MapGet("/api/search", async (
 
     // Se factory retornou null (sem resultados), executa sem cachear
     var final = result ?? await mediator.Send(
-        new SearchProductsQuery(q, page, pageSize, category, minPrice, maxPrice), ct);
+        new SearchProductsQuery(q, page, pageSize, category, minPrice, maxPrice,
+            SessionId: sessionId), ct);
 
     return final.IsSuccess ? Results.Ok(final.Value) : Results.Problem(final.Error);
 })
@@ -388,9 +538,15 @@ app.MapDelete("/api/cart/{sessionId}", async (
 // ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ Checkout ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬
 app.MapPost("/api/checkout/{sessionId}", async (
     string sessionId, CustomerDto customer,
+    HttpContext ctx,
     IMediator mediator, CancellationToken ct) =>
 {
-    var result = await mediator.Send(new CheckoutCommand(sessionId, customer), ct);
+    // V057-F2: extrai customer_id do JWT se autenticado
+    Guid? customerId = null;
+    var sub = ctx.User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
+    if (Guid.TryParse(sub, out var parsed)) customerId = parsed;
+
+    var result = await mediator.Send(new CheckoutCommand(sessionId, customer, customerId), ct);
     if (!result.IsSuccess) return Results.Problem(result.Error);
     return result.Value.Success
         ? Results.Ok(result.Value)
@@ -443,20 +599,136 @@ app.MapPost("/webhook/ml", async (
     return Results.Ok(result);
 }).WithTags("MercadoLivre");
 
+// ── Webhooks Stripe / Efi — idempotência via BD ─────────────────────────────
+app.MapPost("/webhook/stripe", async (
+    HttpContext http,
+    UcpAgent.SharedKernel.Ports.IWebhookEventPort? webhookRepo,
+    ILogger<Program> logger,
+    CancellationToken ct) =>
+{
+    using var sr = new StreamReader(http.Request.Body);
+    var payload = await sr.ReadToEndAsync(ct);
+
+    string? eventId   = null;
+    string? eventType = null;
+
+    try
+    {
+        using var doc = System.Text.Json.JsonDocument.Parse(payload);
+        var root = doc.RootElement;
+        root.TryGetProperty("id",   out var idProp)   ; eventId   = idProp.GetString();
+        root.TryGetProperty("type", out var typeProp) ; eventType = typeProp.GetString();
+    }
+    catch (Exception ex)
+    {
+        logger.LogWarning(ex, "[Webhook/Stripe] Payload inválido");
+        return Results.BadRequest("Payload inválido");
+    }
+
+    if (string.IsNullOrEmpty(eventId) || string.IsNullOrEmpty(eventType))
+        return Results.BadRequest("id/type ausentes");
+
+    if (webhookRepo is not null)
+    {
+        var isNew = await webhookRepo.TryRecordAsync("stripe", eventId, eventType, payload, ct);
+        if (!isNew)
+        {
+            logger.LogInformation("[Webhook/Stripe] Duplicado ignorado: {EventId}", eventId);
+            return Results.Ok(new { status = "duplicate_ignored" });
+        }
+    }
+
+    logger.LogInformation("[Webhook/Stripe] Evento processado: {EventType} {EventId}", eventType, eventId);
+    // TODO: rotear eventType para handlers específicos (payment_intent.succeeded, etc.)
+    return Results.Ok(new { status = "processed" });
+})
+.WithTags("Webhook").WithName("StripeWebhook");
+
+app.MapPost("/webhook/efi", async (
+    HttpContext http,
+    UcpAgent.SharedKernel.Ports.IWebhookEventPort? webhookRepo,
+    ILogger<Program> logger,
+    CancellationToken ct) =>
+{
+    using var sr = new StreamReader(http.Request.Body);
+    var payload = await sr.ReadToEndAsync(ct);
+
+    string? txid      = null;
+    string? eventType = "pix.received";
+
+    try
+    {
+        using var doc = System.Text.Json.JsonDocument.Parse(payload);
+        var root = doc.RootElement;
+        if (root.TryGetProperty("pix", out var pixArr) && pixArr.ValueKind == System.Text.Json.JsonValueKind.Array)
+        {
+            foreach (var pix in pixArr.EnumerateArray())
+            {
+                if (pix.TryGetProperty("txid", out var t)) { txid = t.GetString(); break; }
+                if (pix.TryGetProperty("endToEndId", out var e)) { txid = e.GetString(); break; }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        logger.LogWarning(ex, "[Webhook/Efi] Payload inválido");
+        return Results.BadRequest("Payload inválido");
+    }
+
+    // Efi pode não ter txid em notificações de cancelamento — usa hash do payload
+    var externalId = txid ?? Convert.ToHexString(
+        System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(payload)))[..16];
+
+    if (webhookRepo is not null)
+    {
+        var isNew = await webhookRepo.TryRecordAsync("efipay", externalId, eventType!, payload, ct);
+        if (!isNew)
+        {
+            logger.LogInformation("[Webhook/Efi] Duplicado ignorado: {ExternalId}", externalId);
+            return Results.Ok(new { status = "duplicate_ignored" });
+        }
+    }
+
+    logger.LogInformation("[Webhook/Efi] Pix recebido: {ExternalId}", externalId);
+    // TODO: confirmar pagamento do pedido associado ao txid
+    return Results.Ok(new { status = "processed" });
+})
+.WithTags("Webhook").WithName("EfiWebhook");
+
 // Ã¢ÂÂÃ¢ÂÂ Payment Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 app.MapPost("/api/payment/{orderId}", async (
     string orderId, PaymentRequestDto req,
-    IMediator mediator, CancellationToken ct) =>
+    IMediator mediator,
+    UcpAgent.SharedKernel.Ports.ICartSnapshotPort? cartSnapshot,
+    CancellationToken ct) =>
 {
     var result = await mediator.Send(
         new ProcessPaymentCommand(orderId, req.Amount, req.Currency, req.Method), ct);
+
+    if (result.IsSuccess && cartSnapshot is not null && req.SessionId is not null)
+        _ = cartSnapshot.DeleteAsync(req.SessionId, ct);
+
     return result.IsSuccess
         ? Results.Ok(result.Value)
         : Results.BadRequest(new { error = result.Error });
 })
 .WithTags("Payment").WithName("ProcessPayment");
 
+// ── Cart Snapshot — recuperação de abandono ─────────────────────────────────
+app.MapGet("/api/cart/{sessionId}/snapshot", async (
+    string sessionId,
+    UcpAgent.SharedKernel.Ports.ICartSnapshotPort? snapshot,
+    CancellationToken ct) =>
+{
+    if (snapshot is null) return Results.NoContent();
+    var snap = await snapshot.GetAsync(sessionId, ct);
+    return snap is null ? Results.NoContent() : Results.Ok(snap);
+})
+.WithTags("Cart").WithName("GetCartSnapshot");
+
 app.MapIntentEndpoints();
+app.MapOrdersEndpoints();  // F4+F5
 app.MapObservabilityEndpoints();
 app.MapNewRelicEndpoints();
 app.MapContainerEndpoints();
@@ -556,7 +828,7 @@ app.MapPost("/api/k6/analyze", async (K6AnalyzeRequest req, IHttpClientFactory f
     var ollamaBody = new
         {
             model = ollamaModel,
-            prompt = $"Sistema: {systemPrompt}\n\nUsuÃ¡rio: {userPrompt}",
+            prompt = $"Sistema: {systemPrompt}\n\nUsuario: {userPrompt}",
             stream = false
         };
 
@@ -888,6 +1160,8 @@ app.MapGet("/api/github/run/latest", async (string? workflow, string? repo, ICon
 .WithTags("GitHub")
 .AllowAnonymous();
 
+app.MapAuthEndpoints();
+
 app.UseOpenTelemetryPrometheusScrapingEndpoint();
 app.Run();
 
@@ -896,18 +1170,12 @@ record AddToCartRequest(UcpAgent.SharedKernel.Models.ProductDto Product, int Qua
 record PaymentRequestDto(
     decimal Amount,
     string Currency,
-    UcpAgent.SharedKernel.Ports.PaymentMethodDto Method);
+    UcpAgent.SharedKernel.Ports.PaymentMethodDto Method,
+    string? SessionId = null);
 
 record K6AnalyzeRequest(string Summary, string Question, string? Model);
 
 record AdminRestartRequest(string? Target, string? Password);
 
 record GitHubDispatchRequest(string? Repo, string? Workflow, string? Ref, Dictionary<string, string>? Inputs = null);
-
-
-
-
-
-
-
 

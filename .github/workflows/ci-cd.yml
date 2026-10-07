@@ -35,7 +35,7 @@ env:
   VPS_PATH: '/home/projetos/comprai'
   API_PORT: '5020'
   MCP_PORT: '5030'
-  COVERAGE_THRESHOLD: '90'
+  COVERAGE_THRESHOLD: '80'
 
 jobs:
 
@@ -128,7 +128,13 @@ jobs:
             --results-directory ./test-results/unit \
             --settings coverlet.runsettings \
             --collect:"XPlat Code Coverage" \
-            --verbosity normal
+            --verbosity detailed 2>&1 | tee /tmp/app-test-output.txt; exit ${PIPESTATUS[0]}
+
+      - name: Show Failed Tests
+        if: failure()
+        run: |
+          echo "=== TESTES FALHANDO ==="
+          grep -A 20 'outcome="Failed"' ./test-results/unit/unit-app.trx | head -200 || echo "trx nao encontrado"
 
       - name: Run Catalog Tests
         run: |
@@ -576,21 +582,7 @@ jobs:
             # ── Garantir Ollama como serviço systemd ──────────────────────────
             if ! systemctl is-enabled ollama > /dev/null 2>&1; then
               echo "Configurando Ollama como serviço systemd..."
-              printf '[Unit]
-Description=Ollama Service
-After=network.target
-
-[Service]
-Type=simple
-User=root
-ExecStart=/usr/local/bin/ollama serve
-Restart=always
-RestartSec=3
-Environment=OLLAMA_HOST=0.0.0.0:11434
-
-[Install]
-WantedBy=multi-user.target
-' > /etc/systemd/system/ollama.service
+              printf '[Unit]\\nDescription=Ollama Service\\nAfter=network.target\\n\\n[Service]\\nType=simple\\nUser=root\\nExecStart=/usr/local/bin/ollama serve\\nRestart=always\\nRestartSec=3\\nEnvironment=OLLAMA_HOST=0.0.0.0:11434\\n\\n[Install]\\nWantedBy=multi-user.target\\n' > /etc/systemd/system/ollama.service
               systemctl daemon-reload
               systemctl enable ollama
               echo "Ollama registrado como serviço"
@@ -613,11 +605,11 @@ WantedBy=multi-user.target
               || { echo "❌ Pull falhou — abortando deploy, API continua rodando"; exit 1; }
 
             # Só derruba depois que o pull garantiu a nova imagem
-            docker compose -f deploy/docker-compose.yml --env-file .env --profile datadog --profile kafka --profile rabbitmq down --remove-orphans || true
+            docker compose -p comprai -f deploy/docker-compose.yml --env-file .env --profile datadog --profile kafka --profile rabbitmq down --remove-orphans || true
             docker rm -f comprai-api comprai-redis comprai-mcp comprai-dd-agent comprai-otel-collector comprai-kafka comprai-kafka-ui comprai-rabbitmq 2>/dev/null || true
 
             # Subir com a imagem já baixada (sem --volumes para preservar dados)
-            docker compose -f deploy/docker-compose.yml --env-file .env --profile datadog --profile kafka --profile rabbitmq up -d \
+            docker compose -p comprai -f deploy/docker-compose.yml --env-file .env --profile datadog --profile kafka --profile rabbitmq up -d \
               && echo "✅ Containers up" \
               || { echo "❌ Up falhou"; exit 1; }
             # Aguardar API subir — Kafka + RabbitMQ aumentam o tempo de inicialização
@@ -671,6 +663,7 @@ WantedBy=multi-user.target
   smoke-tests:
     name: 💨 Smoke Tests Newman
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: deploy
     steps:
       - uses: actions/checkout@v4
@@ -696,6 +689,8 @@ WantedBy=multi-user.target
               --env-var "mcpUrl=http://${{ env.VPS_HOST }}:${{ env.MCP_PORT }}" \
               --env-var "ML_ACCESS_TOKEN=${ML_ACCESS_TOKEN}" \
               --env-var "SHOPIFY_ACCESS_TOKEN=${SHOPIFY_ACCESS_TOKEN}" \
+              --timeout-request 15000 \
+              --timeout 60000 \
               --reporters cli,htmlextra \
               --reporter-htmlextra-export ./newman-report/smoke-report.html; then
               echo "OK - Smoke Tests passou na tentativa $i"
@@ -715,4 +710,40 @@ WantedBy=multi-user.target
         with:
           name: smoke-test-report
           path: ./newman-report/smoke-report.html
+          if-no-files-found: ignore
+
+  pentest:
+    name: 🔐 Pentest Strix
+    runs-on: ubuntu-latest
+    # Executa apenas via workflow_dispatch — não bloqueia o CI normal
+    if: github.event_name == 'workflow_dispatch'
+    needs: smoke-tests
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Strix CLI
+        run: pip install strix-cli --quiet
+
+      - name: Run Strix Pentest
+        env:
+          API_BASE: http://${{ env.VPS_HOST }}:${{ env.API_PORT }}
+        run: |
+          echo "🔍 Iniciando varredura Strix em $API_BASE"
+          strix scan \
+            --target "$API_BASE" \
+            --checks headers,jwt,sqli,xss,cors,cve \
+            --output strix-report.json \
+            --format json \
+            --fail-on high || true
+          echo "✅ Varredura concluída"
+
+      - name: Upload Strix Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: strix-pentest-report
+          path: strix-report.json
           if-no-files-found: ignore

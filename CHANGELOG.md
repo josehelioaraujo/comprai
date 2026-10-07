@@ -1,152 +1,164 @@
 # Changelog
 
-## [1.0.48] — V047 — 2026-10-04
+## [V059] — 2026-10-07
 
-### Fix
-- **paymentDetail propagado corretamente ao Order** — `IntentRenderer` e `ChatWindow` agora passam `detail?` de `PixCard`/`StripeCard` para `handlePaymentConfirmed`
-- `useChat.handlePaymentConfirmed` recebe `paymentDetail?` e persiste em `newOrder.paymentDetail`
-- CI estava verde (confirmado via Actions API) — CI/CD e Deploy Web ✅ nos commits `64c2a812` e `25adf96c`
+### Added — Segurança (F1-A, F1-B, F1-C, F2-A, F2-B)
+- `SecurityHeadersMiddleware` — CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy
+- Rate limiting `SlidingWindow` 5 req/60s por IP em `/api/auth/login` e `/api/auth/register` (brute force prevention)
+- Strix descartado — `pentest.yml` (OWASP ZAP) melhorado: JWT autenticado, rate limit check, security headers check, artifact HTML
+- Migration `V004__refresh_token.sql` — colunas `refresh_token_hash` + `refresh_token_expires_at` + índice
+- Refresh token opaque com hash SHA-256: `JwtService.GenerateRefreshToken` / `HashRefreshToken`
+- `POST /api/auth/refresh` — rotação de refresh token (token antigo invalidado antes de emitir novo par)
+- `POST /api/auth/logout` — revogação do refresh token
+- `CustomerAuthRepository`: `SaveRefreshTokenAsync`, `GetByRefreshTokenHashAsync`, `RevokeRefreshTokenAsync`
+- `NullAuthPort` atualizado com os 3 novos métodos (no-op)
+- Login/Register/SSO passam a retornar `{ token, refreshToken, customer }` (access_token 15min, refresh 7 dias)
 
-
-## [1.0.47] — 2026-10-04
-
-### Mobile UX — Meus Pedidos, Drilldown e Qualidade Visual
-
-#### Fixes
-- **OrderList simplificado**: lista exibe apenas nº do pedido + valor; clique abre drilldown com `OrderTrackingCard`
-- **Drilldown completo**: produtos (nome/qtd/valor), frete, total, forma de pagamento + detalhe (Pix/cartão), endereço de entrega, timeline de rastreio colapsável
-- **Dismiss sem bolha**: `handleViewOrders` não emite texto na bolha — card exibido diretamente
-- **Bug carrinho 2ª compra**: `clearSession()` + `createSession()` após pagamento confirmado — `cartSnapshot` capturado antes de zerar
-- **Botão × universal**: `OrderTrackingCard` e `OrderList` com botão fechar em todos os estados (incluindo Entregue)
-- **Stepper oculto em idle**: `MobileUcpProgressBar` retorna `null` quando `step === 'idle'`
-- **Stepper some ao fechar**: dismiss do card `order_list` reseta `step → idle`; dismiss de `order_status` mantém o step
-- **Sem duplicação de cards**: `handleViewOrders` usa `upsertBotMessage` — clicar várias vezes atualiza o mesmo card
-- **Botão "Buscar produto" removido**: redundante com o input de chat
-- **Botão "Nova busca" removido**: redundante com o input de chat
-- **Botão "Meus pedidos"**: aparece no footer em `idle`/`search` quando há pedidos anteriores (via `hasPreviousOrder`)
-- **Rastreio unificado**: dois botões (Histórico + Rastreio) unificados em "📦 Rastreio da entrega ▼" colapsável
-- **Forma de pagamento**: label renomeado + exibe detalhe (chave Pix truncada ou `•••• 4242`)
-- **Deploy Web**: workflow cobre `apps/web/**` completo (incluindo mobile) após remoção de exclusões
-
-#### Arquivos alterados
-`useChat.ts`, `ucp.ts`, `OrderTrackingCard.tsx`, `MobileIntentRenderer.tsx`, `MobileChatBubble.tsx`, `MobileChatWindow.tsx`, `MobileChatFooter.tsx`, `MobileUcpProgressBar.tsx`, `PixCard.tsx`, `StripeCard.tsx`, `apps/web/src/app/mobile/page.tsx`, `.github/workflows/deploy-web.yml`
-
-## [v1.0.x] — V044 — Mobile-First UI + Fulfillment Domain (2026-10-01)
-
-### ✨ Adicionado
-- **`apps/mobile/`** — app Next.js independente porta 3003, container `comprai-mobile`, imagem `ghcr.io/josehelioaraujo/comprai-mobile`
-- **Layout Mobile-First** — rota `/mobile` com shell 420px smartphone, stepper de progresso bottom nav sempre visível
-- `MobileUcpHeader` — logo mark SVG emerald + wordmark + versão discreta no topo
-- `MobileUcpProgressBar` — navbar bottom com 5 steps, badge de quantidade no Carrinho, clique em Entrega scrolla para tracking
-- `MobileChatBubble`, `MobileChatWindow`, `MobileChatFooter` — chat mobile com atalhos contextuais por step
-- `MobileProductCard` + `MobileProductCarousel` — cards w-36 + setas + drag mouse/touch
-- `MobileIntentRenderer` — switch de intent para renderização mobile
-- **Fulfillment Domain** — `FulfillmentAggregate` (Event Sourcing append-only), `FulfillmentSimulator` (IHostedService), `RedisFulfillmentRepository`, 10 status de entrega
-- `OrderTrackingCard` — timeline fulfillment com 7 etapas, código de rastreio, histórico expansível
-- **Atalhos contextuais** — sugestões no footer mudam por step: idle/search → Buscar; cart/checkout → Finalizar; order → Nova busca + Meus pedidos
-- **Flag simulação** — `NEXT_PUBLIC_FULFILLMENT_SIMULATION` (frontend) + `Features__UsarFulfillmentSimulator` (backend)
-- `deploy-mobile.yml` — workflow CI/CD independente, trigger `apps/mobile/**`, bump próprio
-- Frete grátis acima de R$ 1.000 — `calcShipping()` retorna 0 automaticamente
-
-### 🔧 Corrigido
-- **Total zerado** no CheckoutCard/PixCard — `confirmedTotalRef` evita stale closure do `setSession` assíncrono
-- **Mensagem duplicada** ao adicionar produto — `upsertBotMessage` com `intent: 'cart_add'`
-- **Duplicação no carrinho** — `addingProductsRef` (Set) no `useChat` + estado `adding` local no `MobileProductCard`
-- **IdempotencyMiddleware** — sempre ativo: Redis quando disponível, `ConcurrentDictionary` em memória como fallback (TTL 30min). Garantia de consistência independente de infraestrutura
-- **Botão "Meus pedidos"** — não chama backend; scrolla para `OrderTrackingCard` existente na conversa
-- **Drag carrossel** — `scrollSnapType` removido durante drag, restaurado no mouseup
-- **CEP** — máscara `XXXXX-XXX`, campo em linha própria com label
-- **Complemento** — `autocomplete="off"`, linha própria, hint "Opcional"
-- **CheckoutCard** — botão X para fechar, bloqueio de pagamento duplo com estado `paying`
-- **FulfillmentSimulator** — removida dependência circular de `UcpAgent.Application`; usa `IFulfillmentRepository` direto
-- **Layout mobile** — `height: 100dvh` + `min-h-0` no chat para stepper e footer sempre visíveis
-
-### 🚀 Deploy
-- Porta `3003` — container `comprai-mobile` na VPS
-- `deploy-mobile.yml` com `git pull --rebase` antes do bump para evitar race condition
+### Commits V059
+| Hash | Descrição |
+|------|-----------|
+| `0e24fb64` | feat(security/V059-F1A): SecurityHeadersMiddleware — CSP, HSTS, X-Frame-Options |
+| `36eb73df` | feat(security/V059-F1B): rate limiting login/register — SlidingWindow 5 req/60s por IP |
+| `e1c8371f` | feat(security/V059-F1C): job pentest Strix descartado — Strix removido do ci-cd.yml |
+| `e3716c80` | fix(security/V059-F1B): remove IRateLimiterMetadata inexistente do OnRejected |
+| `bd45ade4` | feat(security/V059-F1C): pentest.yml — JWT auth, rate limit check, security headers, artifact HTML |
+| `579d0a87` | feat(security/V059-F2A): migration V004 — refresh_token_hash + refresh_token_expires_at |
+| `1a582d4d` | feat(security/V059-F2B): refresh token — JwtService, POST /api/auth/refresh, POST /api/auth/logout |
 
 ---
 
-## [v1.0.x] — V043 — Web Chat Front-end (2026-09-30)
+## [V058] — 2026-10-07
 
-### ✨ Adicionado
-- **comprai-web** — front-end Next.js 15 App Router + Tailwind + TypeScript
-- Fluxo UCP completo via Web Chat: Search → Cart → Checkout → Payment → Order
-- `ProductCarousel` — cards com setas ‹ › de navegação, sem label de fonte
-- `CartCard` — itens com +/- quantidade (mínimo 1), frete via radio button, subtotal/frete/total
-- `CheckoutCard` — resumo do pedido + seleção de método de pagamento (Pix / Cartão)
-- `PixCard` — QR Code + countdown 15min + cópia Pix Copia e Cola (fallback `execCommand` em HTTP)
-- `StripeCard` — formulário inline de cartão de crédito
-- `OrderTrackingCard` — timeline de status do pedido
-- `UcpProgressBar` — barra horizontal com steps, badge de quantidade no 🛒, clique abre popup
-- `Sidebar` — colapsável (‹ ›), logo clicável com modal sobre o UCP, dark/light mode toggle
-- Dark/Light mode com tokens CSS (`var(--bg)`, `var(--text)`, etc.) persistido em `localStorage`
-- Versão `v1.0.x` + short SHA do commit na sidebar (bump automático a cada deploy)
-- Widget embeddável — botão flutuante 🛍️ com badge, abre painel de chat em qualquer site
-- Popup do carrinho na sidebar — ícone 🛒 + badge quantidade + total + botão Fechar pedido
-- Botão "🛒 Fechar pedido" fixo no input quando há itens no carrinho
-- Painel de logs 🔍 — request/response com erros em vermelho
-- Responsivo — sidebar oculta em mobile, header mobile com badge do carrinho
+### Added
+- `PUT /api/auth/me` — editar nome, telefone e documento do cliente
+- `POST /api/auth/me/address` — salvar endereço de entrega padrão
+- `GET /api/auth/me` agora retorna endereços salvos (`customer_address`)
+- `/account` com formulário de edição de perfil e endereço de entrega
+- `useAuth` expõe `profile` completo (com endereços) e `defaultAddress`
+- Tela de login redesenhada — minimalista, fundo branco, botão roxo `#7c3aed`
+- Next-auth no mobile (Google, GitHub, Microsoft, Credentials) com todos os secrets SSO no `docker run`
+- `NEXTAUTH_URL_MOBILE` secret configurado para o container mobile (porta 3003)
+- `V003__customer_address_unique.sql` — unique index em `customer_address`
+- `concurrency` nos workflows `deploy-web` e `deploy-mobile` — evita race condition no bump de versão
+- `CheckoutCard` pré-preenchido com dados do usuário autenticado (`defaultCustomer` via `useAuth`)
+- `ChatWindow` integrado ao `useAuth` — monta `defaultCustomer` a partir de `profile` + `defaultAddress`
 
-### 🔧 Corrigido
-- Crash `CheckoutCard` — `.map()` em `items` undefined do backend
-- Payload `createPayment` — `{ amount: "string", currency: "BRL", method: { provider, cardToken, pixKey } }`
-- `amount` como string `toFixed(2)` para evitar problema de precisão float
-- Cópia Pix em HTTP — fallback `execCommand` (clipboard API bloqueada sem HTTPS)
-- `CartCard` sem botão duplicado — "Finalizar compra" só no form, "Fechar pedido" no input
-- Sincronização +/- carrinho com sidebar via `onQuantityChange`
-- Dockerfile: ARGs declarados antes do ENV para `NEXT_PUBLIC_GIT_SHA` chegar no build
-
-### 🚀 Deploy
-- GitHub Actions `deploy-web.yml` — bump automático de patch version + build + push GHCR + deploy VPS
-- Porta `3002` (3000 ocupada pelo Docker proxy)
-- Rede `comprai-network`
+### Commits V058
+| Hash | Descrição |
+|------|-----------|
+| `37c32e24` | feat(auth/V058): UpdateProfile + SaveAddress + /account edit + useAuth com perfil completo |
+| `57a4ec4f` | feat(auth/V058): redesign login minimalista branco/roxo + next-auth no mobile |
+| `3970ee9b` | feat(V058): NextAuth no mobile + pré-preenchimento CheckoutCard com dados do usuário |
 
 ---
 
-## [v1.0.x] — V042 — Web Chat Scaffold (2026-09-29)
+## [V057] — 2026-10-07
 
-### ✨ Adicionado
-- Scaffold Next.js 15 com App Router, Tailwind v3, TypeScript
-- `useChat` — estado central do fluxo UCP
-- `lib/api.ts` — fetch com `X-Idempotency-Key`
-- `lib/session.ts` — sessionId localStorage TTL 30min
-- `IntentRenderer` — switch intent → componente
-
----
-
-## [V041] — Health Checks + Kafka (2026-09-30)
-
-### ✨ Adicionado
-- `/health/live` e `/health/ready` com checks condicionais por feature flag
-- Kafka ativado: `comprai-kafka:9094`, tópicos canônicos em `UcpTopics.cs`
-- Events: `SearchQueryLoggedEvent`, `CartItemAddedEvent`, `OrderCreatedEvent`
-
-### 🔧 Corrigido
-- `RedisHealthCheck` sem exception sem Redis
-- `OllamaHealthCheck` com timeout 2s
-- TCP checks assíncronos (era `WaitOne` bloqueante)
+### Added
+- Autenticação completa — JWT HS256, BCrypt, providers SSO multi-plataforma
+- `POST /api/auth/register|login|callback` + `GET /api/auth/me`
+- `order.customer_id` e `session.customer_id` vinculados ao usuário autenticado
+- `/account` — dados da conta; `/profile` — histórico de pedidos + repetir pedido
+- NextAuth.js (Google, GitHub, Microsoft) + tela login dark/laranja
+- Docker projeto renomeado de `deploy` para `comprai` via `-p comprai`
+- `V002__auth_schema.sql` — colunas `provider`, `provider_id`, `password_hash`, `avatar_url`, `email_verified`
+- Seção 🔐 Segurança no README com OAuth, SSO, JWT, BCrypt, Strix e roadmap de segurança
 
 ---
 
-## [V040] — OpsWatch New Relic APM Drill-down (2026-09-29)
+## [1.0.56] — V056 — 2026-10-06
 
-### ✨ Adicionado
-- Cards Apdex/Error%/Req/min/p95 clicáveis com breakdown interativo
-- Gauge SVG Apdex com ponteiro dinâmico
-- Sparkline com área gradiente e tooltip hover
-- Seletor de janela temporal: 5m → 24h
-- Bucket Frustrated: sub-tabelas Lentos e Erros
+### Feat — ICartSnapshotService (Clean Architecture) + Frontend: Session tracking
+
+- **`ICartSnapshotService`** criado em `SharedKernel.Ports`
+- **`CartSnapshotService`** em `Application.Cart`
+- **`NullCartSnapshotService`** stub `[ExcludeFromCodeCoverage]` para `UsarPostgres=false`
+- **`AddToCartHandler`** e **`RemoveFromCartCommandHandler`** — injetam `ICartSnapshotService?`
+- **`CartSnapshotServiceTests`** — 7 testes cobrindo todos os caminhos
+- Front: `X-Session-Id` header no search, `sessionId` no payment, restore carrinho abandonado
 
 ---
 
-## [V039] — New Relic OTel Pipeline (2026-09-28)
+## [1.0.55] — V055 — 2026-10-06
 
-### ✨ Adicionado
-- Pipeline OTel: `comprai-api` → HttpProtobuf → `otel-collector` → New Relic
-- 93 spans confirmados no APM & Services
+### Feat — cart_snapshot + webhook_event idempotência + CI fixes
+
+- `ICartSnapshotPort` + `CartSnapshotRepository` — upsert `ON CONFLICT` em `cart_snapshot`
+- `IWebhookEventPort` + `WebhookEventRepository` — `INSERT ON CONFLICT DO NOTHING`
+- `POST /webhook/stripe` e `POST /webhook/efi` — idempotência via `webhook_event`
+- CI fixes — stubs `Null*Port`, `COVERAGE_THRESHOLD` → 80%
+
+---
+
+## [1.0.54] — V054 — 2026-10-06
+
+### Feat — order_history + session + search_log no BD
+
+- `ISessionPort` + `SessionRepository` — get-or-create por `clientSessionId`; TTL 2h
+- `IOrderHistoryPort` + `OrderHistoryRepository` — INSERT ON CONFLICT DO NOTHING
+- `SearchLogRepository` — `results_count`, `sources: TEXT[]`, `session_id` via `ISessionPort`
+- `/api/search` — lê `X-Session-Id` do header
+
+---
+
+## [1.0.53] — V053 — 2026-10-06
+
+### Feat — Frontend: localStorage como fallback + Mobile standalone + CI fix
+
+- `saveOrderToListFallback`; `apiPersistedRef`; `handlePaymentConfirmed` → `getOrders`
+- Componentes mobile removidos de `apps/web` (vivem em `apps/mobile`)
+- CI smoke-tests: `timeout-minutes:10` + Newman `--timeout-request 15000`
+
+---
+
+## [1.0.52] — V052 — 2026-10-06
+
+### Feat — BD como source of truth no fluxo de compra
+
+- `CustomerDto` expandido com campos individuais de endereço
+- `Order.Id` migrado para UUID puro
+- `OrderRepository.SaveAsync` — persiste `shipping_zip/street/number/complement/city/state`
+- `PersistingPaymentAdapter` — insere `fulfillment_event` (`payment_confirmed`) + enqueue simulator
+
+---
+
+## [1.0.51] — V051 — 2026-10-06
+
+### Fix — Testes de Integração + F5 Fulfillment Polling + Auto-dismiss
+
+- `[FromServices]`, `RemoveAll`, `[Fact(Skip)]` — CI verde
+- `getFulfillmentTimeline` → `GET /api/orders/{id}/fulfillment`; polling real 5s; fallback local
+- Auto-dismiss PixCard/StripeCard 800ms pós-confirmação
+
+---
+
+## [1.0.48] — V048 — 2026-10-05
+
+### Feat — Persistência PostgreSQL + Outbox Pattern (Dapper + DbUp)
+
+- `comprai-postgres` no `docker-compose.yml`
+- `V001__initial_schema.sql` — 17 tabelas, índices, outbox
+- DbUp — migrations automáticas na startup
+- `OrderOutboxWorker` / `PaymentOutboxWorker` / `NotificationOutboxWorker`
+
+---
+
+## [V044–V047] — Mobile UX + Fulfillment (2026-10-01 a 2026-10-04)
+
+- `apps/mobile/` — Next.js independente porta 3003
+- `FulfillmentAggregate` (Event Sourcing) + `FulfillmentSimulator` + pipeline 6 etapas
+- `OrderTrackingCard` — timeline 7 etapas
+
+---
+
+## [V042–V043] — Web Chat Frontend (2026-09-30)
+
+- Next.js 15 App Router + Tailwind v4 + TypeScript
+- Fluxo UCP completo: Search → Cart → Checkout → Pix/Cartão → Entrega
+- `deploy-web.yml` — Docker build + push GHCR + deploy VPS
 
 ---
 
 ## [V038 e anteriores]
 Consulte o histórico de commits no GitHub.
+

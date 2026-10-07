@@ -5,7 +5,11 @@ using UcpAgent.SharedKernel.Ports;
 
 namespace UcpAgent.Application.Cart;
 
-public sealed class AddToCartHandler(ICartPort cart, IEventPublisher events, UcpMetrics metrics)
+public sealed class AddToCartHandler(
+    ICartPort cart,
+    IEventPublisher events,
+    UcpMetrics metrics,
+    ICartSnapshotService? snapshotService = null)
     : IRequestHandler<AddToCartCommand, Result<string>>
 {
     public async Task<Result<string>> Handle(AddToCartCommand request, CancellationToken cancellationToken)
@@ -13,7 +17,6 @@ public sealed class AddToCartHandler(ICartPort cart, IEventPublisher events, Ucp
         var itemId = await cart.AddItemAsync(request.SessionId, request.Product, request.Quantity, cancellationToken);
         metrics.CartAddTotal.Add(1);
 
-        // Publica evento de item adicionado (fire-and-forget)
         _ = events.PublishAsync(
             UcpTopics.CartItemAdded,
             new CartItemAddedEvent(
@@ -24,6 +27,9 @@ public sealed class AddToCartHandler(ICartPort cart, IEventPublisher events, Ucp
                 request.Product.Price,
                 DateTime.UtcNow),
             cancellationToken);
+
+        if (snapshotService is not null)
+            _ = snapshotService.PersistAsync(request.SessionId, cart, cancellationToken);
 
         return Result<string>.Ok(itemId);
     }

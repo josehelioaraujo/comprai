@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 using Xunit;
 
 namespace UcpAgent.Application.Tests.Health;
@@ -12,6 +13,21 @@ public class HealthApiFactory : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Test");
+        // Garante que nenhuma infra é necessária no startup durante os testes
+        builder.ConfigureAppConfiguration((_, config) =>
+        {
+            config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Features:UsarMockDados"]            = "true",
+                ["Features:UsarRedis"]                = "false",
+                ["Features:UsarKafka"]                = "false",
+                ["Features:UsarRabbitMQ"]             = "false",
+                ["Features:UsarPostgres"]             = "false",
+                ["Features:UsarPriceWatcher"]         = "false",
+                ["Features:UsarFulfillmentSimulator"] = "false",
+                ["Jwt:Secret"]                        = "test-secret-for-unit-tests",
+            });
+        });
     }
 }
 

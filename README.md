@@ -29,9 +29,11 @@ Comprai é um ecossistema modular open-source que implementa o **Universal Comme
 - [⚙️ Variáveis de Ambiente](#%EF%B8%8F-variáveis-de-ambiente)
 - [📊 Portais de Observabilidade](#-portais-de-observabilidade)
 - [🛡️ Resiliência e Rate Limiting](#️-resiliência-e-rate-limiting)
+- [🔐 Segurança](#-segurança)
 - [🔁 CI/CD Pipeline](#-cicd-pipeline)
 - [🧪 Qualidade & Testes](#-qualidade--testes)
 - [📊 OpsWatch](#-dev-quality-hub)
+- [💻 Frontend](#-frontend)
 - [🗺️ Roadmap](#%EF%B8%8F-roadmap)
 - [📄 Licença](#-licença)
 
@@ -786,6 +788,124 @@ Ajuste os valores em `appsettings.json` sem recompilar.
 
 </details>
 
+
+## 🔐 Segurança
+
+<details open>
+<summary><strong>🔑 Autenticação e Autorização</strong></summary>
+
+| Mecanismo | Implementação |
+|---|---|
+| **JWT HS256** | `Microsoft.AspNetCore.Authentication.JwtBearer 10.0.0` — claims: Sub, Email, Name, provider, Jti; exp configurável via `Jwt:ExpirationMinutes` (padrão 1440 min) |
+| **Senhas** | `BCrypt.Net-Next 4.0.3` — hash com work factor padrão; nunca armazenada em texto claro |
+| **Sessões web** | `strategy: 'jwt'` no NextAuth.js v5 — sem cookies de sessão server-side |
+| **Proteção de rotas API** | `RequireAuthorization()` em `/api/auth/me`, `PUT /api/auth/me`, `POST /api/auth/me/address` |
+| **Proteção de rotas Web** | Middleware Next.js — `/chat/*`, `/account/*`, `/profile/*` → redireciona para `/auth/login` |
+
+</details>
+
+<details>
+<summary><strong>🌐 Login Social — OAuth 2.0 / OpenID Connect</strong></summary>
+
+Suportado via **NextAuth.js v5** no Web (porta 3002) e Mobile (porta 3003):
+
+| Provider | Protocolo | Callback Web | Callback Mobile |
+|---|---|---|---|
+| **Google** | OpenID Connect | `.../api/auth/callback/google` | `.../api/auth/callback/google` |
+| **GitHub** | OAuth 2.0 | `.../api/auth/callback/github` | `.../api/auth/callback/github` |
+| **Microsoft Entra ID** | OpenID Connect | `.../api/auth/callback/microsoft-entra-id` | `.../api/auth/callback/microsoft-entra-id` |
+
+**Fluxo SSO:**
+```
+NextAuth callback
+  ↓
+POST /api/auth/callback (backend)
+  ↓
+ON CONFLICT (provider, provider_id) DO UPDATE  ← upsert na tabela customer
+  ↓
+JwtService.GenerateToken()  ← JWT HS256 retornado ao frontend
+  ↓
+LinkCustomerAsync(sessionId, customerId)  ← session vinculada ao usuário
+```
+
+> Credentials (email/senha) também suportados — senha armazenada com BCrypt.
+
+</details>
+
+<details>
+<summary><strong>🔁 Idempotência</strong></summary>
+
+Todas as operações críticas usam `X-Idempotency-Key` no header — gerado no frontend, reusado em retry, evita pedidos e pagamentos duplicados. Persistido na tabela `idempotency_key`.
+
+| Operação | Chave |
+|---|---|
+| Adicionar ao carrinho | `cart-add:{sessionId}:{productId}` |
+| Checkout | `checkout:{sessionId}` |
+| Pagamento | `payment:{orderId}:{method}` |
+| Webhook Stripe | `provider + external_id` em `webhook_event` |
+| Webhook Efi/Pix | `txid` ou `SHA256[:16]` do payload |
+
+</details>
+
+<details>
+<summary><strong>🔒 Secrets e Credenciais</strong></summary>
+
+Nenhuma credencial hardcoded. Todos os segredos via **GitHub Actions Secrets**, injetados como variáveis de ambiente no `docker run`:
+
+| Secret | Destino |
+|---|---|
+| `JWT_SECRET` (`Jwt__Secret`) | API — assinatura JWT |
+| `NEXTAUTH_SECRET` | Web + Mobile — NextAuth.js |
+| `NEXTAUTH_URL_WEB` | Web — `http://2.25.122.11:3002` |
+| `NEXTAUTH_URL_MOBILE` | Mobile — `http://2.25.122.11:3003` |
+| `POSTGRES_PASSWORD` | API — conexão PostgreSQL |
+| `STRIPE_SECRET_KEY` | API — pagamentos Stripe |
+| `DATADOG_API_KEY` | OTel Collector — observabilidade |
+| `NEW_RELIC_LICENSE_KEY` | OTel Collector — observabilidade |
+| `GOOGLE_CLIENT_ID/SECRET` | Web + Mobile — SSO Google |
+| `GITHUB_CLIENT_ID/SECRET` | Web + Mobile — SSO GitHub |
+| `MICROSOFT_CLIENT_ID/SECRET/TENANT_ID` | Web + Mobile — SSO Microsoft |
+
+</details>
+
+<details>
+<summary><strong>✅ Webhook Validation</strong></summary>
+
+- **Stripe**: assinatura `Stripe-Signature` validada via SDK antes de processar o evento
+- **Efi (Pix)**: idempotência via `txid` ou `SHA256[:16]` do payload quando `txid` ausente
+
+</details>
+
+<details>
+<summary><strong>🛡️ Pentest — Strix (planejado)</strong></summary>
+
+Integração planejada com **[Strix](https://www.strix.ai/)** para análise automatizada de vulnerabilidades pós-deploy:
+
+- Varredura de endpoints expostos e métodos HTTP indevidos
+- Detecção de headers de segurança ausentes (`CSP`, `HSTS`, `X-Frame-Options`, `X-Content-Type-Options`)
+- Testes de injeção SQL e XSS nos parâmetros de busca e checkout
+- Verificação de tokens JWT expirados e algoritmos fracos
+- Scan de dependências com vulnerabilidades conhecidas (CVE NuGet)
+
+```bash
+# Planejado — step pós-smoke-tests no CI/CD
+strix scan http://2.25.122.11:5020 --output report.html
+```
+
+</details>
+
+<details>
+<summary><strong>🗺️ Roadmap de Segurança (V059)</strong></summary>
+
+- [ ] Integração Strix no CI/CD (step pós-smoke-tests)
+- [ ] Headers de segurança HTTP (`CSP`, `HSTS`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`)
+- [ ] Rate limiting por IP no login (brute force prevention)
+- [ ] Refresh token + rotação de JWT
+- [ ] Verificação de email pós-cadastro (credentials)
+- [ ] 2FA (TOTP) para providers credentials
+
+</details>
+
 ## 🔁 CI/CD Pipeline
 
 <details>
@@ -825,29 +945,73 @@ O **OpsWatch** é um portal operacional integrado ao pipeline CI/CD que consolid
 
 ---
 
-## 📱 Interface Mobile
+## 💻 Frontend
 
-O Comprai possui uma interface mobile dedicada, acessível em `/mobile` (porta `3002`) e como app independente na porta `3003`.
+O Comprai possui dois frontends independentes construídos com **Next.js 15 + TypeScript + Tailwind CSS**, ambos consumindo a mesma API backend (`http://<VPS>:5020`).
 
-### Características
-- **Shell 420px** — simula tela de smartphone com bordas arredondadas
-- **Stepper bottom nav** — barra de progresso fixa no rodapé com 5 steps: Busca → Carrinho → Pedido → Pagamento → Entrega
-- **Atalhos contextuais** — sugestões no footer mudam automaticamente conforme o step atual
-- **Carrossel de produtos** — navegação por setas e arrasto (touch + mouse)
-- **Fulfillment em tempo real** — timeline de 7 etapas simulada automaticamente após pagamento
+---
 
-### Acesso
-```
-http://<VPS>:3002/mobile   # via app web
-http://<VPS>:3003          # app mobile independente
-```
+### 🖥️ Interface Web
 
-### Variáveis de Ambiente
+Interface full desktop com sidebar de navegação, modo escuro/claro e fluxo UCP completo via chat.
+
+**Stack:** Next.js 15 App Router · Tailwind CSS v3 · TypeScript  
+**Porta:** `3002` · **Deploy:** `apps/web/` — `deploy-web.yml`  
+**Acesso:** `http://<VPS>:3002`
+
+#### Características
+- **Chat AG-UI** — interface conversacional onde cada intent renderiza um componente dedicado: `ProductCarousel`, `CartCard`, `CheckoutCard`, `PixCard`, `StripeCard`, `OrderTrackingCard`, `OrderListCard`
+- **Sidebar colapsável** — exibe step atual do UCP, contagem de itens no carrinho e sessão ativa
+- **UCP Progress Bar** — barra de progresso horizontal (Busca → Carrinho → Checkout → Pagamento → Pedido)
+- **Fulfillment polling real** — `GET /api/orders/{id}/fulfillment` a cada 5s; fallback para simulação local quando `UsarPostgres=false`
+- **localStorage como fallback** — pedidos salvos localmente apenas quando a API não os retorna (`apiPersistedRef` controla duplicação)
+- **Idempotência no front** — `X-Idempotency-Key` gerado por ação; retry reutiliza a mesma chave
+- **Tema escuro/claro** — CSS vars com `prefers-color-scheme` + toggle manual
+- **Widget embeddável** — rota `/widget` exporta `<CompraiWidget>` para integração em sites externos
+
+#### Variáveis de Ambiente
 | Variável | Descrição | Padrão |
 |---|---|---|
-| `NEXT_PUBLIC_APP_VERSION` | Versão exibida no header | `1.0.0` |
-| `NEXT_PUBLIC_FULFILLMENT_SIMULATION` | Ativa simulação de entrega | `true` |
 | `NEXT_PUBLIC_API_URL` | URL da API backend | `http://localhost:5020` |
+| `NEXT_PUBLIC_APP_VERSION` | Versão exibida no header | `1.0.0` |
+| `NEXT_PUBLIC_GIT_SHA` | SHA do commit (injetado no CI) | `dev` |
+
+#### Acesso
+```
+http://<VPS>:3002        # Chat principal
+http://<VPS>:3002/widget # Widget embeddável
+```
+
+---
+
+### 📱 Interface Mobile
+
+Interface mobile-first que simula um smartphone, com navegação por gestos e layout 420px.
+
+**Stack:** Next.js 15 App Router · Tailwind CSS v3 · TypeScript  
+**Porta:** `3003` · **Deploy:** `apps/mobile/` — `deploy-mobile.yml`  
+**Acesso:** `http://<VPS>:3003`
+
+#### Características
+- **Shell 420px** — simula tela de smartphone com bordas arredondadas e safe-area insets
+- **Stepper bottom nav** — barra de progresso fixa no rodapé com 5 steps: Busca → Carrinho → Pedido → Pagamento → Entrega
+- **Atalhos contextuais** — sugestões no footer mudam automaticamente conforme o step atual do UCP
+- **Carrossel de produtos** — navegação por setas e arrasto (touch + mouse drag)
+- **Fulfillment simulado** — timeline de 7 etapas (`payment_confirmed → preparing → ready_to_ship → handed_to_carrier → in_transit → out_for_delivery → delivered`) com delays progressivos
+- **Persistência local** — pedidos em `localStorage` + sincronização com Redis (`persistOrder`)
+- **Deploy standalone** — imagem Docker própria (`comprai-mobile`), workflow independente do `apps/web`
+
+#### Variáveis de Ambiente
+| Variável | Descrição | Padrão |
+|---|---|---|
+| `NEXT_PUBLIC_API_URL` | URL da API backend | `http://localhost:5020` |
+| `NEXT_PUBLIC_APP_VERSION` | Versão exibida no header | `1.0.0` |
+| `NEXT_PUBLIC_FULFILLMENT_SIMULATION` | Ativa simulação local de entrega | `true` |
+
+#### Acesso
+```
+http://<VPS>:3003   # App mobile independente
+```
 
 
 ## 🗺️ Roadmap
@@ -864,49 +1028,56 @@ http://<VPS>:3003          # app mobile independente
 | **V014–V019** | CI/CD completo, Smoke Tests Newman, Observabilidade OTel → Datadog, Stryker mutation 84%+ |
 | **V020–V023** | QA Hub — Stress Tests K6, SonarCloud, OWASP Top 10, PCI DSS, Mutação, Gráficos, Rotas |
 | **V024** | QA Hub → OpsWatch — Status Page, Testes Integrados, Runbook, PAT server-side, Coverage 100% |
-| **V025** | OpsWatch — Evolução das Métricas, CVEs NuGet, Admin Restart, Stress Test polling real-time, Drill down por run e por job |
-| **V026** | OpsWatch — Seção Observabilidade completa: Métricas (Prometheus), Logs (Loki), Traces (Jaeger), Erros Recentes, KPI cards com tooltips |
-| **V027** | Observabilidade Hub — ObservabilityEndpoints.cs, proxy Prometheus/Loki/Jaeger, Uptime 99.90%, CHANGELOG v3.6.0 |
-| **V028** | Monitor de Containers — accordion compacto, ações Start/Stop/Restart com modal + proteção críticos, métricas req/s e p99 funcionais, logs ANSI-clean |
-| **V029** | Promtail fix definitivo (docker_sd_configs), Health Map SVG interativo com modal de detalhes, TCP health check Prometheus/Loki/Jaeger |
-| **V030** | OpsWatch (renomeação), Health Map modal com Container Stats CPU/mem, Dependency Scanner, ícones sidebar, edges reais do compose |
-| **V030-QS** | Quality Score 0-100: gauge, 4 dimensões, drill-down com código real, botão ∑, Notable Events, Quality Trend com tooltip delta |
-| **V031** | Drill-down inline Quality Trend (CI/CD/Mutation/CVEs), Correlação K6×Mutation com índice de risco, drill-down por endpoint com diagnóstico e recomendações, ícone 🔭 OpsWatch |
-| **V031-Live** | Gráfico ao vivo durante Stress Test K6 (Prometheus dual-Y, polling 5s, alerta p95>1000ms), botão ✕ Cancelar run com endpoint `POST /api/github/run/{id}/cancel` |
-| **V033** | Instrumentação OTel granular: `UcpMetrics` em SharedKernel, 17 instrumentos, nomes underscore para Prometheus 3.x |
-| **V034** | OpsWatch — 5 abas de Métricas (Funil UCP, Plugins, Cache Redis, LLM/Ollama), hints dinâmicos 🟢🟡🔴, `populate-metrics.ps1` |
-| **V034-cont** | Cache Strategy (TTL/Aside/Read-Through/Hybrid), Access Log com aba Acesso completa (filtros, paginação, drill-down, rotas mais chamadas), versionamento SemVer automático no CI |
-| **V035** | OpsWatch — Painel Testes de Carga: VUs slider, Duração, Rounds sequenciais com progress dots, botão Parar, `populate-metrics.yml` |
-| **V036** | OpsWatch — Métricas de Código: Complexidade Ciclomática (Python regex, modal com código + marcadores SonarCloud) + Dependências Ca/Ce (Robert C. Martin, pills Ca/Ce, Ca reverso); Code Review automático em PRs via Groq AI; nova dinâmica de branches/PRs |
-| **V037–V039** | Observabilidade Dual — New Relic via OTel Collector: pipeline `HttpProtobuf :4318`, painel APM no OpsWatch (Apdex/Error%/Req/min/p95), 93 spans confirmados, collector exporta para Datadog + New Relic simultaneamente |
-| **V040** | OpsWatch — New Relic APM Drill-Down Interativo: gauge SVG Apdex, cards Satisfied/Tolerating/Frustrated clicáveis com tabela de rotas (p50/p90/p99/Avg/Req/s), sparkline com tooltip hover, seletor de janela 5m–24h, chevron colapsável universal, fix NerdGraph percentis como objeto aninhado |
+| **V025** | OpsWatch — Evolução das Métricas, CVEs NuGet, Admin Restart, Stress Test polling real-time |
+| **V026** | OpsWatch — Seção Observabilidade completa: Métricas (Prometheus), Logs (Loki), Traces (Jaeger) |
+| **V027** | Observabilidade Hub — ObservabilityEndpoints.cs, proxy Prometheus/Loki/Jaeger |
+| **V028** | Monitor de Containers — accordion, ações Start/Stop/Restart, métricas req/s e p99 |
+| **V029** | Promtail fix definitivo, Health Map SVG interativo, TCP health check |
+| **V030** | OpsWatch renomeação, Health Map modal CPU/mem, Dependency Scanner |
+| **V030-QS** | Quality Score 0-100: gauge, 4 dimensões, drill-down, Notable Events, Quality Trend |
+| **V031** | Drill-down inline Quality Trend, Correlação K6×Mutation, drill-down por endpoint |
+| **V031-Live** | Gráfico ao vivo durante K6 (Prometheus dual-Y, polling 5s, alertas p95) |
+| **V033** | Instrumentação OTel granular: `UcpMetrics` em SharedKernel, 17 instrumentos |
+| **V034** | OpsWatch — 5 abas de Métricas (Funil UCP, Plugins, Cache Redis, LLM/Ollama) |
+| **V034-cont** | Cache Strategy, Access Log, versionamento SemVer automático no CI |
+| **V035** | OpsWatch — Painel Testes de Carga: VUs slider, Duração, Rounds, botão Parar |
+| **V036** | Métricas de Código: Complexidade Ciclomática + Dependências Ca/Ce; Code Review automático Groq AI |
+| **V037–V039** | Observabilidade Dual — New Relic via OTel Collector; painel APM; 93 spans confirmados |
+| **V040** | OpsWatch — New Relic APM Drill-Down: gauge Apdex, sparkline, seletor 5m–24h |
+| **V041** | Health Checks condicionais por feature flag; Kafka ativado com tópicos canônicos |
+| **V042–V043** | Web Chat Frontend: Next.js 15 + Tailwind v4, fluxo UCP completo, widget embeddável |
+| **V044–V047** | Mobile-First UI, Fulfillment Domain (Event Sourcing), OrderList drilldown, fixes UX |
+| **V048** | Persistência PostgreSQL + Outbox Pattern: 17 tabelas, DbUp, Dapper, 3 OutboxWorkers |
+| **V049–V050** | Fix testes de integração: ResilienceExtensions, IdempotencyMiddleware, HealthApiFactory |
+| **V053** | Frontend: localStorage fallback, mobile standalone limpo, CI smoke-tests timeout fix |
+| **V054** | order_history + session + search_log no BD; X-Session-Id no search |
+| **V055** | cart_snapshot + webhook_event idempotência; AddToCartHandler/RemoveFromCart snapshot; Null stubs CI |
+| **V056** | `ICartSnapshotService` (Clean Architecture); Front: X-Session-Id, sessionId payment, restore carrinho |
+| **V059** | Segurança: SecurityHeadersMiddleware, Rate limiting login/register, OWASP ZAP auth+headers, Refresh token rotação JWT |
+| **V052** | BD como source of truth: UUID order, endereço snapshot, fulfillment_event, DI corrigido, smoke test fix |
+| **V051** | Testes CI verdes; F5 polling real de fulfillment; auto-dismiss PixCard/StripeCard pós-confirmação |
 
 ### 🔜 Próximas Versões
 
 | Fase | Descrição | Versão |
 |------|-----------|--------|
-| **Gargalo p95/p99** | Investigar `/api/health/status` (avg 2843ms) e `/api/search` (avg 12110ms) — health check síncrono + Ollama sem timeout; circuit breaker e separação live/ready | V041 |
-| **LLM Diagnóstico** | `/api/ai/analyze` — Ollama analisa p95 + logs + mutation score e gera diagnóstico em PT-BR; botão "Analisar" no OpsWatch | V041 |
-| **Notificações Slack/Teams** | Mensagem gerada por LLM ao detectar degradação; webhook simples, alto impacto em demo | V041 |
-| **Locust — segunda engine** | OpsWatch orquestra K6 e Locust: seletor de engine, proxy `/api/locust/*`, métricas ao vivo sem pipeline | V038 |
-| **Hermes Orchestrator** | NousResearch Hermes-3 via Ollama — agente autônomo que decide sequência de tools (search, cart, checkout, diagnose) | V038 |
-| **Pentest OWASP ZAP** | DAST dinâmico via Docker: `pentest.yml` semanal + sob demanda, findings por severidade com referência OWASP Top 10 | V037 |
-| **GROQ_MODEL_SELECTOR** | Seletor de modelo no `workflow_dispatch` do code-review — escolha de modelo sem editar o workflow | V037 |
-| **ELK Stack** | Traces waterfall com correlação log↔trace; exige upgrade VPS KVM4 | Futuro |
-| **Alertas ntfy.sh** | Push quando qualquer suite falha — ntfy já na VPS | Futuro |
-| **DAST com OWASP ZAP** | Análise dinâmica contra API em staging — fecha gap do SonarCloud estático | Futuro |
-| **Padrão Saga** | 3 implementações chaveáveis (Wolverine, MassTransit, Nativo) via feature flag | Futuro |
-| **Instrumentação OTel** | Funil UCP ✅, erro/fallback por plugin ✅, LLM/intent ✅ — cache hit/miss e eventos Kafka pendentes | Futuro |
-| **K3s + Helm + Argo CD** | Migração Docker Compose → Kubernetes leve na VPS com GitOps | Futuro |
-| **Graphify — Grafo de Arquitetura** | Mermaid no README + página interativa com hover (hints/interações) + JSON para contexto de IA | Futuro |
-| **Request-ID + Jaeger correlation** | Access Log sem payload no Loki — correlation-id linka ao trace completo em Jaeger | Futuro |
-| **Canal Web — Demo** | Next.js 15 + Tailwind + shadcn/ui — interface conversacional com raciocínio visível | Futuro |
-| **AIOps com Ollama** | Detecção de anomalias, RCA automático (Prometheus + Loki + Jaeger) | Futuro |
+| **Front localStorage → BD** | ~~Sincronizar `saveOrderToList` com BD; manter localStorage só como fallback~~ ✅ V053 | — |
+| **apps/mobile standalone** | ~~Separar `apps/mobile` do `apps/web`; deploy independente porta 3003~~ ✅ V053 | — |
+| **order_history + session + search_log no BD** | ~~Persistência das etapas restantes do fluxo UCP~~ ✅ V054 | — |
+| **cart_snapshot + webhook_event idempotência** | ~~Snapshot de abandono e idempotência webhooks~~ ✅ V055 | — |
+| **ICartSnapshotService + Front session tracking** | ~~Clean Architecture snapshot + headers session~~ ✅ V056 | — |
+| **~~Autenticação e Área do Usuário~~** | ~~Cadastro/login (web+mobile), Google SSO, JWT, histórico de pedidos vinculado ao customer~~ ✅ V057–V058 | — |
+| **Segurança** | ~~SecurityHeaders, Rate limiting, OWASP ZAP, Refresh token~~ ✅ V059 | — |
+| **Segurança cont.** | Verificação de email (Resend), 2FA TOTP, Painel Pentest OpsWatch | V060 |
+| **OMS + WMS + Carrier (plugins)** | Plugins hexagonais extensíveis: `Oms.Simulated/Vtex`, `Wms.Simulated/Totvs`, `Carrier.Simulated/Correios` | Futuro |
+| **LLM Diagnóstico** | `/api/ai/analyze` → Ollama + fallback Claude; botão "Analisar" no OpsWatch | Futuro |
+| **GROQ_MODEL_SELECTOR** | Seletor de modelo no `workflow_dispatch` do code-review | Futuro |
+| **K3s + Helm + Argo CD** | Migração Docker Compose → K3s na VPS com GitOps | Futuro |
+| **WhatsApp Bot** | Meta Cloud API + Hub SignalR + `IChannelPort`; reutiliza 100% do core UCP | Futuro |
+| **Ollama na VPS** | `docker run ollama/ollama` + pull `gemma3:latest` | Futuro |
 | **StressForge** | Gerador agnóstico de stress tests a partir de Swagger/OpenAPI | Futuro |
-| **StatusForge** | Gerador de status pages self-hosted no padrão Atlassian/Instatus | Futuro |
-| **Canal WhatsApp** | Evolution API self-hosted na VPS — compra por mensagem | Futuro |
-| **Extensão Chrome** | Price Watcher, Universal Cart e Intent Bar nativos no browser | Futuro |
-| **Canal Teams** | Bot Framework SDK | Futuro |
+| **ELK Stack** | Traces waterfall com correlação log↔trace | Futuro |
+| **Padrão Saga** | 3 implementações chaveáveis (Wolverine, MassTransit, Nativo) | Futuro |
 
 </details>
 
@@ -918,5 +1089,6 @@ MIT License — veja [LICENSE](LICENSE) para detalhes.
 **Autor:** [@josehelioaraujo](https://github.com/josehelioaraujo)
 
 Para dúvidas, issues ou contribuições, abra uma issue ou pull request no repositório.
+
 
 

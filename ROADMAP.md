@@ -1,143 +1,105 @@
 # 🗺️ Roadmap — Comprai
 
-## V047 — Pendências Mobile + CI Fix
-
-### 🔴 Alta Prioridade
-- [ ] **CI falha em "Run Unit Tests"** desde commit `62756de` — investigar Domain/Application/Catalog separados
-- [ ] **Pix detail não exibido** — `pixCopyPaste` gerado mas não persistido corretamente no `paymentDetail`; verificar fluxo `PixCard.onConfirmed` → `handlePaymentConfirmed` → `saveOrderToList`
-
-### 🟡 Média Prioridade
-- [ ] **apps/mobile standalone** (porta 3003) — separar do apps/web quando mobile estiver estável; reverter deploy-web.yml para excluir paths mobile
-- [ ] **PixCard/StripeCard sem onClose** — decidir se permite fechar após confirmação de pagamento
-- [ ] **Validação de endereço** — CEP inválido não bloqueia o checkout; adicionar feedback de erro no CartCard
-
-### 🟢 Melhorias
-- [ ] **Timeline ao vivo** — atualizar `OrderTrackingCard` em tempo real via polling `/api/orders/{id}` (hoje é simulação client-side)
-- [ ] **Persistência no banco** — migrar `comprai_orders_list` do localStorage para PostgreSQL (`order_history`)
-- [ ] **Notificações push** — Service Worker + Web Push quando pedido mudar de status
-
-
-## ✅ Concluído
-
-### Backend + Observabilidade (V039–V041)
-- [x] Fluxo UCP completo: Search → Cart → Checkout → Payment → Order
-- [x] Plugins de catálogo: DummyJSON, Mock, Shopify, MercadoLivre
-- [x] Pagamento: Mock, Stripe (cartão teste), Efi/Pix (aguardando cert produção)
-- [x] Redis cache + HybridCache .NET 10
-- [x] Kafka: tópicos canônicos + events de domínio (SearchQueried, CartItemAdded, OrderCreated)
-- [x] OTel pipeline: comprai-api → collector → Datadog + New Relic (93 spans confirmados)
-- [x] OpsWatch: dashboard QA, observabilidade, pentest OWASP ZAP, K6, New Relic APM drill-down
-- [x] Health checks condicionais por feature flag (/health/live, /health/ready)
-- [x] SonarCloud: Quality Gate Passed, cobertura 97%+
-- [x] CI/CD: unit-tests → integration-tests → sonar → deploy → smoke-tests
-
-### 🌐 Web Chat Frontend (V042–V043)
-- [x] Next.js 15 App Router + Tailwind + TypeScript
-- [x] Fluxo UCP completo via chat: Search → Cart → Checkout → Pix/Cartão → Entrega
-- [x] `ProductCarousel` — setas ‹ › de navegação, sem label de fonte
-- [x] `CartCard` — +/- quantidade (mínimo 1), radio frete, subtotal/frete/total compacto
-- [x] `CheckoutCard` — resumo do pedido + seleção Pix / Cartão
-- [x] `PixCard` — QR Code + countdown 15min + cópia Pix (fallback `execCommand` em HTTP)
-- [x] `StripeCard` — formulário inline cartão de crédito
-- [x] `OrderTrackingCard` — timeline de status do pedido
-- [x] `UcpProgressBar` — steps horizontais, badge 🛒, clique abre popup do carrinho
-- [x] `Sidebar` — colapsável ‹ ›, logo clicável abre modal UCP, dark/light mode toggle
-- [x] Modal UCP: badge "⚡ Universal Commerce Protocol" + steps + step atual destacado
-- [x] Dark/Light mode com tokens CSS, persistido em localStorage
-- [x] Versão `v1.0.x` + short SHA em linhas separadas na sidebar
-- [x] Bump automático de patch version a cada deploy via GitHub Actions
-- [x] Widget embeddável — botão flutuante 🛍️ com badge, abre chat em qualquer site
-- [x] Popup carrinho na sidebar — ícone + badge quantidade + total + botão Fechar pedido
-- [x] Botão "🛒 Fechar pedido" fixo no input quando há itens
-- [x] +/- quantidade sincroniza sidebar em tempo real via `onQuantityChange`
-- [x] Responsivo — sidebar oculta em mobile, header mobile com badge e toggle
-- [x] Painel de logs 🔍 — request/response com erros em vermelho
-- [x] Deploy: GitHub Actions → GHCR → VPS Hostinger porta 3002
-
-### 📱 Mobile-First UI + Fulfillment Domain (V044)
-- [x] App mobile independente porta 3003 — container `comprai-mobile`
-- [x] Layout mobile-first com shell smartphone 420px
-- [x] Stepper de progresso bottom nav — sempre visível
-- [x] `MobileUcpHeader` — logo + versão no topo
-- [x] `MobileProductCarousel` — drag touch + mouse + setas
-- [x] Atalhos contextuais no footer por step do fluxo
-- [x] Fulfillment Domain — Event Sourcing + 10 status de entrega
-- [x] `FulfillmentSimulator` — IHostedService com pipeline de 6 etapas
-- [x] `OrderTrackingCard` — timeline em tempo real + histórico
-- [x] `IdempotencyMiddleware` — sempre ativo (Redis + memória fallback)
-- [x] Correção total zerado via `confirmedTotalRef`
-- [x] Correção duplicação carrinho — guard frontend + idempotency backend
-- [x] CEP com máscara, complemento com hint, sem botão Voltar no form
-- [x] Flag `NEXT_PUBLIC_FULFILLMENT_SIMULATION` + `Features__UsarFulfillmentSimulator`
-- [x] CI/CD `deploy-mobile.yml` independente
+## ✅ V058 — Cadastro de Cliente Completo (out/2026)
+- [x] `PUT /api/auth/me` — editar perfil (nome, telefone, documento)
+- [x] `POST /api/auth/me/address` — endereço de entrega persistido
+- [x] `/account` com formulário de edição
+- [x] `useAuth` com perfil completo e `defaultAddress`
+- [x] Redesign tela de login — minimalista branco/roxo
+- [x] Next-auth no mobile com todos os secrets SSO (`NEXTAUTH_URL_MOBILE`, Google, GitHub, Microsoft)
+- [x] Concurrency nos workflows deploy-web e deploy-mobile
+- [x] `CheckoutCard` pré-preenchido com dados do usuário autenticado
 
 ---
 
-## 🔜 Próximas Versões
+## ✅ V057 — Autenticação e Área do Usuário (out/2026)
+- [x] JWT HS256 + BCrypt + endpoints `/api/auth/*`
+- [x] SSO multi-provider (Google, GitHub, Microsoft) via NextAuth.js
+- [x] `order.customer_id` + `session.customer_id` vinculados
+- [x] `/account` + `/profile` (histórico + repetir pedido)
+- [x] Middleware protege `/chat/*`, `/account/*`, `/profile/*`
+- [x] Docker projeto renomeado para `comprai`
 
-### V044 — Histórico de Pedidos *(substituído por Mobile-First — ver acima)*
+---
 
-~~- [ ] Chat responde "meus pedidos" listando pedidos da sessão~~
+## ✅ V056 — ICartSnapshotService + Frontend Session tracking (out/2026)
+- [x] `ICartSnapshotService` em `SharedKernel.Ports`
+- [x] `CartSnapshotService` em `Application.Cart`
+- [x] `NullCartSnapshotService` — stub no-op para `UsarPostgres=false`
+- [x] Handlers migrados: `AddToCartHandler` + `RemoveFromCartCommandHandler`
+- [x] 7 testes unitários `CartSnapshotServiceTests`
+- [x] Front: `X-Session-Id` header no search, `sessionId` no payment, restore carrinho abandonado
 
-### V045 — UX Mobile (pós-entrega)
-- [ ] Mensagem automática "🎉 Pedido entregue!" quando fulfillment chega em `delivered`
-- [ ] Barra de ações pós-entrega no topo: "📦 Histórico de entrega" + "🔍 Rastreio" (scrollam para o card)
-- [ ] Botão "Meus pedidos" funciona após entrega — mostra card existente com destaque
-- [ ] Versão `NEXT_PUBLIC_APP_VERSION` chegando corretamente no build do mobile (verificar build-args)
-- [ ] CEP campo maior para caber digitação `XXXXX-XXX` confortavelmente
-- [ ] Persistência de pedidos no `localStorage` — ao reabrir app, exibir botão "Ver pedido anterior"
-- [ ] Histórico de compras — salvar `orderId` + `sessionId` no localStorage
+---
 
-### V045 — UX Web Chat
-- [ ] Categorias de produtos na sidebar: Vestuário, Eletrônicos, Eletrodomésticos
-- [ ] Filtros de preço, marca e avaliação
-- [ ] Histórico de buscas recentes
-- [ ] Botão remover item individual no CartCard
-- [ ] Animações de transição entre steps UCP
+## ✅ V055 — cart_snapshot + webhook_event idempotência (out/2026)
+- [x] `ICartSnapshotPort` + `CartSnapshotRepository`
+- [x] `IWebhookEventPort` + `WebhookEventRepository`
+- [x] Handlers com snapshot fire-and-forget + null-safe
+- [x] Stubs Null*Port para WebApplicationFactory
+- [x] `COVERAGE_THRESHOLD` → 80%
 
+---
 
-- [ ] **Opção 1:** Chat responde "meus pedidos" listando pedidos da sessão via `/api/orders?sessionId`
-- [ ] **Opção 2:** Tela `/orders` com timeline, filtros por status (pago/em trânsito/entregue) e detalhes do pagamento
-- [ ] **Opção 3:** Ambos — chat com lista resumida + botão "Ver todos" abrindo tela dedicada
+## ✅ V054 — order_history + session + search_log no BD (out/2026)
+- [x] `ISessionPort` + `SessionRepository`
+- [x] `IOrderHistoryPort` + `OrderHistoryRepository`
+- [x] `SearchLogRepository`
+- [x] `X-Session-Id` no endpoint `/api/search`
 
-### V045 — UX Web Chat
-- [ ] Categorias de produtos na sidebar: Vestuário, Eletrônicos, Eletrodomésticos, etc. (como e-commerces)
-- [ ] Filtros de preço, marca e avaliação na sidebar
-- [ ] Histórico de buscas recentes
-- [ ] Botão remover item individual no CartCard
-- [ ] Animações de transição entre steps UCP
-- [ ] `paths` filter no `ci-cd.yml` para não disparar backend quando só há mudança em `apps/web/**`
+---
 
-### V046 — Gateway de Pagamento Próprio
-- [ ] Serviço dedicado com PostgreSQL (transações, idempotency, auditoria)
-- [ ] Filas de processamento: RabbitMQ + Kafka
-- [ ] Retry automático + Dead Letter Queue (DLQ)
-- [ ] Webhooks de confirmação: `pending → processing → paid → failed`
-- [ ] Pix real via EFI Bank / Gerencianet
-- [ ] Cartão de crédito via Stripe (produção)
-- [ ] Admin dashboard de transações
+## ✅ V053 — Frontend localStorage fallback + Mobile standalone (out/2026)
+- [x] `saveOrderToListFallback`; `apiPersistedRef`
+- [x] Componentes mobile removidos de `apps/web`
+- [x] CI smoke-tests: timeout fix
 
-### V447 — Rastreio de Pedidos
-- [ ] Serviço de rastreio com integração de transportadora
-- [ ] Status em tempo real: pago → em separação → em trânsito → entregue
-- [ ] `OrderTrackingCard` com timeline dinâmica via push (SignalR)
-- [ ] Webhook do parceiro logístico
+---
 
-### V448 — WhatsApp Canal 2
-- [ ] Meta Cloud API oficial (prod) / Baileys (dev/test)
-- [ ] `IChannelPort` plugável — mesmo core UCP, zero mudança no backend
-- [ ] Sessão por número de telefone (Redis TTL 30min)
-- [ ] Fluxo completo: busca → carrinho → pix via WhatsApp
+## ✅ V052 — BD como source of truth (out/2026)
+- [x] UUID order, endereço snapshot, `fulfillment_event`, DI corrigido
 
-### V449 — Resiliência + Observabilidade Front
-- [ ] Outbox Pattern: at-least-once delivery para eventos Kafka
-- [ ] Polly retry com jitter backoff no Kafka publisher
-- [ ] Notificações email via Resend (3.000/mês grátis) — triggers: pedido criado/atualizado
-- [ ] OTel JS no front: traces + logs + métricas → OpsWatch + New Relic
-- [ ] runtime-config.json: URLs configuráveis sem rebuild do front
+---
 
-### V450 — Infraestrutura
-- [ ] Domínio próprio + SSL via Certbot (atualmente HTTP no IP direto)
-- [ ] Ollama na VPS: qwen2.5:3b (~2GB) para classificação de intent real (sem mock)
-- [ ] K3s + Helm + Argo CD: migração Docker Compose → Kubernetes na VPS
-- [ ] StressForge / StatusForge: produtos irmãos agnósticos de stack
+## ✅ V059 — Segurança (out/2026)
+- [x] `SecurityHeadersMiddleware` — CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy
+- [x] Rate limiting SlidingWindow 5 req/60s por IP em login/register (brute force prevention)
+- [x] `pentest.yml` OWASP ZAP melhorado — JWT autenticado, rate limit check, security headers check, artifact HTML
+- [x] Migration V004 — `refresh_token_hash` + `refresh_token_expires_at`
+- [x] Refresh token opaque (SHA-256) com rotação — `POST /api/auth/refresh` + `POST /api/auth/logout`
+- [x] `NullAuthPort` atualizado com métodos de refresh token
+
+---
+
+## 🔜 V060 — Segurança cont. (próxima)
+
+### 🟡 Média Prioridade
+- [ ] **Verificação de email pós-cadastro** — Resend API; token UUID 24h; `POST /api/auth/verify-email`; migration V005
+- [ ] **2FA TOTP** — `Otp.NET`; `authenticator_secret` na tabela `customer`; QR Code na ativação; `POST /api/auth/verify-2fa`
+- [ ] **Painel Pentest no OpsWatch** — exibir findings ZAP de `/k6/results/pentest/latest.json` (verificar se já existe)
+
+---
+
+## 🔭 Roadmap Futuro
+
+### 🏭 OMS + WMS + Carrier (plugins hexagonais extensíveis)
+- [ ] `UcpAgent.Oms.Core` + `UcpAgent.Oms.Simulated` + `UcpAgent.Oms.Vtex`
+- [ ] `UcpAgent.Wms.Core` + `UcpAgent.Wms.Simulated` + `UcpAgent.Wms.Totvs`
+- [ ] `UcpAgent.Carrier.Core` + `UcpAgent.Carrier.Simulated` + `UcpAgent.Carrier.Correios/Jadlog`
+- [ ] Portas: `IOrderManagementPort`, `IWarehousePort`, `ICarrierPort`
+- [ ] `V002__oms_wms_schema.sql`: stock, stock_reservation, invoice, shipment, shipment_event, return_request, cancellation
+
+### 🤖 AI/LLM
+- [ ] **LLM_DIAGNOSTICO** — `/api/ai/analyze` → Ollama + fallback Claude; botão "Analisar" no OpsWatch
+- [ ] **GROQ_MODEL_SELECTOR** — seletor de modelo no `workflow_dispatch`
+- [ ] **Ollama na VPS** — `docker run ollama/ollama` + pull `gemma3:latest`
+
+### ☁️ Infraestrutura
+- [ ] **K3s + Helm + Argo CD** — migração Docker Compose → K3s na VPS com GitOps
+- [ ] **StressForge** — gerador agnóstico de stress tests a partir de Swagger/OpenAPI
+- [ ] **StatusForge** — status page self-hosted
+
+### 📱 Canais
+- [ ] **WhatsApp Bot** — Meta Cloud API + Hub SignalR + `IChannelPort`; reutiliza 100% do core UCP
+- [ ] **Extensão Chrome** — Price Watcher + Universal Cart + Intent Bar
+

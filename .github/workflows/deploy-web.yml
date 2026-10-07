@@ -8,6 +8,10 @@ on:
       - '.github/workflows/deploy-web.yml'
   workflow_dispatch:
 
+concurrency:
+  group: deploy-web-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   IMAGE: ghcr.io/josehelioaraujo/comprai-web
   VPS_HOST: 2.25.122.11
@@ -99,7 +103,16 @@ jobs:
               --restart unless-stopped \
               --network comprai-network \
               -p ${{ env.WEB_PORT }}:${{ env.WEB_PORT }} \
-              -e NODE_ENV=production \
+              --env NODE_ENV=production \
+              --env "NEXTAUTH_URL=${{ secrets.NEXTAUTH_URL_WEB }}" \
+              --env "NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}" \
+              --env "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" \
+              --env "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" \
+              --env "GITHUB_CLIENT_ID=${{ secrets.GITHUB_CLIENT_ID }}" \
+              --env "GITHUB_CLIENT_SECRET=${{ secrets.GITHUB_CLIENT_SECRET }}" \
+              --env "MICROSOFT_CLIENT_ID=${{ secrets.MICROSOFT_CLIENT_ID }}" \
+              --env "MICROSOFT_CLIENT_SECRET=${{ secrets.MICROSOFT_CLIENT_SECRET }}" \
+              --env "MICROSOFT_TENANT_ID=${{ secrets.MICROSOFT_TENANT_ID }}" \
               ${{ env.IMAGE }}:latest
             sleep 8
             curl -sf http://localhost:${{ env.WEB_PORT }}/ && echo "✅ ${{ steps.version.outputs.version }} OK" || { docker logs comprai-web --tail 20; exit 1; }

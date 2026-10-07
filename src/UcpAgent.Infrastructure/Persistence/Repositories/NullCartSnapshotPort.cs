@@ -1,0 +1,17 @@
+using System.Diagnostics.CodeAnalysis;
+using UcpAgent.SharedKernel.Ports;
+
+namespace UcpAgent.Infrastructure.Persistence.Repositories;
+
+[ExcludeFromCodeCoverage]
+public sealed class NullCartSnapshotPort : ICartSnapshotPort
+{
+    public Task SaveAsync(string sessionId, IReadOnlyList<CartItemDto> items, CancellationToken ct = default)
+        => Task.CompletedTask;
+
+    public Task<CartSnapshotDto?> GetAsync(string sessionId, CancellationToken ct = default)
+        => Task.FromResult<CartSnapshotDto?>(null);
+
+    public Task DeleteAsync(string sessionId, CancellationToken ct = default)
+        => Task.CompletedTask;
+}

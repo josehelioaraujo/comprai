@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { getSessionId, clearSession, createSession } from '@/lib/session'
 import { newIdempotencyKey, getIdempotencyKey, cartAddKey, checkoutKey, paymentKey } from '@/lib/idempotency'
-import { postIntent, addToCart, getCart, createCheckout, createPayment } from '@/lib/api'
+import { postIntent, addToCart, getCart, createCheckout, createPayment, getOrders, getFulfillmentTimeline, getCartSnapshot } from '@/lib/api'
 import type {
   ChatMessage, SessionState, UcpStep, Product,
   PaymentMethod, PaymentProvider, Cart, Order,
@@ -22,20 +22,15 @@ export function calcShipping(subtotal: number, method: 'standard' | 'express'): 
   return method === 'express' ? EXPRESS_COST : STANDARD_COST
 }
 
-const FULFILLMENT_PIPELINE: { status: FulfillmentStatus; description: string; delay: number; location?: string }[] = [
-  { status: 'preparing',         description: 'Separando e embalando os itens',          delay: 8000  },
-  { status: 'ready_to_ship',     description: 'Embalado — aguardando coleta',             delay: 6000  },
-  { status: 'handed_to_carrier', description: 'Coletado pela transportadora',             delay: 5000  },
-  { status: 'in_transit',        description: 'Em trânsito — Centro de Distribuição SP', delay: 8000, location: 'São Paulo, SP' },
-  { status: 'out_for_delivery',  description: 'Saiu para entrega',                        delay: 6000  },
-  { status: 'delivered',         description: 'Entregue ao destinatário',                 delay: 5000  },
-]
-
+// localStorage — usado apenas como fallback quando UsarPostgres=false
 const LS_ORDER_KEY       = 'comprai_last_order_id'
 const LS_SESSION_KEY     = 'comprai_last_session_id'
 const LS_FULFILLMENT_KEY = 'comprai_last_fulfillment'
 const LS_TRACKING_KEY    = 'comprai_last_tracking'
 const LS_ORDERS_KEY      = 'comprai_orders_list'
+
+const POLL_INTERVAL_MS  = 5_000
+const POLL_MAX_ATTEMPTS = 60 // 5 min
 
 const INITIAL_SESSION: SessionState = {
   sessionId: '', step: 'idle', cart: null, currentOrder: null,
@@ -48,13 +43,16 @@ const WELCOME: ChatMessage = {
   timestamp: new Date(),
 }
 
+// ── localStorage helpers (fallback) ─────────────────────────────────────────
 function loadOrdersList(): Order[] {
   try {
     const raw = localStorage.getItem(LS_ORDERS_KEY)
     return raw ? JSON.parse(raw) : []
   } catch { return [] }
 }
-function saveOrderToList(order: Order) {
+
+/** Salva pedido no LS apenas como fallback (UsarPostgres=false). */
+function saveOrderToListFallback(order: Order) {
   try {
     const list = loadOrdersList()
     const exists = list.findIndex(o => o.orderId === order.orderId)
@@ -71,12 +69,16 @@ export function useChat() {
   const [hasPreviousOrder, setHasPreviousOrder] = useState(false)
   const sessionRef            = useRef<string>('')
   const fulfillmentHistoryRef = useRef<Record<string, FulfillmentEvent[]>>({})
+  const pollTimersRef         = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+  const pollAttemptsRef       = useRef<Record<string, number>>({})
   const addingProductsRef     = useRef<Set<string>>(new Set())
   const confirmedTotalRef     = useRef<number>(0)
   const shippingCostRef       = useRef<number>(0)
   const shippingMethodRef     = useRef<'standard' | 'express'>('standard')
   const paymentMethodRef      = useRef<PaymentMethod>('pix')
   const addressRef            = useRef<import('@/types/ucp').Address | null>(null)
+  // flag: pedido foi persistido na API com sucesso (UsarPostgres=true)
+  const apiPersistedRef       = useRef<Record<string, boolean>>({})
 
   useEffect(() => {
     try {
@@ -84,6 +86,30 @@ export function useChat() {
       const savedSessionId = localStorage.getItem(LS_SESSION_KEY)
       if (savedOrderId && savedSessionId) setHasPreviousOrder(true)
     } catch { }
+  }, [])
+
+  // Restaura carrinho abandonado via snapshot salvo no BD
+  useEffect(() => {
+    const sessionId = getSessionId()
+    if (!sessionId) return
+    getCartSnapshot(sessionId).then(snapshot => {
+      if (!snapshot || !snapshot.items || snapshot.items.length === 0) return
+      const cart = normalizeCart({ items: snapshot.items, total: snapshot.totalAmount }, sessionId)
+      if (cart.items.length === 0) return
+      sessionRef.current = sessionId
+      setSession(s => ({ ...s, sessionId, cart }))
+      pushMessage({
+        role: 'bot',
+        text: `🛒 Encontrei seu carrinho anterior com ${cart.items.length} ${cart.items.length === 1 ? 'item' : 'itens'}. Deseja continuar de onde parou?`,
+        intent: 'cart_view',
+        data: { type: 'cart', cart },
+      })
+    }).catch(() => { /* silencioso — snapshot é best-effort */ })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    return () => { Object.values(pollTimersRef.current).forEach(t => clearTimeout(t)) }
   }, [])
 
   const getOrCreateSession = useCallback((): string => {
@@ -121,7 +147,10 @@ export function useChat() {
       if (m.intent !== 'order_status' || m.data?.type !== 'order') return m
       if (m.data.order.orderId !== orderId) return m
       const updated = updater(m.data.order)
-      saveOrderToList(updated)
+      // Sincroniza LS só se não foi persistido na API (fallback)
+      if (!apiPersistedRef.current[orderId]) {
+        saveOrderToListFallback(updated)
+      }
       return { ...m, data: { type: 'order', order: updated }, timestamp: new Date() }
     }))
   }, [])
@@ -134,7 +163,6 @@ export function useChat() {
     setMessages(prev => prev.filter(m => m.id !== id))
   }, [])
 
-  // Remove mensagem; se for card de lista de pedidos, volta step para idle
   const handleDismissAndReset = useCallback((id: string) => {
     setMessages(prev => {
       const msg = prev.find(m => m.id === id)
@@ -161,53 +189,90 @@ export function useChat() {
 
   const cartCount = session.cart?.items?.reduce((s, i) => s + i.quantity, 0) ?? 0
 
-  const startFulfillmentSimulation = useCallback((orderId: string, orderTotal: number) => {
-    const history: FulfillmentEvent[] = [{
-      status: 'payment_confirmed',
-      description: 'Pagamento confirmado — seu pedido está sendo preparado',
-      occurredAt: new Date().toISOString(),
-    }]
-    fulfillmentHistoryRef.current[orderId] = history
+  const startFulfillmentPolling = useCallback((orderId: string, initialHistory: FulfillmentEvent[]) => {
+    fulfillmentHistoryRef.current[orderId] = initialHistory
+    pollAttemptsRef.current[orderId] = 0
 
-    let accDelay = 0
-    for (const step of FULFILLMENT_PIPELINE) {
-      accDelay += step.delay
-      const stepCopy = { ...step }
-      const histCopy = history
+    const SIMULATION_PIPELINE: { status: FulfillmentStatus; description: string; delay: number; location?: string }[] = [
+      { status: 'preparing',         description: 'Separando e embalando os itens',          delay: 8000  },
+      { status: 'ready_to_ship',     description: 'Embalado — aguardando coleta',             delay: 6000  },
+      { status: 'handed_to_carrier', description: 'Coletado pela transportadora',             delay: 5000  },
+      { status: 'in_transit',        description: 'Em trânsito — Centro de Distribuição SP', delay: 8000, location: 'São Paulo, SP' },
+      { status: 'out_for_delivery',  description: 'Saiu para entrega',                        delay: 6000  },
+      { status: 'delivered',         description: 'Entregue ao destinatário',                 delay: 5000  },
+    ]
 
-      setTimeout(() => {
-        const newEvent: FulfillmentEvent = {
-          status:       stepCopy.status,
-          description:  stepCopy.description,
-          occurredAt:   new Date().toISOString(),
-          location:     stepCopy.location,
-          trackingCode: stepCopy.status === 'handed_to_carrier'
-            ? `BR${orderId.slice(0, 6).toUpperCase()}001` : undefined,
-        }
-        histCopy.push(newEvent)
-        fulfillmentHistoryRef.current[orderId] = [...histCopy]
-        try { localStorage.setItem(LS_FULFILLMENT_KEY, JSON.stringify([...histCopy])) } catch { }
-        if (newEvent.trackingCode) {
-          try { localStorage.setItem(LS_TRACKING_KEY, newEvent.trackingCode) } catch { }
-        }
-
-        const orderStatusMap: Partial<Record<FulfillmentStatus, Order['status']>> = {
-          preparing:         'preparing',
-          handed_to_carrier: 'shipped',
-          in_transit:        'shipped',
-          out_for_delivery:  'shipped',
-          delivered:         'delivered',
-        }
-
-        updateOrderMessage(orderId, order => ({
-          ...order,
-          status:             orderStatusMap[stepCopy.status] ?? order.status,
-          fulfillmentStatus:  stepCopy.status,
-          fulfillmentHistory: [...histCopy],
-          tracking:           newEvent.trackingCode ?? order.tracking,
-        }))
-      }, accDelay)
+    const orderStatusMap: Partial<Record<FulfillmentStatus, Order['status']>> = {
+      preparing:         'preparing',
+      handed_to_carrier: 'shipped',
+      in_transit:        'shipped',
+      out_for_delivery:  'shipped',
+      delivered:         'delivered',
     }
+
+    const poll = async () => {
+      const attempt = (pollAttemptsRef.current[orderId] ?? 0) + 1
+      pollAttemptsRef.current[orderId] = attempt
+      if (attempt > POLL_MAX_ATTEMPTS) return
+
+      try {
+        const timeline = await getFulfillmentTimeline(orderId)
+        if (timeline.length > 0) {
+          const prev = fulfillmentHistoryRef.current[orderId] ?? []
+          if (timeline.length !== prev.length) {
+            fulfillmentHistoryRef.current[orderId] = timeline
+            const last = timeline[timeline.length - 1]
+            updateOrderMessage(orderId, order => ({
+              ...order,
+              status:             orderStatusMap[last.status] ?? order.status,
+              fulfillmentStatus:  last.status,
+              fulfillmentHistory: timeline,
+              tracking:           last.trackingCode ?? order.tracking,
+            }))
+          }
+          const last = timeline[timeline.length - 1]
+          if (last.status !== 'delivered' && last.status !== 'cancelled') {
+            pollTimersRef.current[orderId] = setTimeout(poll, POLL_INTERVAL_MS)
+          }
+          return
+        }
+      } catch { /* fallback local */ }
+
+      // Fallback simulação local (UsarPostgres=false)
+      if (attempt === 1) {
+        let accDelay = 0
+        const history = fulfillmentHistoryRef.current[orderId]
+        for (const step of SIMULATION_PIPELINE) {
+          accDelay += step.delay
+          const stepCopy = { ...step }
+          setTimeout(() => {
+            const newEvent: FulfillmentEvent = {
+              status:       stepCopy.status,
+              description:  stepCopy.description,
+              occurredAt:   new Date().toISOString(),
+              location:     stepCopy.location,
+              trackingCode: stepCopy.status === 'handed_to_carrier'
+                ? `BR${orderId.slice(0, 6).toUpperCase()}001` : undefined,
+            }
+            history.push(newEvent)
+            fulfillmentHistoryRef.current[orderId] = [...history]
+            try { localStorage.setItem(LS_FULFILLMENT_KEY, JSON.stringify([...history])) } catch { }
+            if (newEvent.trackingCode) {
+              try { localStorage.setItem(LS_TRACKING_KEY, newEvent.trackingCode) } catch { }
+            }
+            updateOrderMessage(orderId, order => ({
+              ...order,
+              status:             orderStatusMap[stepCopy.status] ?? order.status,
+              fulfillmentStatus:  stepCopy.status,
+              fulfillmentHistory: [...history],
+              tracking:           newEvent.trackingCode ?? order.tracking,
+            }))
+          }, accDelay)
+        }
+      }
+    }
+
+    pollTimersRef.current[orderId] = setTimeout(poll, 3000)
   }, [updateOrderMessage])
 
   const sendMessage = useCallback(async (text: string) => {
@@ -337,7 +402,7 @@ export function useChat() {
     setIsTyping(true)
     try {
       const amount = confirmedTotalRef.current > 0 ? confirmedTotalRef.current : (session.cart?.total ?? 0)
-      const res    = await createPayment(orderId, method, amount, idempotencyKey)
+      const res    = await createPayment(orderId, method, amount, idempotencyKey, getOrCreateSession())
       advanceStep('payment')
       const intent  = method === 'pix' ? 'payment_pix' : 'payment_card'
       const payment = {
@@ -367,10 +432,8 @@ export function useChat() {
     const orderTotal = confirmedTotalRef.current > 0 ? confirmedTotalRef.current : 0
     confirmedTotalRef.current = 0
 
-    // Captura itens ANTES de zerar o carrinho
     const cartSnapshot = session.cart?.items ?? []
 
-    // Novo sessionId — evita duplicação de itens na 2ª compra
     clearSession()
     const newSessionId = createSession()
     sessionRef.current = newSessionId
@@ -415,7 +478,21 @@ export function useChat() {
       fulfillmentHistory: initialHistory,
     }
 
-    saveOrderToList(newOrder)
+    // Verifica se API persistiu (UsarPostgres=true) — se sim, não duplica no LS
+    getOrders(newSessionId)
+      .then(apiOrders => {
+        const found = apiOrders.some(o => o.orderId === orderId)
+        if (found) {
+          apiPersistedRef.current[orderId] = true
+        } else {
+          // API não tem o pedido (UsarPostgres=false) — salva no LS como fallback
+          saveOrderToListFallback(newOrder)
+        }
+      })
+      .catch(() => {
+        // Falha de rede → salva no LS como fallback
+        saveOrderToListFallback(newOrder)
+      })
 
     pushMessage({
       role: 'bot',
@@ -424,11 +501,36 @@ export function useChat() {
       data: { type: 'order', order: newOrder },
     })
 
-    startFulfillmentSimulation(orderId, orderTotal)
-  }, [pushMessage, advanceStep, startFulfillmentSimulation, session.cart, session.confirmedTotal])
+    startFulfillmentPolling(orderId, initialHistory)
+  }, [pushMessage, advanceStep, startFulfillmentPolling, session.cart, session.confirmedTotal])
 
-  // FIX #1: handleViewOrders — sem pushMessage de texto, direto o card
-  const handleViewOrders = useCallback(() => {
+  const handleViewOrders = useCallback(async () => {
+    const sessionId = getOrCreateSession()
+
+    // 1. API primeiro (UsarPostgres=true)
+    try {
+      const apiOrders = await getOrders(sessionId)
+      if (apiOrders.length > 0) {
+        apiOrders.forEach(o => { apiPersistedRef.current[o.orderId] = true })
+        const localList = loadOrdersList()
+        const merged = apiOrders.map(apiOrder => {
+          const local = localList.find(o => o.orderId === apiOrder.orderId)
+          return local ? {
+            ...apiOrder,
+            fulfillmentHistory: local.fulfillmentHistory ?? apiOrder.fulfillmentHistory,
+            tracking:           local.tracking ?? apiOrder.tracking,
+          } : apiOrder
+        })
+        upsertBotMessage({
+          role: 'bot', text: '', intent: 'order_list',
+          data: { type: 'orders', orders: merged },
+        })
+        advanceStep('order')
+        return
+      }
+    } catch { /* fallback localStorage */ }
+
+    // 2. Fallback: localStorage (UsarPostgres=false)
     const list = loadOrdersList()
 
     if (list.length === 0) {
@@ -449,7 +551,6 @@ export function useChat() {
             createdAt:  new Date().toISOString(),
             fulfillmentHistory: savedFulfillment ? JSON.parse(savedFulfillment) : [],
           }
-          // upsert para não duplicar ao clicar várias vezes
           upsertBotMessage({
             role: 'bot', text: '', intent: 'order_list',
             data: { type: 'orders', orders: [order] },
@@ -462,14 +563,13 @@ export function useChat() {
       return
     }
 
-    // sem texto na bolha — só o card
     setMessages(prev => [...prev, {
       id: makeId(), role: 'bot' as const, timestamp: new Date(),
       text: '', intent: 'order_list',
       data: { type: 'orders', orders: list },
     }])
     advanceStep('order')
-  }, [pushMessage, advanceStep])
+  }, [getOrCreateSession, pushMessage, upsertBotMessage, advanceStep])
 
   const handleRestorePreviousOrder = useCallback(() => {
     handleViewOrders()

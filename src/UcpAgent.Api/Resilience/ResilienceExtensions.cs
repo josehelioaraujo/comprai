@@ -20,16 +20,15 @@ public static class ResilienceExtensions
             // 1⃣ Timeout — cancela request se demorar demais
             pipeline.AddTimeout(TimeSpan.FromSeconds(options.Timeout.TimeoutSeconds));
 
-            // 2⃣ Retry — backoff exponencial + jitter (pulado se MaxAttempts <= 0)
+            // 2⃣ Retry — backoff exponencial + jitter
+            //   BackoffType (Exponential) e UseJitter (true) sao defaults de HttpRetryStrategyOptions.
             if (options.Retry.MaxAttempts > 0)
             {
                 pipeline.AddRetry(new HttpRetryStrategyOptions
                 {
                     MaxRetryAttempts = options.Retry.MaxAttempts,
-                    BackoffType = DelayBackoffType.Exponential,
-                    UseJitter = true,
-                    Delay = TimeSpan.FromSeconds(options.Retry.BaseDelaySeconds),
-                    ShouldHandle = new PredicateBuilder<HttpResponseMessage>()
+                    Delay            = TimeSpan.FromSeconds(options.Retry.BaseDelaySeconds),
+                    ShouldHandle     = new PredicateBuilder<System.Net.Http.HttpResponseMessage>()
                         .Handle<HttpRequestException>()
                         .HandleResult(r =>
                             (int)r.StatusCode >= 500 ||
@@ -38,14 +37,14 @@ public static class ResilienceExtensions
                 });
             }
 
-            // 3⃣ Circuit Breaker — abre o circuito quando taxa de falha excede o limiar
+            // 3⃣ Circuit Breaker — abre quando taxa de falha excede o limiar
             pipeline.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
             {
-                FailureRatio = options.CircuitBreaker.FailureRatio,
+                FailureRatio      = options.CircuitBreaker.FailureRatio,
                 MinimumThroughput = options.CircuitBreaker.MinimumThroughput,
-                SamplingDuration = TimeSpan.FromSeconds(options.CircuitBreaker.SamplingDurationSeconds),
-                BreakDuration = TimeSpan.FromSeconds(options.CircuitBreaker.BreakDurationSeconds),
-                ShouldHandle = new PredicateBuilder<HttpResponseMessage>()
+                SamplingDuration  = TimeSpan.FromSeconds(options.CircuitBreaker.SamplingDurationSeconds),
+                BreakDuration     = TimeSpan.FromSeconds(options.CircuitBreaker.BreakDurationSeconds),
+                ShouldHandle      = new PredicateBuilder<System.Net.Http.HttpResponseMessage>()
                     .Handle<HttpRequestException>()
                     .HandleResult(r => (int)r.StatusCode >= 500)
             });

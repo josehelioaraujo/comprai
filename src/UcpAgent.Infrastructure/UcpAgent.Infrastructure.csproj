@@ -6,10 +6,18 @@
     <RootNamespace>UcpAgent.Infrastructure</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="Confluent.Kafka" Version="2.6.3" />
     <PackageReference Include="RabbitMQ.Client" Version="7.1.2" />
     <PackageReference Include="StackExchange.Redis" Version="2.*" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.*" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="9.4.0" />
+    <PackageReference Include="Dapper" Version="2.1.35" />
+    <PackageReference Include="Npgsql" Version="9.0.3" />
+    <PackageReference Include="dbup-postgresql" Version="5.0.23" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Persistence\Migrations\*.sql" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\UcpAgent.SharedKernel\UcpAgent.SharedKernel.csproj" />

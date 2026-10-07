@@ -12,8 +12,11 @@ const VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? '0.1.0'
 const GIT_SHA = process.env.NEXT_PUBLIC_GIT_SHA ?? 'dev'
 
 export default function ChatPage() {
-  const { messages, session, cartCount, isTyping, sendMessage,
-    handleAddToCart, handleViewCart, handleCheckout, handlePayment, handlePaymentConfirmed, handleQuantityChange } = useChat()
+  const {
+    messages, session, cartCount, isTyping, sendMessage,
+    handleAddToCart, handleViewCart, handleCheckout,
+    handlePayment, handlePaymentConfirmed, handleDismissMessage, handleQuantityChange,
+  } = useChat()
   const { theme, toggle } = useTheme()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
@@ -53,10 +56,16 @@ export default function ChatPage() {
           </div>
         </div>
         <UcpProgressBar step={session.step} cartCount={cartCount} onCartClick={handleViewCart} />
-        <ChatWindow messages={messages} isTyping={isTyping}
-          onAddToCart={handleAddToCart} onCheckout={handleCheckout}
-          onPayment={handlePayment} onPaymentConfirmed={handlePaymentConfirmed}
-          onQuantityChange={handleQuantityChange} />
+        <ChatWindow
+          messages={messages}
+          isTyping={isTyping}
+          onAddToCart={handleAddToCart}
+          onCheckout={handleCheckout}
+          onPayment={handlePayment}
+          onPaymentConfirmed={handlePaymentConfirmed}
+          onDismissMessage={handleDismissMessage}
+          onQuantityChange={handleQuantityChange}
+        />
         <ChatInput onSend={sendMessage} disabled={isTyping}
           cartCount={cartCount} onViewCart={handleViewCart} />
       </div>

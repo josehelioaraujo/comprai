@@ -10,6 +10,7 @@ namespace UcpAgent.Api.RateLimit;
 public static class RateLimitExtensions
 {
     public const string CatalogPolicy = "catalog";
+    public const string AuthPolicy    = "auth";
 
     public static IServiceCollection AddCatalogRateLimiter(
         this IServiceCollection services,
@@ -21,6 +22,7 @@ public static class RateLimitExtensions
 
         services.AddRateLimiter(rl =>
         {
+            // ── Catálogo (Fixed Window) ────────────────────────────────────
             rl.AddFixedWindowLimiter(CatalogPolicy, o =>
             {
                 o.PermitLimit          = opts.FixedWindow.PermitLimit;
@@ -29,15 +31,24 @@ public static class RateLimitExtensions
                 o.QueueLimit           = opts.FixedWindow.QueueLimit;
             });
 
+            // ── Auth — login / register (Sliding Window por IP) ───────────
+            // 5 tentativas por 60 segundos — previne brute force
+            rl.AddSlidingWindowLimiter(AuthPolicy, o =>
+            {
+                o.PermitLimit          = 5;
+                o.Window               = TimeSpan.FromSeconds(60);
+                o.SegmentsPerWindow    = 6;
+                o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+                o.QueueLimit           = 0;
+            });
+
             rl.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
-            // Informa ao cliente quando pode tentar novamente e registra o evento
             rl.OnRejected = (ctx, _) =>
             {
-                // Prefere metadado do lease; cai no WindowSeconds como fallback
                 var retrySeconds = ctx.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter)
                     ? (long)retryAfter.TotalSeconds
-                    : (long)opts.FixedWindow.WindowSeconds;
+                    : 60L;
 
                 ctx.HttpContext.Response.Headers.RetryAfter =
                     retrySeconds.ToString(CultureInfo.InvariantCulture);
@@ -47,9 +58,9 @@ public static class RateLimitExtensions
                     .CreateLogger(nameof(RateLimitExtensions));
 
                 logger.LogWarning(
-                    "Rate limit excedido — policy={Policy} path={Path} retryAfter={RetryAfter}s",
-                    CatalogPolicy,
+                    "Rate limit excedido — path={Path} ip={Ip} retryAfter={RetryAfter}s",
                     ctx.HttpContext.Request.Path,
+                    ctx.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "-",
                     retrySeconds);
 
                 return ValueTask.CompletedTask;

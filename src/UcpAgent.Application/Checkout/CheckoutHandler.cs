@@ -10,7 +10,8 @@ public sealed class CheckoutHandler(ICheckoutPort checkout, UcpMetrics metrics)
     public async Task<Result<CheckoutResultDto>> Handle(CheckoutCommand request, CancellationToken cancellationToken)
     {
         metrics.CheckoutTotal.Add(1);
-        var result = await checkout.ProcessAsync(request.SessionId, request.Customer, cancellationToken);
+        var result = await checkout.ProcessAsync(
+            request.SessionId, request.Customer, request.CustomerId, cancellationToken);
 
         if (result.Success)
         {
