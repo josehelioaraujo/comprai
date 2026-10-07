@@ -1,8 +1,8 @@
-import NextAuth from 'next-auth'
-import Google    from 'next-auth/providers/google'
-import GitHub    from 'next-auth/providers/github'
-import Microsoft from 'next-auth/providers/microsoft-entra-id'
-import Credentials from 'next-auth/providers/credentials'
+import NextAuth      from 'next-auth'
+import Google        from 'next-auth/providers/google'
+import GitHub        from 'next-auth/providers/github'
+import MicrosoftEntraId from 'next-auth/providers/microsoft-entra-id'
+import Credentials   from 'next-auth/providers/credentials'
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5020'
 
@@ -16,15 +16,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       clientId:     process.env.GITHUB_CLIENT_ID!,
       clientSecret: process.env.GITHUB_CLIENT_SECRET!,
     }),
-    Microsoft({
+    MicrosoftEntraId({
       clientId:     process.env.MICROSOFT_CLIENT_ID!,
       clientSecret: process.env.MICROSOFT_CLIENT_SECRET!,
       tenantId:     process.env.MICROSOFT_TENANT_ID ?? 'common',
     }),
     Credentials({
       credentials: {
-        email:    { label: 'Email',  type: 'email' },
-        password: { label: 'Senha',  type: 'password' },
+        email:    { label: 'Email', type: 'email' },
+        password: { label: 'Senha', type: 'password' },
       },
       async authorize(credentials) {
         try {
@@ -49,8 +49,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
 
   callbacks: {
-    async signIn({ user, account, profile }) {
-      // SSO: upsert customer no backend
+    async signIn({ user, account }) {
       if (account?.provider && account.provider !== 'credentials') {
         try {
           await fetch(`${BASE_URL}/api/auth/callback`, {
@@ -64,15 +63,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               avatarUrl:  user.image ?? null,
             }),
           })
-        } catch { /* continua mesmo com erro no backend */ }
+        } catch { /* continua mesmo com erro */ }
       }
       return true
     },
 
     async jwt({ token, user, account }) {
       if (user) {
-        token.customerId = (user as any).id
-        token.provider   = account?.provider ?? 'credentials'
+        token.customerId   = (user as any).id
+        token.provider     = account?.provider ?? 'credentials'
         token.backendToken = (user as any).token ?? null
       }
       return token
