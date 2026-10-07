@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ChatMessage, Product, PaymentMethod, PaymentProvider } from '@/types/ucp'
 import type { CustomerDto } from '@/components/ucp/CartCard'
 import IntentRenderer from '@/components/IntentRenderer'
+import { useAuth } from '@/lib/useAuth'
 
 interface Props {
   messages: ChatMessage[]
@@ -39,11 +40,26 @@ export default function ChatWindow({
   const bottomRef = useRef<HTMLDivElement>(null)
   const [mounted, setMounted] = useState(false)
   const [showLogs, setShowLogs] = useState(false)
+  const { user, profile, defaultAddress } = useAuth()
 
   useEffect(() => { setMounted(true) }, [])
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, isTyping])
 
   const logMessages = messages.filter(m => m.idempotencyKey)
+
+  // Monta defaultCustomer a partir dos dados do usuário autenticado
+  const defaultCustomer: Partial<CustomerDto> | undefined = user ? {
+    name:         profile?.name  ?? user.name ?? '',
+    email:        profile?.email ?? user.email ?? '',
+    cep:          defaultAddress?.zipCode      ?? '',
+    street:       defaultAddress?.street       ?? '',
+    number:       defaultAddress?.number       ?? '',
+    complement:   defaultAddress?.complement   ?? '',
+    neighborhood: defaultAddress?.neighborhood ?? '',
+    city:         defaultAddress?.city         ?? '',
+    state:        defaultAddress?.state        ?? '',
+    document:     profile?.document            ?? '',
+  } : undefined
 
   if (!mounted) return null
 
@@ -125,6 +141,7 @@ export default function ChatWindow({
                 onPaymentConfirmed={onPaymentConfirmed}
                 onDismissMessage={onDismissMessage}
                 onQuantityChange={onQuantityChange}
+                defaultCustomer={defaultCustomer}
               />
             </div>
           )}

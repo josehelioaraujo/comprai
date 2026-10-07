@@ -17,11 +17,13 @@ interface Props {
   onPaymentConfirmed: (orderId: string, detail?: string) => void
   onDismissMessage: (id: string) => void
   onQuantityChange?: (productId: string, qty: number) => void
+  /** Dados do usuário autenticado para pré-preenchimento do checkout */
+  defaultCustomer?: Partial<CustomerDto>
 }
 
 export default function IntentRenderer({
   message, onAddToCart, onCheckout, onPayment,
-  onPaymentConfirmed, onDismissMessage, onQuantityChange,
+  onPaymentConfirmed, onDismissMessage, onQuantityChange, defaultCustomer,
 }: Props) {
   const { intent, data } = message
   if (!intent || !data) return null
@@ -40,6 +42,7 @@ export default function IntentRenderer({
     case 'checkout':
       if (data.type === 'checkout')
         return <CheckoutCard checkout={data.checkout}
+          defaultCustomer={defaultCustomer}
           onPayment={(method) => onPayment(data.checkout.orderId, 'mock', method)} />
       return null
 
@@ -49,7 +52,6 @@ export default function IntentRenderer({
           payment={data.payment}
           onConfirmed={(detail) => {
             onPaymentConfirmed(data.payment.orderId, detail)
-            // Opção A: fecha o card automaticamente após confirmação
             setTimeout(() => onDismissMessage(message.id), 800)
           }}
         />
@@ -61,7 +63,6 @@ export default function IntentRenderer({
           payment={data.payment}
           onConfirmed={(detail) => {
             onPaymentConfirmed(data.payment.orderId, detail)
-            // Opção A: fecha o card automaticamente após confirmação
             setTimeout(() => onDismissMessage(message.id), 800)
           }}
         />

@@ -1,27 +1,38 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { CheckoutData, PaymentMethod } from '@/types/ucp'
+import type { CustomerDto } from '@/components/ucp/CartCard'
 
 interface Props {
   checkout: CheckoutData
   onPayment: (method: PaymentMethod) => void
   onClose?: () => void
+  /** Dados do usuário autenticado para pré-preenchimento */
+  defaultCustomer?: Partial<CustomerDto>
 }
 
 function fmt(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
-export default function CheckoutCard({ checkout, onPayment, onClose }: Props) {
+export default function CheckoutCard({ checkout, onPayment, onClose, defaultCustomer }: Props) {
   const [dismissed, setDismissed]   = useState(false)
   const [paying, setPaying]         = useState(false)
   const [paidMethod, setPaidMethod] = useState<PaymentMethod | null>(null)
+  const [showInfo, setShowInfo]     = useState(false)
 
   const orderId      = checkout?.orderId ?? ''
   const total        = checkout?.total ?? 0
   const isFree       = checkout?.isFreeShipping ?? false
   const shippingCost = checkout?.shippingCost ?? 0
+
+  // Exibe resumo dos dados do comprador se veio pré-preenchido
+  const hasCustomer = !!defaultCustomer?.name || !!defaultCustomer?.email
+
+  useEffect(() => {
+    if (hasCustomer) setShowInfo(true)
+  }, [hasCustomer])
 
   if (dismissed) return null
 
@@ -54,6 +65,26 @@ export default function CheckoutCard({ checkout, onPayment, onClose }: Props) {
           </svg>
         </button>
       </div>
+
+      {/* Dados do comprador (pré-preenchido via auth) */}
+      {showInfo && hasCustomer && (
+        <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)', background: 'rgba(124,58,237,0.06)' }}>
+          <p className="text-xs mb-1.5" style={{ color: 'var(--muted)' }}>👤 Comprador</p>
+          <div className="flex flex-col gap-0.5">
+            {defaultCustomer?.name && (
+              <span className="text-xs font-medium" style={{ color: 'var(--text)' }}>{defaultCustomer.name}</span>
+            )}
+            {defaultCustomer?.email && (
+              <span className="text-[10px] font-mono" style={{ color: 'var(--muted)' }}>{defaultCustomer.email}</span>
+            )}
+            {defaultCustomer?.cep && (
+              <span className="text-[10px]" style={{ color: 'var(--muted)' }}>
+                📍 {[defaultCustomer.street, defaultCustomer.number].filter(Boolean).join(', ')}{defaultCustomer.city ? ` — ${defaultCustomer.city}/${defaultCustomer.state}` : ''}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Total */}
       <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)' }}>
