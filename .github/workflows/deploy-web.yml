@@ -100,6 +100,15 @@ jobs:
               --network comprai-network \
               -p ${{ env.WEB_PORT }}:${{ env.WEB_PORT }} \
               -e NODE_ENV=production \
+              -e NEXTAUTH_URL=http://${{ env.VPS_HOST }}:${{ env.WEB_PORT }} \
+              -e NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }} \
+              -e GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }} \
+              -e GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }} \
+              -e GITHUB_CLIENT_ID=${{ secrets.GITHUB_CLIENT_ID }} \
+              -e GITHUB_CLIENT_SECRET=${{ secrets.GITHUB_CLIENT_SECRET }} \
+              -e MICROSOFT_CLIENT_ID=${{ secrets.MICROSOFT_CLIENT_ID }} \
+              -e MICROSOFT_CLIENT_SECRET=${{ secrets.MICROSOFT_CLIENT_SECRET }} \
+              -e MICROSOFT_TENANT_ID=${{ secrets.MICROSOFT_TENANT_ID }} \
               ${{ env.IMAGE }}:latest
             sleep 8
             curl -sf http://localhost:${{ env.WEB_PORT }}/ && echo "✅ ${{ steps.version.outputs.version }} OK" || { docker logs comprai-web --tail 20; exit 1; }
