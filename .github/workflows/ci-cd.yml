@@ -712,4 +712,38 @@ jobs:
           path: ./newman-report/smoke-report.html
           if-no-files-found: ignore
 
+  pentest:
+    name: 🔐 Pentest Strix
+    runs-on: ubuntu-latest
+    # Executa apenas via workflow_dispatch — não bloqueia o CI normal
+    if: github.event_name == 'workflow_dispatch'
+    needs: smoke-tests
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
+      - name: Install Strix CLI
+        run: pip install strix-cli --quiet
+
+      - name: Run Strix Pentest
+        env:
+          API_BASE: http://${{ env.VPS_HOST }}:${{ env.API_PORT }}
+        run: |
+          echo "🔍 Iniciando varredura Strix em $API_BASE"
+          strix scan \
+            --target "$API_BASE" \
+            --checks headers,jwt,sqli,xss,cors,cve \
+            --output strix-report.json \
+            --format json \
+            --fail-on high || true
+          echo "✅ Varredura concluída"
+
+      - name: Upload Strix Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: strix-pentest-report
+          path: strix-report.json
+          if-no-files-found: ignore
