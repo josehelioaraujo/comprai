@@ -3,7 +3,6 @@ using UcpAgent.SharedKernel.Ports;
 
 namespace UcpAgent.Infrastructure.Persistence.Repositories;
 
-/// <summary>Stub no-op para quando UsarPostgres=false (testes / mock mode).</summary>
 [ExcludeFromCodeCoverage]
 public sealed class NullAuthPort : IAuthPort
 {
@@ -18,4 +17,10 @@ public sealed class NullAuthPort : IAuthPort
 
     public Task<AuthCustomerDto?> GetByIdAsync(string customerId, CancellationToken ct = default)
         => Task.FromResult<AuthCustomerDto?>(null);
+
+    public Task<AuthCustomerDto?> UpdateProfileAsync(UpdateProfileRequest request, CancellationToken ct = default)
+        => Task.FromResult<AuthCustomerDto?>(null);
+
+    public Task<CustomerAddressDto?> SaveAddressAsync(SaveAddressRequest request, CancellationToken ct = default)
+        => Task.FromResult<CustomerAddressDto?>(null);
 }

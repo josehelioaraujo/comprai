@@ -16,16 +16,14 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
         if (exists) return null;
 
         var hash = BCrypt.Net.BCrypt.HashPassword(req.Password);
-
         var row = await conn.QuerySingleAsync<CustomerRow>(
             """
             INSERT INTO customer (name, email, document, provider, provider_id, password_hash, email_verified, channel)
             VALUES (@Name, @Email, @Document, 'credentials', NULL, @Hash, FALSE, 'web')
-            RETURNING id, name, email, provider, avatar_url, email_verified
+            RETURNING id, name, email, provider, avatar_url, email_verified, phone, document
             """,
             new { req.Name, req.Email, req.Document, Hash = hash });
-
-        return ToDto(row);
+        return ToDto(row, null);
     }
 
     public async Task<AuthCustomerDto?> LoginAsync(string email, string password, CancellationToken ct = default)
@@ -33,16 +31,14 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
         using var conn = await db.CreateAsync(ct);
         var row = await conn.QuerySingleOrDefaultAsync<CustomerRow>(
             """
-            SELECT id, name, email, provider, avatar_url, email_verified, password_hash
+            SELECT id, name, email, provider, avatar_url, email_verified, phone, document, password_hash
             FROM customer
             WHERE email = @Email AND provider = 'credentials'
             """,
             new { Email = email });
-
         if (row is null) return null;
         if (!BCrypt.Net.BCrypt.Verify(password, row.PasswordHash)) return null;
-
-        return ToDto(row);
+        return ToDto(row, null);
     }
 
     public async Task<AuthCustomerDto> SsoCallbackAsync(SsoCallbackRequest req, CancellationToken ct = default)
@@ -56,25 +52,93 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
                 SET name        = EXCLUDED.name,
                     avatar_url  = EXCLUDED.avatar_url,
                     updated_at  = NOW()
-            RETURNING id, name, email, provider, avatar_url, email_verified
+            RETURNING id, name, email, provider, avatar_url, email_verified, phone, document
             """,
             new { req.Name, req.Email, req.Provider, ProviderId = req.ProviderId, req.AvatarUrl });
-
-        return ToDto(row);
+        return ToDto(row, null);
     }
 
     public async Task<AuthCustomerDto?> GetByIdAsync(string customerId, CancellationToken ct = default)
     {
         using var conn = await db.CreateAsync(ct);
         var row = await conn.QuerySingleOrDefaultAsync<CustomerRow>(
-            "SELECT id, name, email, provider, avatar_url, email_verified FROM customer WHERE id = @Id",
+            "SELECT id, name, email, provider, avatar_url, email_verified, phone, document FROM customer WHERE id = @Id",
             new { Id = customerId });
+        if (row is null) return null;
 
-        return row is null ? null : ToDto(row);
+        var addresses = (await conn.QueryAsync<AddressRow>(
+            """
+            SELECT id, label, zip_code, street, number, complement, neighborhood, city, state, is_default
+            FROM customer_address
+            WHERE customer_id = @Id
+            ORDER BY is_default DESC, created_at DESC
+            """,
+            new { Id = customerId })).ToList();
+
+        return ToDto(row, addresses);
     }
 
-    private static AuthCustomerDto ToDto(CustomerRow r) =>
-        new(r.Id.ToString(), r.Name, r.Email, r.Provider, r.AvatarUrl, r.EmailVerified);
+    public async Task<AuthCustomerDto?> UpdateProfileAsync(UpdateProfileRequest req, CancellationToken ct = default)
+    {
+        using var conn = await db.CreateAsync(ct);
+        var row = await conn.QuerySingleOrDefaultAsync<CustomerRow>(
+            """
+            UPDATE customer
+            SET name       = @Name,
+                phone      = @Phone,
+                document   = @Document,
+                updated_at = NOW()
+            WHERE id = @Id
+            RETURNING id, name, email, provider, avatar_url, email_verified, phone, document
+            """,
+            new { req.Name, req.Phone, req.Document, Id = req.CustomerId });
+        return row is null ? null : ToDto(row, null);
+    }
+
+    public async Task<CustomerAddressDto?> SaveAddressAsync(SaveAddressRequest req, CancellationToken ct = default)
+    {
+        using var conn = await db.CreateAsync(ct);
+
+        // Se IsDefault, remove default dos outros
+        if (req.IsDefault)
+            await conn.ExecuteAsync(
+                "UPDATE customer_address SET is_default = FALSE WHERE customer_id = @Id",
+                new { Id = req.CustomerId });
+
+        var row = await conn.QuerySingleOrDefaultAsync<AddressRow>(
+            """
+            INSERT INTO customer_address
+                (customer_id, label, zip_code, street, number, complement, neighborhood, city, state, is_default)
+            VALUES
+                (@CustomerId, @Label, @ZipCode, @Street, @Number, @Complement, @Neighborhood, @City, @State, @IsDefault)
+            ON CONFLICT (customer_id, zip_code, number) DO UPDATE
+                SET label        = EXCLUDED.label,
+                    street       = EXCLUDED.street,
+                    complement   = EXCLUDED.complement,
+                    neighborhood = EXCLUDED.neighborhood,
+                    city         = EXCLUDED.city,
+                    state        = EXCLUDED.state,
+                    is_default   = EXCLUDED.is_default
+            RETURNING id, label, zip_code, street, number, complement, neighborhood, city, state, is_default
+            """,
+            new {
+                CustomerId   = req.CustomerId,
+                Label        = req.Label ?? "principal",
+                req.ZipCode, req.Street, req.Number, req.Complement,
+                req.Neighborhood, req.City, req.State, req.IsDefault
+            });
+        return row is null ? null : ToAddressDto(row);
+    }
+
+    // ── helpers ──────────────────────────────────────────────────────────────
+    private static AuthCustomerDto ToDto(CustomerRow r, List<AddressRow>? addresses) =>
+        new(r.Id.ToString(), r.Name, r.Email, r.Provider, r.AvatarUrl, r.EmailVerified,
+            r.Phone, r.Document,
+            addresses?.Select(ToAddressDto).ToList());
+
+    private static CustomerAddressDto ToAddressDto(AddressRow a) =>
+        new(a.Id.ToString(), a.Label ?? "", a.ZipCode, a.Street,
+            a.Number, a.Complement, a.Neighborhood, a.City, a.State, a.IsDefault);
 
     private sealed class CustomerRow
     {
@@ -84,6 +148,22 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
         public string  Provider      { get; init; } = "";
         public string? AvatarUrl     { get; init; }
         public bool    EmailVerified { get; init; }
+        public string? Phone         { get; init; }
+        public string? Document      { get; init; }
         public string? PasswordHash  { get; init; }
+    }
+
+    private sealed class AddressRow
+    {
+        public Guid    Id           { get; init; }
+        public string? Label        { get; init; }
+        public string  ZipCode      { get; init; } = "";
+        public string  Street       { get; init; } = "";
+        public string? Number       { get; init; }
+        public string? Complement   { get; init; }
+        public string? Neighborhood { get; init; }
+        public string  City         { get; init; } = "";
+        public string  State        { get; init; } = "";
+        public bool    IsDefault    { get; init; }
     }
 }
