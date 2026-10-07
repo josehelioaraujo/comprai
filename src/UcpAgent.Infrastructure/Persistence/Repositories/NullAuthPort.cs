@@ -33,4 +33,11 @@ public sealed class NullAuthPort : IAuthPort
 
     public Task RevokeRefreshTokenAsync(string customerId, CancellationToken ct = default)
         => Task.CompletedTask;
+
+    // V060-F1: Email Verification — no-op no Null Object
+    public Task SaveVerificationCodeAsync(string customerId, string code, DateTime expiresAt, CancellationToken ct = default)
+        => Task.CompletedTask;
+
+    public Task<bool> VerifyEmailCodeAsync(string customerId, string code, CancellationToken ct = default)
+        => Task.FromResult(false);
 }

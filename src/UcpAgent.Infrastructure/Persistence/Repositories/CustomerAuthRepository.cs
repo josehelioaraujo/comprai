@@ -173,6 +173,40 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
             new { Id = customerId });
     }
 
+    // ── V060-F1: Email Verification ──────────────────────────────────────────
+
+    public async Task SaveVerificationCodeAsync(string customerId, string code, DateTime expiresAt, CancellationToken ct = default)
+    {
+        using var conn = await db.CreateAsync(ct);
+        await conn.ExecuteAsync(
+            """
+            UPDATE customer
+            SET email_verification_token      = @Code,
+                email_verification_expires_at = @ExpiresAt,
+                updated_at                    = NOW()
+            WHERE id = @Id
+            """,
+            new { Code = code, ExpiresAt = expiresAt, Id = customerId });
+    }
+
+    public async Task<bool> VerifyEmailCodeAsync(string customerId, string code, CancellationToken ct = default)
+    {
+        using var conn = await db.CreateAsync(ct);
+        var affected = await conn.ExecuteAsync(
+            """
+            UPDATE customer
+            SET email_verified                = TRUE,
+                email_verification_token      = NULL,
+                email_verification_expires_at = NULL,
+                updated_at                    = NOW()
+            WHERE id                          = @Id
+              AND email_verification_token      = @Code
+              AND email_verification_expires_at > NOW()
+            """,
+            new { Id = customerId, Code = code });
+        return affected > 0;
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
     private static AuthCustomerDto ToDto(CustomerRow r, List<AddressRow>? addresses) =>
         new(r.Id.ToString(), r.Name, r.Email, r.Provider, r.AvatarUrl, r.EmailVerified,

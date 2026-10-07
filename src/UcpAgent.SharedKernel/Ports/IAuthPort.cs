@@ -85,4 +85,18 @@ public interface IAuthPort
 
     /// <summary>Invalida o refresh token atual (logout ou rotação).</summary>
     Task RevokeRefreshTokenAsync(string customerId, CancellationToken ct = default);
+
+    // ── V060-F1: Email Verification ──────────────────────────────────────
+
+    /// <summary>
+    /// Persiste o código OTP de 6 caracteres e sua expiração no customer.
+    /// Chamado antes de disparar o e-mail via Resend.
+    /// </summary>
+    Task SaveVerificationCodeAsync(string customerId, string code, DateTime expiresAt, CancellationToken ct = default);
+
+    /// <summary>
+    /// Valida o código OTP: se correto e não expirado, marca email_verified=TRUE e apaga o token.
+    /// Retorna true em caso de sucesso, false caso contrário.
+    /// </summary>
+    Task<bool> VerifyEmailCodeAsync(string customerId, string code, CancellationToken ct = default);
 }
