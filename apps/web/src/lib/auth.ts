@@ -1,49 +1,57 @@
-import NextAuth      from 'next-auth'
-import Google        from 'next-auth/providers/google'
-import GitHub        from 'next-auth/providers/github'
+import NextAuth         from 'next-auth'
+import Google           from 'next-auth/providers/google'
+import GitHub           from 'next-auth/providers/github'
 import MicrosoftEntraId from 'next-auth/providers/microsoft-entra-id'
-import Credentials   from 'next-auth/providers/credentials'
+import Credentials      from 'next-auth/providers/credentials'
+import type { User }    from 'next-auth'
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5020'
+// BASE_URL usa env sem NEXT_PUBLIC_ — server-side only
+const BASE_URL = process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5020'
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
     Google({
-      clientId:     process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      clientId:     process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     }),
     GitHub({
-      clientId:     process.env.GITHUB_CLIENT_ID!,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+      clientId:     process.env.GITHUB_CLIENT_ID,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET,
     }),
     MicrosoftEntraId({
-      clientId:     process.env.MICROSOFT_CLIENT_ID!,
-      clientSecret: process.env.MICROSOFT_CLIENT_SECRET!,
+      clientId:     process.env.MICROSOFT_CLIENT_ID,
+      clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
       tenantId:     process.env.MICROSOFT_TENANT_ID ?? 'common',
     }),
     Credentials({
       credentials: {
-        email:    { label: 'Email', type: 'email' },
-        password: { label: 'Senha', type: 'password' },
+        email:    { label: 'Email',  type: 'email'    },
+        password: { label: 'Senha',  type: 'password' },
       },
-      async authorize(credentials) {
+      authorize: async (credentials): Promise<User | null> => {
         try {
           const res = await fetch(`${BASE_URL}/api/auth/login`, {
-            method: 'POST',
+            method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: credentials.email, password: credentials.password }),
+            body:    JSON.stringify({
+              email:    credentials?.email    ?? '',
+              password: credentials?.password ?? '',
+            }),
           })
           if (!res.ok) return null
-          const data = await res.json()
+          const data = await res.json() as {
+            token: string
+            customer: { id: string; name: string; email: string; avatarUrl?: string }
+          }
           return {
             id:       data.customer.id,
             name:     data.customer.name,
             email:    data.customer.email,
             image:    data.customer.avatarUrl ?? null,
-            token:    data.token,
-            provider: 'credentials',
-          }
-        } catch { return null }
+          } as User
+        } catch {
+          return null
+        }
       },
     }),
   ],
@@ -53,9 +61,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (account?.provider && account.provider !== 'credentials') {
         try {
           await fetch(`${BASE_URL}/api/auth/callback`, {
-            method: 'POST',
+            method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+            body:    JSON.stringify({
               provider:   account.provider,
               providerId: account.providerAccountId,
               name:       user.name  ?? '',
@@ -63,24 +71,23 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               avatarUrl:  user.image ?? null,
             }),
           })
-        } catch { /* continua mesmo com erro */ }
+        } catch { /* best-effort */ }
       }
       return true
     },
 
     async jwt({ token, user, account }) {
       if (user) {
-        token.customerId   = (user as any).id
-        token.provider     = account?.provider ?? 'credentials'
-        token.backendToken = (user as any).token ?? null
+        token.customerId = user.id
+        token.provider   = account?.provider ?? 'credentials'
       }
       return token
     },
 
     async session({ session, token }) {
-      session.user.id       = token.customerId as string
-      session.user.provider = token.provider   as string
-      ;(session as any).backendToken = token.backendToken
+      if (session.user) {
+        session.user.id = token.customerId as string
+      }
       return session
     },
   },
