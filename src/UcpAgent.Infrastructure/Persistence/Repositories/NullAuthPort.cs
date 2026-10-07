@@ -23,4 +23,14 @@ public sealed class NullAuthPort : IAuthPort
 
     public Task<CustomerAddressDto?> SaveAddressAsync(SaveAddressRequest request, CancellationToken ct = default)
         => Task.FromResult<CustomerAddressDto?>(null);
+
+    // V059-F2: Refresh Token — no-op no Null Object
+    public Task SaveRefreshTokenAsync(string customerId, string tokenHash, DateTime expiresAt, CancellationToken ct = default)
+        => Task.CompletedTask;
+
+    public Task<AuthCustomerDto?> GetByRefreshTokenHashAsync(string tokenHash, CancellationToken ct = default)
+        => Task.FromResult<AuthCustomerDto?>(null);
+
+    public Task RevokeRefreshTokenAsync(string customerId, CancellationToken ct = default)
+        => Task.CompletedTask;
 }

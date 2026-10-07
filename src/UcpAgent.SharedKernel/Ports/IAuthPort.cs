@@ -68,4 +68,21 @@ public interface IAuthPort
 
     /// <summary>Salva ou substitui endereço padrão do customer.</summary>
     Task<CustomerAddressDto?> SaveAddressAsync(SaveAddressRequest request, CancellationToken ct = default);
+
+    // ── V059-F2: Refresh Token ────────────────────────────────────────────
+
+    /// <summary>
+    /// Salva hash do refresh token e expiração no customer.
+    /// Chamado após login/register/sso bem-sucedido.
+    /// </summary>
+    Task SaveRefreshTokenAsync(string customerId, string tokenHash, DateTime expiresAt, CancellationToken ct = default);
+
+    /// <summary>
+    /// Busca customer pelo hash do refresh token se ainda válido.
+    /// Retorna null se não encontrado ou expirado.
+    /// </summary>
+    Task<AuthCustomerDto?> GetByRefreshTokenHashAsync(string tokenHash, CancellationToken ct = default);
+
+    /// <summary>Invalida o refresh token atual (logout ou rotação).</summary>
+    Task RevokeRefreshTokenAsync(string customerId, CancellationToken ct = default);
 }

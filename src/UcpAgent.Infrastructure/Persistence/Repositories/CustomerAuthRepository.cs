@@ -99,7 +99,6 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
     {
         using var conn = await db.CreateAsync(ct);
 
-        // Se IsDefault, remove default dos outros
         if (req.IsDefault)
             await conn.ExecuteAsync(
                 "UPDATE customer_address SET is_default = FALSE WHERE customer_id = @Id",
@@ -128,6 +127,50 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
                 req.Neighborhood, req.City, req.State, req.IsDefault
             });
         return row is null ? null : ToAddressDto(row);
+    }
+
+    // ── V059-F2: Refresh Token ────────────────────────────────────────────────
+
+    public async Task SaveRefreshTokenAsync(string customerId, string tokenHash, DateTime expiresAt, CancellationToken ct = default)
+    {
+        using var conn = await db.CreateAsync(ct);
+        await conn.ExecuteAsync(
+            """
+            UPDATE customer
+            SET refresh_token_hash       = @Hash,
+                refresh_token_expires_at = @ExpiresAt,
+                updated_at               = NOW()
+            WHERE id = @Id
+            """,
+            new { Hash = tokenHash, ExpiresAt = expiresAt, Id = customerId });
+    }
+
+    public async Task<AuthCustomerDto?> GetByRefreshTokenHashAsync(string tokenHash, CancellationToken ct = default)
+    {
+        using var conn = await db.CreateAsync(ct);
+        var row = await conn.QuerySingleOrDefaultAsync<CustomerRow>(
+            """
+            SELECT id, name, email, provider, avatar_url, email_verified, phone, document
+            FROM customer
+            WHERE refresh_token_hash = @Hash
+              AND refresh_token_expires_at > NOW()
+            """,
+            new { Hash = tokenHash });
+        return row is null ? null : ToDto(row, null);
+    }
+
+    public async Task RevokeRefreshTokenAsync(string customerId, CancellationToken ct = default)
+    {
+        using var conn = await db.CreateAsync(ct);
+        await conn.ExecuteAsync(
+            """
+            UPDATE customer
+            SET refresh_token_hash       = NULL,
+                refresh_token_expires_at = NULL,
+                updated_at               = NOW()
+            WHERE id = @Id
+            """,
+            new { Id = customerId });
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
