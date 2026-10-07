@@ -1,5 +1,31 @@
 # Changelog
 
+## [V058] — 2026-10-07
+
+### Added
+- `PUT /api/auth/me` — editar nome, telefone e documento do cliente
+- `POST /api/auth/me/address` — salvar endereço de entrega padrão
+- `GET /api/auth/me` agora retorna endereços salvos (`customer_address`)
+- `/account` com formulário de edição de perfil e endereço de entrega
+- `useAuth` expõe `profile` completo (com endereços) e `defaultAddress`
+- Tela de login redesenhada — minimalista, fundo branco, botão roxo `#7c3aed`
+- Next-auth no mobile (Google, GitHub, Microsoft, Credentials)
+- `V003__customer_address_unique.sql` — unique index em `customer_address`
+- `concurrency` nos workflows `deploy-web` e `deploy-mobile` — evita race condition no bump de versão
+
+## [V057] — 2026-10-07
+
+### Added
+- Autenticação completa — JWT HS256, BCrypt, providers SSO multi-plataforma
+- `POST /api/auth/register|login|callback` + `GET /api/auth/me`
+- `order.customer_id` e `session.customer_id` vinculados ao usuário autenticado
+- `/account` — dados da conta; `/profile` — histórico de pedidos + repetir pedido
+- NextAuth.js (Google, GitHub, Microsoft) + tela login dark/laranja
+- Docker projeto renomeado de `deploy` para `comprai` via `-p comprai`
+- `V002__auth_schema.sql` — colunas `provider`, `provider_id`, `password_hash`, `avatar_url`, `email_verified`
+- Seção 🔐 Segurança no README com OAuth, Strix e roadmap de segurança
+
+
 ## [Unreleased] — V057 — Autenticação e Área do Usuário
 
 ### Planejado

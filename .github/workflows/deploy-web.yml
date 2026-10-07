@@ -8,6 +8,10 @@ on:
       - '.github/workflows/deploy-web.yml'
   workflow_dispatch:
 
+concurrency:
+  group: deploy-web-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   IMAGE: ghcr.io/josehelioaraujo/comprai-web
   VPS_HOST: 2.25.122.11

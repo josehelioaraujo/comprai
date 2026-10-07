@@ -1,5 +1,23 @@
 # 🗺️ Roadmap — Comprai
 
+## ✅ V058 — Cadastro de Cliente Completo (out/2026)
+- [x] `PUT /api/auth/me` — editar perfil (nome, telefone, documento)
+- [x] `POST /api/auth/me/address` — endereço de entrega persistido
+- [x] `/account` com formulário de edição
+- [x] `useAuth` com perfil completo e `defaultAddress`
+- [x] Redesign tela de login — minimalista branco/roxo
+- [x] Next-auth no mobile
+- [x] Concurrency nos workflows deploy
+
+## ✅ V057 — Autenticação e Área do Usuário (out/2026)
+- [x] JWT HS256 + BCrypt + endpoints `/api/auth/*`
+- [x] SSO multi-provider (Google, GitHub, Microsoft) via NextAuth.js
+- [x] `order.customer_id` + `session.customer_id` vinculados
+- [x] `/account` + `/profile` (histórico + repetir pedido)
+- [x] Middleware protege `/chat/*`, `/account/*`, `/profile/*`
+- [x] Docker projeto renomeado para `comprai`
+
+
 ## 🔜 V057 — Autenticação e Área do Usuário (próxima)
 
 ### 🔴 Alta Prioridade

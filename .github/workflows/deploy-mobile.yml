@@ -8,6 +8,10 @@ on:
       - '.github/workflows/deploy-mobile.yml'
   workflow_dispatch:
 
+concurrency:
+  group: deploy-mobile-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   IMAGE:    ghcr.io/josehelioaraujo/comprai-mobile
   VPS_HOST: 2.25.122.11

@@ -29,6 +29,7 @@ Comprai é um ecossistema modular open-source que implementa o **Universal Comme
 - [⚙️ Variáveis de Ambiente](#%EF%B8%8F-variáveis-de-ambiente)
 - [📊 Portais de Observabilidade](#-portais-de-observabilidade)
 - [🛡️ Resiliência e Rate Limiting](#️-resiliência-e-rate-limiting)
+- [🔐 Segurança](#-segurança)
 - [🔁 CI/CD Pipeline](#-cicd-pipeline)
 - [🧪 Qualidade & Testes](#-qualidade--testes)
 - [📊 OpsWatch](#-dev-quality-hub)
@@ -786,6 +787,72 @@ A janela redefine automaticamente ao final de cada `WindowSeconds`.
 Ajuste os valores em `appsettings.json` sem recompilar.
 
 </details>
+
+
+## 🔐 Segurança
+
+### Autenticação e Autorização
+
+| Mecanismo | Implementação |
+|---|---|
+| JWT HS256 | `Microsoft.AspNetCore.Authentication.JwtBearer 10.0.0` |
+| Senhas | `BCrypt.Net-Next 4.0.3` (work factor padrão) |
+| Sessões | `strategy: 'jwt'` no NextAuth.js v5 |
+| Proteção de rotas API | `RequireAuthorization()` nos endpoints sensíveis |
+| Proteção de rotas Web | Middleware Next.js — `/chat/*`, `/account/*`, `/profile/*` |
+
+### Login Social (OAuth 2.0 / OpenID Connect)
+
+Suportado via **NextAuth.js v5** no Web (porta 3002) e Mobile (porta 3003):
+
+| Provider | Callback URL Web | Callback URL Mobile |
+|---|---|---|
+| Google | `.../api/auth/callback/google` | `.../api/auth/callback/google` |
+| GitHub | `.../api/auth/callback/github` | `.../api/auth/callback/github` |
+| Microsoft Entra ID | `.../api/auth/callback/microsoft-entra-id` | `.../api/auth/callback/microsoft-entra-id` |
+
+Fluxo SSO: NextAuth → `POST /api/auth/callback` → upsert por `provider + provider_id` na tabela `customer`.
+
+> Credentials (email/senha) também suportado — senha armazenada com BCrypt.
+
+### Idempotência
+
+Todas as operações críticas usam `X-Idempotency-Key` no header — gerado no frontend, reusado em retry, evita pedidos e pagamentos duplicados. Persistido na tabela `idempotency_key`.
+
+### Webhook Validation
+
+- **Stripe**: assinatura `Stripe-Signature` validada via SDK antes de processar evento
+- **Efi (Pix)**: idempotência via `txid` ou `SHA256[:16]` do payload quando `txid` ausente
+
+### Secrets e Credenciais
+
+Nenhuma credencial hardcoded. Todos os segredos via **GitHub Actions Secrets**:
+
+`JWT_SECRET` · `NEXTAUTH_SECRET` · `POSTGRES_PASSWORD` · `STRIPE_SECRET_KEY` · `DATADOG_API_KEY` · `NEW_RELIC_LICENSE_KEY` · `GOOGLE_CLIENT_ID/SECRET` · `GITHUB_CLIENT_ID/SECRET` · `MICROSOFT_CLIENT_ID/SECRET/TENANT_ID`
+
+### Pentest — Strix
+
+Integração planejada com **[Strix](https://www.strix.ai/)** para análise automatizada de vulnerabilidades:
+
+- Varredura de endpoints expostos
+- Detecção de headers de segurança ausentes (`X-Content-Type-Options`, `Strict-Transport-Security`, `X-Frame-Options`)
+- Testes de injeção SQL e XSS nos parâmetros de busca e checkout
+- Verificação de tokens JWT expirados e algoritmos fracos
+- Scan de dependências com vulnerabilidades conhecidas (CVE)
+
+```bash
+# Planejado — executar após deploy
+strix scan http://2.25.122.11:5020 --output report.html
+```
+
+### Roadmap de Segurança
+
+- [ ] Integração Strix no CI/CD (step pós-smoke-tests)
+- [ ] Headers de segurança HTTP (`CSP`, `HSTS`, `X-Frame-Options`)
+- [ ] Rate limiting por IP no login (brute force prevention)
+- [ ] Refresh token + rotação de JWT
+- [ ] Verificação de email pós-cadastro (credentials)
+- [ ] 2FA (TOTP) para providers credentials
 
 ## 🔁 CI/CD Pipeline
 
