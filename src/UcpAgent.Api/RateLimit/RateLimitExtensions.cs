@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging;
 using System.Globalization;
 using System.Threading.RateLimiting;
 using System.Diagnostics.CodeAnalysis;
-using System.Net;
 
 namespace UcpAgent.Api.RateLimit;
 
@@ -33,19 +32,18 @@ public static class RateLimitExtensions
             });
 
             // ── Auth — login / register (Sliding Window por IP) ───────────
-            // 5 tentativas por 60 segundos por IP — previne brute force
+            // 5 tentativas por 60 segundos — previne brute force
             rl.AddSlidingWindowLimiter(AuthPolicy, o =>
             {
-                o.PermitLimit         = 5;
-                o.Window              = TimeSpan.FromSeconds(60);
-                o.SegmentsPerWindow   = 6;   // janela dividida em blocos de 10s
+                o.PermitLimit          = 5;
+                o.Window               = TimeSpan.FromSeconds(60);
+                o.SegmentsPerWindow    = 6;
                 o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-                o.QueueLimit          = 0;   // sem fila — rejeita imediatamente
+                o.QueueLimit           = 0;
             });
 
             rl.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
-            // Informa ao cliente quando pode tentar novamente e registra o evento
             rl.OnRejected = (ctx, _) =>
             {
                 var retrySeconds = ctx.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter)
@@ -60,8 +58,7 @@ public static class RateLimitExtensions
                     .CreateLogger(nameof(RateLimitExtensions));
 
                 logger.LogWarning(
-                    "Rate limit excedido — policy={Policy} path={Path} ip={Ip} retryAfter={RetryAfter}s",
-                    ctx.HttpContext.GetEndpoint()?.Metadata.GetMetadata<IRateLimiterMetadata>() is { } ? AuthPolicy : CatalogPolicy,
+                    "Rate limit excedido — path={Path} ip={Ip} retryAfter={RetryAfter}s",
                     ctx.HttpContext.Request.Path,
                     ctx.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "-",
                     retrySeconds);
