@@ -61,17 +61,22 @@
 
 ---
 
-## 🔜 V059 — Segurança (próxima)
+## ✅ V059 — Segurança (out/2026)
+- [x] `SecurityHeadersMiddleware` — CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy
+- [x] Rate limiting SlidingWindow 5 req/60s por IP em login/register (brute force prevention)
+- [x] `pentest.yml` OWASP ZAP melhorado — JWT autenticado, rate limit check, security headers check, artifact HTML
+- [x] Migration V004 — `refresh_token_hash` + `refresh_token_expires_at`
+- [x] Refresh token opaque (SHA-256) com rotação — `POST /api/auth/refresh` + `POST /api/auth/logout`
+- [x] `NullAuthPort` atualizado com métodos de refresh token
 
-### 🔴 Alta Prioridade
-- [ ] **Headers de segurança HTTP** — `Content-Security-Policy`, `Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`
-- [ ] **Rate limiting por IP no login** — brute force prevention (ASP.NET RateLimiter ou middleware customizado)
-- [ ] **Integração Strix no CI/CD** — step pós-smoke-tests; varredura de endpoints, headers, JWT, SQLi, XSS, CVE
+---
+
+## 🔜 V060 — Segurança cont. (próxima)
 
 ### 🟡 Média Prioridade
-- [ ] **Refresh token + rotação de JWT** — sliding expiration; `refresh_token` na tabela `customer`
-- [ ] **Verificação de email pós-cadastro** — credentials flow; token temporário via outbox + SMTP
-- [ ] **2FA (TOTP)** — `authenticator_secret` na tabela `customer`; validação por time-based OTP
+- [ ] **Verificação de email pós-cadastro** — Resend API; token UUID 24h; `POST /api/auth/verify-email`; migration V005
+- [ ] **2FA TOTP** — `Otp.NET`; `authenticator_secret` na tabela `customer`; QR Code na ativação; `POST /api/auth/verify-2fa`
+- [ ] **Painel Pentest no OpsWatch** — exibir findings ZAP de `/k6/results/pentest/latest.json` (verificar se já existe)
 
 ---
 
@@ -97,3 +102,4 @@
 ### 📱 Canais
 - [ ] **WhatsApp Bot** — Meta Cloud API + Hub SignalR + `IChannelPort`; reutiliza 100% do core UCP
 - [ ] **Extensão Chrome** — Price Watcher + Universal Cart + Intent Bar
+

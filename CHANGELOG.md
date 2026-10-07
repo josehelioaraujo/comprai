@@ -1,5 +1,32 @@
 # Changelog
 
+## [V059] — 2026-10-07
+
+### Added — Segurança (F1-A, F1-B, F1-C, F2-A, F2-B)
+- `SecurityHeadersMiddleware` — CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy
+- Rate limiting `SlidingWindow` 5 req/60s por IP em `/api/auth/login` e `/api/auth/register` (brute force prevention)
+- Strix descartado — `pentest.yml` (OWASP ZAP) melhorado: JWT autenticado, rate limit check, security headers check, artifact HTML
+- Migration `V004__refresh_token.sql` — colunas `refresh_token_hash` + `refresh_token_expires_at` + índice
+- Refresh token opaque com hash SHA-256: `JwtService.GenerateRefreshToken` / `HashRefreshToken`
+- `POST /api/auth/refresh` — rotação de refresh token (token antigo invalidado antes de emitir novo par)
+- `POST /api/auth/logout` — revogação do refresh token
+- `CustomerAuthRepository`: `SaveRefreshTokenAsync`, `GetByRefreshTokenHashAsync`, `RevokeRefreshTokenAsync`
+- `NullAuthPort` atualizado com os 3 novos métodos (no-op)
+- Login/Register/SSO passam a retornar `{ token, refreshToken, customer }` (access_token 15min, refresh 7 dias)
+
+### Commits V059
+| Hash | Descrição |
+|------|-----------|
+| `0e24fb64` | feat(security/V059-F1A): SecurityHeadersMiddleware — CSP, HSTS, X-Frame-Options |
+| `36eb73df` | feat(security/V059-F1B): rate limiting login/register — SlidingWindow 5 req/60s por IP |
+| `e1c8371f` | feat(security/V059-F1C): job pentest Strix descartado — Strix removido do ci-cd.yml |
+| `e3716c80` | fix(security/V059-F1B): remove IRateLimiterMetadata inexistente do OnRejected |
+| `bd45ade4` | feat(security/V059-F1C): pentest.yml — JWT auth, rate limit check, security headers, artifact HTML |
+| `579d0a87` | feat(security/V059-F2A): migration V004 — refresh_token_hash + refresh_token_expires_at |
+| `1a582d4d` | feat(security/V059-F2B): refresh token — JwtService, POST /api/auth/refresh, POST /api/auth/logout |
+
+---
+
 ## [V058] — 2026-10-07
 
 ### Added
@@ -134,3 +161,4 @@
 
 ## [V038 e anteriores]
 Consulte o histórico de commits no GitHub.
+

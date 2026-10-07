@@ -1053,6 +1053,7 @@ http://<VPS>:3003   # App mobile independente
 | **V054** | order_history + session + search_log no BD; X-Session-Id no search |
 | **V055** | cart_snapshot + webhook_event idempotência; AddToCartHandler/RemoveFromCart snapshot; Null stubs CI |
 | **V056** | `ICartSnapshotService` (Clean Architecture); Front: X-Session-Id, sessionId payment, restore carrinho |
+| **V059** | Segurança: SecurityHeadersMiddleware, Rate limiting login/register, OWASP ZAP auth+headers, Refresh token rotação JWT |
 | **V052** | BD como source of truth: UUID order, endereço snapshot, fulfillment_event, DI corrigido, smoke test fix |
 | **V051** | Testes CI verdes; F5 polling real de fulfillment; auto-dismiss PixCard/StripeCard pós-confirmação |
 
@@ -1065,7 +1066,9 @@ http://<VPS>:3003   # App mobile independente
 | **order_history + session + search_log no BD** | ~~Persistência das etapas restantes do fluxo UCP~~ ✅ V054 | — |
 | **cart_snapshot + webhook_event idempotência** | ~~Snapshot de abandono e idempotência webhooks~~ ✅ V055 | — |
 | **ICartSnapshotService + Front session tracking** | ~~Clean Architecture snapshot + headers session~~ ✅ V056 | — |
-| **Autenticação e Área do Usuário** | Cadastro/login (web+mobile), Google SSO, JWT, histórico de pedidos vinculado ao customer | V057 |
+| **~~Autenticação e Área do Usuário~~** | ~~Cadastro/login (web+mobile), Google SSO, JWT, histórico de pedidos vinculado ao customer~~ ✅ V057–V058 | — |
+| **Segurança** | ~~SecurityHeaders, Rate limiting, OWASP ZAP, Refresh token~~ ✅ V059 | — |
+| **Segurança cont.** | Verificação de email (Resend), 2FA TOTP, Painel Pentest OpsWatch | V060 |
 | **OMS + WMS + Carrier (plugins)** | Plugins hexagonais extensíveis: `Oms.Simulated/Vtex`, `Wms.Simulated/Totvs`, `Carrier.Simulated/Correios` | Futuro |
 | **LLM Diagnóstico** | `/api/ai/analyze` → Ollama + fallback Claude; botão "Analisar" no OpsWatch | Futuro |
 | **GROQ_MODEL_SELECTOR** | Seletor de modelo no `workflow_dispatch` do code-review | Futuro |
@@ -1086,5 +1089,6 @@ MIT License — veja [LICENSE](LICENSE) para detalhes.
 **Autor:** [@josehelioaraujo](https://github.com/josehelioaraujo)
 
 Para dúvidas, issues ou contribuições, abra uma issue ou pull request no repositório.
+
 
 
