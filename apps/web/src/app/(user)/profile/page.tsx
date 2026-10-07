@@ -3,9 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getOrders, addToCart } from '@/lib/api'
-import { getSessionId } from '@/lib/session'
-import type { Order } from '@/types/ucp'
-import { generateUuid } from '@/lib/session'
+import { getSessionId, generateUuid } from '@/lib/session'
+import type { Order, CartItem, Product } from '@/types/ucp'
 
 const STATUS_LABEL: Record<string, string> = {
   created:           'Criado',
@@ -27,9 +26,20 @@ const STATUS_COLOR: Record<string, string> = {
   cancelled:         '#ef4444',
 }
 
+function cartItemToProduct(item: CartItem): Product {
+  return {
+    id:        item.productId,
+    title:     item.title,
+    price:     item.price,
+    image:     item.image ?? '',
+    source:    'catalog',
+    available: true,
+  }
+}
+
 export default function ProfilePage() {
-  const [orders,  setOrders]  = useState<Order[]>([])
-  const [loading, setLoading] = useState(true)
+  const [orders,    setOrders]    = useState<Order[]>([])
+  const [loading,   setLoading]   = useState(true)
   const [reordering, setReordering] = useState<string | null>(null)
   const router = useRouter()
 
@@ -42,8 +52,8 @@ export default function ProfilePage() {
     setReordering(order.orderId)
     const sessionId = getSessionId()
     try {
-      for (const item of order.items) {
-        await addToCart(sessionId, item, generateUuid())
+      for (const item of (order.items ?? [])) {
+        await addToCart(sessionId, cartItemToProduct(item), generateUuid())
       }
       router.push('/chat')
     } catch {
@@ -70,7 +80,6 @@ export default function ProfilePage() {
           <div key={order.orderId} style={{
             background: '#18181b', border: '1px solid #3f3f46', borderRadius: 12, padding: '1.25rem',
           }}>
-            {/* Header do pedido */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
               <div>
                 <div style={{ fontFamily: 'monospace', fontSize: 12, color: '#71717a' }}>#{order.orderId.slice(0, 8).toUpperCase()}</div>
@@ -86,7 +95,7 @@ export default function ProfilePage() {
                 }}>
                   {STATUS_LABEL[order.status] ?? order.status}
                 </span>
-                {order.items?.length > 0 && (
+                {(order.items?.length ?? 0) > 0 && (
                   <button
                     onClick={() => handleReorder(order)}
                     disabled={reordering === order.orderId}
@@ -102,17 +111,23 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Itens */}
-            {order.items?.slice(0, 3).map((item, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '4px 0', borderTop: i === 0 ? '1px solid #3f3f46' : undefined }}>
+            {(order.items ?? []).slice(0, 3).map((item, i) => (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '4px 0',
+                borderTop: i === 0 ? '1px solid #3f3f46' : undefined,
+              }}>
                 <span style={{ color: '#71717a', fontSize: 12 }}>×{item.quantity}</span>
-                <span style={{ fontSize: 13, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name ?? item.title}</span>
-                <span style={{ fontSize: 12, color: '#a1a1aa' }}>R$ {((item.price ?? 0) * (item.quantity ?? 1)).toFixed(2).replace('.', ',')}</span>
+                <span style={{ fontSize: 13, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {item.title}
+                </span>
+                <span style={{ fontSize: 12, color: '#a1a1aa' }}>
+                  R$ {((item.price ?? 0) * (item.quantity ?? 1)).toFixed(2).replace('.', ',')}
+                </span>
               </div>
             ))}
             {(order.items?.length ?? 0) > 3 && (
               <div style={{ fontSize: 12, color: '#71717a', marginTop: 4 }}>
-                +{order.items.length - 3} item(s)
+                +{(order.items?.length ?? 0) - 3} item(s)
               </div>
             )}
           </div>
