@@ -411,6 +411,9 @@ var app = builder.Build();
 if (usarPostgres)
     app.UseMiddleware<UcpAgent.Api.Middleware.IdempotencyMiddleware>();
 
+// V059-F1A: Security headers (CSP, HSTS, X-Frame-Options, etc.)
+app.UseMiddleware<SecurityHeadersMiddleware>();
+
 app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
@@ -1175,3 +1178,4 @@ record K6AnalyzeRequest(string Summary, string Question, string? Model);
 record AdminRestartRequest(string? Target, string? Password);
 
 record GitHubDispatchRequest(string? Repo, string? Workflow, string? Ref, Dictionary<string, string>? Inputs = null);
+
