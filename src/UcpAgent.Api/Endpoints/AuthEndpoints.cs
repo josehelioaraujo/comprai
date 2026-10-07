@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Mvc;
 using UcpAgent.Api.Auth;
+using UcpAgent.Api.RateLimit;
 using UcpAgent.SharedKernel.Ports;
 
 namespace UcpAgent.Api.Endpoints;
@@ -12,6 +13,7 @@ public static class AuthEndpoints
     {
         var group = app.MapGroup("/api/auth").WithTags("Auth");
 
+        // V059-F1B: rate limit — 5 tentativas / 60s por IP (brute force prevention)
         group.MapPost("/register", async (
             [FromBody] RegisterRequest req,
             IAuthPort auth, ISessionPort? sessions, JwtService jwt, HttpContext ctx) =>
@@ -20,7 +22,7 @@ public static class AuthEndpoints
             if (customer is null) return Results.Conflict(new { error = "Email já cadastrado." });
             await LinkSessionAsync(sessions, ctx, customer.Id);
             return Results.Ok(new AuthResponse(jwt.Generate(customer), customer));
-        });
+        }).RequireRateLimiting(RateLimitExtensions.AuthPolicy);
 
         group.MapPost("/login", async (
             [FromBody] LoginRequest req,
@@ -30,7 +32,7 @@ public static class AuthEndpoints
             if (customer is null) return Results.Unauthorized();
             await LinkSessionAsync(sessions, ctx, customer.Id);
             return Results.Ok(new AuthResponse(jwt.Generate(customer), customer));
-        });
+        }).RequireRateLimiting(RateLimitExtensions.AuthPolicy);
 
         group.MapPost("/callback", async (
             [FromBody] SsoCallbackRequest req,
