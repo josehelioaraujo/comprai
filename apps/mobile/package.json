@@ -1,6 +1,6 @@
 {
   "name": "comprai-mobile",
-  "version": "1.0.17",
+  "version": "1.0.18",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3003",
@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "next": "15.3.4",
+    "next-auth": "^5.0.0-beta.25",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

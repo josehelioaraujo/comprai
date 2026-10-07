@@ -1,0 +1,61 @@
+import NextAuth         from 'next-auth'
+import Google           from 'next-auth/providers/google'
+import GitHub           from 'next-auth/providers/github'
+import MicrosoftEntraId from 'next-auth/providers/microsoft-entra-id'
+import Credentials      from 'next-auth/providers/credentials'
+import type { User }    from 'next-auth'
+
+const BASE_URL = process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5020'
+const tenantId = process.env.MICROSOFT_TENANT_ID ?? 'common'
+
+export const { handlers, signIn, signOut, auth } = NextAuth({
+  providers: [
+    Google({ clientId: process.env.GOOGLE_CLIENT_ID, clientSecret: process.env.GOOGLE_CLIENT_SECRET }),
+    GitHub({ clientId: process.env.GITHUB_CLIENT_ID, clientSecret: process.env.GITHUB_CLIENT_SECRET }),
+    MicrosoftEntraId({
+      clientId:     process.env.MICROSOFT_CLIENT_ID,
+      clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
+      issuer:       `https://login.microsoftonline.com/${tenantId}/v2.0`,
+    }),
+    Credentials({
+      credentials: {
+        email:    { label: 'Email',  type: 'email'    },
+        password: { label: 'Senha',  type: 'password' },
+      },
+      authorize: async (credentials): Promise<User | null> => {
+        try {
+          const res = await fetch(`${BASE_URL}/api/auth/login`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: credentials?.email ?? '', password: credentials?.password ?? '' }),
+          })
+          if (!res.ok) return null
+          const data = await res.json() as { customer: { id: string; name: string; email: string; avatarUrl?: string } }
+          return { id: data.customer.id, name: data.customer.name, email: data.customer.email, image: data.customer.avatarUrl ?? null } as User
+        } catch { return null }
+      },
+    }),
+  ],
+  callbacks: {
+    async signIn({ user, account }) {
+      if (account?.provider && account.provider !== 'credentials') {
+        try {
+          await fetch(`${BASE_URL}/api/auth/callback`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ provider: account.provider, providerId: account.providerAccountId, name: user.name ?? '', email: user.email ?? '', avatarUrl: user.image ?? null }),
+          })
+        } catch { /* best-effort */ }
+      }
+      return true
+    },
+    async jwt({ token, user, account }) {
+      if (user) { token.customerId = user.id; token.provider = account?.provider ?? 'credentials' }
+      return token
+    },
+    async session({ session, token }) {
+      if (session.user) session.user.id = token.customerId as string
+      return session
+    },
+  },
+  pages: { signIn: '/auth/login', error: '/auth/login' },
+  session: { strategy: 'jwt' },
+})
