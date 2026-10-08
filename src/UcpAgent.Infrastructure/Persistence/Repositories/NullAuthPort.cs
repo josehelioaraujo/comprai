@@ -53,4 +53,18 @@ public sealed class NullAuthPort : IAuthPort
 
     public Task DisableTotpAsync(string customerId, CancellationToken ct = default)
         => Task.CompletedTask;
+
+    // V061-F1: Password Reset — no-op no Null Object
+    public Task<bool> SavePasswordResetTokenByEmailAsync(string email, string tokenHash, DateTime expiresAt, CancellationToken ct = default)
+        => Task.FromResult(false);
+
+    public Task<AuthCustomerDto?> GetByPasswordResetTokenAsync(string tokenHash, CancellationToken ct = default)
+        => Task.FromResult<AuthCustomerDto?>(null);
+
+    public Task<bool> ResetPasswordAsync(string tokenHash, string newPasswordHash, CancellationToken ct = default)
+        => Task.FromResult(false);
+
+    // V061-F2: Logout-all — no-op no Null Object
+    public Task RevokeAllRefreshTokensAsync(string customerId, CancellationToken ct = default)
+        => Task.CompletedTask;
 }

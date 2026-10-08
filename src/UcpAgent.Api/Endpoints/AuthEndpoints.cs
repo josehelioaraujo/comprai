@@ -10,8 +10,9 @@ namespace UcpAgent.Api.Endpoints;
 [ExcludeFromCodeCoverage]
 public static class AuthEndpoints
 {
-    private static readonly TimeSpan RefreshTokenTtl     = TimeSpan.FromDays(7);
-    private static readonly TimeSpan VerificationCodeTtl = TimeSpan.FromMinutes(15);
+    private static readonly TimeSpan RefreshTokenTtl      = TimeSpan.FromDays(7);
+    private static readonly TimeSpan VerificationCodeTtl  = TimeSpan.FromMinutes(15);
+    private static readonly TimeSpan PasswordResetTokenTtl = TimeSpan.FromHours(1);
 
     // Caracteres sem ambiguidade visual (sem 0/1/I/O)
     private const string OtpChars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -86,6 +87,67 @@ public static class AuthEndpoints
                 await auth.RevokeRefreshTokenAsync(customerId);
             return Results.NoContent();
         }).RequireAuthorization();
+
+        // ── V061-F2: Logout de todos os dispositivos ──────────────────────────
+        // POST /api/auth/logout-all
+        group.MapPost("/logout-all", async (HttpContext ctx, IAuthPort auth) =>
+        {
+            var customerId = JwtService.GetCustomerId(ctx.User);
+            if (customerId is null) return Results.Unauthorized();
+            await auth.RevokeAllRefreshTokensAsync(customerId);
+            return Results.Ok(new { message = "Sessão encerrada em todos os dispositivos." });
+        }).RequireAuthorization();
+
+        // ── V061-F1: Recuperação de senha ─────────────────────────────────────
+        // POST /api/auth/forgot-password  body: { "email": "..." }
+        // Resposta sempre 204 — não revela se o e-mail existe (proteção de enumeração).
+        group.MapPost("/forgot-password", async (
+            [FromBody] ForgotPasswordRequest req,
+            IAuthPort auth, IEmailService email, IConfiguration config) =>
+        {
+            if (string.IsNullOrWhiteSpace(req.Email))
+                return Results.NoContent();
+
+            var (plainToken, tokenHash) = JwtService.GenerateRefreshToken();
+            var expiresAt = DateTime.UtcNow.Add(PasswordResetTokenTtl);
+            var emailNorm = req.Email.Trim().ToLowerInvariant();
+
+            var saved = await auth.SavePasswordResetTokenByEmailAsync(emailNorm, tokenHash, expiresAt);
+            if (saved)
+            {
+                var found = await auth.GetByPasswordResetTokenAsync(tokenHash);
+                if (found is not null)
+                {
+                    var webUrl = config["App:WebUrl"] ?? "http://2.25.122.11:3002";
+                    var resetLink = $"{webUrl}/auth/reset-password?token={Uri.EscapeDataString(plainToken)}";
+                    try { await email.SendPasswordResetEmailAsync(found.Email, found.Name, resetLink); }
+                    catch { /* best-effort — token já salvo */ }
+                }
+            }
+
+            return Results.NoContent();
+        }).RequireRateLimiting(RateLimitExtensions.AuthPolicy);
+
+        // POST /api/auth/reset-password  body: { "token": "...", "newPassword": "..." }
+        group.MapPost("/reset-password", async (
+            [FromBody] ResetPasswordRequest req,
+            IAuthPort auth) =>
+        {
+            if (string.IsNullOrWhiteSpace(req.Token) || string.IsNullOrWhiteSpace(req.NewPassword))
+                return Results.BadRequest(new { error = "token e newPassword são obrigatórios." });
+
+            if (req.NewPassword.Length < 8)
+                return Results.BadRequest(new { error = "A senha deve ter pelo menos 8 caracteres." });
+
+            string tokenHash;
+            try { tokenHash = JwtService.HashRefreshToken(req.Token); }
+            catch { return Results.BadRequest(new { error = "Token inválido." }); }
+
+            var ok = await auth.ResetPasswordAsync(tokenHash, req.NewPassword);
+            return ok
+                ? Results.Ok(new { message = "Senha redefinida com sucesso." })
+                : Results.BadRequest(new { error = "Token inválido ou expirado." });
+        }).RequireRateLimiting(RateLimitExtensions.AuthPolicy);
 
         // GET /api/auth/me
         group.MapGet("/me", async (HttpContext ctx, IAuthPort auth) =>
@@ -290,4 +352,7 @@ public static class AuthEndpoints
     // V060-F2
     public record TotpCodeRequest(string Code);
     public record TotpVerifyRequest(string TempToken, string Code);
+    // V061-F1
+    public record ForgotPasswordRequest(string Email);
+    public record ResetPasswordRequest(string Token, string NewPassword);
 }

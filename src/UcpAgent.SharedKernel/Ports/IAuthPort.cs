@@ -114,4 +114,33 @@ public interface IAuthPort
 
     /// <summary>Desativa TOTP e apaga o secret.</summary>
     Task DisableTotpAsync(string customerId, CancellationToken ct = default);
+
+    // ── V061-F1: Recuperação de Senha ────────────────────────────────────
+
+    /// <summary>
+    /// Salva o hash SHA-256 do token de reset de senha e sua expiração, buscando o customer por e-mail.
+    /// Retorna true se o customer foi encontrado e o token foi salvo; false se o e-mail não existe.
+    /// Chamado em POST /api/auth/forgot-password (resposta sempre 204 para não revelar existência).
+    /// </summary>
+    Task<bool> SavePasswordResetTokenByEmailAsync(string email, string tokenHash, DateTime expiresAt, CancellationToken ct = default);
+
+    /// <summary>
+    /// Retorna o customer cujo hash do token de reset é válido e não expirado.
+    /// Retorna null se não encontrado ou expirado.
+    /// </summary>
+    Task<AuthCustomerDto?> GetByPasswordResetTokenAsync(string tokenHash, CancellationToken ct = default);
+
+    /// <summary>
+    /// Atualiza a senha (plain text — hash feito na Infrastructure) e invalida o token de reset.
+    /// Retorna false se o token não foi encontrado ou já expirou.
+    /// </summary>
+    Task<bool> ResetPasswordAsync(string tokenHash, string newPasswordPlain, CancellationToken ct = default);
+
+    // ── V061-F2: Logout de todos os dispositivos ─────────────────────────
+
+    /// <summary>
+    /// Revoga todos os refresh tokens do customer (SET refresh_token_hash=NULL).
+    /// Chamado em POST /api/auth/logout-all.
+    /// </summary>
+    Task RevokeAllRefreshTokensAsync(string customerId, CancellationToken ct = default);
 }

@@ -262,6 +262,71 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
             new { Id = customerId });
     }
 
+    // ── V061-F1: Recuperação de Senha ────────────────────────────────────────
+
+    public async Task<bool> SavePasswordResetTokenByEmailAsync(string email, string tokenHash, DateTime expiresAt, CancellationToken ct = default)
+    {
+        using var conn = await db.CreateAsync(ct);
+        var affected = await conn.ExecuteAsync(
+            """
+            UPDATE customer
+            SET password_reset_token_hash = @TokenHash,
+                password_reset_expires_at  = @ExpiresAt,
+                updated_at                 = NOW()
+            WHERE email = @Email
+            """,
+            new { TokenHash = tokenHash, ExpiresAt = expiresAt, Email = email });
+        return affected > 0;
+    }
+
+    public async Task<AuthCustomerDto?> GetByPasswordResetTokenAsync(string tokenHash, CancellationToken ct = default)
+    {
+        using var conn = await db.CreateAsync(ct);
+        var row = await conn.QuerySingleOrDefaultAsync<CustomerRow>(
+            """
+            SELECT id, name, email, provider, avatar_url, email_verified, phone, document, totp_enabled
+            FROM customer
+            WHERE password_reset_token_hash = @TokenHash
+              AND password_reset_expires_at  > NOW()
+            """,
+            new { TokenHash = tokenHash });
+        return row is null ? null : ToDto(row, null);
+    }
+
+    public async Task<bool> ResetPasswordAsync(string tokenHash, string newPasswordPlain, CancellationToken ct = default)
+    {
+        var newHash = BCrypt.Net.BCrypt.HashPassword(newPasswordPlain);
+        using var conn = await db.CreateAsync(ct);
+        var affected = await conn.ExecuteAsync(
+            """
+            UPDATE customer
+            SET password_hash              = @NewHash,
+                password_reset_token_hash  = NULL,
+                password_reset_expires_at  = NULL,
+                updated_at                 = NOW()
+            WHERE password_reset_token_hash = @TokenHash
+              AND password_reset_expires_at  > NOW()
+            """,
+            new { TokenHash = tokenHash, NewHash = newHash });
+        return affected > 0;
+    }
+
+    // ── V061-F2: Logout de todos os dispositivos ─────────────────────────────
+
+    public async Task RevokeAllRefreshTokensAsync(string customerId, CancellationToken ct = default)
+    {
+        using var conn = await db.CreateAsync(ct);
+        await conn.ExecuteAsync(
+            """
+            UPDATE customer
+            SET refresh_token_hash      = NULL,
+                refresh_token_expires_at = NULL,
+                updated_at              = NOW()
+            WHERE id = @Id
+            """,
+            new { Id = customerId });
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
     private static AuthCustomerDto ToDto(CustomerRow r, List<AddressRow>? addresses) =>
         new(r.Id.ToString(), r.Name, r.Email, r.Provider, r.AvatarUrl, r.EmailVerified,

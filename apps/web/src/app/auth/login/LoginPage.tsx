@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5020'
 
@@ -188,9 +189,9 @@ export default function LoginPage({ callbackUrl = '/chat' }: LoginPageProps) {
 
           {tab === 'login' && (
             <div style={{ textAlign: 'right', marginTop: -6 }}>
-              <a href="#" style={{ fontSize: 12, color: '#7c3aed', textDecoration: 'none' }}>
-                Forgot password?
-              </a>
+              <Link href="/auth/forgot-password" style={{ fontSize: 12, color: '#7c3aed', textDecoration: 'none' }}>
+                Esqueceu sua senha?
+              </Link>
             </div>
           )}
 
