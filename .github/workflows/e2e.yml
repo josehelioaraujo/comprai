@@ -22,6 +22,8 @@ on:
 
 env:
   NODE_VERSION: '20'
+  VPS_HOST: '2.25.122.11'
+  VPS_USER: 'root'
   E2E_BASE_URL: ${{ github.event.inputs.base_url || 'http://2.25.122.11:3002' }}
   E2E_API_URL:  ${{ github.event.inputs.api_url  || 'http://2.25.122.11:5020' }}
 
@@ -101,6 +103,7 @@ jobs:
             apps/e2e/playwright-results.json
             apps/e2e/test-results/
           retention-days: 30
+          if-no-files-found: warn
 
   # ─────────────────────────────────────────────
   # 2. Gerar latest.json e publicar na VPS
@@ -204,18 +207,21 @@ jobs:
           print(json.dumps(output, indent=2))
           PYEOF
 
-      - name: Setup SSH para VPS
-        run: |
-          mkdir -p ~/.ssh
-          printf '%s' "${{ secrets.VPS_HOSTINGER_SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H 2.25.122.11 >> ~/.ssh/known_hosts 2>/dev/null || true
+      - name: Criar diretorio na VPS
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          script: mkdir -p /var/www/html/k6/results/e2e
 
       - name: Publicar latest.json na VPS
-        run: |
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no root@2.25.122.11 \
-            "mkdir -p /var/www/html/k6/results/e2e"
-          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
-            e2e-output/latest.json \
-            root@2.25.122.11:/var/www/html/k6/results/e2e/latest.json
-          echo "Publicado: /var/www/html/k6/results/e2e/latest.json"
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          source: "e2e-output/latest.json"
+          target: "/var/www/html/k6/results/e2e/"
+          strip_components: 1
+          overwrite: true
