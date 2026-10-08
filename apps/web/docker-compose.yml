@@ -1,5 +1,10 @@
 services:
   comprai-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://comprai.2.25.122.11.nip.io}
     image: comprai-web:latest
     container_name: comprai-web
     restart: unless-stopped
@@ -7,13 +12,15 @@ services:
       - "3002:3002"
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=https://comprai.2.25.122.11.nip.io
-      # NextAuth v5: AUTH_SECRET é obrigatório — sem ele retorna ?error=Configuration
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://comprai.2.25.122.11.nip.io}
+      # NextAuth v5: AUTH_SECRET é obrigatório (v5 usa AUTH_SECRET, v4 usava NEXTAUTH_SECRET)
       - AUTH_SECRET=${AUTH_SECRET}
+      - NEXTAUTH_SECRET=${AUTH_SECRET}
       # URL interna da API para o credentials provider (server-side NextAuth)
       - API_URL=http://comprai-api:5020
       # URL pública do frontend (evita erros de redirect em produção)
-      - AUTH_URL=http://2.25.122.11:3002
+      - AUTH_URL=${NEXTAUTH_URL:-http://2.25.122.11:3002}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://2.25.122.11:3002}
     networks:
       - comprai-network
 
