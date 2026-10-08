@@ -90,7 +90,7 @@ jobs:
           E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
           E2E_USER_NAME:     'E2E Automation'
           CI: 'true'
-        run: npx playwright test --video=on
+        run: npx playwright test
         continue-on-error: true
 
       - name: Upload Playwright Report
