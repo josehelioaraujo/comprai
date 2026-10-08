@@ -179,14 +179,25 @@ jobs:
                 specs = []
                 for spec in suite.get('specs', []):
                   spec_status = 'passed'
-                  if any(t.get('status') == 'failed' for t in spec.get('tests', [])):
-                    spec_status = 'failed'
-                  elif any(t.get('status') == 'skipped' for t in spec.get('tests', [])):
-                    spec_status = 'skipped'
+                  errors = []
+                  for t in spec.get('tests', []):
+                    t_st = t.get('status', '')
+                    if t_st in ('failed', 'unexpected'):
+                      spec_status = 'failed'
+                    elif t_st == 'skipped' and spec_status == 'passed':
+                      spec_status = 'skipped'
+                    for result in t.get('results', []):
+                      err = result.get('error')
+                      if err and isinstance(err, dict):
+                        errors.append({
+                          'message': (err.get('message') or '')[:500],
+                          'snippet': (err.get('snippet') or '')[:800],
+                        })
                   specs.append({
                     'title':    spec.get('title', ''),
                     'status':   spec_status,
                     'duration': int(sum(t.get('duration', 0) for t in spec.get('tests', [])) / 1000),
+                    'errors':   errors,
                   })
                 output['suites'].append({
                   'file':   suite_name,

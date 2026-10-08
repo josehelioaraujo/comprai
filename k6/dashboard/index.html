@@ -1507,6 +1507,12 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
   };
 
   // ===== E2E EVIDENCE RECORDER =====
+  var _e2eSpecs   = [];   // flat list, all specs com suite name
+  var _e2eRunId   = null;
+  var _e2ePollTmr = null;
+  var _e2eElapsed = null;
+  var _e2eElapsedN = 0;
+
   async function loadE2eData() {
     var area = document.getElementById('e2e-content');
     if (!area) return;
@@ -1526,24 +1532,33 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       var statusColor = status === 'passed' ? '#22c55e' : status === 'failed' ? '#ef4444' : '#f59e0b';
       var statusLabel = status === 'passed' ? 'PASSOU' : status === 'failed' ? 'FALHOU' : status === 'no_results' ? 'SEM DADOS' : 'ERRO';
 
+      // Flatten specs for modal
+      _e2eSpecs = [];
+      (d.suites || []).forEach(function(suite) {
+        (suite.specs || []).forEach(function(spec) {
+          _e2eSpecs.push(Object.assign({}, spec, { _suite: suite.file || '' }));
+        });
+      });
+
       // Header info
       var runInfo = '';
       if (d.run) runInfo = 'Run #' + d.run + (d.sha ? ' &nbsp;·&nbsp; SHA ' + d.sha : '') + (d.timestamp ? ' &nbsp;·&nbsp; ' + new Date(d.timestamp).toLocaleString('pt-BR') : '');
 
-      // KPI Cards
+      // KPI Cards (clicaveis)
       var passRate = total > 0 ? Math.round((passed / total) * 100) : 0;
       var kpiHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:20px">'
-        + _e2eKpi('Total',    total,    '#94a3b8', '&#127379;')
-        + _e2eKpi('Passou',   passed,   '#22c55e', '&#9989;')
-        + _e2eKpi('Falhou',   failed,   failed > 0 ? '#ef4444' : '#22c55e', '&#10060;')
-        + _e2eKpi('Ignorado', skipped,  '#f59e0b', '&#9940;')
-        + _e2eKpi('Duracao',  duration + 's', '#38bdf8', '&#9201;')
-        + _e2eKpi('Taxa OK',  passRate + '%', passRate === 100 ? '#22c55e' : passRate >= 80 ? '#f59e0b' : '#ef4444', '&#128200;')
+        + _e2eKpi('Total',    total,    '#94a3b8', '&#127379;', 'all')
+        + _e2eKpi('Passou',   passed,   '#22c55e', '&#9989;', 'passed')
+        + _e2eKpi('Falhou',   failed,   failed > 0 ? '#ef4444' : '#22c55e', '&#10060;', 'failed')
+        + _e2eKpi('Ignorado', skipped,  '#f59e0b', '&#9940;', 'skipped')
+        + _e2eKpi('Duracao',  duration + 's', '#38bdf8', '&#9201;', null)
+        + _e2eKpi('Taxa OK',  passRate + '%', passRate === 100 ? '#22c55e' : passRate >= 80 ? '#f59e0b' : '#ef4444', '&#128200;', null)
         + '</div>';
 
-      // Suites table
+      // Suites table com spec drill-down
       var suites = d.suites || [];
       var suitesHTML = '';
+      var globalIdx = 0;
       if (suites.length > 0) {
         suitesHTML = '<div style="margin-bottom:16px"><div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Specs por Suite</div>'
           + '<div style="display:flex;flex-direction:column;gap:8px">';
@@ -1564,17 +1579,23 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
             + '<span>&#10060; ' + sf + ' falhou</span>'
             + '<span>&#128200; ' + sc + ' total</span>'
             + '</div>';
-          // Specs individuais
           var specs = suite.specs || [];
           if (specs.length > 0) {
             suitesHTML += '<div style="margin-top:10px;display:flex;flex-direction:column;gap:4px">';
             specs.forEach(function(spec) {
+              var idx = globalIdx++;
               var ic = spec.status === 'passed' ? '&#9989;' : spec.status === 'failed' ? '&#10060;' : '&#9940;';
               var sc2 = spec.status === 'passed' ? '#22c55e' : spec.status === 'failed' ? '#ef4444' : '#f59e0b';
-              suitesHTML += '<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;background:var(--bg)">'
+              var hasErr = (spec.errors || []).length > 0;
+              suitesHTML += '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;background:var(--bg);'
+                + (hasErr ? 'cursor:pointer;border-left:2px solid #ef4444' : 'border-left:2px solid transparent')
+                + '" '
+                + (hasErr ? 'onclick="e2eOpenSpec(' + idx + ')" title="Clique para ver detalhes do erro"' : '')
+                + '>'
                 + '<span>' + ic + '</span>'
-                + '<span style="flex:1;font-size:12px;color:#cbd5e1">' + (spec.title || '') + '</span>'
+                + '<span style="flex:1;font-size:12px;color:#cbd5e1">' + _e2eEsc(spec.title || '') + '</span>'
                 + '<span style="font-size:11px;color:var(--muted)">' + (spec.duration || 0) + 's</span>'
+                + (hasErr ? '<span style="font-size:10px;color:#ef4444;font-weight:600">Ver erro &#8250;</span>' : '')
                 + '</div>';
             });
             suitesHTML += '</div>';
@@ -1586,7 +1607,6 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
         suitesHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">Nenhuma suite encontrada nos resultados.</div>';
       }
 
-      // Report link
       var linkHTML = d.report_url
         ? '<div style="margin-top:16px;text-align:center"><a href="' + d.report_url + '" target="_blank" style="color:#38bdf8;font-size:12px;text-decoration:none">&#128279; Ver run completo no GitHub Actions</a></div>'
         : '';
@@ -1598,9 +1618,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
         + '<div style="font-size:14px;font-weight:700;color:#e2e8f0">E2E / Evidencias — Playwright</div>'
         + '<div style="font-size:12px;color:' + statusColor + ';font-weight:600;margin-top:2px">' + statusLabel + '</div>'
         + '</div></div>'
-        + kpiHTML
-        + suitesHTML
-        + linkHTML;
+        + kpiHTML + suitesHTML + linkHTML;
 
     } catch(e) {
       area.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:24px 0">Execute o workflow E2E para gerar os dados.</div>'
@@ -1608,12 +1626,205 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
     }
   }
 
-  function _e2eKpi(label, value, color, icon) {
-    return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;text-align:center">'
+  function _e2eKpi(label, value, color, icon, filter) {
+    var extra = filter
+      ? ' onclick="e2eShowModal(\'' + filter + '\')" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;text-align:center;cursor:pointer;transition:border-color .15s" onmouseover="this.style.borderColor=\'#3b82f6\'" onmouseout="this.style.borderColor=\'var(--border)\'" title="Clique para ver detalhes"'
+      : ' style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;text-align:center"';
+    return '<div' + extra + '>'
       + '<div style="font-size:18px;margin-bottom:4px">' + icon + '</div>'
       + '<div style="font-size:20px;font-weight:700;color:' + color + '">' + value + '</div>'
       + '<div style="font-size:11px;color:var(--muted);margin-top:2px">' + label + '</div>'
       + '</div>';
+  }
+
+  function _e2eEsc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function e2eShowModal(filter) {
+    var specs = _e2eSpecs || [];
+    var filtered = filter === 'all' ? specs : specs.filter(function(s) { return s.status === filter; });
+    var labelMap = { all: 'Todos os Specs', passed: 'Specs — Passou', failed: 'Specs — Falhou', skipped: 'Specs — Ignorado' };
+    var colorMap = { all: '#94a3b8', passed: '#22c55e', failed: '#ef4444', skipped: '#f59e0b' };
+    var title = (labelMap[filter] || 'Specs') + ' <span style="font-size:12px;font-weight:400;color:var(--muted)">(' + filtered.length + ')</span>';
+    var color = colorMap[filter] || '#94a3b8';
+    e2eRenderModal('<span style="color:' + color + '">' + title + '</span>', _e2eSpecListHTML(filtered));
+  }
+
+  function e2eOpenSpec(idx) {
+    var spec = _e2eSpecs[idx];
+    if (!spec) return;
+    var title = '<span style="color:#ef4444">Detalhes do Spec</span>';
+    e2eRenderModal(title, _e2eSpecDetailHTML(spec));
+  }
+
+  function _e2eSpecListHTML(specs) {
+    if (!specs.length) return '<div style="color:var(--muted);text-align:center;padding:24px;font-size:13px">Nenhum spec nesta categoria.</div>';
+    return specs.map(function(spec) {
+      var ic = spec.status === 'passed' ? '&#9989;' : spec.status === 'failed' ? '&#10060;' : '&#9940;';
+      var sc = spec.status === 'passed' ? '#22c55e' : spec.status === 'failed' ? '#ef4444' : '#f59e0b';
+      var errHTML = _e2eErrBlock(spec.errors || []);
+      return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:8px">'
+        + '<div style="display:flex;align-items:flex-start;gap:8px">'
+        + '<span style="margin-top:1px">' + ic + '</span>'
+        + '<div style="flex:1;min-width:0">'
+        + '<div style="font-size:12px;font-weight:600;color:#e2e8f0;word-break:break-word">' + _e2eEsc(spec.title || '') + '</div>'
+        + '<div style="font-size:10px;color:var(--muted);margin-top:2px">&#128196; ' + _e2eEsc(spec._suite || '') + ' &nbsp;·&nbsp; ' + (spec.duration || 0) + 's</div>'
+        + '</div>'
+        + '<span style="font-size:10px;font-weight:700;color:' + sc + ';white-space:nowrap;margin-top:2px">' + (spec.status || '').toUpperCase() + '</span>'
+        + '</div>'
+        + errHTML
+        + '</div>';
+    }).join('');
+  }
+
+  function _e2eSpecDetailHTML(spec) {
+    var ic = spec.status === 'passed' ? '&#9989;' : spec.status === 'failed' ? '&#10060;' : '&#9940;';
+    var sc = spec.status === 'passed' ? '#22c55e' : spec.status === 'failed' ? '#ef4444' : '#f59e0b';
+    return '<div style="margin-bottom:14px">'
+      + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
+      + '<span>' + ic + '</span>'
+      + '<span style="font-size:13px;font-weight:700;color:#e2e8f0;word-break:break-word">' + _e2eEsc(spec.title || '') + '</span>'
+      + '</div>'
+      + '<div style="font-size:11px;color:var(--muted)">&#128196; ' + _e2eEsc(spec._suite || '') + ' &nbsp;·&nbsp; <span style="color:' + sc + ';font-weight:700">' + (spec.status || '').toUpperCase() + '</span> &nbsp;·&nbsp; ' + (spec.duration || 0) + 's</div>'
+      + '</div>'
+      + _e2eErrBlock(spec.errors || []);
+  }
+
+  function _e2eErrBlock(errors) {
+    if (!errors || !errors.length) return '<div style="font-size:12px;color:#22c55e;padding:8px 0">&#9989; Nenhum erro registrado.</div>';
+    return errors.map(function(err, i) {
+      return '<div style="margin-top:8px;border-radius:6px;overflow:hidden;border:1px solid rgba(239,68,68,.3)">'
+        + (i > 0 ? '' : '<div style="background:rgba(239,68,68,.12);padding:5px 10px;font-size:10px;font-weight:700;color:#ef4444;letter-spacing:.06em">ERRO</div>')
+        + (err.message ? '<div style="padding:10px 12px;font-size:11px;color:#fca5a5;font-family:monospace;white-space:pre-wrap;word-break:break-word;line-height:1.55;background:#0f172a">' + _e2eEsc(err.message) + '</div>' : '')
+        + (err.snippet ? '<div style="padding:10px 12px;font-size:10px;color:#7dd3fc;font-family:monospace;white-space:pre;overflow-x:auto;line-height:1.5;background:#020617;border-top:1px solid rgba(255,255,255,.06)">' + _e2eEsc(err.snippet) + '</div>' : '')
+        + '</div>';
+    }).join('');
+  }
+
+  function e2eRenderModal(titleHTML, bodyHTML) {
+    var modal = document.getElementById('e2e-modal');
+    if (!modal) return;
+    document.getElementById('e2e-modal-title').innerHTML = titleHTML;
+    document.getElementById('e2e-modal-body').innerHTML = bodyHTML;
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+
+  function e2eCloseModal() {
+    var modal = document.getElementById('e2e-modal');
+    if (modal) modal.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+
+  // Fechar modal com Esc
+  document.addEventListener('keydown', function(e) { if (e.key === 'Escape') e2eCloseModal(); });
+
+  // ===== E2E Executar Workflow =====
+  async function e2eRunWorkflow() {
+    var btn = document.getElementById('e2e-run-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span> Executando...'; }
+    var panel = document.getElementById('e2e-exec-panel');
+    if (panel) panel.style.display = '';
+    e2eSetExecStatus('&#9203;', 'Disparando workflow...', 0);
+    clearTimeout(_e2ePollTmr);
+    clearInterval(_e2eElapsed);
+    _e2eElapsedN = 0;
+    _e2eElapsed = setInterval(function() {
+      _e2eElapsedN++;
+      var el = document.getElementById('e2e-exec-elapsed');
+      if (el) el.textContent = _e2eElapsedN + 's';
+    }, 1000);
+    try {
+      var res = await fetch('/api/github/dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ repo: 'josehelioaraujo/comprai', workflow: 'e2e.yml', ref: 'main' })
+      });
+      if (!res.ok) { var er = await res.json().catch(function(){return{};}); throw new Error(er.detail || 'Dispatch falhou: ' + res.status); }
+      var data = await res.json();
+      e2eSetExecStatus('&#9203;', 'Aguardando inicio...', 20);
+      if (data.runId) {
+        _e2eRunId = data.runId;
+        var lnk = document.getElementById('e2e-exec-link');
+        if (lnk && data.url) { lnk.href = data.url; lnk.style.display = ''; }
+        e2ePollStatus();
+      } else {
+        _e2ePollTmr = setTimeout(e2ePollForRun, 5000);
+      }
+    } catch(err) {
+      e2eSetExecStatus('&#10060;', 'Erro: ' + err.message, 0);
+      e2eResetBtn();
+    }
+  }
+
+  async function e2ePollForRun() {
+    try {
+      var res = await fetch('/api/github/dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ repo: 'josehelioaraujo/comprai', workflow: 'e2e.yml', ref: 'main' })
+      });
+      var data = await res.json();
+      if (!data.runId) { _e2ePollTmr = setTimeout(e2ePollForRun, 5000); return; }
+      _e2eRunId = data.runId;
+      var lnk = document.getElementById('e2e-exec-link');
+      if (lnk && data.url) { lnk.href = data.url; lnk.style.display = ''; }
+      e2eSetExecStatus('&#9203;', 'Aguardando jobs...', 35);
+      e2ePollStatus();
+    } catch(e) { _e2ePollTmr = setTimeout(e2ePollForRun, 6000); }
+  }
+
+  async function e2ePollStatus() {
+    clearTimeout(_e2ePollTmr);
+    if (!_e2eRunId) return;
+    try {
+      var rRes = await fetch('/api/github/run/' + _e2eRunId + '/status');
+      if (!rRes.ok) throw new Error('status ' + rRes.status);
+      var data = await rRes.json();
+      var run  = { status: data.status, conclusion: data.conclusion, html_url: data.htmlUrl };
+      var jobs = data.jobs || [];
+      var done = jobs.filter(function(j){return j.status==='completed';}).length;
+      var tot  = Math.max(jobs.length, 1);
+      e2eSetExecStatus('&#9203;', e2eActiveStep(jobs), 35 + Math.round((done/tot)*55));
+      var jobsTxt = jobs.map(function(j){
+        var ic = j.status==='completed' ? (j.conclusion==='success'?'✅':'❌') : j.status==='in_progress'?'⏳':'⬜';
+        return ic + ' ' + (j.name || '');
+      }).join(' &nbsp;|&nbsp; ');
+      var jel = document.getElementById('e2e-exec-jobs');
+      if (jel) jel.innerHTML = jobsTxt;
+      if (run.status === 'completed') {
+        clearInterval(_e2eElapsed);
+        var ok = run.conclusion === 'success';
+        e2eSetExecStatus(ok ? '&#9989;' : '&#10060;', ok ? 'Todos os testes passaram!' : 'Falhou — ' + run.conclusion, 100);
+        e2eResetBtn();
+        setTimeout(loadE2eData, 2000);
+      } else {
+        _e2ePollTmr = setTimeout(e2ePollStatus, 5000);
+      }
+    } catch(e) { _e2ePollTmr = setTimeout(e2ePollStatus, 8000); }
+  }
+
+  function e2eActiveStep(jobs) {
+    var activeJob = jobs.find(function(j){return j.status==='in_progress';});
+    if (!activeJob) return 'Executando...';
+    var activeStep = (activeJob.steps||[]).find(function(s){return s.status==='in_progress';});
+    return activeStep ? activeStep.name : activeJob.name;
+  }
+
+  function e2eSetExecStatus(icon, text, pct) {
+    var i = document.getElementById('e2e-exec-icon');
+    var s = document.getElementById('e2e-exec-status');
+    var b = document.getElementById('e2e-exec-bar');
+    if (i) i.innerHTML = icon;
+    if (s) s.textContent = text;
+    if (b) b.style.width = pct + '%';
+  }
+
+  function e2eResetBtn() {
+    var btn = document.getElementById('e2e-run-btn');
+    if (btn) { btn.disabled = false; btn.innerHTML = '&#9654; Executar'; }
+    clearInterval(_e2eElapsed);
   }
 
 // ===== SONARCLOUD =====
@@ -9976,15 +10187,19 @@ tr:hover td { background: rgba(255,255,255,.02); }
   <div id="e2eBlock" class="content-section" style="display:none">
     <div class="section-header">
       <h2 class="section-title">&#127916; E2E / Evidencias</h2>
-      <div style="display:flex;align-items:center;gap:10px">
+      <div style="display:flex;align-items:center;gap:8px">
         <a href="https://github.com/josehelioaraujo/comprai/actions/workflows/e2e.yml"
            target="_blank"
            style="font-size:12px;color:#38bdf8;text-decoration:none;display:flex;align-items:center;gap:4px">
-          &#128279; Ver no GitHub Actions
+          &#128279; GitHub Actions
         </a>
         <button onclick="loadE2eData()"
           style="font-size:12px;padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer">
           &#8635; Atualizar
+        </button>
+        <button id="e2e-run-btn" onclick="e2eRunWorkflow()"
+          style="font-size:12px;padding:5px 14px;border-radius:6px;border:none;background:#3b82f6;color:#fff;cursor:pointer;display:flex;align-items:center;gap:5px;font-weight:600">
+          &#9654; Executar
         </button>
       </div>
     </div>
@@ -9994,10 +10209,39 @@ tr:hover td { background: rgba(255,255,255,.02); }
         Specs: autenticacao, busca, checkout e area do usuario.
         Videos e screenshots sao arquivados no GitHub Actions por 30 dias.
       </div>
+      <!-- Painel de execucao live -->
+      <div id="e2e-exec-panel" style="display:none;background:var(--surface2);border:1px solid #3b82f6;border-radius:10px;padding:14px 16px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span id="e2e-exec-icon" style="font-size:16px">&#9203;</span>
+            <span id="e2e-exec-status" style="font-size:13px;font-weight:600;color:#e2e8f0">Disparando workflow...</span>
+          </div>
+          <span id="e2e-exec-elapsed" style="font-size:11px;color:var(--muted);font-family:monospace"></span>
+        </div>
+        <div style="background:var(--bg);border-radius:4px;height:5px;overflow:hidden;margin-bottom:10px">
+          <div id="e2e-exec-bar" style="height:100%;background:#3b82f6;width:0%;transition:width .5s ease;border-radius:4px"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <a id="e2e-exec-link" href="#" target="_blank" style="display:none;font-size:11px;color:#38bdf8;text-decoration:none">&#128279; Ver no GitHub Actions</a>
+          <span id="e2e-exec-jobs" style="font-size:11px;color:var(--muted)"></span>
+        </div>
+      </div>
       <div id="e2e-content" style="min-height:120px">
         <div style="color:var(--muted);font-size:13px;text-align:center;padding:40px 0">
           Clique em <strong>Atualizar</strong> ou navegue para esta secao para carregar os dados.
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- E2E Detail Modal -->
+  <div id="e2e-modal" style="display:none;position:fixed;inset:0;z-index:9998;align-items:flex-start;justify-content:center;padding:40px 16px" onclick="if(event.target===this)e2eCloseModal()">
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(3px)" onclick="e2eCloseModal()"></div>
+    <div style="position:relative;background:#1e293b;border:1px solid #334155;border-radius:12px;width:100%;max-width:660px;max-height:80vh;display:flex;flex-direction:column;z-index:1;box-shadow:0 24px 64px rgba(0,0,0,.6)">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #334155;flex-shrink:0">
+        <div id="e2e-modal-title" style="font-size:14px;font-weight:700;color:#e2e8f0"></div>
+        <button onclick="e2eCloseModal()" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:22px;line-height:1;padding:0 2px" title="Fechar">&#215;</button>
+      </div>
+      <div id="e2e-modal-body" style="overflow-y:auto;padding:16px 20px;flex:1"></div>
     </div>
   </div>
