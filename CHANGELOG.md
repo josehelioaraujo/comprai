@@ -1,5 +1,39 @@
 # Changelog
 
+## [V060] — 2026-10-07
+
+### Added — Segurança F1 (Verificação de Email) + F2 (2FA TOTP)
+
+**F1 — Verificação de email pós-cadastro**
+- Resend API — envio de OTP por email após registro
+- `POST /api/auth/verify-email` — valida OTP e ativa conta
+- Migration `V005__email_verification.sql` — colunas `email_verified`, `email_otp`, `email_otp_expires_at`
+
+**F2 — 2FA TOTP**
+- `Otp.NET v1.4.0` integrado ao backend
+- `TotpService` — `GenerateSecret`, `BuildOtpAuthUri`, `Verify` (±1 step window), `GenerateTempToken`, `ValidateTempToken`
+- Migration `V006__totp.sql` — colunas `totp_secret` + `totp_enabled` na tabela `customer`
+- 4 novos endpoints: `POST /api/auth/2fa/setup`, `/2fa/enable`, `/2fa/verify`, `/2fa/disable`
+- Login detecta `customer.TotpEnabled` → retorna `{ requires2fa: true, tempToken }` (JWT 5min scope=2fa)
+- `CustomerAuthRepository` — 4 métodos TOTP implementados; `NullAuthPort` atualizado
+- Frontend `/auth/2fa/setup` — QR Code via `api.qrserver.com`, secret manual, confirmação TOTP
+- Frontend `/auth/2fa/verify` — lê `tempToken` de `?t=` ou `sessionStorage`, chama `/api/auth/2fa/verify`
+- `LoginPage.tsx` redesenhado — chama backend direto, detecta `requires2fa`, redireciona para `/auth/2fa/verify`
+- `auth.ts` (next-auth) — caminho pré-autenticado: `{ token, customer }` → cria sessão sem chamar backend novamente
+- `session.user.token` expõe API JWT para chamadas autenticadas downstream
+
+**CI/CD**
+- Job `Pentest Strix` removido do `ci-cd.yml`
+
+### Commits V060
+| Hash | Descrição |
+|------|-----------|
+| `c4ef809` | feat(auth): V060-F1 verificação de email via Resend OTP |
+| `ca629f4` | feat(auth): V060-F2 — 2FA TOTP completo (setup, login step-up, verify, disable) |
+| `deb47d7` | ci: remove job Pentest Strix do ci-cd.yml |
+
+---
+
 ## [V059] — 2026-10-07
 
 ### Added — Segurança (F1-A, F1-B, F1-C, F2-A, F2-B)

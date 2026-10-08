@@ -71,12 +71,20 @@
 
 ---
 
-## 🔜 V060 — Segurança cont. (próxima)
+## ✅ V060 — Segurança cont. (out/2026)
+- [x] **Verificação de email pós-cadastro** — Resend OTP; migration V005; `POST /api/auth/verify-email`
+- [x] **2FA TOTP** — `Otp.NET v1.4.0`; migration V006; QR Code + manual secret; `POST /api/auth/2fa/{setup,enable,verify,disable}`
+- [x] **Login step-up** — `LoginPage` detecta `requires2fa`, redireciona para `/auth/2fa/verify`; next-auth caminho pré-autenticado `{token, customer}`
+- [x] **Job Pentest Strix removido** do `ci-cd.yml`
+
+---
+
+## 🔜 V061 — Segurança cont. / OpsWatch (próxima)
 
 ### 🟡 Média Prioridade
-- [ ] **Verificação de email pós-cadastro** — Resend API; token UUID 24h; `POST /api/auth/verify-email`; migration V005
-- [ ] **2FA TOTP** — `Otp.NET`; `authenticator_secret` na tabela `customer`; QR Code na ativação; `POST /api/auth/verify-2fa`
-- [ ] **Painel Pentest no OpsWatch** — exibir findings ZAP de `/k6/results/pentest/latest.json` (verificar se já existe)
+- [ ] **Painel Pentest no OpsWatch** — exibir findings ZAP de `/k6/results/pentest/latest.json`
+- [ ] **Recuperação de senha** — `POST /api/auth/forgot-password` + `POST /api/auth/reset-password`; email via Resend; token UUID 1h
+- [ ] **Revogar todos os refresh tokens** — `POST /api/auth/logout-all` (invalida todos os tokens do usuário)
 
 ---
 
