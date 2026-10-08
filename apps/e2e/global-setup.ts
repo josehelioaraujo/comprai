@@ -17,7 +17,10 @@ const MAX_ATTEMPTS = 4;
 const RETRY_DELAY  = 65_000; // ms — maior que a janela de 60 s do rate-limit
 
 async function globalSetup(_config: FullConfig) {
-  const browser = await chromium.launch();
+  // Respeita executablePath definido via PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+  // (necessário em ambientes sem download, ex.: containers com Chromium pré-instalado)
+  const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+  const browser = await chromium.launch(executablePath ? { executablePath } : {});
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const context = await browser.newContext();
