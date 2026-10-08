@@ -14,9 +14,13 @@ test.describe('Autenticacao', () => {
     // Ignora falha de conflito (usuario ja existe)
   });
 
-  test('redireciona para login quando nao autenticado', async ({ page }) => {
+  test('redireciona para login quando nao autenticado', async ({ browser }) => {
+    // Contexto limpo sem storageState (ignora sessão do global-setup)
+    const ctx  = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
     await page.goto('/chat');
     await expect(page).toHaveURL(/\/auth\/login/);
+    await ctx.close();
   });
 
   test('exibe formulario de login', async ({ page }) => {
@@ -38,7 +42,7 @@ test.describe('Autenticacao', () => {
     await page.goto('/auth/login');
 
     // Ativa aba "Entrar" se existir
-    const loginTab = page.locator('text=Entrar');
+    const loginTab = page.getByRole('button', { name: 'Entrar', exact: true });
     if (await loginTab.count() > 0) await loginTab.click();
 
     await page.locator('input[type="email"]').fill(E2E_EMAIL);
@@ -53,7 +57,7 @@ test.describe('Autenticacao', () => {
   test('efetua logout com sucesso', async ({ page }) => {
     // Login primeiro
     await page.goto('/auth/login');
-    const loginTab = page.locator('text=Entrar');
+    const loginTab = page.getByRole('button', { name: 'Entrar', exact: true });
     if (await loginTab.count() > 0) await loginTab.click();
     await page.locator('input[type="email"]').fill(E2E_EMAIL);
     await page.locator('input[type="password"]').fill(E2E_PASSWORD);

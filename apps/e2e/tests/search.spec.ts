@@ -15,7 +15,7 @@ test.describe('Busca de Produtos', () => {
   test.beforeEach(async ({ page }) => {
     // Login antes de cada teste de busca
     await page.goto('/auth/login');
-    const loginTab = page.locator('text=Entrar');
+    const loginTab = page.getByRole('button', { name: 'Entrar', exact: true });
     if (await loginTab.count() > 0) await loginTab.click();
     await page.locator('input[type="email"]').fill(E2E_EMAIL);
     await page.locator('input[type="password"]').fill(E2E_PASSWORD);
@@ -44,13 +44,13 @@ test.describe('Busca de Produtos', () => {
 
   test('API search retorna produtos', async ({ request }) => {
     // Teste direto na API — smoke test de healthiness
-    const resp = await request.post(`${API_URL}/api/search`, {
-      data: { query: 'notebook', sessionId: 'e2e-session-001' },
+    const resp = await request.get(`${API_URL}/api/search`, {
+      params: { q: 'notebook', page: 1, pageSize: 5 },
       headers: { 'X-Session-Id': 'e2e-session-001' },
     });
     expect(resp.status()).toBeLessThan(500);
     const body = await resp.json().catch(() => ({}));
-    // Retorna lista ou objeto com products/items
+    // Retorna objeto com items
     expect(body).toBeDefined();
   });
 

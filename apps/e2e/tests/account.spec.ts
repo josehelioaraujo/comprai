@@ -14,7 +14,7 @@ test.describe('Area do Usuario', () => {
 
   test.beforeEach(async ({ page }) => {
     await page.goto('/auth/login');
-    const loginTab = page.locator('text=Entrar');
+    const loginTab = page.getByRole('button', { name: 'Entrar', exact: true });
     if (await loginTab.count() > 0) await loginTab.click();
     await page.locator('input[type="email"]').fill(E2E_EMAIL);
     await page.locator('input[type="password"]').fill(E2E_PASSWORD);
