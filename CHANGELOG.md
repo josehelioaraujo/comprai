@@ -1,5 +1,37 @@
 # Changelog
 
+## [V061] — 2026-10-08
+
+### Added — Segurança F1 (Recuperação de Senha) + F2 (Logout-All)
+
+**F1 — Recuperação de senha**
+- Migration `V007__password_reset.sql` — colunas `password_reset_token_hash TEXT` + `password_reset_expires_at TIMESTAMPTZ` + índice parcial
+- `IAuthPort`: 3 novos métodos — `SavePasswordResetTokenByEmailAsync`, `GetByPasswordResetTokenAsync`, `ResetPasswordAsync`
+- `CustomerAuthRepository`: implementações SQL seguras (UPDATE WHERE email, SELECT WHERE hash+expiry, UPDATE password)
+- `NullAuthPort`: no-ops para os 3 métodos
+- `IEmailService.SendPasswordResetEmailAsync` — HTML email com botão purple, instruções de validade 1h
+- `ResendEmailService` + `NullEmailService` (log do link no console): implementações do novo método
+- `POST /api/auth/forgot-password` — gera token UUID→SHA-256 (via `JwtService.GenerateRefreshToken`), salva por e-mail, envia e-mail best-effort, **sempre responde 204** (anti-enumeração)
+- `POST /api/auth/reset-password` — valida hash, exige senha mín. 8 chars, BCrypt restrito ao Infrastructure layer
+- `apps/web/src/app/auth/forgot-password/page.tsx` — formulário de e-mail + estado de sucesso (não revela se e-mail existe)
+- `apps/web/src/app/auth/reset-password/page.tsx` — lê `?token=` da URL, campos nova senha + confirmação, feedback de erro/sucesso, link para login
+- `LoginPage.tsx` — link "Esqueceu sua senha?" → `/auth/forgot-password`
+
+**F2 — Logout de todos os dispositivos**
+- `IAuthPort.RevokeAllRefreshTokensAsync` — novo método de interface
+- `CustomerAuthRepository`: `UPDATE SET refresh_token_hash=NULL, refresh_token_expires_at=NULL WHERE id`
+- `NullAuthPort`: no-op
+- `POST /api/auth/logout-all` — `RequireAuthorization`, revoga todos os refresh tokens do customer, retorna `{ message: "Sessão encerrada em todos os dispositivos." }`
+
+**F3 — Painel Pentest no OpsWatch** *(já implementado em V060)*
+
+### Commits V061
+| Hash | Descrição |
+|------|-----------|
+| `83365e9` | feat(V061): recuperação de senha, logout-all e páginas web de reset |
+
+---
+
 ## [V060] — 2026-10-07
 
 ### Added — Segurança F1 (Verificação de Email) + F2 (2FA TOTP)

@@ -79,12 +79,11 @@
 
 ---
 
-## 🔜 V061 — Segurança cont. / OpsWatch (próxima)
-
-### 🟡 Média Prioridade
-- [ ] **Painel Pentest no OpsWatch** — exibir findings ZAP de `/k6/results/pentest/latest.json`
-- [ ] **Recuperação de senha** — `POST /api/auth/forgot-password` + `POST /api/auth/reset-password`; email via Resend; token UUID 1h
-- [ ] **Revogar todos os refresh tokens** — `POST /api/auth/logout-all` (invalida todos os tokens do usuário)
+## ✅ V061 — Segurança cont. / OpsWatch (out/2026)
+- [x] **Recuperação de senha** — `POST /api/auth/forgot-password` + `POST /api/auth/reset-password`; migration V007; token UUID→SHA-256; 1h; email via Resend; anti-enumeração (sempre 204)
+- [x] **Revogar todos os refresh tokens** — `POST /api/auth/logout-all`; revoga todos os tokens do customer
+- [x] **Painel Pentest no OpsWatch** — exibir findings ZAP de `/k6/results/pentest/latest.json` (já implementado em V060)
+- [x] **Páginas web** — `/auth/forgot-password` + `/auth/reset-password` (design white/purple); link "Esqueceu sua senha?" no login
 
 ---
 
