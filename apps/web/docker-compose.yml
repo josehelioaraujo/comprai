@@ -18,12 +18,9 @@ services:
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://comprai.2.25.122.11.nip.io}
-      # NextAuth v5: AUTH_SECRET é obrigatório (v5 usa AUTH_SECRET, v4 usava NEXTAUTH_SECRET)
-      - AUTH_SECRET=${AUTH_SECRET}
-      - NEXTAUTH_SECRET=${AUTH_SECRET}
-      # URL interna da API para o credentials provider (server-side NextAuth)
+      # NextAuth v5: AUTH_SECRET lido do env_file (../../.env ou .env local)
+      # Não repetir aqui com ${} — env_file já injeta; repetir com var vazia sobrescreve
       - API_URL=http://comprai-api:5020
-      # URL pública do frontend (evita erros de redirect em produção)
       - AUTH_URL=${NEXTAUTH_URL:-http://2.25.122.11:3002}
       - NEXTAUTH_URL=${NEXTAUTH_URL:-http://2.25.122.11:3002}
     networks:
