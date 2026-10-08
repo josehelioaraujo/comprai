@@ -28,6 +28,7 @@ services:
     depends_on:
       - redis
       - comprai-postgres
+      - rabbitmq
     networks:
       - comprai-network
     restart: unless-stopped
@@ -152,9 +153,12 @@ services:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
       - comprai-network
-    profiles:
-      - rabbitmq
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
 
   jaeger:
     image: jaegertracing/all-in-one:latest
