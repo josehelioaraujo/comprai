@@ -21,6 +21,8 @@ export default defineConfig({
     trace: 'on-first-retry',
     actionTimeout: 15_000,
     navigationTimeout: 30_000,
+    // Reutiliza sessão salva pelo global-setup (evita rate-limit de login)
+    storageState: 'storageState.json',
   },
   timeout: 60_000,
   projects: [
@@ -29,8 +31,8 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  /* Variáveis disponíveis nos specs via process.env */
-  globalSetup: undefined,
+  /* Login único antes da suite; cookies reutilizados por todos os testes */
+  globalSetup: './global-setup',
 });
 
 /* Exporta constantes para uso nos specs */

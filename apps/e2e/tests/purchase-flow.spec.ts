@@ -4,7 +4,12 @@
  * Cobre: login → busca 'iphone' → adicionar ao carrinho →
  *        checkout → pagamento Pix → histórico de pedidos.
  *
- * Usuário já cadastrado; não registra na beforeAll.
+ * Estratégia de autenticação:
+ *   - global-setup.ts faz login UMA VEZ e salva storageState.json
+ *   - playwright.config.ts injeta os cookies em todos os contextos
+ *   - Somente o teste 1 exercita explicitamente o fluxo de login via UI
+ *   - Os demais testes navegam diretamente às páginas já autenticadas,
+ *     evitando múltiplas chamadas ao endpoint de login (rate-limit)
  */
 import { test, expect, Page } from '@playwright/test';
 
@@ -15,6 +20,7 @@ const E2E_PASSWORD = process.env.E2E_USER_PASSWORD  || 'E2eTest@2026!';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/** Usado APENAS pelo teste 1 para exercitar o fluxo de login via UI. */
 async function doLogin(page: Page) {
   await page.goto('/auth/login');
   await page.waitForLoadState('networkidle');
@@ -37,6 +43,13 @@ async function doLogin(page: Page) {
   await page.waitForTimeout(1_500); // deixa a UI assentar
 }
 
+/** Navega para /chat com sessão já estabelecida (todos os testes exceto o 1). */
+async function goToChat(page: Page) {
+  await page.goto('/chat');
+  await page.waitForLoadState('networkidle');
+  await page.waitForTimeout(1_000);
+}
+
 async function sendChatMessage(page: Page, message: string) {
   const input = page.locator('textarea, input[type="text"]').first();
   await expect(input).toBeVisible({ timeout: 10_000 });
@@ -51,6 +64,7 @@ async function sendChatMessage(page: Page, message: string) {
 test.describe('Fluxo Completo de Compra', () => {
 
   // ── 1. Login ────────────────────────────────────────────────────────────────
+  // Único teste que exercita o fluxo de autenticação via formulário.
   test('1 – Login com usuário cadastrado', async ({ page }) => {
     await doLogin(page);
 
@@ -63,8 +77,9 @@ test.describe('Fluxo Completo de Compra', () => {
   });
 
   // ── 2. Busca de produto ─────────────────────────────────────────────────────
+  // Sessão já ativa via storageState — navega direto ao chat.
   test('2 – Busca iphone no chat e exibe resultados', async ({ page }) => {
-    await doLogin(page);
+    await goToChat(page);
 
     await sendChatMessage(page, 'quero comprar um iphone');
 
@@ -78,8 +93,9 @@ test.describe('Fluxo Completo de Compra', () => {
   });
 
   // ── 3. Adicionar ao carrinho ─────────────────────────────────────────────────
+  // Sessão já ativa via storageState — navega direto ao chat.
   test('3 – Adicionar produto ao carrinho via chat', async ({ page }) => {
-    await doLogin(page);
+    await goToChat(page);
 
     // Busca primeiro
     await sendChatMessage(page, 'quero comprar um iphone');
@@ -110,8 +126,9 @@ test.describe('Fluxo Completo de Compra', () => {
   });
 
   // ── 4. Fluxo de checkout ─────────────────────────────────────────────────────
+  // Sessão já ativa via storageState — navega direto ao chat.
   test('4 – Iniciar checkout via chat', async ({ page }) => {
-    await doLogin(page);
+    await goToChat(page);
 
     // Busca e adiciona (rápido, sem verificação estrita)
     await sendChatMessage(page, 'quero comprar um iphone');
@@ -135,8 +152,9 @@ test.describe('Fluxo Completo de Compra', () => {
   });
 
   // ── 5. Pagamento Pix ─────────────────────────────────────────────────────────
+  // Sessão já ativa via storageState — navega direto ao chat.
   test('5 – Opção de pagamento Pix', async ({ page }) => {
-    await doLogin(page);
+    await goToChat(page);
 
     // Fluxo compacto até checkout
     await sendChatMessage(page, 'quero comprar um iphone');
@@ -163,12 +181,15 @@ test.describe('Fluxo Completo de Compra', () => {
   });
 
   // ── 6. API: Health + pedidos ─────────────────────────────────────────────────
+  // Teste puro de API — usa fixture `request`, sem browser.
+  // Endpoints de health: /health/live e /health/ready (sem prefixo /api/)
   test('6 – API health e consulta de pedidos', async ({ request }) => {
-    // Health
-    const live = await request.get(`${API_URL}/api/health/live`);
+    // Liveness probe — retorna { status: "alive" }
+    const live = await request.get(`${API_URL}/health/live`);
     expect(live.status()).toBe(200);
 
-    const ready = await request.get(`${API_URL}/api/health/ready`);
+    // Readiness probe — retorna { status: "ready" } ou 503
+    const ready = await request.get(`${API_URL}/health/ready`);
     expect(ready.status()).toBe(200);
 
     // Login via API
@@ -189,9 +210,8 @@ test.describe('Fluxo Completo de Compra', () => {
   });
 
   // ── 7. Histórico de pedidos na UI ────────────────────────────────────────────
+  // Sessão já ativa via storageState — navega direto ao /profile.
   test('7 – Histórico de pedidos na página /profile', async ({ page }) => {
-    await doLogin(page);
-
     await page.goto('/profile');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(3_000);
@@ -214,9 +234,10 @@ test.describe('Fluxo Completo de Compra', () => {
   });
 
   // ── 8. Fluxo completo ponta-a-ponta (smoke) ──────────────────────────────────
+  // Sessão já ativa via storageState — navega direto ao chat.
   test('8 – Smoke: fluxo completo de ponta a ponta', async ({ page }) => {
-    // — Login —
-    await doLogin(page);
+    // — Navega para o chat (já autenticado via storageState) —
+    await goToChat(page);
     await page.waitForTimeout(1_500);
 
     // — Busca —
