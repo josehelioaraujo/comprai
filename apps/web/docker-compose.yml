@@ -8,6 +8,12 @@ services:
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=https://comprai.2.25.122.11.nip.io
+      # NextAuth v5: AUTH_SECRET é obrigatório — sem ele retorna ?error=Configuration
+      - AUTH_SECRET=${AUTH_SECRET}
+      # URL interna da API para o credentials provider (server-side NextAuth)
+      - API_URL=http://comprai-api:5020
+      # URL pública do frontend (evita erros de redirect em produção)
+      - AUTH_URL=http://2.25.122.11:3002
     networks:
       - comprai-network
 
