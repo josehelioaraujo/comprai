@@ -8,6 +8,11 @@ services:
     image: comprai-web:latest
     container_name: comprai-web
     restart: unless-stopped
+    env_file:
+      - path: ../../.env
+        required: false
+      - path: .env
+        required: false
     ports:
       - "3002:3002"
     environment:
