@@ -61,13 +61,14 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
 
     public async Task<AuthCustomerDto?> GetByIdAsync(string customerId, CancellationToken ct = default)
     {
+        var guid = Guid.Parse(customerId);
         using var conn = await db.CreateAsync(ct);
         var row = await conn.QuerySingleOrDefaultAsync<CustomerRow>(
             """
             SELECT id, name, email, provider, avatar_url, email_verified, phone, document, totp_enabled
             FROM customer WHERE id = @Id
             """,
-            new { Id = customerId });
+            new { Id = guid });
         if (row is null) return null;
 
         var addresses = (await conn.QueryAsync<AddressRow>(
@@ -77,7 +78,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
             WHERE customer_id = @Id
             ORDER BY is_default DESC, created_at DESC
             """,
-            new { Id = customerId })).ToList();
+            new { Id = guid })).ToList();
 
         return ToDto(row, addresses);
     }
@@ -95,7 +96,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
             WHERE id = @Id
             RETURNING id, name, email, provider, avatar_url, email_verified, phone, document, totp_enabled
             """,
-            new { req.Name, req.Phone, req.Document, Id = req.CustomerId });
+            new { req.Name, req.Phone, req.Document, Id = Guid.Parse(req.CustomerId) });
         return row is null ? null : ToDto(row, null);
     }
 
@@ -103,10 +104,11 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
     {
         using var conn = await db.CreateAsync(ct);
 
+        var customerGuid = Guid.Parse(req.CustomerId);
         if (req.IsDefault)
             await conn.ExecuteAsync(
                 "UPDATE customer_address SET is_default = FALSE WHERE customer_id = @Id",
-                new { Id = req.CustomerId });
+                new { Id = customerGuid });
 
         var row = await conn.QuerySingleOrDefaultAsync<AddressRow>(
             """
@@ -125,7 +127,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
             RETURNING id, label, zip_code, street, number, complement, neighborhood, city, state, is_default
             """,
             new {
-                CustomerId   = req.CustomerId,
+                CustomerId   = customerGuid,
                 Label        = req.Label ?? "principal",
                 req.ZipCode, req.Street, req.Number, req.Complement,
                 req.Neighborhood, req.City, req.State, req.IsDefault
@@ -146,7 +148,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
                 updated_at               = NOW()
             WHERE id = @Id
             """,
-            new { Hash = tokenHash, ExpiresAt = expiresAt, Id = customerId });
+            new { Hash = tokenHash, ExpiresAt = expiresAt, Id = Guid.Parse(customerId) });
     }
 
     public async Task<AuthCustomerDto?> GetByRefreshTokenHashAsync(string tokenHash, CancellationToken ct = default)
@@ -174,7 +176,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
                 updated_at               = NOW()
             WHERE id = @Id
             """,
-            new { Id = customerId });
+            new { Id = Guid.Parse(customerId) });
     }
 
     // ── V060-F1: Email Verification ──────────────────────────────────────────
@@ -190,7 +192,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
                 updated_at                    = NOW()
             WHERE id = @Id
             """,
-            new { Code = code, ExpiresAt = expiresAt, Id = customerId });
+            new { Code = code, ExpiresAt = expiresAt, Id = Guid.Parse(customerId) });
     }
 
     public async Task<bool> VerifyEmailCodeAsync(string customerId, string code, CancellationToken ct = default)
@@ -207,7 +209,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
               AND email_verification_token      = @Code
               AND email_verification_expires_at > NOW()
             """,
-            new { Id = customerId, Code = code });
+            new { Id = Guid.Parse(customerId), Code = code });
         return affected > 0;
     }
 
@@ -223,7 +225,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
                 updated_at  = NOW()
             WHERE id = @Id
             """,
-            new { Secret = secret, Id = customerId });
+            new { Secret = secret, Id = Guid.Parse(customerId) });
     }
 
     public async Task<(bool Enabled, string? Secret)> GetTotpDataAsync(string customerId, CancellationToken ct = default)
@@ -231,7 +233,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
         using var conn = await db.CreateAsync(ct);
         var row = await conn.QuerySingleOrDefaultAsync<(bool Enabled, string? Secret)>(
             "SELECT totp_enabled, totp_secret FROM customer WHERE id = @Id",
-            new { Id = customerId });
+            new { Id = Guid.Parse(customerId) });
         return row;
     }
 
@@ -245,7 +247,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
                 updated_at   = NOW()
             WHERE id = @Id
             """,
-            new { Id = customerId });
+            new { Id = Guid.Parse(customerId) });
         return affected > 0;
     }
 
@@ -260,7 +262,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
                 updated_at   = NOW()
             WHERE id = @Id
             """,
-            new { Id = customerId });
+            new { Id = Guid.Parse(customerId) });
     }
 
     // ── V061-F1: Recuperação de Senha ────────────────────────────────────────
@@ -325,7 +327,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
                 updated_at              = NOW()
             WHERE id = @Id
             """,
-            new { Id = customerId });
+            new { Id = Guid.Parse(customerId) });
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
