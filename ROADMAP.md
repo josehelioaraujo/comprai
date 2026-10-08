@@ -87,6 +87,15 @@
 
 ---
 
+## 🔜 V062 — E2E Evidence Recorder (out/2026)
+- [ ] **Playwright E2E** com gravação de vídeo (`.webm`) e screenshots por teste
+- [ ] **Specs**: `auth.spec.ts` (login/register/2FA), `search.spec.ts`, `checkout.spec.ts` (Pix+Cartão), `account.spec.ts`
+- [ ] **Workflow `e2e.yml`** — trigger push main + schedule diário + `workflow_dispatch`; docker-compose up, wait-on :5020+:3000, playwright test --video=on, upload artifact `playwright-report/`
+- [ ] **Painel "E2E / Evidências" no OpsWatch** — status por spec, vídeos, link HTML report; grava `results/e2e/latest.json`
+- [ ] **Integração Linear** — rastreamento e documentação das tarefas do Comprai
+
+---
+
 ## 🔭 Roadmap Futuro
 
 ### 🏭 OMS + WMS + Carrier (plugins hexagonais extensíveis)

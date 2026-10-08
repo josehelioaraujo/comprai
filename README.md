@@ -909,10 +909,17 @@ strix scan http://2.25.122.11:5020 --output report.html
 - [x] Login step-up: `LoginPage` detecta `requires2fa`, redireciona; next-auth aceita `{token, customer}` pré-validado
 - [x] Job Pentest Strix removido do pipeline
 
-**V061 🔜**
-- [ ] Painel Pentest no OpsWatch — findings ZAP em `/k6/results/pentest/latest.json`
-- [ ] Recuperação de senha via email (Resend, token UUID 1h)
-- [ ] `POST /api/auth/logout-all` — revogar todos os refresh tokens
+**V061 ✅**
+- [x] Painel Pentest no OpsWatch — findings ZAP em `/k6/results/pentest/latest.json`
+- [x] Recuperação de senha via email (Resend, token UUID→SHA-256, 1h, anti-enumeração 204)
+- [x] `POST /api/auth/logout-all` — revogar todos os refresh tokens do customer
+- [x] Páginas web `/auth/forgot-password` + `/auth/reset-password` (design white/purple)
+
+**V062 🔜**
+- [ ] Playwright E2E com gravação de vídeo (.webm) e screenshots por teste
+- [ ] Specs: `auth.spec.ts`, `search.spec.ts`, `checkout.spec.ts`, `account.spec.ts`
+- [ ] Workflow `e2e.yml` + painel "E2E / Evidências" no OpsWatch
+- [ ] Integração Linear para rastreamento e documentação das tarefas
 
 </details>
 

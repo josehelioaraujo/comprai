@@ -30,6 +30,11 @@
 |------|-----------|
 | `83365e9` | feat(V061): recuperação de senha, logout-all e páginas web de reset |
 
+### Config produção V061 (sem código novo)
+- **Resend API Key** — `RESEND_API_KEY` configurada em GitHub Secrets (produção)
+- **Google OAuth 2.0** — Client ID + Client Secret criados no Google Cloud Console; Authorized Origins: `http://2.25.122.11.nip.io:3002` e `http://2.25.122.11.nip.io:3003`; Authorized Redirect URIs: `http://2.25.122.11.nip.io:3002/api/auth/callback/google` e `http://2.25.122.11.nip.io:3003/api/auth/callback/google`; secrets `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` adicionados ao GitHub Secrets
+- **`NEXTAUTH_URL`** — atualizar para `nip.io` format nos containers web (`:3002`) e mobile (`:3003`) para que o Google OAuth aceite as origens
+
 ---
 
 ## [V060] — 2026-10-07
