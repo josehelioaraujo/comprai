@@ -45,6 +45,9 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
+// Dapper: mapeia automaticamente snake_case (password_hash → PasswordHash)
+Dapper.DefaultTypeMap.MatchNamesWithUnderscores = true;
+
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.AddOpenTelemetry(logging =>
 {

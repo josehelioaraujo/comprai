@@ -37,6 +37,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
             """,
             new { Email = email });
         if (row is null) return null;
+        if (row.PasswordHash is null) return null;   // usuário SSO sem senha
         if (!BCrypt.Net.BCrypt.Verify(password, row.PasswordHash)) return null;
         return ToDto(row, null);
     }
