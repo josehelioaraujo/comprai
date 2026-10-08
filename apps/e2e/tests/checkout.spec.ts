@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test';
 
 const API_URL      = process.env.E2E_API_URL      || 'http://2.25.122.11:5020';
-const E2E_EMAIL    = process.env.E2E_USER_EMAIL    || `e2e-checkout@comprai-test.local`;
-const E2E_PASSWORD = process.env.E2E_USER_PASSWORD || 'E2eTest@2024!';
-const E2E_NAME     = 'E2E Checkout Tester';
+const E2E_EMAIL    = process.env.E2E_USER_EMAIL    || 'e2e@comprai.test';
+const E2E_PASSWORD = process.env.E2E_USER_PASSWORD || 'E2eTest@2026!';
+const E2E_NAME     = process.env.E2E_USER_NAME     || 'E2E Tester';
 
 test.describe('Fluxo de Checkout', () => {
   let sessionId: string;
@@ -16,13 +16,11 @@ test.describe('Fluxo de Checkout', () => {
 
   test.beforeEach(async ({ page }) => {
     sessionId = `e2e-checkout-${Date.now()}`;
-    await page.goto('/auth/login');
-    const loginTab = page.getByRole('button', { name: 'Entrar', exact: true });
-    if (await loginTab.count() > 0) await loginTab.click();
-    await page.locator('input[type="email"]').fill(E2E_EMAIL);
-    await page.locator('input[type="password"]').fill(E2E_PASSWORD);
-    await page.locator('button[type="submit"]').click();
-    await page.waitForURL(/\/chat/, { timeout: 20_000 });
+    // Reutiliza sessão do storageState (salvo pelo global-setup)
+    // Sem login por formulário em cada teste — evita rate-limit
+    await page.goto('/chat');
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(500);
   });
 
   test('API cart - adicionar e consultar item', async ({ request }) => {

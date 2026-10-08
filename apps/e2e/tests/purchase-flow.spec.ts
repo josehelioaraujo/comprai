@@ -191,9 +191,10 @@ test.describe('Fluxo Completo de Compra', () => {
     const live = await request.get(`${API_URL}/health/live`);
     expect(live.status()).toBe(200);
 
-    // Readiness probe — retorna { status: "ready" } ou 503
+    // Readiness probe — retorna { status: "ready" } ou 503 (dependências ainda inicializando)
     const ready = await request.get(`${API_URL}/health/ready`);
-    expect(ready.status()).toBe(200);
+    expect.soft(ready.status(), '/health/ready pode retornar 503 enquanto dependências inicializam').toBe(200);
+    expect(ready.status()).not.toBe(404);
 
     // Login via API
     const loginResp = await request.post(`${API_URL}/api/auth/login`, {

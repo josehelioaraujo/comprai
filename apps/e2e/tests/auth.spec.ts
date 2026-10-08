@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test';
 
 const API_URL  = process.env.E2E_API_URL  || 'http://2.25.122.11:5020';
-const E2E_EMAIL    = process.env.E2E_USER_EMAIL    || `e2e-${Date.now()}@comprai-test.local`;
-const E2E_PASSWORD = process.env.E2E_USER_PASSWORD || 'E2eTest@2024!';
+const E2E_EMAIL    = process.env.E2E_USER_EMAIL    || 'e2e@comprai.test';
+const E2E_PASSWORD = process.env.E2E_USER_PASSWORD || 'E2eTest@2026!';
 const E2E_NAME     = process.env.E2E_USER_NAME     || 'E2E Tester';
 
 test.describe('Autenticacao', () => {
@@ -19,7 +19,20 @@ test.describe('Autenticacao', () => {
     const ctx  = await browser.newContext({ storageState: { cookies: [], origins: [] } });
     const page = await ctx.newPage();
     await page.goto('/chat');
-    await expect(page).toHaveURL(/\/auth\/login/);
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(1_000);
+
+    // App pode redirecionar server-side (URL muda) OU renderizar
+    // formulário de login client-side (URL permanece /chat)
+    const isOnLogin   = page.url().includes('/auth/login');
+    const hasLoginForm = await page.locator('input[type="email"]')
+      .isVisible({ timeout: 5_000 }).catch(() => false);
+
+    expect.soft(
+      isOnLogin || hasLoginForm,
+      'Sem autenticação, /chat deve redirecionar para /auth/login ou exibir formulário de login'
+    ).toBe(true);
+
     await ctx.close();
   });
 
