@@ -1,0 +1,221 @@
+name: E2E Evidence Recorder
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/e2e/**'
+      - 'apps/web/**'
+      - 'src/**'
+  schedule:
+    - cron: '0 3 * * *'   # Diario 03h UTC
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'URL base do frontend'
+        required: false
+        default: 'http://2.25.122.11:3002'
+      api_url:
+        description: 'URL base da API'
+        required: false
+        default: 'http://2.25.122.11:5020'
+
+env:
+  NODE_VERSION: '20'
+  E2E_BASE_URL: ${{ github.event.inputs.base_url || 'http://2.25.122.11:3002' }}
+  E2E_API_URL:  ${{ github.event.inputs.api_url  || 'http://2.25.122.11:5020' }}
+
+jobs:
+
+  # ─────────────────────────────────────────────
+  # 1. E2E Tests com Playwright
+  # ─────────────────────────────────────────────
+  e2e-tests:
+    name: 🎭 Playwright E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: apps/e2e/package.json
+
+      - name: Install dependencias E2E
+        working-directory: apps/e2e
+        run: npm install
+
+      - name: Install Playwright Chromium
+        working-directory: apps/e2e
+        run: npx playwright install chromium --with-deps
+
+      - name: Aguardar API estar saudavel
+        run: |
+          echo "Aguardando $E2E_API_URL/api/health/live..."
+          for i in $(seq 1 12); do
+            status=$(curl -s -o /dev/null -w "%{http_code}" "$E2E_API_URL/api/health/live" 2>/dev/null || echo "000")
+            if [ "$status" = "200" ]; then
+              echo "API OK (tentativa $i)"
+              break
+            fi
+            echo "Tentativa $i — status $status, aguardando 10s..."
+            sleep 10
+          done
+
+      - name: Aguardar Frontend estar saudavel
+        run: |
+          echo "Aguardando $E2E_BASE_URL..."
+          for i in $(seq 1 12); do
+            status=$(curl -s -o /dev/null -w "%{http_code}" "$E2E_BASE_URL" 2>/dev/null || echo "000")
+            if [ "$status" = "200" ] || [ "$status" = "307" ] || [ "$status" = "302" ]; then
+              echo "Frontend OK (tentativa $i, status $status)"
+              break
+            fi
+            echo "Tentativa $i — status $status, aguardando 10s..."
+            sleep 10
+          done
+
+      - name: Executar testes E2E
+        working-directory: apps/e2e
+        env:
+          E2E_BASE_URL:      ${{ env.E2E_BASE_URL }}
+          E2E_API_URL:       ${{ env.E2E_API_URL }}
+          E2E_USER_EMAIL:    ${{ secrets.E2E_USER_EMAIL }}
+          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+          E2E_USER_NAME:     'E2E Automation'
+          CI: 'true'
+        run: npx playwright test --video=on
+        continue-on-error: true
+
+      - name: Upload Playwright Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-${{ github.run_number }}
+          path: |
+            apps/e2e/playwright-report/
+            apps/e2e/playwright-results.json
+            apps/e2e/test-results/
+          retention-days: 30
+
+  # ─────────────────────────────────────────────
+  # 2. Gerar latest.json e publicar na VPS
+  # ─────────────────────────────────────────────
+  publicar-e2e:
+    name: 📊 Publicar E2E Dashboard
+    runs-on: ubuntu-latest
+    needs: e2e-tests
+    if: always()
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Baixar artifact playwright-results
+        uses: actions/download-artifact@v4
+        with:
+          name: playwright-report-${{ github.run_number }}
+          path: e2e-download/
+        continue-on-error: true
+
+      - name: Gerar e2e-latest.json
+        run: |
+          python3 << 'PYEOF'
+          import json, os, glob, datetime
+
+          results_file = 'e2e-download/playwright-results.json'
+          run_number   = os.environ.get('GITHUB_RUN_NUMBER', '0')
+          sha          = os.environ.get('GITHUB_SHA', '')[:7]
+          ts           = datetime.datetime.utcnow().isoformat() + 'Z'
+
+          # Estrutura base
+          output = {
+            'run':       int(run_number),
+            'sha':       sha,
+            'timestamp': ts,
+            'status':    'unknown',
+            'summary': {
+              'total':    0,
+              'passed':   0,
+              'failed':   0,
+              'skipped':  0,
+              'duration': 0,
+            },
+            'suites': [],
+            'report_url': f'https://github.com/josehelioaraujo/comprai/actions/runs/{os.environ.get("GITHUB_RUN_ID","")}'
+          }
+
+          if os.path.exists(results_file):
+            try:
+              with open(results_file, encoding='utf-8') as f:
+                data = json.load(f)
+
+              total    = data.get('stats', {}).get('expected', 0)
+              passed   = data.get('stats', {}).get('passed',   0)
+              failed   = data.get('stats', {}).get('failed',   0) + data.get('stats', {}).get('unexpected', 0)
+              skipped  = data.get('stats', {}).get('skipped',  0)
+              duration = int(data.get('stats', {}).get('duration', 0) / 1000)
+
+              output['summary'] = {
+                'total':    total,
+                'passed':   passed,
+                'failed':   failed,
+                'skipped':  skipped,
+                'duration': duration,
+              }
+              output['status'] = 'passed' if failed == 0 else 'failed'
+
+              # Suites por spec file
+              for suite in data.get('suites', []):
+                suite_name = suite.get('title', 'unknown')
+                specs = []
+                for spec in suite.get('specs', []):
+                  spec_status = 'passed'
+                  if any(t.get('status') == 'failed' for t in spec.get('tests', [])):
+                    spec_status = 'failed'
+                  elif any(t.get('status') == 'skipped' for t in spec.get('tests', [])):
+                    spec_status = 'skipped'
+                  specs.append({
+                    'title':    spec.get('title', ''),
+                    'status':   spec_status,
+                    'duration': int(sum(t.get('duration', 0) for t in spec.get('tests', [])) / 1000),
+                  })
+                output['suites'].append({
+                  'file':   suite_name,
+                  'specs':  specs,
+                  'passed': sum(1 for s in specs if s['status'] == 'passed'),
+                  'failed': sum(1 for s in specs if s['status'] == 'failed'),
+                })
+            except Exception as e:
+              print(f'Erro ao parsear playwright-results.json: {e}')
+              output['status'] = 'error'
+          else:
+            print('playwright-results.json nao encontrado — API/frontend pode estar down')
+            output['status'] = 'no_results'
+
+          os.makedirs('e2e-output', exist_ok=True)
+          with open('e2e-output/latest.json', 'w', encoding='utf-8') as f:
+            json.dump(output, f, ensure_ascii=False, indent=2)
+
+          print(json.dumps(output, indent=2))
+          PYEOF
+
+      - name: Setup SSH para VPS
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s' "${{ secrets.VPS_HOSTINGER_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H 2.25.122.11 >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Publicar latest.json na VPS
+        run: |
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no root@2.25.122.11 \
+            "mkdir -p /var/www/html/k6/results/e2e"
+          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
+            e2e-output/latest.json \
+            root@2.25.122.11:/var/www/html/k6/results/e2e/latest.json
+          echo "Publicado: /var/www/html/k6/results/e2e/latest.json"

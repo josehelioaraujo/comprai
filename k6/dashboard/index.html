@@ -113,7 +113,7 @@ let verInfo = {};
 let _rnTotal = 1, _rnCurrent = 0, _rnStop = false, _rnOnDone = null;
 
 // IDs das secoes navegaveis (exceto detalhes que e fixo)
-const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','codeMetricsBlock','mutacaoBlock','sonarBlock','owaspBlock','pciBlock','depBlock','pentestBlock','evolucaoBlock','integrationBlock','obsMetricasBlock','obsLogsBlock','obsAcessoBlock','obsTracesBlock','obsErrosBlock','obsContainersBlock','healthMapBlock','newRelicBlock','qualityScoreBlock','correlacaoBlock'];
+const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','codeMetricsBlock','mutacaoBlock','sonarBlock','owaspBlock','pciBlock','depBlock','pentestBlock','evolucaoBlock','integrationBlock','e2eBlock','obsMetricasBlock','obsLogsBlock','obsAcessoBlock','obsTracesBlock','obsErrosBlock','obsContainersBlock','healthMapBlock','newRelicBlock','qualityScoreBlock','correlacaoBlock'];
 let activeSection = null; // null = nenhuma extra visivel
 
 const TYPE_ORDER = ['smoke','load','stress','spike','soak'];
@@ -1503,9 +1503,120 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
   window.showSection = function(id, el) {
     if (typeof _origShowSection === 'function') _origShowSection(id, el);
     if (id === 'mutacaoBlock') loadMutationData();
+    if (id === 'e2eBlock') loadE2eData();
   };
 
-  // ===== SONARCLOUD =====
+  // ===== E2E EVIDENCE RECORDER =====
+  async function loadE2eData() {
+    var area = document.getElementById('e2e-content');
+    if (!area) return;
+    area.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:24px 0">Carregando dados E2E...</div>';
+    try {
+      var res = await fetch('/k6/results/e2e/latest.json?t=' + Date.now());
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var d = await res.json();
+
+      var summary  = d.summary  || {};
+      var total    = summary.total   || 0;
+      var passed   = summary.passed  || 0;
+      var failed   = summary.failed  || 0;
+      var skipped  = summary.skipped || 0;
+      var duration = summary.duration || 0;
+      var status   = d.status || 'unknown';
+      var statusColor = status === 'passed' ? '#22c55e' : status === 'failed' ? '#ef4444' : '#f59e0b';
+      var statusLabel = status === 'passed' ? 'PASSOU' : status === 'failed' ? 'FALHOU' : status === 'no_results' ? 'SEM DADOS' : 'ERRO';
+
+      // Header info
+      var runInfo = '';
+      if (d.run) runInfo = 'Run #' + d.run + (d.sha ? ' &nbsp;·&nbsp; SHA ' + d.sha : '') + (d.timestamp ? ' &nbsp;·&nbsp; ' + new Date(d.timestamp).toLocaleString('pt-BR') : '');
+
+      // KPI Cards
+      var passRate = total > 0 ? Math.round((passed / total) * 100) : 0;
+      var kpiHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:20px">'
+        + _e2eKpi('Total',    total,    '#94a3b8', '&#127379;')
+        + _e2eKpi('Passou',   passed,   '#22c55e', '&#9989;')
+        + _e2eKpi('Falhou',   failed,   failed > 0 ? '#ef4444' : '#22c55e', '&#10060;')
+        + _e2eKpi('Ignorado', skipped,  '#f59e0b', '&#9940;')
+        + _e2eKpi('Duracao',  duration + 's', '#38bdf8', '&#9201;')
+        + _e2eKpi('Taxa OK',  passRate + '%', passRate === 100 ? '#22c55e' : passRate >= 80 ? '#f59e0b' : '#ef4444', '&#128200;')
+        + '</div>';
+
+      // Suites table
+      var suites = d.suites || [];
+      var suitesHTML = '';
+      if (suites.length > 0) {
+        suitesHTML = '<div style="margin-bottom:16px"><div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Specs por Suite</div>'
+          + '<div style="display:flex;flex-direction:column;gap:8px">';
+        suites.forEach(function(suite) {
+          var file = suite.file || 'unknown';
+          var sf = suite.failed || 0;
+          var sp = suite.passed || 0;
+          var sc = (suite.specs || []).length;
+          var sColor = sf > 0 ? '#ef4444' : '#22c55e';
+          var sLabel = sf > 0 ? 'FALHOU' : 'PASSOU';
+          suitesHTML += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px">'
+            + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+            + '<span style="font-size:13px;font-weight:600;color:#e2e8f0">&#128196; ' + file + '</span>'
+            + '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;background:' + sColor + '22;color:' + sColor + '">' + sLabel + '</span>'
+            + '</div>'
+            + '<div style="display:flex;gap:16px;font-size:12px;color:var(--muted)">'
+            + '<span>&#9989; ' + sp + ' passou</span>'
+            + '<span>&#10060; ' + sf + ' falhou</span>'
+            + '<span>&#128200; ' + sc + ' total</span>'
+            + '</div>';
+          // Specs individuais
+          var specs = suite.specs || [];
+          if (specs.length > 0) {
+            suitesHTML += '<div style="margin-top:10px;display:flex;flex-direction:column;gap:4px">';
+            specs.forEach(function(spec) {
+              var ic = spec.status === 'passed' ? '&#9989;' : spec.status === 'failed' ? '&#10060;' : '&#9940;';
+              var sc2 = spec.status === 'passed' ? '#22c55e' : spec.status === 'failed' ? '#ef4444' : '#f59e0b';
+              suitesHTML += '<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;background:var(--bg)">'
+                + '<span>' + ic + '</span>'
+                + '<span style="flex:1;font-size:12px;color:#cbd5e1">' + (spec.title || '') + '</span>'
+                + '<span style="font-size:11px;color:var(--muted)">' + (spec.duration || 0) + 's</span>'
+                + '</div>';
+            });
+            suitesHTML += '</div>';
+          }
+          suitesHTML += '</div>';
+        });
+        suitesHTML += '</div></div>';
+      } else {
+        suitesHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">Nenhuma suite encontrada nos resultados.</div>';
+      }
+
+      // Report link
+      var linkHTML = d.report_url
+        ? '<div style="margin-top:16px;text-align:center"><a href="' + d.report_url + '" target="_blank" style="color:#38bdf8;font-size:12px;text-decoration:none">&#128279; Ver run completo no GitHub Actions</a></div>'
+        : '';
+
+      area.innerHTML = '<div style="font-size:11px;color:var(--muted);margin-bottom:16px">' + runInfo + '</div>'
+        + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">'
+        + '<span style="font-size:24px">&#127916;</span>'
+        + '<div>'
+        + '<div style="font-size:14px;font-weight:700;color:#e2e8f0">E2E / Evidencias — Playwright</div>'
+        + '<div style="font-size:12px;color:' + statusColor + ';font-weight:600;margin-top:2px">' + statusLabel + '</div>'
+        + '</div></div>'
+        + kpiHTML
+        + suitesHTML
+        + linkHTML;
+
+    } catch(e) {
+      area.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:24px 0">Execute o workflow E2E para gerar os dados.</div>'
+        + '<div style="margin-top:8px"><a href="https://github.com/josehelioaraujo/comprai/actions/workflows/e2e.yml" target="_blank" style="color:#38bdf8;font-size:12px;text-decoration:none">&#128279; Abrir workflow no GitHub Actions</a></div>';
+    }
+  }
+
+  function _e2eKpi(label, value, color, icon) {
+    return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;text-align:center">'
+      + '<div style="font-size:18px;margin-bottom:4px">' + icon + '</div>'
+      + '<div style="font-size:20px;font-weight:700;color:' + color + '">' + value + '</div>'
+      + '<div style="font-size:11px;color:var(--muted);margin-top:2px">' + label + '</div>'
+      + '</div>';
+  }
+
+// ===== SONARCLOUD =====
   var RATING_LABELS = { '1': 'A', '2': 'B', '3': 'C', '4': 'D', '5': 'E' };
   var RATING_COLORS = { 'A': '#22c55e', 'B': '#84cc16', 'C': '#f59e0b', 'D': '#f97316', 'E': '#ef4444' };
 
@@ -7390,6 +7501,9 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <div class="nav-item" id="nav-mutacao" onclick="showSection('mutacaoBlock', this)" title="Testes de Mutacao">
           <span class="nav-icon">&#129522;</span><span class="nav-text">Mutacao</span>
         </div>
+        <div class="nav-item" id="nav-e2e" onclick="showSection('e2eBlock', this); loadE2eData();" title="E2E Evidence Recorder — Playwright">
+          <span class="nav-icon">&#127916;</span><span class="nav-text">E2E / Evidencias</span>
+        </div>
 
       </div>
     </div>
@@ -9853,6 +9967,36 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <div>
           <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Histórico (últimos checks)</div>
           <div id="hm-modal-ticks" style="display:flex;gap:3px;flex-wrap:wrap"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== E2E EVIDENCE RECORDER ===== -->
+  <div id="e2eBlock" class="content-section" style="display:none">
+    <div class="section-header">
+      <h2 class="section-title">&#127916; E2E / Evidencias</h2>
+      <div style="display:flex;align-items:center;gap:10px">
+        <a href="https://github.com/josehelioaraujo/comprai/actions/workflows/e2e.yml"
+           target="_blank"
+           style="font-size:12px;color:#38bdf8;text-decoration:none;display:flex;align-items:center;gap:4px">
+          &#128279; Ver no GitHub Actions
+        </a>
+        <button onclick="loadE2eData()"
+          style="font-size:12px;padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer">
+          &#8635; Atualizar
+        </button>
+      </div>
+    </div>
+    <div class="section-body">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6">
+        Evidencias automaticas de testes E2E com <strong style="color:#e2e8f0">Playwright</strong>.
+        Specs: autenticacao, busca, checkout e area do usuario.
+        Videos e screenshots sao arquivados no GitHub Actions por 30 dias.
+      </div>
+      <div id="e2e-content" style="min-height:120px">
+        <div style="color:var(--muted);font-size:13px;text-align:center;padding:40px 0">
+          Clique em <strong>Atualizar</strong> ou navegue para esta secao para carregar os dados.
         </div>
       </div>
     </div>
