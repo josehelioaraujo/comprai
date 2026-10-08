@@ -20,7 +20,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
             """
             INSERT INTO customer (name, email, document, provider, provider_id, password_hash, email_verified, channel)
             VALUES (@Name, @Email, @Document, 'credentials', NULL, @Hash, FALSE, 'web')
-            RETURNING id, name, email, provider, avatar_url, email_verified, phone, document
+            RETURNING id, name, email, provider, avatar_url, email_verified, phone, document, totp_enabled
             """,
             new { req.Name, req.Email, req.Document, Hash = hash });
         return ToDto(row, null);
@@ -31,7 +31,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
         using var conn = await db.CreateAsync(ct);
         var row = await conn.QuerySingleOrDefaultAsync<CustomerRow>(
             """
-            SELECT id, name, email, provider, avatar_url, email_verified, phone, document, password_hash
+            SELECT id, name, email, provider, avatar_url, email_verified, phone, document, password_hash, totp_enabled
             FROM customer
             WHERE email = @Email AND provider = 'credentials'
             """,
@@ -52,7 +52,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
                 SET name        = EXCLUDED.name,
                     avatar_url  = EXCLUDED.avatar_url,
                     updated_at  = NOW()
-            RETURNING id, name, email, provider, avatar_url, email_verified, phone, document
+            RETURNING id, name, email, provider, avatar_url, email_verified, phone, document, totp_enabled
             """,
             new { req.Name, req.Email, req.Provider, ProviderId = req.ProviderId, req.AvatarUrl });
         return ToDto(row, null);
@@ -62,7 +62,10 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
     {
         using var conn = await db.CreateAsync(ct);
         var row = await conn.QuerySingleOrDefaultAsync<CustomerRow>(
-            "SELECT id, name, email, provider, avatar_url, email_verified, phone, document FROM customer WHERE id = @Id",
+            """
+            SELECT id, name, email, provider, avatar_url, email_verified, phone, document, totp_enabled
+            FROM customer WHERE id = @Id
+            """,
             new { Id = customerId });
         if (row is null) return null;
 
@@ -89,7 +92,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
                 document   = @Document,
                 updated_at = NOW()
             WHERE id = @Id
-            RETURNING id, name, email, provider, avatar_url, email_verified, phone, document
+            RETURNING id, name, email, provider, avatar_url, email_verified, phone, document, totp_enabled
             """,
             new { req.Name, req.Phone, req.Document, Id = req.CustomerId });
         return row is null ? null : ToDto(row, null);
@@ -150,7 +153,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
         using var conn = await db.CreateAsync(ct);
         var row = await conn.QuerySingleOrDefaultAsync<CustomerRow>(
             """
-            SELECT id, name, email, provider, avatar_url, email_verified, phone, document
+            SELECT id, name, email, provider, avatar_url, email_verified, phone, document, totp_enabled
             FROM customer
             WHERE refresh_token_hash = @Hash
               AND refresh_token_expires_at > NOW()
@@ -173,11 +176,163 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
             new { Id = customerId });
     }
 
+    // ── V060-F1: Email Verification ──────────────────────────────────────────
+
+    public async Task SaveVerificationCodeAsync(string customerId, string code, DateTime expiresAt, CancellationToken ct = default)
+    {
+        using var conn = await db.CreateAsync(ct);
+        await conn.ExecuteAsync(
+            """
+            UPDATE customer
+            SET email_verification_token      = @Code,
+                email_verification_expires_at = @ExpiresAt,
+                updated_at                    = NOW()
+            WHERE id = @Id
+            """,
+            new { Code = code, ExpiresAt = expiresAt, Id = customerId });
+    }
+
+    public async Task<bool> VerifyEmailCodeAsync(string customerId, string code, CancellationToken ct = default)
+    {
+        using var conn = await db.CreateAsync(ct);
+        var affected = await conn.ExecuteAsync(
+            """
+            UPDATE customer
+            SET email_verified                = TRUE,
+                email_verification_token      = NULL,
+                email_verification_expires_at = NULL,
+                updated_at                    = NOW()
+            WHERE id                          = @Id
+              AND email_verification_token      = @Code
+              AND email_verification_expires_at > NOW()
+            """,
+            new { Id = customerId, Code = code });
+        return affected > 0;
+    }
+
+    // ── V060-F2: TOTP 2FA ─────────────────────────────────────────────────────
+
+    public async Task SaveTotpSecretAsync(string customerId, string secret, CancellationToken ct = default)
+    {
+        using var conn = await db.CreateAsync(ct);
+        await conn.ExecuteAsync(
+            """
+            UPDATE customer
+            SET totp_secret = @Secret,
+                updated_at  = NOW()
+            WHERE id = @Id
+            """,
+            new { Secret = secret, Id = customerId });
+    }
+
+    public async Task<(bool Enabled, string? Secret)> GetTotpDataAsync(string customerId, CancellationToken ct = default)
+    {
+        using var conn = await db.CreateAsync(ct);
+        var row = await conn.QuerySingleOrDefaultAsync<(bool Enabled, string? Secret)>(
+            "SELECT totp_enabled, totp_secret FROM customer WHERE id = @Id",
+            new { Id = customerId });
+        return row;
+    }
+
+    public async Task<bool> EnableTotpAsync(string customerId, CancellationToken ct = default)
+    {
+        using var conn = await db.CreateAsync(ct);
+        var affected = await conn.ExecuteAsync(
+            """
+            UPDATE customer
+            SET totp_enabled = TRUE,
+                updated_at   = NOW()
+            WHERE id = @Id
+            """,
+            new { Id = customerId });
+        return affected > 0;
+    }
+
+    public async Task DisableTotpAsync(string customerId, CancellationToken ct = default)
+    {
+        using var conn = await db.CreateAsync(ct);
+        await conn.ExecuteAsync(
+            """
+            UPDATE customer
+            SET totp_enabled = FALSE,
+                totp_secret  = NULL,
+                updated_at   = NOW()
+            WHERE id = @Id
+            """,
+            new { Id = customerId });
+    }
+
+    // ── V061-F1: Recuperação de Senha ────────────────────────────────────────
+
+    public async Task<bool> SavePasswordResetTokenByEmailAsync(string email, string tokenHash, DateTime expiresAt, CancellationToken ct = default)
+    {
+        using var conn = await db.CreateAsync(ct);
+        var affected = await conn.ExecuteAsync(
+            """
+            UPDATE customer
+            SET password_reset_token_hash = @TokenHash,
+                password_reset_expires_at  = @ExpiresAt,
+                updated_at                 = NOW()
+            WHERE email = @Email
+            """,
+            new { TokenHash = tokenHash, ExpiresAt = expiresAt, Email = email });
+        return affected > 0;
+    }
+
+    public async Task<AuthCustomerDto?> GetByPasswordResetTokenAsync(string tokenHash, CancellationToken ct = default)
+    {
+        using var conn = await db.CreateAsync(ct);
+        var row = await conn.QuerySingleOrDefaultAsync<CustomerRow>(
+            """
+            SELECT id, name, email, provider, avatar_url, email_verified, phone, document, totp_enabled
+            FROM customer
+            WHERE password_reset_token_hash = @TokenHash
+              AND password_reset_expires_at  > NOW()
+            """,
+            new { TokenHash = tokenHash });
+        return row is null ? null : ToDto(row, null);
+    }
+
+    public async Task<bool> ResetPasswordAsync(string tokenHash, string newPasswordPlain, CancellationToken ct = default)
+    {
+        var newHash = BCrypt.Net.BCrypt.HashPassword(newPasswordPlain);
+        using var conn = await db.CreateAsync(ct);
+        var affected = await conn.ExecuteAsync(
+            """
+            UPDATE customer
+            SET password_hash              = @NewHash,
+                password_reset_token_hash  = NULL,
+                password_reset_expires_at  = NULL,
+                updated_at                 = NOW()
+            WHERE password_reset_token_hash = @TokenHash
+              AND password_reset_expires_at  > NOW()
+            """,
+            new { TokenHash = tokenHash, NewHash = newHash });
+        return affected > 0;
+    }
+
+    // ── V061-F2: Logout de todos os dispositivos ─────────────────────────────
+
+    public async Task RevokeAllRefreshTokensAsync(string customerId, CancellationToken ct = default)
+    {
+        using var conn = await db.CreateAsync(ct);
+        await conn.ExecuteAsync(
+            """
+            UPDATE customer
+            SET refresh_token_hash      = NULL,
+                refresh_token_expires_at = NULL,
+                updated_at              = NOW()
+            WHERE id = @Id
+            """,
+            new { Id = customerId });
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
     private static AuthCustomerDto ToDto(CustomerRow r, List<AddressRow>? addresses) =>
         new(r.Id.ToString(), r.Name, r.Email, r.Provider, r.AvatarUrl, r.EmailVerified,
             r.Phone, r.Document,
-            addresses?.Select(ToAddressDto).ToList());
+            addresses?.Select(ToAddressDto).ToList(),
+            r.TotpEnabled);
 
     private static CustomerAddressDto ToAddressDto(AddressRow a) =>
         new(a.Id.ToString(), a.Label ?? "", a.ZipCode, a.Street,
@@ -194,6 +349,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
         public string? Phone         { get; init; }
         public string? Document      { get; init; }
         public string? PasswordHash  { get; init; }
+        public bool    TotpEnabled   { get; init; }
     }
 
     private sealed class AddressRow

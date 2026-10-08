@@ -33,4 +33,38 @@ public sealed class NullAuthPort : IAuthPort
 
     public Task RevokeRefreshTokenAsync(string customerId, CancellationToken ct = default)
         => Task.CompletedTask;
+
+    // V060-F1: Email Verification — no-op no Null Object
+    public Task SaveVerificationCodeAsync(string customerId, string code, DateTime expiresAt, CancellationToken ct = default)
+        => Task.CompletedTask;
+
+    public Task<bool> VerifyEmailCodeAsync(string customerId, string code, CancellationToken ct = default)
+        => Task.FromResult(false);
+
+    // V060-F2: TOTP 2FA — no-op no Null Object
+    public Task SaveTotpSecretAsync(string customerId, string secret, CancellationToken ct = default)
+        => Task.CompletedTask;
+
+    public Task<(bool Enabled, string? Secret)> GetTotpDataAsync(string customerId, CancellationToken ct = default)
+        => Task.FromResult((false, (string?)null));
+
+    public Task<bool> EnableTotpAsync(string customerId, CancellationToken ct = default)
+        => Task.FromResult(false);
+
+    public Task DisableTotpAsync(string customerId, CancellationToken ct = default)
+        => Task.CompletedTask;
+
+    // V061-F1: Password Reset — no-op no Null Object
+    public Task<bool> SavePasswordResetTokenByEmailAsync(string email, string tokenHash, DateTime expiresAt, CancellationToken ct = default)
+        => Task.FromResult(false);
+
+    public Task<AuthCustomerDto?> GetByPasswordResetTokenAsync(string tokenHash, CancellationToken ct = default)
+        => Task.FromResult<AuthCustomerDto?>(null);
+
+    public Task<bool> ResetPasswordAsync(string tokenHash, string newPasswordHash, CancellationToken ct = default)
+        => Task.FromResult(false);
+
+    // V061-F2: Logout-all — no-op no Null Object
+    public Task RevokeAllRefreshTokensAsync(string customerId, CancellationToken ct = default)
+        => Task.CompletedTask;
 }

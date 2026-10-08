@@ -895,14 +895,24 @@ strix scan http://2.25.122.11:5020 --output report.html
 </details>
 
 <details>
-<summary><strong>🗺️ Roadmap de Segurança (V059)</strong></summary>
+<summary><strong>🗺️ Roadmap de Segurança</strong></summary>
 
-- [ ] Integração Strix no CI/CD (step pós-smoke-tests)
-- [ ] Headers de segurança HTTP (`CSP`, `HSTS`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`)
-- [ ] Rate limiting por IP no login (brute force prevention)
-- [ ] Refresh token + rotação de JWT
-- [ ] Verificação de email pós-cadastro (credentials)
-- [ ] 2FA (TOTP) para providers credentials
+**V059 ✅**
+- [x] Headers de segurança HTTP (`CSP`, `HSTS`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`)
+- [x] Rate limiting por IP no login/register (brute force prevention — SlidingWindow 5 req/60s)
+- [x] Refresh token opaque com rotação SHA-256 (`POST /api/auth/refresh` + `POST /api/auth/logout`)
+- [x] OWASP ZAP autenticado com artifact HTML
+
+**V060 ✅**
+- [x] Verificação de email pós-cadastro via Resend OTP (`POST /api/auth/verify-email`)
+- [x] 2FA TOTP (`Otp.NET`) — QR Code + secret manual + step-up no login
+- [x] Login step-up: `LoginPage` detecta `requires2fa`, redireciona; next-auth aceita `{token, customer}` pré-validado
+- [x] Job Pentest Strix removido do pipeline
+
+**V061 🔜**
+- [ ] Painel Pentest no OpsWatch — findings ZAP em `/k6/results/pentest/latest.json`
+- [ ] Recuperação de senha via email (Resend, token UUID 1h)
+- [ ] `POST /api/auth/logout-all` — revogar todos os refresh tokens
 
 </details>
 
@@ -1054,6 +1064,7 @@ http://<VPS>:3003   # App mobile independente
 | **V055** | cart_snapshot + webhook_event idempotência; AddToCartHandler/RemoveFromCart snapshot; Null stubs CI |
 | **V056** | `ICartSnapshotService` (Clean Architecture); Front: X-Session-Id, sessionId payment, restore carrinho |
 | **V059** | Segurança: SecurityHeadersMiddleware, Rate limiting login/register, OWASP ZAP auth+headers, Refresh token rotação JWT |
+| **V060** | Segurança: Verificação de email pós-cadastro (Resend OTP), 2FA TOTP completo (Otp.NET, step-up login, next-auth pré-autenticado), job Strix removido |
 | **V052** | BD como source of truth: UUID order, endereço snapshot, fulfillment_event, DI corrigido, smoke test fix |
 | **V051** | Testes CI verdes; F5 polling real de fulfillment; auto-dismiss PixCard/StripeCard pós-confirmação |
 
@@ -1068,7 +1079,8 @@ http://<VPS>:3003   # App mobile independente
 | **ICartSnapshotService + Front session tracking** | ~~Clean Architecture snapshot + headers session~~ ✅ V056 | — |
 | **~~Autenticação e Área do Usuário~~** | ~~Cadastro/login (web+mobile), Google SSO, JWT, histórico de pedidos vinculado ao customer~~ ✅ V057–V058 | — |
 | **Segurança** | ~~SecurityHeaders, Rate limiting, OWASP ZAP, Refresh token~~ ✅ V059 | — |
-| **Segurança cont.** | Verificação de email (Resend), 2FA TOTP, Painel Pentest OpsWatch | V060 |
+| **Segurança cont.** | ~~Verificação de email (Resend), 2FA TOTP, job Strix removido~~ ✅ V060 | — |
+| **Segurança cont. / OpsWatch** | Painel Pentest OpsWatch, recuperação de senha, logout-all | V061 |
 | **OMS + WMS + Carrier (plugins)** | Plugins hexagonais extensíveis: `Oms.Simulated/Vtex`, `Wms.Simulated/Totvs`, `Carrier.Simulated/Correios` | Futuro |
 | **LLM Diagnóstico** | `/api/ai/analyze` → Ollama + fallback Claude; botão "Analisar" no OpsWatch | Futuro |
 | **GROQ_MODEL_SELECTOR** | Seletor de modelo no `workflow_dispatch` do code-review | Futuro |
