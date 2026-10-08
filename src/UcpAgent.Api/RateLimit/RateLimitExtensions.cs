@@ -32,11 +32,12 @@ public static class RateLimitExtensions
             });
 
             // ── Auth — login / register (Sliding Window por IP) ───────────
-            // 5 tentativas por 60 segundos — previne brute force
+            // Padrão: 5 / 60 s — previne brute force.
+            // Ajuste via env: RateLimit__Auth__PermitLimit=30 (E2E/dev)
             rl.AddSlidingWindowLimiter(AuthPolicy, o =>
             {
-                o.PermitLimit          = 5;
-                o.Window               = TimeSpan.FromSeconds(60);
+                o.PermitLimit          = opts.Auth.PermitLimit;
+                o.Window               = TimeSpan.FromSeconds(opts.Auth.WindowSeconds);
                 o.SegmentsPerWindow    = 6;
                 o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
                 o.QueueLimit           = 0;
