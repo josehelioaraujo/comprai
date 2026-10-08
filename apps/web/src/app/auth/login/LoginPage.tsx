@@ -32,15 +32,45 @@ export default function LoginPage({ callbackUrl = '/chat' }: LoginPageProps) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, email, password }),
         })
-        if (!res.ok) {
-          const d = await res.json()
-          setError(d.error ?? 'Erro ao cadastrar.')
-          setLoading(false)
-          return
-        }
+        const d = await res.json()
+        if (!res.ok) { setError(d.error ?? 'Erro ao cadastrar.'); setLoading(false); return }
+        // Registro já retorna token — autentica direto
+        const result = await signIn('credentials', {
+          redirect: false,
+          token:    d.token,
+          customer: JSON.stringify(d.customer),
+        })
+        if (result?.error) { setError('Erro ao iniciar sessão.'); setLoading(false); return }
+        router.push(callbackUrl)
+        return
       }
-      const result = await signIn('credentials', { email, password, redirect: false })
-      if (result?.error) { setError('Email ou senha inválidos.'); setLoading(false); return }
+
+      // V060-F2: chama o backend diretamente para detectar 2FA antes de criar sessão
+      const res = await fetch(`${BASE_URL}/api/auth/login`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ email, password }),
+      })
+      if (res.status === 401) { setError('Email ou senha inválidos.'); setLoading(false); return }
+      if (!res.ok)            { setError('Erro ao entrar. Tente novamente.'); setLoading(false); return }
+
+      const d = await res.json()
+
+      if (d.requires2fa) {
+        // Salva tempToken e redireciona para verificação TOTP
+        if (typeof sessionStorage !== 'undefined')
+          sessionStorage.setItem('2fa_temp_token', d.tempToken)
+        router.push('/auth/2fa/verify')
+        return
+      }
+
+      // Login normal — estabelece sessão next-auth com o token retornado
+      const result = await signIn('credentials', {
+        redirect: false,
+        token:    d.token,
+        customer: JSON.stringify(d.customer),
+      })
+      if (result?.error) { setError('Erro ao iniciar sessão.'); setLoading(false); return }
       router.push(callbackUrl)
     } catch { setError('Erro de conexão.'); setLoading(false) }
   }

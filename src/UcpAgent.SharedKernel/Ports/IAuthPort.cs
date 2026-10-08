@@ -52,7 +52,8 @@ public record AuthCustomerDto(
     bool EmailVerified,
     string? Phone    = null,
     string? Document = null,
-    IReadOnlyList<CustomerAddressDto>? Addresses = null);
+    IReadOnlyList<CustomerAddressDto>? Addresses = null,
+    bool TotpEnabled = false);
 
 public interface IAuthPort
 {
@@ -99,4 +100,18 @@ public interface IAuthPort
     /// Retorna true em caso de sucesso, false caso contrário.
     /// </summary>
     Task<bool> VerifyEmailCodeAsync(string customerId, string code, CancellationToken ct = default);
+
+    // ── V060-F2: TOTP 2FA ────────────────────────────────────────────────
+
+    /// <summary>Salva o TOTP secret (base32) antes de confirmação. totp_enabled permanece FALSE.</summary>
+    Task SaveTotpSecretAsync(string customerId, string secret, CancellationToken ct = default);
+
+    /// <summary>Retorna (enabled, secret) para validação de código TOTP.</summary>
+    Task<(bool Enabled, string? Secret)> GetTotpDataAsync(string customerId, CancellationToken ct = default);
+
+    /// <summary>Ativa TOTP após confirmação do primeiro código. Retorna false se customer não encontrado.</summary>
+    Task<bool> EnableTotpAsync(string customerId, CancellationToken ct = default);
+
+    /// <summary>Desativa TOTP e apaga o secret.</summary>
+    Task DisableTotpAsync(string customerId, CancellationToken ct = default);
 }

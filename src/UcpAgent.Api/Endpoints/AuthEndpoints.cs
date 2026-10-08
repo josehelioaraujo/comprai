@@ -32,10 +32,18 @@ public static class AuthEndpoints
 
         group.MapPost("/login", async (
             [FromBody] LoginRequest req,
-            IAuthPort auth, ISessionPort? sessions, JwtService jwt, HttpContext ctx) =>
+            IAuthPort auth, ISessionPort? sessions, JwtService jwt, TotpService totp, HttpContext ctx) =>
         {
             var customer = await auth.LoginAsync(req.Email, req.Password);
             if (customer is null) return Results.Unauthorized();
+
+            // V060-F2: se TOTP ativado, emite tempToken e exige segundo fator
+            if (customer.TotpEnabled)
+            {
+                var tempToken = totp.GenerateTempToken(customer.Id);
+                return Results.Ok(new { requires2fa = true, tempToken });
+            }
+
             await LinkSessionAsync(sessions, ctx, customer.Id);
             return Results.Ok(await IssueTokenPairAsync(auth, jwt, customer));
         }).RequireRateLimiting(RateLimitExtensions.AuthPolicy);
@@ -150,6 +158,98 @@ public static class AuthEndpoints
                 ? Results.Ok(new { message = "Email verificado com sucesso." })
                 : Results.BadRequest(new { error = "Código inválido ou expirado." });
         }).RequireAuthorization().RequireRateLimiting(RateLimitExtensions.AuthPolicy);
+
+        // ── V060-F2: TOTP 2FA ─────────────────────────────────────────────────
+
+        // POST /api/auth/2fa/setup — gera secret e URI otpauth para QR Code
+        // Requer JWT normal (usuário autenticado)
+        group.MapPost("/2fa/setup", async (
+            HttpContext ctx, IAuthPort auth, TotpService totp) =>
+        {
+            var customerId = JwtService.GetCustomerId(ctx.User);
+            if (customerId is null) return Results.Unauthorized();
+
+            var customer = await auth.GetByIdAsync(customerId);
+            if (customer is null) return Results.NotFound();
+
+            var secret = totp.GenerateSecret();
+            await auth.SaveTotpSecretAsync(customerId, secret);
+            var uri = totp.BuildOtpAuthUri(secret, customer.Email);
+
+            return Results.Ok(new { secret, otpAuthUri = uri });
+        }).RequireAuthorization();
+
+        // POST /api/auth/2fa/enable — confirma primeiro código e ativa TOTP
+        // body: { "code": "123456" }
+        group.MapPost("/2fa/enable", async (
+            [FromBody] TotpCodeRequest req,
+            HttpContext ctx, IAuthPort auth, TotpService totp) =>
+        {
+            var customerId = JwtService.GetCustomerId(ctx.User);
+            if (customerId is null) return Results.Unauthorized();
+
+            if (string.IsNullOrWhiteSpace(req.Code))
+                return Results.BadRequest(new { error = "Código obrigatório." });
+
+            var (enabled, secret) = await auth.GetTotpDataAsync(customerId);
+            if (enabled)        return Results.BadRequest(new { error = "TOTP já ativado." });
+            if (secret is null) return Results.BadRequest(new { error = "Execute /2fa/setup primeiro." });
+
+            if (!totp.Verify(secret, req.Code.Trim()))
+                return Results.BadRequest(new { error = "Código inválido." });
+
+            var ok = await auth.EnableTotpAsync(customerId);
+            return ok
+                ? Results.Ok(new { message = "2FA ativado com sucesso." })
+                : Results.Problem("Falha ao ativar 2FA.");
+        }).RequireAuthorization().RequireRateLimiting(RateLimitExtensions.AuthPolicy);
+
+        // POST /api/auth/2fa/verify — valida código durante o login (usa tempToken)
+        // body: { "tempToken": "...", "code": "123456" }
+        group.MapPost("/2fa/verify", async (
+            [FromBody] TotpVerifyRequest req,
+            IAuthPort auth, ISessionPort? sessions, JwtService jwt, TotpService totp, HttpContext ctx) =>
+        {
+            if (string.IsNullOrWhiteSpace(req.TempToken) || string.IsNullOrWhiteSpace(req.Code))
+                return Results.BadRequest(new { error = "tempToken e code são obrigatórios." });
+
+            var customerId = totp.ValidateTempToken(req.TempToken);
+            if (customerId is null) return Results.Unauthorized();
+
+            var (enabled, secret) = await auth.GetTotpDataAsync(customerId);
+            if (!enabled || secret is null) return Results.Unauthorized();
+
+            if (!totp.Verify(secret, req.Code.Trim()))
+                return Results.BadRequest(new { error = "Código inválido ou expirado." });
+
+            var customer = await auth.GetByIdAsync(customerId);
+            if (customer is null) return Results.Unauthorized();
+
+            await LinkSessionAsync(sessions, ctx, customer.Id);
+            return Results.Ok(await IssueTokenPairAsync(auth, jwt, customer));
+        }).RequireRateLimiting(RateLimitExtensions.AuthPolicy);
+
+        // POST /api/auth/2fa/disable — desativa TOTP (requer código válido)
+        // body: { "code": "123456" }
+        group.MapPost("/2fa/disable", async (
+            [FromBody] TotpCodeRequest req,
+            HttpContext ctx, IAuthPort auth, TotpService totp) =>
+        {
+            var customerId = JwtService.GetCustomerId(ctx.User);
+            if (customerId is null) return Results.Unauthorized();
+
+            if (string.IsNullOrWhiteSpace(req.Code))
+                return Results.BadRequest(new { error = "Código obrigatório." });
+
+            var (enabled, secret) = await auth.GetTotpDataAsync(customerId);
+            if (!enabled || secret is null) return Results.BadRequest(new { error = "TOTP não está ativo." });
+
+            if (!totp.Verify(secret, req.Code.Trim()))
+                return Results.BadRequest(new { error = "Código inválido." });
+
+            await auth.DisableTotpAsync(customerId);
+            return Results.Ok(new { message = "2FA desativado com sucesso." });
+        }).RequireAuthorization().RequireRateLimiting(RateLimitExtensions.AuthPolicy);
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
@@ -187,4 +287,7 @@ public static class AuthEndpoints
     public record UpdateProfileBody(string Name, string? Phone = null, string? Document = null);
     public record VerifyEmailRequest(string Code);
     public record AuthResponse(string Token, string RefreshToken, AuthCustomerDto Customer);
+    // V060-F2
+    public record TotpCodeRequest(string Code);
+    public record TotpVerifyRequest(string TempToken, string Code);
 }
