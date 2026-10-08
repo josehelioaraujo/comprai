@@ -87,12 +87,37 @@
 
 ---
 
-## 🔜 V062 — E2E Evidence Recorder (out/2026)
-- [ ] **Playwright E2E** com gravação de vídeo (`.webm`) e screenshots por teste
-- [ ] **Specs**: `auth.spec.ts` (login/register/2FA), `search.spec.ts`, `checkout.spec.ts` (Pix+Cartão), `account.spec.ts`
-- [ ] **Workflow `e2e.yml`** — trigger push main + schedule diário + `workflow_dispatch`; docker-compose up, wait-on :5020+:3000, playwright test --video=on, upload artifact `playwright-report/`
-- [ ] **Painel "E2E / Evidências" no OpsWatch** — status por spec, vídeos, link HTML report; grava `results/e2e/latest.json`
+## ✅ V062 — E2E Evidence Recorder (out/2026)
+- [x] **Playwright E2E** com gravação de vídeo (`.webm`) e screenshots por teste
+- [x] **Specs**: `auth.spec.ts`, `search.spec.ts`, `checkout.spec.ts`, `account.spec.ts`, `purchase-flow.spec.ts`
+- [x] **Workflow `e2e.yml`** — trigger push main + schedule 03h UTC + `workflow_dispatch`; playwright test --video=on, upload artifact `playwright-report/`
+- [x] **Painel "E2E / Evidências" no OpsWatch** — status por spec, vídeos, link HTML report; grava `results/e2e/latest.json`
+
+---
+
+## ✅ V063 — E2E Infrastructure + NextAuth v5 Fix (out/2026)
+- [x] **`global-setup.ts`** — login único com retry automático (4x, 65 s) — salva `storageState.json`
+- [x] **`storageState` no `playwright.config.ts`** — todos os testes reutilizam sessão autenticada
+- [x] **`RateLimitOptions.Auth` configurável** — `RateLimit__Auth__PermitLimit` via env (E2E/dev sem rebuild)
+- [x] **Fix `AUTH_TRUST_HOST=true`** — NextAuth v5 em IP direto; container `comprai-web` recriado na VPS
+- [x] 6/30 testes E2E passando após o fix
+
+---
+
+## 🔜 V064 — E2E Fix Completo (out/2026)
+- [ ] Corrigir `strict mode violation` (`text=Entrar` → `button:has-text("Entrar")`.first()) em 4 arquivos de spec
+- [ ] `auth.spec.ts` test 7 — `test.use({ storageState: { cookies: [], origins: [] } })` para teste de redirect
+- [ ] `purchase-flow.spec.ts` test 1 — usar storageState em vez de `doLogin()`
+- [ ] `purchase-flow.spec.ts` test 7 — corrigir CSS selector parse error (`text=` com `[attr*=]`)
+- [ ] `purchase-flow.spec.ts` test 2 — soft assertion (sem LLM = sem ProductCarousel)
+- [ ] Persistir `AUTH_TRUST_HOST=true` no docker-compose ou script de deploy da VPS
+- [ ] Meta: 30/30 testes passando (exceto os que dependem de LLM conectado)
+
+---
+
+## 🔜 V065 — Integração Linear (out/2026)
 - [ ] **Integração Linear** — rastreamento e documentação das tarefas do Comprai
+- [ ] Script: lê CHANGELOG + ROADMAP + git log → cria ~60 issues via Linear GraphQL (V052–V063 como Done)
 
 ---
 

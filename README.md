@@ -915,11 +915,25 @@ strix scan http://2.25.122.11:5020 --output report.html
 - [x] `POST /api/auth/logout-all` — revogar todos os refresh tokens do customer
 - [x] Páginas web `/auth/forgot-password` + `/auth/reset-password` (design white/purple)
 
-**V062 🔜**
-- [ ] Playwright E2E com gravação de vídeo (.webm) e screenshots por teste
-- [ ] Specs: `auth.spec.ts`, `search.spec.ts`, `checkout.spec.ts`, `account.spec.ts`
-- [ ] Workflow `e2e.yml` + painel "E2E / Evidências" no OpsWatch
-- [ ] Integração Linear para rastreamento e documentação das tarefas
+**V062 ✅**
+- [x] Playwright E2E com gravação de vídeo (.webm) e screenshots por teste
+- [x] Specs: `auth.spec.ts`, `search.spec.ts`, `checkout.spec.ts`, `account.spec.ts`, `purchase-flow.spec.ts`
+- [x] Workflow `e2e.yml` — trigger push main + schedule 03h UTC + `workflow_dispatch`
+- [x] Painel "E2E / Evidências" no OpsWatch — status por spec, vídeos, link HTML report
+
+**V063 ✅**
+- [x] `global-setup.ts` — login único com retry automático (4x, 65 s) antes de todos os testes
+- [x] `storageState.json` — sessão autenticada reutilizada em todos os testes (evita rate-limit)
+- [x] `RateLimitOptions.Auth` configurável via env `RateLimit__Auth__PermitLimit` para E2E/dev
+- [x] Fix crítico NextAuth v5: `AUTH_TRUST_HOST=true` + `AUTH_URL` no container `comprai-web`
+- [x] 6/30 testes E2E passando — 23 com fixes pendentes (V064)
+
+**V064 🔜**
+- [ ] Corrigir `strict mode violation` (`text=Entrar`) em 4 arquivos de spec
+- [ ] `auth.spec.ts` test 7 — isolamento sem storageState para teste de redirect
+- [ ] `purchase-flow` tests 1, 2, 7 — storageState, soft assertion, CSS selector
+- [ ] Persistir `AUTH_TRUST_HOST=true` no docker-compose/script de deploy
+- [ ] Meta: 30/30 testes passando
 
 </details>
 
@@ -1072,6 +1086,9 @@ http://<VPS>:3003   # App mobile independente
 | **V056** | `ICartSnapshotService` (Clean Architecture); Front: X-Session-Id, sessionId payment, restore carrinho |
 | **V059** | Segurança: SecurityHeadersMiddleware, Rate limiting login/register, OWASP ZAP auth+headers, Refresh token rotação JWT |
 | **V060** | Segurança: Verificação de email pós-cadastro (Resend OTP), 2FA TOTP completo (Otp.NET, step-up login, next-auth pré-autenticado), job Strix removido |
+| **V061** | Segurança: Recuperação de senha (Resend, SHA-256, anti-enumeração), logout-all, painel Pentest no OpsWatch |
+| **V062** | E2E Evidence Recorder: 5 specs Playwright, workflow e2e.yml, painel OpsWatch, vídeo+screenshot |
+| **V063** | E2E Infrastructure: global-setup com retry, storageState, RateLimit.Auth configurável, fix AUTH_TRUST_HOST NextAuth v5 |
 | **V052** | BD como source of truth: UUID order, endereço snapshot, fulfillment_event, DI corrigido, smoke test fix |
 | **V051** | Testes CI verdes; F5 polling real de fulfillment; auto-dismiss PixCard/StripeCard pós-confirmação |
 

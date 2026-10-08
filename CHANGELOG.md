@@ -1,5 +1,47 @@
 # Changelog
 
+## [V063] — 2026-10-08
+
+### Added — E2E Testing Infrastructure (Fase 1)
+
+**Global Setup com Retry Automático**
+- `apps/e2e/global-setup.ts` — login único antes de todos os testes, salva `storageState.json`; 4 tentativas com 65 s de espera entre elas (> janela de 60 s do rate-limit)
+- `apps/e2e/playwright.config.ts` — `globalSetup: './global-setup'` + `storageState: 'storageState.json'` no bloco `use`; todos os testes reutilizam a sessão autenticada sem chamar `/api/auth/login` individualmente
+
+**Rate Limit Configurável para E2E/Dev**
+- `src/UcpAgent.Api/RateLimit/RateLimitOptions.cs` — nova classe `AuthWindowOptions { PermitLimit, WindowSeconds }` e propriedade `Auth` em `RateLimitOptions`
+- `src/UcpAgent.Api/RateLimit/RateLimitExtensions.cs` — `AuthPolicy` (SlidingWindow) lê `opts.Auth.PermitLimit` e `opts.Auth.WindowSeconds`; ajuste via `RateLimit__Auth__PermitLimit=30` no `.env` (E2E/dev sem rebuild)
+- Default mantido: 5 req/60 s (produção segura); override recomendado para E2E: `PermitLimit=30`
+
+**Fix Crítico — NextAuth v5 `UntrustedHost`**
+- Causa raiz: `comprai-web` só tinha `NEXTAUTH_URL` (variável v4); NextAuth v5 exige `AUTH_TRUST_HOST=true` quando rodando em IP direto
+- Sintoma: `[auth][error] UntrustedHost: Host must be trusted. URL was: http://2.25.122.11:3002/api/auth/session` → login sempre falhava silenciosamente
+- Fix aplicado na VPS: container `comprai-web` recriado com `-e AUTH_TRUST_HOST=true -e AUTH_URL=http://2.25.122.11:3002`
+- ⚠️ Fix não persistido no docker-compose — recriar container após reboot da VPS
+
+**Progresso dos Testes E2E**
+- 6/30 testes passando após o fix do `AUTH_TRUST_HOST` (`purchase-flow` tests 3, 4, 5, 8 + parciais)
+- 23 testes falhando por 4 causas raiz pendentes (V064):
+  1. `strict mode violation: locator('text=Entrar')` resolve 2 elementos — fix: `button:has-text("Entrar")`.first()
+  2. `auth.spec.ts` test 7 — storageState autentica o usuário antes do teste de redirect para login
+  3. `purchase-flow` test 7 — CSS selector inválido (`text=` não pode ser combinado com `[attr*=]` via vírgula)
+  4. LLM não conectado — chat retorna texto plano, sem `ProductCarousel` → tests que dependem de AG-UI falham
+
+### Commits V063
+| Hash | Descrição |
+|------|-----------|
+| `15ce1de` | feat(e2e/V063): global-setup com retry automático + RateLimit.Auth configurável |
+
+### Pendências V063 → V064
+- [ ] Corrigir `strict mode violation` em `account.spec.ts`, `checkout.spec.ts`, `search.spec.ts` e `auth.spec.ts` — trocar `text=Entrar` por `button:has-text("Entrar")`.first()
+- [ ] `auth.spec.ts` test 7 — usar `test.use({ storageState: { cookies: [], origins: [] } })` para teste de redirect
+- [ ] `purchase-flow.spec.ts` test 1 — usar storageState em vez de `doLogin()`
+- [ ] `purchase-flow.spec.ts` test 7 — corrigir CSS selector parse error
+- [ ] `purchase-flow.spec.ts` test 2 — soft assertion (sem LLM, sem `ProductCarousel`)
+- [ ] Persistir `AUTH_TRUST_HOST=true` no `docker-compose.yml` ou script de deploy
+
+---
+
 ## [V061] — 2026-10-08
 
 ### Added — Segurança F1 (Recuperação de Senha) + F2 (Logout-All)
