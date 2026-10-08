@@ -50,7 +50,7 @@ jobs:
             echo "=== Round $round/$ROUNDS - Search ==="
             for q in "${QUERIES[@]}"; do
               SESSION="pop-${RANDOM}-$(date +%s)"
-              curl -sf "$URL/api/search?q=$q&sessionId=$SESSION" > /dev/null || true
+              curl -sf "$URL/api/search?q=$q&page=1&pageSize=10&sessionId=$SESSION" > /dev/null || true
               sleep 0.3
             done
           done
