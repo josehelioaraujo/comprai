@@ -936,6 +936,15 @@ strix scan http://2.25.122.11:5020 --output report.html
 - [x] Script `run-e2e-vps.sh` + `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` para execução na VPS
 - [x] **30 passando · 1 skipped · 0 falhando** ✅
 
+**V066 ✅**
+- [x] Botão "Baixar Todos os Testes" no OpsWatch e `report.html` — JSON com todos os specs + requisições HTTP
+- [x] Captura de Request/Response via HAR: `recordHar` no Playwright, artifact upload inclui `apps/e2e/har-evidence/`
+- [x] `norm_har_key()` + Jaccard similarity — matching fuzzy entre arquivos `.har` e títulos de spec
+- [x] Requisições HTTP exibidas inline no OpsWatch: método, status, path, req_headers, req_body, res_body
+- [x] `report.html` melhorado: tabela com drilldown, player de vídeos sequencial, filtro por status, timezone BRT
+- [x] OpsWatch: nested suites, collapse all, chevron nos jobs, botão cancelar workflow
+- [x] ⚠️ `requests: []` ainda pendente em alguns runs — investigar na V067
+
 **V065 ✅**
 - [x] `createPayment()` corrigida — `POST /api/payment/{orderId}` com body e headers corretos
 - [x] Smoke test de pagamento: `200 ✅ | MOCK-PAY-XXXXXXXX`
@@ -943,10 +952,6 @@ strix scan http://2.25.122.11:5020 --output report.html
 - [x] OpsWatch — suites E2E colapsáveis com chevron animado
 - [x] OpsWatch — todos os specs clicáveis, modal com cor por status (verde/vermelho/amarelo)
 - [x] OpsWatch — cards KPI Duração e Taxa OK abrem modal de resultados
-- [ ] `auth.spec.ts` test 7 — isolamento sem storageState para teste de redirect
-- [ ] `purchase-flow` tests 1, 2, 7 — storageState, soft assertion, CSS selector
-- [ ] Persistir `AUTH_TRUST_HOST=true` no docker-compose/script de deploy
-- [ ] Meta: 30/30 testes passando
 
 </details>
 
@@ -1103,6 +1108,7 @@ http://<VPS>:3003   # App mobile independente
 | **V062** | E2E Evidence Recorder: 5 specs Playwright, workflow e2e.yml, painel OpsWatch, vídeo+screenshot |
 | **V063** | E2E Infrastructure: global-setup com retry, storageState, RateLimit.Auth configurável, fix AUTH_TRUST_HOST NextAuth v5 |
 | **V064** | E2E: 14 falhas → 0 — strict mode, purchase-flow híbrido, tolerância 429/ECONNREFUSED, script VPS |
+| **V066** | E2E Evidence: botão "Baixar Todos", captura HAR request/response, norm_har_key, req_headers, report.html melhorado |
 | **V065** | Endpoint pagamento corrigido (POST /api/payment/{orderId}); OpsWatch E2E drill-down UX completo |
 | **V052** | BD como source of truth: UUID order, endereço snapshot, fulfillment_event, DI corrigido, smoke test fix |
 | **V051** | Testes CI verdes; F5 polling real de fulfillment; auto-dismiss PixCard/StripeCard pós-confirmação |

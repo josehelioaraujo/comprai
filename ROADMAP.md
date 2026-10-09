@@ -1,5 +1,20 @@
 # 🗺️ Roadmap — Comprai
 
+## ✅ V066 — E2E Evidence: Baixar Todos + Request/Response (out/2026)
+- [x] Botão "Baixar Todos os Testes" no OpsWatch e no `report.html` — JSON com todos os specs + requisições
+- [x] `_e2eLastData` declarado e populado em `loadE2eData` — resolve `ReferenceError` no download
+- [x] `apps/e2e/har-evidence/` adicionado ao artifact upload — causa raiz do `requests: []`
+- [x] `norm_har_key()` + Jaccard similarity para matching HAR ↔ spec — resolve divergência de filenames
+- [x] `req_headers` capturado (Authorization, Content-Type, Accept) por requisição
+- [x] `_e2eSpecInlineDetails()` reescrita — exibe requisições HTTP inline por spec
+- [x] Modal de spec com "REQUEST HEADERS" em bloco separado
+- [x] `report.html` com tabela+drilldown, player de vídeos, chevron+filtro, timezone BRT, contador corrigido
+- [x] Nested suites + chevrons + collapse all no OpsWatch; chevron nos cards de jobs; botão cancelar workflow
+- [x] `e2e.yml` triggers simplificados: somente `workflow_dispatch`
+- [ ] **⚠️ Pendente → V067**: HAR ainda retorna `requests: []` — `har-evidence/` pode não ser criado no Actions; investigar com `ls -la` no workflow
+
+---
+
 ## ✅ V065 — Endpoint de Pagamento E2E + OpsWatch Drill-Down (out/2026)
 - [x] `createPayment()` corrigida — `POST /api/payment/{orderId}` com body e headers corretos
 - [x] Smoke test de pagamento: 200 ✅ | `MOCK-PAY-XXXXXXXX`
@@ -127,20 +142,10 @@
 
 ---
 
-## 🔜 V064 — E2E Fix Completo (out/2026)
-- [ ] Corrigir `strict mode violation` (`text=Entrar` → `button:has-text("Entrar")`.first()) em 4 arquivos de spec
-- [ ] `auth.spec.ts` test 7 — `test.use({ storageState: { cookies: [], origins: [] } })` para teste de redirect
-- [ ] `purchase-flow.spec.ts` test 1 — usar storageState em vez de `doLogin()`
-- [ ] `purchase-flow.spec.ts` test 7 — corrigir CSS selector parse error (`text=` com `[attr*=]`)
-- [ ] `purchase-flow.spec.ts` test 2 — soft assertion (sem LLM = sem ProductCarousel)
-- [ ] Persistir `AUTH_TRUST_HOST=true` no docker-compose ou script de deploy da VPS
-- [ ] Meta: 30/30 testes passando (exceto os que dependem de LLM conectado)
-
----
-
-## 🔜 V065 — Integração Linear (out/2026)
+## 🔜 V067 — HAR Capture Fix + Integração Linear (out/2026)
+- [ ] **HAR capture** — investigar `har-evidence/` no GitHub Actions: adicionar `ls -la apps/e2e/har-evidence/` como debug step; verificar se `recordHar.path` relativo funciona com `working-directory: apps/e2e`; garantir `requests` não-vazio no `latest.json`
 - [ ] **Integração Linear** — rastreamento e documentação das tarefas do Comprai
-- [ ] Script: lê CHANGELOG + ROADMAP + git log → cria ~60 issues via Linear GraphQL (V052–V063 como Done)
+- [ ] Script: lê CHANGELOG + ROADMAP + git log → cria ~60 issues via Linear GraphQL (V052–V066 como Done)
 
 ---
 

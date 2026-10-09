@@ -1,5 +1,58 @@
 # Changelog
 
+## [V066] — 2026-10-09
+
+### Added — E2E: Baixar Todos + Request/Response Evidence
+
+**Botão "Baixar Todos os Testes"**
+- OpsWatch `k6/dashboard/index.html`: `e2eDownloadTodos()` — gera JSON com todos os specs, erros e requisições HTTP; usa `_e2eLastData` (declarado e populado em `loadE2eData`)
+- `report.html` gerado pelo workflow: botão "⬛ Baixar Todos os Testes" com função `dlTodos()` inline — baixa `e2e_todos_run{N}.json` diretamente no browser
+
+**Captura de Request/Response por teste (HAR)**
+- `playwright.config.ts`: `recordHar: { path: 'har-evidence', content: 'embed', omitContent: false }` — Playwright grava `.har` por teste
+- `.github/workflows/e2e.yml`: `apps/e2e/har-evidence/` adicionado ao artifact upload — causa raiz de `requests: []`
+- Python `norm_har_key()`: normaliza nomes de arquivo HAR e títulos de spec para matching fuzzy (Jaccard ≥ 0.5) — resolve divergência de `/` → `-` nos nomes de arquivo
+- `req_headers`: captura `Authorization`, `Content-Type`, `Accept` de cada requisição
+- URL exibida como path relativo (sem host) em OpsWatch e `report.html`
+
+**OpsWatch — melhorias E2E inline**
+- `_e2eSpecInlineDetails()` reescrita: exibe seção "🌐 Requisições HTTP (N)" com `<details>` por entrada; exibe req_headers, req_body, res_body
+- Modal de spec (`_e2eSpecDetailHTML()`): req_headers em bloco separado "REQUEST HEADERS"
+- `_e2eLastData = d` atribuído em `loadE2eData` — resolve `ReferenceError: _e2eLastData is not defined`
+
+**report.html — melhorias**
+- Tabela com drilldown por spec + player HTML de vídeos sequencial
+- Chevron animado + filtro por status na tabela de specs
+- Contador "Passou" corrigido (era somando falhas)
+- Timezone BRT nas timestamps; duração calculada a partir de `started_at`/`finished_at`
+- Botões de download de relatório e vídeos como evidência
+
+**OpsWatch — UX**
+- Specs em suites aninhadas (nested suites) com chevrons inline e "Collapse All"
+- Chevron visível nos cards de jobs do workflow
+- Botão "Cancelar workflow" com link direto para GitHub Actions
+
+**CI**
+- `e2e.yml`: triggers `push main` e `schedule` removidos — somente `workflow_dispatch` (evita execuções automáticas enquanto HAR está em investigação)
+
+### ⚠️ Pendência → V067
+- **HAR capture retorna `requests: []`**: artifact upload inclui `har-evidence/` e `norm_har_key()` implementado, mas logs indicam que os arquivos `.har` podem não estar sendo criados em `apps/e2e/har-evidence/` durante a execução no GitHub Actions — investigar com `ls -la apps/e2e/har-evidence/` no workflow e verificar se o `working-directory: apps/e2e` afeta o `recordHar.path` relativo
+
+### Commits V066
+| Hash | Descrição |
+|------|-----------|
+| `57eee30` | fix(opswatch/V066): E2E tab — 2 bugs corrigidos |
+| `7d3b375` | feat(e2e): chevron visível nos jobs + botão cancelar no GitHub |
+| `19d296c` | ci(e2e): remove push/schedule triggers — só workflow_dispatch |
+| `6e6fa62` | fix(opswatch/e2e): specs nested suites + chevrons inline + collapse all |
+| `e4c1a81` | feat(e2e): botoes download relatorio e videos como evidencia |
+| `9d1a81c` | fix(e2e): player HTML videos sequencial, report.html com tabela+drilldown, fix contador Passou |
+| `0f5f0b1` | fix(e2e): HAR req/res, categorização de erros, timezone BRT, duração corrigida, chevron+filtro no report |
+| `3a64f25` | feat(e2e): add Baixar Todos button to OpsWatch and report.html |
+| `75ee664` | fix(e2e): capturar e exibir request/response por teste |
+
+---
+
 ## [V065] — 2026-10-08
 
 ### Fixed — Endpoint de Pagamento E2E
