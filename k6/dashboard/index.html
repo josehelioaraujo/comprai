@@ -1551,51 +1551,54 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
         + _e2eKpi('Passou',   passed,   '#22c55e', '&#9989;', 'passed')
         + _e2eKpi('Falhou',   failed,   failed > 0 ? '#ef4444' : '#22c55e', '&#10060;', 'failed')
         + _e2eKpi('Ignorado', skipped,  '#f59e0b', '&#9940;', 'skipped')
-        + _e2eKpi('Duracao',  duration + 's', '#38bdf8', '&#9201;', null)
-        + _e2eKpi('Taxa OK',  passRate + '%', passRate === 100 ? '#22c55e' : passRate >= 80 ? '#f59e0b' : '#ef4444', '&#128200;', null)
+        + _e2eKpi('Duracao',  duration + 's', '#38bdf8', '&#9201;', 'all')
+        + _e2eKpi('Taxa OK',  passRate + '%', passRate === 100 ? '#22c55e' : passRate >= 80 ? '#f59e0b' : '#ef4444', '&#128200;', passRate === 100 ? 'passed' : 'all')
         + '</div>';
 
-      // Suites table com spec drill-down
+      // Suites com header clicável e todos os specs clicáveis
       var suites = d.suites || [];
       var suitesHTML = '';
       var globalIdx = 0;
       if (suites.length > 0) {
-        suitesHTML = '<div style="margin-bottom:16px"><div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Specs por Suite</div>'
+        suitesHTML = '<div style="margin-bottom:16px">'
+          + '<div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Specs por Suite</div>'
           + '<div style="display:flex;flex-direction:column;gap:8px">';
-        suites.forEach(function(suite) {
-          var file = suite.file || 'unknown';
-          var sf = suite.failed || 0;
-          var sp = suite.passed || 0;
-          var sc = (suite.specs || []).length;
+        suites.forEach(function(suite, si) {
+          var file   = suite.file || 'unknown';
+          var sf     = suite.failed  || 0;
+          var sp     = suite.passed  || 0;
+          var sc     = (suite.specs || []).length;
           var sColor = sf > 0 ? '#ef4444' : '#22c55e';
           var sLabel = sf > 0 ? 'FALHOU' : 'PASSOU';
-          suitesHTML += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px">'
-            + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
-            + '<span style="font-size:13px;font-weight:600;color:#e2e8f0">&#128196; ' + file + '</span>'
+          var specsDivId = 'e2e-suite-specs-' + si;
+          // Suite header clicável
+          suitesHTML += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;overflow:hidden">'
+            + '<div onclick="e2eToggleSuite(\'' + specsDivId + '\',this)" style="display:flex;align-items:center;gap:8px;padding:12px 14px;cursor:pointer;user-select:none">'
+            + '<span style="font-size:14px">&#128196;</span>'
+            + '<span style="flex:1;font-size:13px;font-weight:600;color:#e2e8f0">' + _e2eEsc(file) + '</span>'
+            + '<div style="display:flex;align-items:center;gap:10px">'
+            + '<span style="font-size:11px;color:#22c55e">&#9989; ' + sp + '</span>'
+            + (sf > 0 ? '<span style="font-size:11px;color:#ef4444">&#10060; ' + sf + '</span>' : '')
+            + '<span style="font-size:11px;color:var(--muted)">/ ' + sc + '</span>'
             + '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;background:' + sColor + '22;color:' + sColor + '">' + sLabel + '</span>'
+            + '<span class="e2e-suite-chev" style="font-size:13px;color:var(--muted);transform:rotate(90deg);transition:transform .2s;display:inline-block">&#8250;</span>'
             + '</div>'
-            + '<div style="display:flex;gap:16px;font-size:12px;color:var(--muted)">'
-            + '<span>&#9989; ' + sp + ' passou</span>'
-            + '<span>&#10060; ' + sf + ' falhou</span>'
-            + '<span>&#128200; ' + sc + ' total</span>'
             + '</div>';
+          // Specs list (expande por padrão)
           var specs = suite.specs || [];
           if (specs.length > 0) {
-            suitesHTML += '<div style="margin-top:10px;display:flex;flex-direction:column;gap:4px">';
+            suitesHTML += '<div id="' + specsDivId + '" style="border-top:1px solid var(--border);padding:8px 14px;display:flex;flex-direction:column;gap:4px">';
             specs.forEach(function(spec) {
-              var idx = globalIdx++;
-              var ic = spec.status === 'passed' ? '&#9989;' : spec.status === 'failed' ? '&#10060;' : '&#9940;';
-              var sc2 = spec.status === 'passed' ? '#22c55e' : spec.status === 'failed' ? '#ef4444' : '#f59e0b';
+              var idx  = globalIdx++;
+              var ic   = spec.status === 'passed' ? '&#9989;' : spec.status === 'failed' ? '&#10060;' : '&#9940;';
+              var sc2  = spec.status === 'passed' ? '#22c55e' : spec.status === 'failed' ? '#ef4444' : '#f59e0b';
               var hasErr = (spec.errors || []).length > 0;
-              suitesHTML += '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;background:var(--bg);'
-                + (hasErr ? 'cursor:pointer;border-left:2px solid #ef4444' : 'border-left:2px solid transparent')
-                + '" '
-                + (hasErr ? 'onclick="e2eOpenSpec(' + idx + ')" title="Clique para ver detalhes do erro"' : '')
-                + '>'
+              var borderCol = hasErr ? '#ef4444' : 'transparent';
+              suitesHTML += '<div onclick="e2eOpenSpec(' + idx + ')" title="Clique para ver detalhes" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;background:var(--bg);cursor:pointer;border-left:2px solid ' + borderCol + ';transition:background .15s" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'var(--bg)\'">'
                 + '<span>' + ic + '</span>'
                 + '<span style="flex:1;font-size:12px;color:#cbd5e1">' + _e2eEsc(spec.title || '') + '</span>'
-                + '<span style="font-size:11px;color:var(--muted)">' + (spec.duration || 0) + 's</span>'
-                + (hasErr ? '<span style="font-size:10px;color:#ef4444;font-weight:600">Ver erro &#8250;</span>' : '')
+                + '<span style="font-size:11px;color:var(--muted);font-family:monospace">' + (spec.duration || 0) + 's</span>'
+                + (hasErr ? '<span style="font-size:10px;color:#ef4444;font-weight:600">&#10149;</span>' : '<span style="font-size:10px;color:#475569">&#8250;</span>')
                 + '</div>';
             });
             suitesHTML += '</div>';
@@ -1654,8 +1657,18 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
   function e2eOpenSpec(idx) {
     var spec = _e2eSpecs[idx];
     if (!spec) return;
-    var title = '<span style="color:#ef4444">Detalhes do Spec</span>';
+    var tcol = spec.status === 'passed' ? '#22c55e' : spec.status === 'failed' ? '#ef4444' : '#f59e0b';
+    var title = '<span style="color:' + tcol + '">Detalhes do Spec</span>';
     e2eRenderModal(title, _e2eSpecDetailHTML(spec));
+  }
+
+  function e2eToggleSuite(specsDivId, header) {
+    var el   = document.getElementById(specsDivId);
+    var chev = header ? header.querySelector('.e2e-suite-chev') : null;
+    if (!el) return;
+    var open = el.style.display !== 'none';
+    el.style.display = open ? 'none' : '';
+    if (chev) chev.style.transform = open ? '' : 'rotate(90deg)';
   }
 
   function _e2eSpecListHTML(specs) {
@@ -1787,12 +1800,8 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       var done = jobs.filter(function(j){return j.status==='completed';}).length;
       var tot  = Math.max(jobs.length, 1);
       e2eSetExecStatus('&#9203;', e2eActiveStep(jobs), 35 + Math.round((done/tot)*55));
-      var jobsTxt = jobs.map(function(j){
-        var ic = j.status==='completed' ? (j.conclusion==='success'?'✅':'❌') : j.status==='in_progress'?'⏳':'⬜';
-        return ic + ' ' + (j.name || '');
-      }).join(' &nbsp;|&nbsp; ');
       var jel = document.getElementById('e2e-exec-jobs');
-      if (jel) jel.innerHTML = jobsTxt;
+      if (jel) jel.innerHTML = e2eRenderJobsDrilldown(jobs);
       if (run.status === 'completed') {
         clearInterval(_e2eElapsed);
         var ok = run.conclusion === 'success';
@@ -1825,6 +1834,51 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
     var btn = document.getElementById('e2e-run-btn');
     if (btn) { btn.disabled = false; btn.innerHTML = '&#9654; Executar'; }
     clearInterval(_e2eElapsed);
+  }
+
+  // Renderiza jobs com steps drill-down no painel de execução live
+  function e2eRenderJobsDrilldown(jobs) {
+    if (!jobs || !jobs.length) return '';
+    return jobs.map(function(job, ji) {
+      var jic  = job.status === 'completed' ? (job.conclusion === 'success' ? '✅' : '❌') : job.status === 'in_progress' ? '⏳' : '⬜';
+      var jcol = job.status === 'completed' ? (job.conclusion === 'success' ? '#22c55e' : '#ef4444') : job.status === 'in_progress' ? '#38bdf8' : '#64748b';
+      var steps = job.steps || [];
+      var stepsHtml = steps.length
+        ? '<div id="e2e-job-steps-' + ji + '" style="margin-top:8px;padding-left:20px;display:flex;flex-direction:column;gap:3px">'
+          + steps.map(function(s) {
+              var sic  = s.status === 'completed' ? (s.conclusion === 'success' ? '✅' : s.conclusion === 'skipped' ? '⏭' : '❌') : s.status === 'in_progress' ? '⏳' : '⬜';
+              var scol = s.status === 'completed' ? (s.conclusion === 'success' ? '#22c55e' : s.conclusion === 'skipped' ? '#64748b' : '#ef4444') : s.status === 'in_progress' ? '#38bdf8' : '#475569';
+              return '<div style="display:flex;align-items:center;gap:6px;padding:3px 6px;border-radius:4px;background:rgba(0,0,0,.2)">'
+                + '<span style="font-size:12px">' + sic + '</span>'
+                + '<span style="font-size:11px;color:' + scol + ';flex:1">' + _e2eEsc(s.name || '') + '</span>'
+                + (s.duration ? '<span style="font-size:10px;color:var(--muted);font-family:monospace">' + s.duration + 's</span>' : '')
+                + '</div>';
+            }).join('')
+          + '</div>'
+        : '';
+      var hasSteps = steps.length > 0;
+      return '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;overflow:hidden">'
+        + '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;'
+        + (hasSteps ? 'cursor:pointer;user-select:none' : '') + '"'
+        + (hasSteps ? ' onclick="e2eToggleJobSteps(' + ji + ',this)"' : '')
+        + '>'
+        + '<span style="font-size:14px">' + jic + '</span>'
+        + '<span style="flex:1;font-size:12px;font-weight:600;color:' + jcol + '">' + _e2eEsc(job.name || '') + '</span>'
+        + (job.duration ? '<span style="font-size:10px;color:var(--muted);font-family:monospace">' + job.duration + 's</span>' : '')
+        + (hasSteps ? '<span class="e2e-chevron" style="font-size:11px;color:var(--muted);transition:transform .2s">&#8250;</span>' : '')
+        + '</div>'
+        + stepsHtml
+        + '</div>';
+    }).join('');
+  }
+
+  function e2eToggleJobSteps(ji, header) {
+    var steps = document.getElementById('e2e-job-steps-' + ji);
+    var chev  = header ? header.querySelector('.e2e-chevron') : null;
+    if (!steps) return;
+    var open = steps.style.display !== 'none';
+    steps.style.display = open ? 'none' : '';
+    if (chev) chev.style.transform = open ? '' : 'rotate(90deg)';
   }
 
 // ===== SONARCLOUD =====
@@ -10221,10 +10275,11 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <div style="background:var(--bg);border-radius:4px;height:5px;overflow:hidden;margin-bottom:10px">
           <div id="e2e-exec-bar" style="height:100%;background:#3b82f6;width:0%;transition:width .5s ease;border-radius:4px"></div>
         </div>
-        <div style="display:flex;align-items:center;gap:10px">
+        <div style="margin-bottom:8px;display:flex;align-items:center;gap:10px">
           <a id="e2e-exec-link" href="#" target="_blank" style="display:none;font-size:11px;color:#38bdf8;text-decoration:none">&#128279; Ver no GitHub Actions</a>
-          <span id="e2e-exec-jobs" style="font-size:11px;color:var(--muted)"></span>
         </div>
+        <!-- Jobs drill-down -->
+        <div id="e2e-exec-jobs" style="display:flex;flex-direction:column;gap:6px"></div>
       </div>
       <div id="e2e-content" style="min-height:120px">
         <div style="color:var(--muted);font-size:13px;text-align:center;padding:40px 0">
