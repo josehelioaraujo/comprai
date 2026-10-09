@@ -8,7 +8,7 @@
  *       POST /api/cart/{sessionId}/items   ← add to cart
  *       GET  /api/cart/{sessionId}         ← view cart
  *       POST /api/checkout/{sessionId}     ← create order
- *       POST /api/payment                  ← create payment
+ *       POST /api/payment/{orderId}        ← create payment
  *   - Sessão: localStorage guarda {id, createdAt} como JSON — extrai só o .id
  */
 import { test, expect, Page } from '@playwright/test';
@@ -115,12 +115,21 @@ async function createCheckout(request: any, sessionId: string) {
   }
 }
 
-/** POST /api/payment */
+/** POST /api/payment/{orderId} */
 async function createPayment(request: any, orderId: string, sessionId: string) {
   try {
     const key = `e2e-pay-${Date.now()}`;
-    const resp = await request.post(`${API_URL}/api/payment`, {
-      data: { orderId, sessionId, method: 'pix', provider: 'mock', amount: TEST_PRODUCT.price },
+    const resp = await request.post(`${API_URL}/api/payment/${encodeURIComponent(orderId)}`, {
+      data: {
+        amount: TEST_PRODUCT.price.toFixed(2),
+        currency: 'BRL',
+        sessionId,
+        method: {
+          provider: 'mock',
+          cardToken: null,
+          pixKey: 'mock-pix-key',
+        },
+      },
       headers: { 'X-Session-Id': sessionId, 'X-Idempotency-Key': key },
     });
     const body = await resp.json().catch(() => ({}));
