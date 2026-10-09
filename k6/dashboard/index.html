@@ -1773,11 +1773,8 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
 
   async function e2ePollForRun() {
     try {
-      var res = await fetch('/api/github/dispatch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ repo: 'josehelioaraujo/comprai', workflow: 'e2e.yml', ref: 'main' })
-      });
+      var res = await fetch('/api/github/run/latest?workflow=e2e.yml&repo=josehelioaraujo/comprai');
+      if (!res.ok) { _e2ePollTmr = setTimeout(e2ePollForRun, 5000); return; }
       var data = await res.json();
       if (!data.runId) { _e2ePollTmr = setTimeout(e2ePollForRun, 5000); return; }
       _e2eRunId = data.runId;
@@ -1865,7 +1862,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
         + '<span style="font-size:14px">' + jic + '</span>'
         + '<span style="flex:1;font-size:12px;font-weight:600;color:' + jcol + '">' + _e2eEsc(job.name || '') + '</span>'
         + (job.duration ? '<span style="font-size:10px;color:var(--muted);font-family:monospace">' + job.duration + 's</span>' : '')
-        + (hasSteps ? '<span class="e2e-chevron" style="font-size:11px;color:var(--muted);transition:transform .2s">&#8250;</span>' : '')
+        + (hasSteps ? '<span class="e2e-chevron" style="font-size:11px;color:var(--muted);transition:transform .2s;transform:rotate(90deg)">&#8250;</span>' : '')
         + '</div>'
         + stepsHtml
         + '</div>';
