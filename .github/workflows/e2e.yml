@@ -117,125 +117,212 @@ jobs:
           path: e2e-download/
         continue-on-error: true
 
-      - name: Gerar e2e-latest.json
+      - name: Gerar evidencias e2e
         run: |
           python3 << 'PYEOF'
-          import json, os, glob, datetime
+          import json, os, re, shutil, zipfile, datetime
+
+          ts       = datetime.datetime.utcnow()
+          ts_str   = ts.strftime('%d%m%Y_%H%M%S')
+          ts_disp  = ts.strftime('%d/%m/%Y %H:%M:%S') + ' UTC'
+          vps_host = os.environ.get('VPS_HOST', '2.25.122.11')
+          run_num  = os.environ.get('GITHUB_RUN_NUMBER', '0')
+          run_id   = os.environ.get('GITHUB_RUN_ID', '')
+          sha      = os.environ.get('GITHUB_SHA', '')[:7]
+
+          report_zip_name = 'Report_' + ts_str + '.zip'
+          video_zip_name  = 'video_'  + ts_str + '.zip'
+          base_url        = 'http://' + vps_host + '/k6/results/e2e/downloads/'
+
+          os.makedirs('e2e-output',   exist_ok=True)
+          os.makedirs('e2e-evidence', exist_ok=True)
+
+          output = {
+            'run': int(run_num), 'sha': sha,
+            'timestamp': ts.isoformat() + 'Z',
+            'status': 'unknown',
+            'summary': {'total': 0, 'passed': 0, 'failed': 0, 'skipped': 0, 'duration': 0},
+            'suites': [],
+            'report_url': 'https://github.com/josehelioaraujo/comprai/actions/runs/' + run_id,
+            'report_zip': base_url + report_zip_name,
+            'videos_zip': base_url + video_zip_name,
+          }
+          suites_flat = []
 
           results_file = 'e2e-download/playwright-results.json'
-          run_number   = os.environ.get('GITHUB_RUN_NUMBER', '0')
-          sha          = os.environ.get('GITHUB_SHA', '')[:7]
-          ts           = datetime.datetime.utcnow().isoformat() + 'Z'
-
-          # Estrutura base
-          output = {
-            'run':       int(run_number),
-            'sha':       sha,
-            'timestamp': ts,
-            'status':    'unknown',
-            'summary': {
-              'total':    0,
-              'passed':   0,
-              'failed':   0,
-              'skipped':  0,
-              'duration': 0,
-            },
-            'suites': [],
-            'report_url': f'https://github.com/josehelioaraujo/comprai/actions/runs/{os.environ.get("GITHUB_RUN_ID","")}',
-            'report_zip': f'http://{os.environ.get("VPS_HOST","2.25.122.11")}/k6/results/e2e/downloads/report.zip',
-            'videos_zip': f'http://{os.environ.get("VPS_HOST","2.25.122.11")}/k6/results/e2e/downloads/videos.zip',
-          }
-
           if os.path.exists(results_file):
             try:
               with open(results_file, encoding='utf-8') as f:
                 data = json.load(f)
-
               total    = data.get('stats', {}).get('expected', 0)
-              passed   = data.get('stats', {}).get('passed',   0)
-              failed   = data.get('stats', {}).get('failed',   0) + data.get('stats', {}).get('unexpected', 0)
-              skipped  = data.get('stats', {}).get('skipped',  0)
+              failed   = data.get('stats', {}).get('failed', 0) + data.get('stats', {}).get('unexpected', 0)
+              skipped  = data.get('stats', {}).get('skipped', 0)
+              passed   = total - failed - skipped  # FIX: Playwright nao tem stats.passed
               duration = int(data.get('stats', {}).get('duration', 0) / 1000)
+              output['summary'] = {'total': total, 'passed': passed, 'failed': failed, 'skipped': skipped, 'duration': duration}
+              output['status']  = 'passed' if failed == 0 else 'failed'
 
-              output['summary'] = {
-                'total':    total,
-                'passed':   passed,
-                'failed':   failed,
-                'skipped':  skipped,
-                'duration': duration,
-              }
-              output['status'] = 'passed' if failed == 0 else 'failed'
-
-              # Recursivo: coleta specs de suites aninhadas (describe blocks)
               def collect_specs(suite):
                 specs = []
                 for spec in suite.get('specs', []):
-                  spec_status = 'passed'
-                  errors = []
+                  st, errors = 'passed', []
                   for t in spec.get('tests', []):
-                    t_st = t.get('status', '')
-                    if t_st in ('failed', 'unexpected'):
-                      spec_status = 'failed'
-                    elif t_st == 'skipped' and spec_status == 'passed':
-                      spec_status = 'skipped'
-                    for result in t.get('results', []):
-                      err = result.get('error')
+                    ts2 = t.get('status', '')
+                    if ts2 in ('failed', 'unexpected'): st = 'failed'
+                    elif ts2 == 'skipped' and st == 'passed': st = 'skipped'
+                    for r in t.get('results', []):
+                      err = r.get('error')
                       if err and isinstance(err, dict):
-                        errors.append({
-                          'message': (err.get('message') or '')[:500],
-                          'snippet': (err.get('snippet') or '')[:800],
-                        })
-                  specs.append({
-                    'title':    spec.get('title', ''),
-                    'status':   spec_status,
-                    'duration': int(sum(t.get('duration', 0) for t in spec.get('tests', [])) / 1000),
-                    'errors':   errors,
-                  })
+                        errors.append({'message': (err.get('message') or '')[:500], 'snippet': (err.get('snippet') or '')[:800]})
+                  specs.append({'title': spec.get('title', ''), 'status': st,
+                    'duration': int(sum(t.get('duration', 0) for t in spec.get('tests', [])) / 1000), 'errors': errors})
                 for nested in suite.get('suites', []):
                   specs.extend(collect_specs(nested))
                 return specs
 
-              # Suites por spec file
               for suite in data.get('suites', []):
-                suite_name = suite.get('title', 'unknown')
                 specs = collect_specs(suite)
-                output['suites'].append({
-                  'file':   suite_name,
-                  'specs':  specs,
+                sd = {'file': suite.get('title', 'unknown'), 'specs': specs,
                   'passed': sum(1 for s in specs if s['status'] == 'passed'),
-                  'failed': sum(1 for s in specs if s['status'] == 'failed'),
-                })
+                  'failed': sum(1 for s in specs if s['status'] == 'failed')}
+                output['suites'].append(sd)
+                suites_flat.append(sd)
             except Exception as e:
-              print(f'Erro ao parsear playwright-results.json: {e}')
-              output['status'] = 'error'
+              print('Erro: ' + str(e)); output['status'] = 'error'
           else:
-            print('playwright-results.json nao encontrado — API/frontend pode estar down')
-            output['status'] = 'no_results'
+            print('playwright-results.json nao encontrado'); output['status'] = 'no_results'
 
-          os.makedirs('e2e-output', exist_ok=True)
           with open('e2e-output/latest.json', 'w', encoding='utf-8') as f:
             json.dump(output, f, ensure_ascii=False, indent=2)
-
           print(json.dumps(output, indent=2))
-          PYEOF
 
-      - name: Zipar evidencias (relatorio + videos)
-        run: |
-          mkdir -p e2e-evidence
-          # Zip do relatório HTML
-          if [ -d e2e-download/playwright-report ]; then
-            (cd e2e-download && zip -r ../e2e-evidence/report.zip playwright-report/)
-            echo "report.zip criado"
-          else
-            echo "playwright-report nao encontrado, pulando"
-          fi
-          # Zip dos videos .webm
-          VIDEO_COUNT=$(find e2e-download/test-results -name "*.webm" 2>/dev/null | wc -l || echo 0)
-          echo "Videos encontrados: $VIDEO_COUNT"
-          if [ "$VIDEO_COUNT" -gt "0" ]; then
-            find e2e-download/test-results -name "*.webm" | zip e2e-evidence/videos.zip -@
-            echo "videos.zip criado com $VIDEO_COUNT videos"
-          fi
+          # ── helpers ──────────────────────────────────────────────────────────
+          def esc(s):
+            return str(s).replace('&','&amp;').replace('<','&lt;').replace('>','&gt;').replace('"','&quot;')
+
+          sm = output['summary']
+          pass_rate = round(sm['passed'] / sm['total'] * 100) if sm['total'] > 0 else 0
+          st_color  = '#22c55e' if output['status'] == 'passed' else '#ef4444'
+          st_label  = 'PASSOU' if output['status'] == 'passed' else 'FALHOU' if output['status'] == 'failed' else output['status'].upper()
+          fail_col  = '#ef4444' if sm['failed'] > 0 else '#22c55e'
+          rate_col  = '#22c55e' if pass_rate == 100 else '#f59e0b' if pass_rate >= 80 else '#ef4444'
+
+          # ── report.html ───────────────────────────────────────────────────────
+          all_specs = [(s['file'], sp) for s in suites_flat for sp in s['specs']]
+          rows = ''
+          for i, (sfile, sp) in enumerate(all_specs):
+            c   = '#22c55e' if sp['status'] == 'passed' else '#ef4444' if sp['status'] == 'failed' else '#f59e0b'
+            lbl = 'PASSOU' if sp['status'] == 'passed' else 'FALHOU' if sp['status'] == 'failed' else 'IGNORADO'
+            det = ''
+            if sp.get('errors'):
+              for err in sp['errors']:
+                det += '<div style="margin-top:8px;padding:8px;background:#020617;border-radius:4px;font-family:monospace;font-size:11px;color:#fca5a5;white-space:pre-wrap;word-break:break-all">' + esc(err.get('message','')) + '</div>'
+                if err.get('snippet'):
+                  det += '<div style="margin-top:4px;padding:8px;background:#020617;border-radius:4px;font-family:monospace;font-size:11px;color:#64748b;white-space:pre-wrap;word-break:break-all">' + esc(err.get('snippet','')) + '</div>'
+            else:
+              det = '<div style="color:#22c55e;font-size:12px">&#9989; Nenhum erro registrado.</div>'
+            rows += '<tr class="sr" onclick="tg(' + str(i) + ')" style="cursor:pointer">'
+            rows += '<td style="color:#475569;font-size:11px;text-align:center">' + str(i+1).zfill(3) + '</td>'
+            rows += '<td style="color:#475569;font-size:11px">' + esc(sfile) + '</td>'
+            rows += '<td style="color:#e2e8f0">' + esc(sp['title']) + '</td>'
+            rows += '<td><span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;background:' + c + '22;color:' + c + '">' + lbl + '</span></td>'
+            rows += '<td style="color:#64748b;font-size:11px;text-align:right;font-family:monospace">' + str(sp.get('duration',0)) + 's</td>'
+            rows += '<td style="color:#334155;font-size:14px;text-align:center">&#8250;</td></tr>'
+            rows += '<tr id="d' + str(i) + '" style="display:none;background:#020617"><td colspan="6" style="padding:12px 24px">' + det + '</td></tr>'
+
+          rh  = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+          rh += '<title>E2E Report ' + ts_str + '</title>'
+          rh += '<style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0f172a;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,sans-serif;padding:28px 24px}'
+          rh += 'h1{font-size:18px;font-weight:700;margin-bottom:4px}.sub{font-size:12px;color:#64748b;margin-bottom:24px}'
+          rh += '.sum{display:flex;gap:14px;margin-bottom:28px;flex-wrap:wrap}.kpi{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 18px;text-align:center;min-width:90px}'
+          rh += '.kv{font-size:22px;font-weight:700}.kl{font-size:11px;color:#64748b;margin-top:2px}'
+          rh += 'table{width:100%;border-collapse:collapse}thead tr{background:#1e293b}'
+          rh += 'th{padding:9px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#475569;text-align:left;border-bottom:1px solid #334155}'
+          rh += 'tr.sr:hover{background:#1e293b}td{padding:9px 12px;border-bottom:1px solid #1e293b;font-size:13px;vertical-align:middle}'
+          rh += '</style></head><body>'
+          rh += '<h1>&#127916; E2E / Evidencias &#8212; Playwright</h1>'
+          rh += '<div class="sub">Run #' + run_num + ' &middot; SHA ' + sha + ' &middot; ' + ts_disp + ' &middot; <span style="color:' + st_color + ';font-weight:700">' + st_label + '</span></div>'
+          rh += '<div class="sum">'
+          rh += '<div class="kpi"><div class="kv" style="color:#94a3b8">' + str(sm['total']) + '</div><div class="kl">Total</div></div>'
+          rh += '<div class="kpi"><div class="kv" style="color:#22c55e">' + str(sm['passed']) + '</div><div class="kl">Passou</div></div>'
+          rh += '<div class="kpi"><div class="kv" style="color:' + fail_col + '">' + str(sm['failed']) + '</div><div class="kl">Falhou</div></div>'
+          rh += '<div class="kpi"><div class="kv" style="color:#f59e0b">' + str(sm['skipped']) + '</div><div class="kl">Ignorado</div></div>'
+          rh += '<div class="kpi"><div class="kv" style="color:#38bdf8">' + str(sm['duration']) + 's</div><div class="kl">Dura&ccedil;&atilde;o</div></div>'
+          rh += '<div class="kpi"><div class="kv" style="color:' + rate_col + '">' + str(pass_rate) + '%</div><div class="kl">Taxa OK</div></div>'
+          rh += '</div><table><thead><tr><th>#</th><th>Arquivo</th><th>Teste</th><th>Status</th><th>Dur.</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>'
+          rh += '<script>function tg(i){var d=document.getElementById("d"+i);if(d)d.style.display=d.style.display==="none"?"table-row":"none";}</script>'
+          rh += '</body></html>'
+
+          with open('e2e-evidence/report.html', 'w', encoding='utf-8') as f:
+            f.write(rh)
+          with zipfile.ZipFile('e2e-evidence/' + report_zip_name, 'w', zipfile.ZIP_DEFLATED) as zf:
+            zf.write('e2e-evidence/report.html', 'report.html')
+          print('Created ' + report_zip_name)
+
+          # ── video player ──────────────────────────────────────────────────────
+          def clean_name(folder):
+            n = re.sub(r'-chromium.*$', '', folder, flags=re.IGNORECASE)
+            n = re.sub(r'-[a-f0-9]{5,}$', '', n)
+            return n.replace('-', ' ').strip()
+
+          videos = []
+          tr_dir = 'e2e-download/test-results'
+          if os.path.isdir(tr_dir):
+            for folder in sorted(os.listdir(tr_dir)):
+              webm = os.path.join(tr_dir, folder, 'video.webm')
+              if os.path.exists(webm):
+                videos.append({'name': clean_name(folder), 'orig': webm})
+
+          if videos:
+            pdir = 'e2e-evidence/video_player'
+            vdir = pdir + '/videos'
+            os.makedirs(vdir, exist_ok=True)
+            vids_js = []
+            for i, v in enumerate(videos):
+              fname = str(i+1).zfill(3) + '.webm'
+              shutil.copy2(v['orig'], vdir + '/' + fname)
+              vids_js.append({'src': 'videos/' + fname, 'name': v['name']})
+
+            pl_items = '\n'.join(
+              '<div class="pi" onclick="play(' + str(i) + ')" id="pi' + str(i) + '"><span class="idx">' + str(i+1).zfill(3) + '</span> ' + esc(v['name']) + '</div>'
+              for i, v in enumerate(vids_js))
+            n_vids     = len(vids_js)
+            vids_jstr  = json.dumps(vids_js, ensure_ascii=False)
+
+            vh  = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>E2E Videos ' + ts_str + '</title>'
+            vh += '<style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0f172a;color:#e2e8f0;font-family:-apple-system,sans-serif;display:flex;height:100vh;overflow:hidden}'
+            vh += '#player{flex:1;display:flex;flex-direction:column;padding:14px;gap:8px;overflow:hidden;min-width:0}'
+            vh += '#lbl{font-size:13px;color:#94a3b8;padding:6px 0;border-bottom:1px solid #1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}'
+            vh += '#lbl b{color:#f1f5f9}#lbl em{color:#475569;font-style:normal;font-size:11px;margin-left:10px}'
+            vh += '#vid{width:100%;border-radius:8px;background:#000;flex:1;object-fit:contain;min-height:0}'
+            vh += '#playlist{width:270px;background:#1e293b;overflow-y:auto;border-left:1px solid #334155;flex-shrink:0}'
+            vh += '.ph{padding:11px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#475569;border-bottom:1px solid #0f172a;position:sticky;top:0;background:#1e293b}'
+            vh += '.pi{padding:9px 14px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px;color:#94a3b8;transition:background .12s;line-height:1.45}'
+            vh += '.pi:hover{background:#334155;color:#e2e8f0}.pi.active{background:#1d4ed8;color:#fff}'
+            vh += '.idx{font-size:10px;opacity:.45;margin-right:5px}'
+            vh += '</style></head><body>'
+            vh += '<div id="player"><div id="lbl">&#9654; <b id="ln">...</b><em id="prog"></em></div>'
+            vh += '<video id="vid" controls></video></div>'
+            vh += '<div id="playlist"><div class="ph">&#9654; ' + str(n_vids) + ' testes</div>' + pl_items + '</div>'
+            vh += '<script>var V=' + vids_jstr + ',idx=0,vid=document.getElementById("vid");'
+            vh += 'function play(i){if(i<0||i>=V.length)return;idx=i;vid.src=V[i].src;vid.play().catch(function(){});'
+            vh += 'document.getElementById("ln").textContent=V[i].name;'
+            vh += 'document.getElementById("prog").textContent=(i+1)+" / "+V.length;'
+            vh += 'document.querySelectorAll(".pi").forEach(function(e,j){e.classList.toggle("active",j===i);});'
+            vh += 'var a=document.getElementById("pi"+i);if(a)a.scrollIntoView({block:"nearest"});}'
+            vh += 'vid.onended=function(){play(idx+1);};play(0);</script></body></html>'
+
+            with open(pdir + '/index.html', 'w', encoding='utf-8') as f:
+              f.write(vh)
+            with zipfile.ZipFile('e2e-evidence/' + video_zip_name, 'w', zipfile.ZIP_DEFLATED) as zf:
+              for root, dirs, files in os.walk(pdir):
+                for file in files:
+                  fp = os.path.join(root, file)
+                  zf.write(fp, os.path.relpath(fp, pdir))
+            print('Created ' + video_zip_name + ' with ' + str(n_vids) + ' videos')
+          else:
+            print('No videos found')
+          PYEOF
 
       - name: Criar diretorio na VPS
         uses: appleboy/ssh-action@v1.2.0
