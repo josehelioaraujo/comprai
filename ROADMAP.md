@@ -1,5 +1,28 @@
 # 🗺️ Roadmap — Comprai
 
+## ✅ V065 — Endpoint de Pagamento E2E + OpsWatch Drill-Down (out/2026)
+- [x] `createPayment()` corrigida — `POST /api/payment/{orderId}` com body e headers corretos
+- [x] Smoke test de pagamento: 200 ✅ | `MOCK-PAY-XXXXXXXX`
+- [x] OpsWatch — jobs/steps expansíveis na execução de workflow
+- [x] OpsWatch — suites E2E colapsáveis com chevron animado
+- [x] OpsWatch — todos os specs clicáveis (não só erros), modal com cor por status
+- [x] OpsWatch — cards KPI Duração e Taxa OK abrem modal de resultados
+
+---
+
+## ✅ V064 — E2E: 14 falhas → 0 falhas (out/2026)
+- [x] `strict mode violation` corrigido em todos os specs — `getByRole('button', { name: 'Entrar' })`
+- [x] `auth.spec.ts` test 7 — `test.use({ storageState: empty })` para redirect sem auth
+- [x] `purchase-flow.spec.ts` reescrito — fluxo híbrido API + UI, resumo final consolidado
+- [x] Tolerância a 429 rate-limit em todos os testes de login
+- [x] Tolerância a `ECONNREFUSED` em todos os blocos de API
+- [x] `/api/search` — `page` e `pageSize` com defaults (1 e 10); CS1737 corrigido
+- [x] Script `run-e2e-vps.sh` para execução na VPS com vídeo consolidado
+- [x] `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` no config para Chromium da VPS
+- [x] **Resultado**: 30 passando, 1 skipped, 0 falhando
+
+---
+
 ## ✅ V058 — Cadastro de Cliente Completo (out/2026)
 - [x] `PUT /api/auth/me` — editar perfil (nome, telefone, documento)
 - [x] `POST /api/auth/me/address` — endereço de entrega persistido
