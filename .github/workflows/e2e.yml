@@ -141,7 +141,9 @@ jobs:
               'duration': 0,
             },
             'suites': [],
-            'report_url': f'https://github.com/josehelioaraujo/comprai/actions/runs/{os.environ.get("GITHUB_RUN_ID","")}'
+            'report_url': f'https://github.com/josehelioaraujo/comprai/actions/runs/{os.environ.get("GITHUB_RUN_ID","")}',
+            'report_zip': f'http://{os.environ.get("VPS_HOST","2.25.122.11")}/k6/results/e2e/downloads/report.zip',
+            'videos_zip': f'http://{os.environ.get("VPS_HOST","2.25.122.11")}/k6/results/e2e/downloads/videos.zip',
           }
 
           if os.path.exists(results_file):
@@ -217,13 +219,44 @@ jobs:
           print(json.dumps(output, indent=2))
           PYEOF
 
+      - name: Zipar evidencias (relatorio + videos)
+        run: |
+          mkdir -p e2e-evidence
+          # Zip do relatório HTML
+          if [ -d e2e-download/playwright-report ]; then
+            (cd e2e-download && zip -r ../e2e-evidence/report.zip playwright-report/)
+            echo "report.zip criado"
+          else
+            echo "playwright-report nao encontrado, pulando"
+          fi
+          # Zip dos videos .webm
+          VIDEO_COUNT=$(find e2e-download/test-results -name "*.webm" 2>/dev/null | wc -l || echo 0)
+          echo "Videos encontrados: $VIDEO_COUNT"
+          if [ "$VIDEO_COUNT" -gt "0" ]; then
+            find e2e-download/test-results -name "*.webm" | zip e2e-evidence/videos.zip -@
+            echo "videos.zip criado com $VIDEO_COUNT videos"
+          fi
+
       - name: Criar diretorio na VPS
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ env.VPS_HOST }}
           username: ${{ env.VPS_USER }}
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
-          script: mkdir -p /var/www/html/k6/results/e2e
+          script: mkdir -p /var/www/html/k6/results/e2e /var/www/html/k6/results/e2e/downloads
+
+      - name: Publicar evidencias na VPS
+        uses: appleboy/scp-action@v0.1.7
+        if: always()
+        with:
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          source: "e2e-evidence/"
+          target: "/var/www/html/k6/results/e2e/downloads/"
+          strip_components: 1
+          overwrite: true
+        continue-on-error: true
 
       - name: Publicar latest.json na VPS
         uses: appleboy/scp-action@v0.1.7
