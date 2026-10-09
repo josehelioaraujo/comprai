@@ -1507,9 +1507,10 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
   };
 
   // ===== E2E EVIDENCE RECORDER =====
-  var _e2eSpecs   = [];   // flat list, all specs com suite name
-  var _e2eRunId   = null;
-  var _e2ePollTmr = null;
+  var _e2eSpecs    = [];   // flat list, all specs com suite name
+  var _e2eLastData = null; // last loaded e2e JSON payload
+  var _e2eRunId    = null;
+  var _e2ePollTmr  = null;
   var _e2eElapsed = null;
   var _e2eElapsedN = 0;
 
@@ -1521,6 +1522,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       var res = await fetch('/k6/results/e2e/latest.json?t=' + Date.now());
       if (!res.ok) throw new Error('HTTP ' + res.status);
       var d = await res.json();
+      _e2eLastData = d;
 
       var summary  = d.summary  || {};
       var total    = summary.total   || 0;
@@ -1645,6 +1647,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
             + ' onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'">'
             + '&#127916; Baixar Vídeos</a>';
         }
+        downloadsHTML += '<button onclick="e2eDownloadTodos()" style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:#94a3b8;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor=\'#22c55e\';this.style.color=\'#4ade80\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'">&#11123; Baixar Todos os Testes</button>';
         downloadsHTML += '</div>';
       }
 
@@ -1829,6 +1832,22 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
     document.getElementById('e2e-modal-body').innerHTML = bodyHTML;
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
+  }
+
+  function e2eDownloadTodos() {
+    var specs = _e2eSpecs || [];
+    if (!specs.length) return;
+    var payload = {
+      run: (_e2eLastData || {}).run,
+      timestamp: (_e2eLastData || {}).timestamp,
+      summary: (_e2eLastData || {}).summary,
+      specs: specs
+    };
+    var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'e2e_todos_testes_run' + (payload.run || '0') + '.json';
+    a.click();
   }
 
   function e2eCloseModal() {
