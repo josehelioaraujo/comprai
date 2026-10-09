@@ -1648,6 +1648,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
             + '&#127916; Baixar Vídeos</a>';
         }
         downloadsHTML += '<button onclick="e2eDownloadTodos()" style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:#94a3b8;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor=\'#22c55e\';this.style.color=\'#4ade80\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'">&#11123; Baixar Todos os Testes</button>';
+        downloadsHTML += '<button onclick="e2eDownloadPostmanAll()" style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:#94a3b8;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor=\'#ff6c37\';this.style.color=\'#ff8c5a\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="flex-shrink:0"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Baixar Collection Postman</button>';
         downloadsHTML += '</div>';
       }
 
@@ -1847,13 +1848,22 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
   }
 
   function _e2eDownloadBtn(spec) {
-    var json_str = JSON.stringify(spec).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-    return '<div style="margin-top:12px"><button onclick="(function(){'
-      + 'var s=' + JSON.stringify(spec) + ';'
+    var specJson = JSON.stringify(spec);
+    return '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">'
+      + '<button onclick="(function(){'
+      + 'var s=' + specJson + ';'
       + 'var b=new Blob([JSON.stringify(s,null,2)],{type:\'application/json\'});'
       + 'var a=document.createElement(\'a\');a.href=URL.createObjectURL(b);'
       + 'a.download=\'teste_\'+(s.title||\'\').replace(/[^a-z0-9]/gi,\'_\').slice(0,40)+\'.json\';'
-      + 'a.click();})()" style="padding:5px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:#94a3b8;font-size:11px;cursor:pointer" onmouseover="this.style.borderColor=\'#3b82f6\'" onmouseout="this.style.borderColor=\'var(--border)\'">&#11123; Baixar Detalhes</button></div>';
+      + 'a.click();})()" style="padding:5px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:#94a3b8;font-size:11px;cursor:pointer;transition:border-color .15s" onmouseover="this.style.borderColor=\'#3b82f6\'" onmouseout="this.style.borderColor=\'var(--border)\'">&#11123; Baixar Detalhes</button>'
+      + '<button onclick="(function(){'
+      + 'var s=' + specJson + ';'
+      + 'var col=_e2eToPostmanCollection([s],s.title||\'\');'
+      + 'var b=new Blob([JSON.stringify(col,null,2)],{type:\'application/json\'});'
+      + 'var a=document.createElement(\'a\');a.href=URL.createObjectURL(b);'
+      + 'a.download=\'postman_\'+(s.title||\'\').replace(/[^a-z0-9]/gi,\'_\').slice(0,50)+\'.json\';'
+      + 'a.click();})()" style="display:inline-flex;align-items:center;gap:5px;padding:5px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:#94a3b8;font-size:11px;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor=\'#ff6c37\';this.style.color=\'#ff8c5a\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Collection Postman</button>'
+      + '</div>';
   }
 
   function _e2eErrBlock(errors) {
@@ -1891,6 +1901,79 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'e2e_todos_testes_run' + (payload.run || '0') + '.json';
+    a.click();
+  }
+
+  function _e2eToPostmanCollection(specs, collectionName) {
+    // Agrupa specs por suite
+    var suites = {};
+    specs.forEach(function(spec) {
+      var suite = spec._suite || 'Geral';
+      if (!suites[suite]) suites[suite] = [];
+      suites[suite].push(spec);
+    });
+    var suiteItems = Object.keys(suites).map(function(suiteName) {
+      var testItems = suites[suiteName].map(function(spec) {
+        var reqItems = (spec.requests || []).map(function(entry) {
+          var rawUrl = entry.url || '';
+          var urlObj = { raw: rawUrl };
+          try {
+            var u = new URL(rawUrl);
+            urlObj.protocol = u.protocol.replace(':','');
+            urlObj.host = u.hostname.split('.');
+            if (u.port) urlObj.port = u.port;
+            urlObj.path = u.pathname.split('/').filter(function(x){return x;});
+            if (u.search) urlObj.query = u.search.slice(1).split('&').map(function(p){
+              var kv = p.split('=');
+              return { key: decodeURIComponent(kv[0]||''), value: decodeURIComponent(kv[1]||'') };
+            });
+          } catch(ex) {}
+          var headers = Object.keys(entry.req_headers || {}).map(function(k) {
+            return { key: k, value: entry.req_headers[k] };
+          });
+          var reqDef = { method: (entry.method||'GET'), header: headers, url: urlObj };
+          if (entry.req_body) reqDef.body = { mode: 'raw', raw: entry.req_body };
+          var savedResp = [];
+          if (entry.res_body) {
+            savedResp.push({
+              name: 'Response ' + (entry.status||''),
+              originalRequest: reqDef,
+              status: '',
+              code: parseInt(entry.status)||0,
+              _postman_previewlanguage: 'html',
+              header: [],
+              body: entry.res_body
+            });
+          }
+          return {
+            name: (entry.status||'?') + ' ' + (entry.method||'GET') + ' ' + ((rawUrl||'').replace(/https?:\/\/[^/]+/,'')||'/'),
+            request: reqDef,
+            response: savedResp
+          };
+        });
+        return { name: spec.title || 'Test', item: reqItems };
+      });
+      return { name: suiteName, item: testItems };
+    });
+    return {
+      info: {
+        _postman_id: 'comprai-e2e-' + Date.now(),
+        name: collectionName || 'Comprai E2E',
+        schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
+      },
+      item: suiteItems
+    };
+  }
+
+  function e2eDownloadPostmanAll() {
+    var specs = _e2eSpecs || [];
+    if (!specs.length) return;
+    var run = (_e2eLastData || {}).run || '0';
+    var col = _e2eToPostmanCollection(specs, 'Comprai E2E — Run #' + run);
+    var b = new Blob([JSON.stringify(col, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(b);
+    a.download = 'comprai_e2e_postman_run' + run + '.json';
     a.click();
   }
 
