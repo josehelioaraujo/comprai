@@ -1,15 +1,6 @@
 name: E2E Evidence Recorder
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'apps/e2e/**'
-      - 'apps/web/**'
-      - 'src/**'
-      - '.github/workflows/e2e.yml'
-  schedule:
-    - cron: '0 3 * * *'   # Diario 03h UTC
   workflow_dispatch:
     inputs:
       base_url:
