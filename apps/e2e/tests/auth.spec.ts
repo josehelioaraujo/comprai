@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../fixtures';
 
 const API_URL  = process.env.E2E_API_URL  || 'http://2.25.122.11:5020';
 const E2E_EMAIL    = process.env.E2E_USER_EMAIL    || 'e2e@comprai.test';

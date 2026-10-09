@@ -85,6 +85,14 @@ jobs:
         run: npx playwright test
         continue-on-error: true
 
+      - name: Debug HAR evidence
+        if: always()
+        run: |
+          echo "=== har-evidence dir ==="
+          ls -la apps/e2e/har-evidence/ 2>/dev/null || echo "AVISO: apps/e2e/har-evidence/ nao existe"
+          echo "=== count .har files ==="
+          find apps/e2e/har-evidence -name "*.har" 2>/dev/null | wc -l || echo "0"
+
       - name: Upload Playwright Report
         uses: actions/upload-artifact@v4
         if: always()
