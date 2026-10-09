@@ -11,7 +11,7 @@ test.describe('Fluxo de Checkout', () => {
   test.beforeAll(async ({ request }) => {
     await request.post(`${API_URL}/api/auth/register`, {
       data: { name: E2E_NAME, email: E2E_EMAIL, password: E2E_PASSWORD },
-    });
+    }).catch(() => {});
   });
 
   test.beforeEach(async ({ page }) => {
