@@ -1606,11 +1606,29 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
                 catBadge = '<span style="font-size:10px;padding:1px 6px;border-radius:8px;background:' + catColor + '22;color:' + catColor + ';white-space:nowrap">' + _e2eEsc((err0.icon || '') + ' ' + spec.error_category) + '</span>';
               }
               var specDetailId = 'e2e-spec-d-' + idx;
-              suitesHTML += '<div onclick="e2eToggleSpec(\'' + specDetailId + '\',this)" title="Clique para expandir" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;background:var(--bg);cursor:pointer;border-left:2px solid ' + borderCol + ';transition:background .15s" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'var(--bg)\'">'
+              var specJson = JSON.stringify(spec);
+              var copyBtn = '<button onclick="event.stopPropagation();(function(){'
+                + 'var s=' + specJson + ';'
+                + 'navigator.clipboard.writeText(JSON.stringify(s,null,2)).then(function(){'
+                + 'var el=event.target.closest(\'button\');var old=el.innerHTML;el.innerHTML=\'<svg width=&quot;11&quot; height=&quot;11&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;#22c55e&quot; stroke-width=&quot;2.5&quot;><polyline points=&quot;20 6 9 17 4 12&quot;/></svg>\';el.style.borderColor=\'#22c55e\';setTimeout(function(){el.innerHTML=old;el.style.borderColor=\'\';},1200);'
+                + '}).catch(function(){});})()" title="Copiar detalhes do teste (JSON)" style="padding:3px 5px;background:transparent;border:1px solid transparent;border-radius:4px;color:#475569;cursor:pointer;line-height:0;transition:all .15s;flex-shrink:0" onmouseover="this.style.borderColor=\'#475569\';this.style.color=\'#94a3b8\'" onmouseout="this.style.borderColor=\'transparent\';this.style.color=\'#475569\'">'
+                + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
+                + '</button>';
+              var postmanBtn = '<button onclick="event.stopPropagation();(function(){'
+                + 'var s=' + specJson + ';'
+                + 'var col=_e2eToPostmanCollection([s],s.title||\'\');'
+                + 'var b=new Blob([JSON.stringify(col,null,2)],{type:\'application/json\'});'
+                + 'var a=document.createElement(\'a\');a.href=URL.createObjectURL(b);'
+                + 'a.download=\'postman_\'+(s.title||\'\').replace(/[^a-z0-9]/gi,\'_\').slice(0,50)+\'.json\';'
+                + 'a.click();})()" title="Baixar Collection Postman deste teste" style="padding:3px 5px;background:transparent;border:1px solid transparent;border-radius:4px;color:#475569;cursor:pointer;line-height:0;transition:all .15s;flex-shrink:0" onmouseover="this.style.borderColor=\'#ff6c37\';this.style.color=\'#ff8c5a\'" onmouseout="this.style.borderColor=\'transparent\';this.style.color=\'#475569\'">'
+                + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'
+                + '</button>';
+              suitesHTML += '<div onclick="e2eToggleSpec(\'' + specDetailId + '\',this)" title="Clique para expandir" style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;background:var(--bg);cursor:pointer;border-left:2px solid ' + borderCol + ';transition:background .15s" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'var(--bg)\'">'
                 + '<span>' + ic + '</span>'
                 + '<span style="flex:1;font-size:12px;color:#cbd5e1">' + _e2eEsc(spec.title || '') + '</span>'
                 + catBadge
                 + '<span style="font-size:11px;color:var(--muted);font-family:monospace">' + (spec.duration || 0) + 's</span>'
+                + copyBtn + postmanBtn
                 + '<span class="spec-chev" style="font-size:15px;color:' + (hasErr ? '#ef4444' : '#475569') + ';display:inline-block;transition:transform .2s;transform:rotate(0deg);line-height:1">&#8250;</span>'
                 + '</div>'
                 + '<div id="' + specDetailId + '" style="display:none;padding:4px 8px 8px 30px">'
