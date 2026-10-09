@@ -1761,6 +1761,8 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
         _e2eRunId = data.runId;
         var lnk = document.getElementById('e2e-exec-link');
         if (lnk && data.url) { lnk.href = data.url; lnk.style.display = ''; }
+        var clnk = document.getElementById('e2e-cancel-link');
+        if (clnk && data.url) { clnk.href = data.url; clnk.style.display = ''; }
         e2ePollStatus();
       } else {
         _e2ePollTmr = setTimeout(e2ePollForRun, 5000);
@@ -1780,6 +1782,8 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       _e2eRunId = data.runId;
       var lnk = document.getElementById('e2e-exec-link');
       if (lnk && data.url) { lnk.href = data.url; lnk.style.display = ''; }
+      var clnk = document.getElementById('e2e-cancel-link');
+      if (clnk && data.url) { clnk.href = data.url; clnk.style.display = ''; }
       e2eSetExecStatus('&#9203;', 'Aguardando jobs...', 35);
       e2ePollStatus();
     } catch(e) { _e2ePollTmr = setTimeout(e2ePollForRun, 6000); }
@@ -1803,6 +1807,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
         clearInterval(_e2eElapsed);
         var ok = run.conclusion === 'success';
         e2eSetExecStatus(ok ? '&#9989;' : '&#10060;', ok ? 'Todos os testes passaram!' : 'Falhou — ' + run.conclusion, 100);
+        var clnk = document.getElementById('e2e-cancel-link'); if (clnk) clnk.style.display = 'none';
         e2eResetBtn();
         setTimeout(loadE2eData, 2000);
       } else {
@@ -1862,7 +1867,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
         + '<span style="font-size:14px">' + jic + '</span>'
         + '<span style="flex:1;font-size:12px;font-weight:600;color:' + jcol + '">' + _e2eEsc(job.name || '') + '</span>'
         + (job.duration ? '<span style="font-size:10px;color:var(--muted);font-family:monospace">' + job.duration + 's</span>' : '')
-        + (hasSteps ? '<span class="e2e-chevron" style="font-size:11px;color:var(--muted);transition:transform .2s;transform:rotate(90deg)">&#8250;</span>' : '')
+        + (hasSteps ? '<span class="e2e-chevron" style="font-size:16px;color:#94a3b8;transition:transform .2s;transform:rotate(90deg);display:inline-block;line-height:1;margin-left:4px">&#8250;</span>' : '')
         + '</div>'
         + stepsHtml
         + '</div>';
@@ -1875,7 +1880,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
     if (!steps) return;
     var open = steps.style.display !== 'none';
     steps.style.display = open ? 'none' : '';
-    if (chev) chev.style.transform = open ? '' : 'rotate(90deg)';
+    if (chev) chev.style.transform = open ? 'rotate(0deg)' : 'rotate(90deg)';
   }
 
 // ===== SONARCLOUD =====
@@ -10274,6 +10279,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
         </div>
         <div style="margin-bottom:8px;display:flex;align-items:center;gap:10px">
           <a id="e2e-exec-link" href="#" target="_blank" style="display:none;font-size:11px;color:#38bdf8;text-decoration:none">&#128279; Ver no GitHub Actions</a>
+          <a id="e2e-cancel-link" href="#" target="_blank" style="display:none;font-size:11px;color:#ef4444;text-decoration:none;border:1px solid #ef444466;border-radius:5px;padding:2px 8px">&#9746; Cancelar no GitHub</a>
         </div>
         <!-- Jobs drill-down -->
         <div id="e2e-exec-jobs" style="display:flex;flex-direction:column;gap:6px"></div>
