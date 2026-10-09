@@ -1729,15 +1729,52 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
   }
 
   function _e2eSpecInlineDetails(spec) {
+    var html = '';
+    // ── Errors
     if (spec.errors && spec.errors.length > 0) {
-      return spec.errors.map(function(e) {
-        return (e.message ? '<div style="font-size:11px;color:#ef4444;margin-bottom:4px;white-space:pre-wrap;word-break:break-word">' + _e2eEsc(e.message) + '</div>' : '')
+      html += spec.errors.map(function(e) {
+        var catStyle = e.color ? 'color:' + e.color : 'color:#ef4444';
+        return (e.message ? '<div style="font-size:11px;' + catStyle + ';margin-bottom:4px;white-space:pre-wrap;word-break:break-word">' + _e2eEsc(e.message) + '</div>' : '')
           + (e.snippet ? '<pre style="font-size:10px;color:#94a3b8;background:var(--surface2);padding:6px 8px;border-radius:4px;overflow:auto;max-height:110px;margin:0 0 4px">' + _e2eEsc(e.snippet) + '</pre>' : '');
       }).join('');
+    } else {
+      var icon = spec.status === 'skipped' ? '&#9940;' : spec.status === 'passed' ? '&#9989;' : '&#10060;';
+      var msg  = spec.status === 'skipped' ? 'Ignorado' : spec.status === 'passed' ? 'Passou sem erros' : 'Sem detalhes de erro';
+      html += '<div style="font-size:11px;color:var(--muted);margin-bottom:4px">' + icon + ' ' + msg + '</div>';
     }
-    var icon = spec.status === 'skipped' ? '&#9940;' : spec.status === 'passed' ? '&#9989;' : '&#10060;';
-    var msg  = spec.status === 'skipped' ? 'Teste ignorado (test.skip)' : spec.status === 'passed' ? 'Passou sem erros' : 'Sem detalhes de erro disponíveis';
-    return '<div style="font-size:11px;color:var(--muted)">' + icon + ' ' + msg + '</div>';
+    // ── HTTP Requests
+    var reqs = spec.requests || [];
+    if (reqs.length > 0) {
+      html += '<div style="margin-top:8px;font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">&#127760; Requisições HTTP (' + reqs.length + ')</div>';
+      reqs.forEach(function(entry) {
+        var stColor = (String(entry.status||0).charAt(0)==='4'||String(entry.status||0).charAt(0)==='5') ? '#ef4444' : '#22c55e';
+        html += '<details style="margin-bottom:3px;background:var(--bg);border-radius:4px;border:1px solid var(--border)">'
+          + '<summary style="cursor:pointer;padding:4px 8px;font-size:10px;color:#94a3b8;list-style:none;outline:none;display:flex;align-items:center;gap:6px">'
+          + '<span style="font-weight:700;font-family:monospace;color:' + stColor + '">' + _e2eEsc(entry.status||'?') + '</span>'
+          + '<span style="color:#60a5fa;font-weight:700">' + _e2eEsc(entry.method||'') + '</span>'
+          + '<span style="word-break:break-all;flex:1;color:#94a3b8">' + _e2eEsc((entry.url||'').replace(/https?:\/\/[^/]+/,'')) + '</span>'
+          + '</summary>';
+        if (entry.req_headers && Object.keys(entry.req_headers).length) {
+          html += '<div style="padding:4px 8px;border-top:1px solid var(--border);font-size:10px">'
+            + '<div style="color:var(--muted);margin-bottom:2px">REQUEST HEADERS</div>'
+            + '<pre style="color:#a5b4fc;white-space:pre-wrap;word-break:break-all;margin:0;max-height:60px;overflow:auto">' + _e2eEsc(JSON.stringify(entry.req_headers, null, 2)) + '</pre></div>';
+        }
+        if (entry.req_body) {
+          html += '<div style="padding:4px 8px;border-top:1px solid var(--border);font-size:10px">'
+            + '<div style="color:var(--muted);margin-bottom:2px">REQUEST BODY</div>'
+            + '<pre style="color:#7dd3fc;white-space:pre-wrap;word-break:break-all;margin:0;max-height:100px;overflow:auto">' + _e2eEsc(entry.req_body.slice(0,1000)) + '</pre></div>';
+        }
+        if (entry.res_body) {
+          html += '<div style="padding:4px 8px;border-top:1px solid var(--border);font-size:10px">'
+            + '<div style="color:var(--muted);margin-bottom:2px">RESPONSE BODY</div>'
+            + '<pre style="color:#a5f3fc;white-space:pre-wrap;word-break:break-all;margin:0;max-height:100px;overflow:auto">' + _e2eEsc(entry.res_body.slice(0,1000)) + '</pre></div>';
+        }
+        html += '</details>';
+      });
+    } else {
+      html += '<div style="font-size:10px;color:#475569;margin-top:4px">&#128295; Nenhuma requisição HTTP capturada.</div>';
+    }
+    return html;
   }
 
   function _e2eSpecListHTML(specs) {
@@ -1770,19 +1807,26 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       reqs.forEach(function(entry) {
         var sc2 = (String(entry.status||0).charAt(0)==='4'||String(entry.status||0).charAt(0)==='5') ? '#ef4444' : '#22c55e';
         reqHTML += '<details style="margin-bottom:4px;background:var(--surface2);border-radius:4px;border:1px solid var(--border)">'
-          + '<summary style="cursor:pointer;padding:5px 10px;font-size:11px;color:#94a3b8;list-style:none;outline:none">'
-          + '<span style="font-weight:700;color:' + sc2 + '">[' + _e2eEsc(entry.status||'?') + ']</span> '
-          + '<span style="color:#60a5fa">' + _e2eEsc(entry.method||'') + '</span> '
-          + '<span style="word-break:break-all">' + _e2eEsc((entry.url||'').slice(0,120)) + '</span></summary>';
+          + '<summary style="cursor:pointer;padding:5px 10px;font-size:11px;color:#94a3b8;list-style:none;outline:none;display:flex;align-items:center;gap:8px">'
+          + '<span style="font-weight:700;font-family:monospace;color:' + sc2 + '">' + _e2eEsc(entry.status||'?') + '</span>'
+          + '<span style="color:#60a5fa;font-weight:700">' + _e2eEsc(entry.method||'') + '</span>'
+          + '<span style="word-break:break-all;flex:1">' + _e2eEsc((entry.url||'').replace(/https?:\/\/[^/]+/,'')) + '</span>'
+          + '<span style="color:var(--muted);font-size:10px;white-space:nowrap">' + _e2eEsc((entry.url||'').match(/^https?:\/\/[^/]+/)?.[0]||'') + '</span>'
+          + '</summary>';
+        if (entry.req_headers && Object.keys(entry.req_headers).length) {
+          reqHTML += '<div style="padding:6px 10px;border-top:1px solid var(--border)">'
+            + '<div style="font-size:10px;color:var(--muted);margin-bottom:2px">REQUEST HEADERS</div>'
+            + '<pre style="font-size:10px;color:#a5b4fc;white-space:pre-wrap;word-break:break-all;margin:0;max-height:80px;overflow:auto">' + _e2eEsc(JSON.stringify(entry.req_headers, null, 2)) + '</pre></div>';
+        }
         if (entry.req_body) {
           reqHTML += '<div style="padding:6px 10px;border-top:1px solid var(--border)">'
             + '<div style="font-size:10px;color:var(--muted);margin-bottom:2px">REQUEST BODY</div>'
-            + '<pre style="font-size:10px;color:#7dd3fc;white-space:pre-wrap;word-break:break-all;margin:0;max-height:120px;overflow:auto">' + _e2eEsc(entry.req_body.slice(0,800)) + '</pre></div>';
+            + '<pre style="font-size:10px;color:#7dd3fc;white-space:pre-wrap;word-break:break-all;margin:0;max-height:150px;overflow:auto">' + _e2eEsc(entry.req_body.slice(0,1500)) + '</pre></div>';
         }
         if (entry.res_body) {
           reqHTML += '<div style="padding:6px 10px;border-top:1px solid var(--border)">'
             + '<div style="font-size:10px;color:var(--muted);margin-bottom:2px">RESPONSE BODY</div>'
-            + '<pre style="font-size:10px;color:#a5f3fc;white-space:pre-wrap;word-break:break-all;margin:0;max-height:120px;overflow:auto">' + _e2eEsc(entry.res_body.slice(0,800)) + '</pre></div>';
+            + '<pre style="font-size:10px;color:#a5f3fc;white-space:pre-wrap;word-break:break-all;margin:0;max-height:150px;overflow:auto">' + _e2eEsc(entry.res_body.slice(0,1500)) + '</pre></div>';
         }
         reqHTML += '</details>';
       });

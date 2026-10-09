@@ -94,6 +94,7 @@ jobs:
             apps/e2e/playwright-report/
             apps/e2e/playwright-results.json
             apps/e2e/test-results/
+            apps/e2e/har-evidence/
           retention-days: 30
           if-no-files-found: warn
 
@@ -152,29 +153,38 @@ jobs:
           suites_flat = []
           
           # ── HAR parsing: build map test_title -> [{request, response}] ───────────────
-          har_map = {}  # title_key -> list of {url, method, status, req_headers, req_body, res_status, res_headers, res_body}
+          har_map = {}  # normalized_key -> list of requests
+
+          def norm_har_key(s):
+            """Normalize any string to lowercase alphanumeric words for fuzzy matching."""
+            return re.sub(r'\s+', ' ', re.sub(r'[^a-z0-9]', ' ', s.lower())).strip()
+
           har_dir = 'e2e-download/har-evidence'
+          print('HAR dir exists:', os.path.isdir(har_dir))
           if os.path.isdir(har_dir):
-            for hf in glob.glob(har_dir + '/**/*.har', recursive=True) + glob.glob(har_dir + '/*.har'):
+            all_har = glob.glob(har_dir + '/**/*.har', recursive=True) + glob.glob(har_dir + '/*.har')
+            print('HAR files found:', len(all_har), all_har[:5])
+            for hf in all_har:
               try:
                 with open(hf, encoding='utf-8') as f:
                   har = json.load(f)
                 entries = har.get('log', {}).get('entries', [])
-                # HAR file name often matches test name pattern
+                # Build normalized key from filename (Playwright replaces special chars with -)
                 base = os.path.splitext(os.path.basename(hf))[0]
-                # normalize: remove chromium suffix etc
-                key = re.sub(r'-chromium.*$', '', base, flags=re.IGNORECASE)
-                key = re.sub(r'-[a-f0-9]{5,}$', '', key).replace('-', ' ').strip().lower()
+                # Remove trailing browser/hash suffixes: -chromium, -firefox, -webkit, -[hash]
+                base = re.sub(r'-(chromium|firefox|webkit).*$', '', base, flags=re.IGNORECASE)
+                base = re.sub(r'-[a-f0-9]{6,}$', '', base)
+                key = norm_har_key(base)
                 reqs = []
                 for entry in entries:
                   req = entry.get('request', {})
                   res = entry.get('response', {})
                   url = req.get('url', '')
                   # skip static assets
-                  if re.search(r'\.(js|css|png|jpg|jpeg|gif|ico|woff|woff2|svg|webp|map)(\?|$)', url, re.IGNORECASE):
+                  if re.search(r'\.(js|css|png|jpg|jpeg|gif|ico|woff|woff2|svg|webp|map|ttf|eot)(\?|$)', url, re.IGNORECASE):
                     continue
                   # skip telemetry/analytics
-                  if re.search(r'(analytics|gtag|hotjar|sentry|cdn\.)', url, re.IGNORECASE):
+                  if re.search(r'(analytics|gtag|hotjar|sentry|cdn\.|sockjs|webpack)', url, re.IGNORECASE):
                     continue
                   method = req.get('method', '')
                   status = res.get('status', 0)
@@ -183,25 +193,35 @@ jobs:
                   res_content = res.get('content', {}) or {}
                   if res_content.get('text'):
                     res_body_raw = res_content['text']
+                  # include req headers (Authorization, Content-Type)
+                  req_headers = {h['name']: h['value'] for h in req.get('headers', []) if h['name'].lower() in ('content-type','authorization','accept')}
                   reqs.append({
                     'url': url, 'method': method, 'status': status,
-                    'req_body': req_body_raw[:2000],
-                    'res_body': res_body_raw[:2000],
+                    'req_headers': req_headers,
+                    'req_body': req_body_raw[:3000],
+                    'res_body': res_body_raw[:3000],
                   })
                 if reqs:
                   har_map[key] = reqs
+                  print('HAR loaded:', key, '(' + str(len(reqs)) + ' reqs)')
               except Exception as ex:
                 print('HAR parse error ' + hf + ': ' + str(ex))
-          
+
           def get_har(title):
-            key = title.lower()
+            tk = norm_har_key(title)
             # exact match
-            if key in har_map: return har_map[key]
-            # partial match
+            if tk in har_map: return har_map[tk]
+            # partial match: words overlap
+            best, best_score = [], 0
             for k, v in har_map.items():
-              if k in key or key in k:
-                return v
-            return []
+              # count common words
+              tw = set(tk.split())
+              kw = set(k.split())
+              score = len(tw & kw) / max(len(tw | kw), 1)
+              if score > best_score and score > 0.5:
+                best_score = score
+                best = v
+            return best
           
           # ── error categorization ──────────────────────────────────────────────────────
           def categorize_error(msg, snippet=''):
@@ -376,19 +396,26 @@ jobs:
                 for ei, entry in enumerate(har_entries[:15]):
                   sc = '#ef4444' if str(entry.get('status',0)).startswith('4') or str(entry.get('status',0)).startswith('5') else '#22c55e'
                   det += '<details style="margin-bottom:4px;background:#020617;border-radius:4px;border:1px solid #1e293b">'
-                  det += '<summary style="cursor:pointer;padding:5px 8px;font-size:11px;color:#94a3b8;list-style:none">'
-                  det += '<span style="font-weight:700;color:' + sc + '">[' + str(entry.get('status','?')) + ']</span> '
-                  det += '<span style="color:#60a5fa">' + esc(entry.get('method','')) + '</span> '
-                  det += '<span style="word-break:break-all">' + esc(entry.get('url','')[:120]) + '</span></summary>'
+                  url_full = entry.get('url','')
+                  url_path = re.sub(r'^https?://[^/]+','', url_full)
+                  det += '<summary style="cursor:pointer;padding:5px 8px;font-size:11px;color:#94a3b8;list-style:none;display:flex;align-items:center;gap:8px">'
+                  det += '<span style="font-weight:700;font-family:monospace;min-width:36px;color:' + sc + '">' + str(entry.get('status','?')) + '</span>'
+                  det += '<span style="color:#60a5fa;font-weight:700;min-width:44px">' + esc(entry.get('method','')) + '</span>'
+                  det += '<span style="word-break:break-all;flex:1">' + esc(url_path[:120] or url_full[:120]) + '</span></summary>'
+                  if entry.get('req_headers'):
+                    det += '<div style="padding:6px 10px;border-top:1px solid #1e293b">'
+                    det += '<div style="font-size:10px;color:#475569;margin-bottom:2px">REQUEST HEADERS</div>'
+                    det += '<pre style="font-size:10px;color:#a5b4fc;white-space:pre-wrap;word-break:break-all;margin:0;max-height:80px;overflow:auto">' + esc(json.dumps(entry['req_headers'], indent=2, ensure_ascii=False)) + '</pre>'
+                    det += '</div>'
                   if entry.get('req_body'):
                     det += '<div style="padding:6px 10px;border-top:1px solid #1e293b">'
                     det += '<div style="font-size:10px;color:#475569;margin-bottom:2px">REQUEST BODY</div>'
-                    det += '<pre style="font-size:10px;color:#7dd3fc;white-space:pre-wrap;word-break:break-all;margin:0">' + esc(entry['req_body'][:800]) + '</pre>'
+                    det += '<pre style="font-size:10px;color:#7dd3fc;white-space:pre-wrap;word-break:break-all;margin:0;max-height:150px;overflow:auto">' + esc(entry['req_body'][:1500]) + '</pre>'
                     det += '</div>'
                   if entry.get('res_body'):
                     det += '<div style="padding:6px 10px;border-top:1px solid #1e293b">'
                     det += '<div style="font-size:10px;color:#475569;margin-bottom:2px">RESPONSE BODY</div>'
-                    det += '<pre style="font-size:10px;color:#a5f3fc;white-space:pre-wrap;word-break:break-all;margin:0">' + esc(entry['res_body'][:800]) + '</pre>'
+                    det += '<pre style="font-size:10px;color:#a5f3fc;white-space:pre-wrap;word-break:break-all;margin:0;max-height:150px;overflow:auto">' + esc(entry['res_body'][:1500]) + '</pre>'
                     det += '</div>'
                   det += '</details>'
               else:
