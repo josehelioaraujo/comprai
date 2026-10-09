@@ -164,9 +164,8 @@ jobs:
               }
               output['status'] = 'passed' if failed == 0 else 'failed'
 
-              # Suites por spec file
-              for suite in data.get('suites', []):
-                suite_name = suite.get('title', 'unknown')
+              # Recursivo: coleta specs de suites aninhadas (describe blocks)
+              def collect_specs(suite):
                 specs = []
                 for spec in suite.get('specs', []):
                   spec_status = 'passed'
@@ -190,6 +189,14 @@ jobs:
                     'duration': int(sum(t.get('duration', 0) for t in spec.get('tests', [])) / 1000),
                     'errors':   errors,
                   })
+                for nested in suite.get('suites', []):
+                  specs.extend(collect_specs(nested))
+                return specs
+
+              # Suites por spec file
+              for suite in data.get('suites', []):
+                suite_name = suite.get('title', 'unknown')
+                specs = collect_specs(suite)
                 output['suites'].append({
                   'file':   suite_name,
                   'specs':  specs,
