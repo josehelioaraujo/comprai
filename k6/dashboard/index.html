@@ -1596,11 +1596,18 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
               var ic   = spec.status === 'passed' ? '&#9989;' : spec.status === 'failed' ? '&#10060;' : '&#9940;';
               var sc2  = spec.status === 'passed' ? '#22c55e' : spec.status === 'failed' ? '#ef4444' : '#f59e0b';
               var hasErr = (spec.errors || []).length > 0;
-              var borderCol = hasErr ? '#ef4444' : 'transparent';
+              var catColor = hasErr && spec.errors[0] && spec.errors[0].color ? spec.errors[0].color : '#ef4444';
+              var borderCol = hasErr ? catColor : 'transparent';
+              var catBadge = '';
+              if (spec.error_category) {
+                var err0 = spec.errors && spec.errors[0] ? spec.errors[0] : {};
+                catBadge = '<span style="font-size:10px;padding:1px 6px;border-radius:8px;background:' + catColor + '22;color:' + catColor + ';white-space:nowrap">' + _e2eEsc((err0.icon || '') + ' ' + spec.error_category) + '</span>';
+              }
               var specDetailId = 'e2e-spec-d-' + idx;
               suitesHTML += '<div onclick="e2eToggleSpec(\'' + specDetailId + '\',this)" title="Clique para expandir" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;background:var(--bg);cursor:pointer;border-left:2px solid ' + borderCol + ';transition:background .15s" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'var(--bg)\'">'
                 + '<span>' + ic + '</span>'
                 + '<span style="flex:1;font-size:12px;color:#cbd5e1">' + _e2eEsc(spec.title || '') + '</span>'
+                + catBadge
                 + '<span style="font-size:11px;color:var(--muted);font-family:monospace">' + (spec.duration || 0) + 's</span>'
                 + '<span class="spec-chev" style="font-size:15px;color:' + (hasErr ? '#ef4444' : '#475569') + ';display:inline-block;transition:transform .2s;transform:rotate(0deg);line-height:1">&#8250;</span>'
                 + '</div>'
@@ -1753,6 +1760,33 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
   function _e2eSpecDetailHTML(spec) {
     var ic = spec.status === 'passed' ? '&#9989;' : spec.status === 'failed' ? '&#10060;' : '&#9940;';
     var sc = spec.status === 'passed' ? '#22c55e' : spec.status === 'failed' ? '#ef4444' : '#f59e0b';
+    var reqHTML = '';
+    var reqs = spec.requests || [];
+    if (reqs.length > 0) {
+      reqHTML += '<div style="margin-top:12px;font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">&#127760; Requisi&ccedil;&otilde;es HTTP (' + reqs.length + ')</div>';
+      reqs.forEach(function(entry) {
+        var sc2 = (String(entry.status||0).charAt(0)==='4'||String(entry.status||0).charAt(0)==='5') ? '#ef4444' : '#22c55e';
+        reqHTML += '<details style="margin-bottom:4px;background:var(--surface2);border-radius:4px;border:1px solid var(--border)">'
+          + '<summary style="cursor:pointer;padding:5px 10px;font-size:11px;color:#94a3b8;list-style:none;outline:none">'
+          + '<span style="font-weight:700;color:' + sc2 + '">[' + _e2eEsc(entry.status||'?') + ']</span> '
+          + '<span style="color:#60a5fa">' + _e2eEsc(entry.method||'') + '</span> '
+          + '<span style="word-break:break-all">' + _e2eEsc((entry.url||'').slice(0,120)) + '</span></summary>';
+        if (entry.req_body) {
+          reqHTML += '<div style="padding:6px 10px;border-top:1px solid var(--border)">'
+            + '<div style="font-size:10px;color:var(--muted);margin-bottom:2px">REQUEST BODY</div>'
+            + '<pre style="font-size:10px;color:#7dd3fc;white-space:pre-wrap;word-break:break-all;margin:0;max-height:120px;overflow:auto">' + _e2eEsc(entry.req_body.slice(0,800)) + '</pre></div>';
+        }
+        if (entry.res_body) {
+          reqHTML += '<div style="padding:6px 10px;border-top:1px solid var(--border)">'
+            + '<div style="font-size:10px;color:var(--muted);margin-bottom:2px">RESPONSE BODY</div>'
+            + '<pre style="font-size:10px;color:#a5f3fc;white-space:pre-wrap;word-break:break-all;margin:0;max-height:120px;overflow:auto">' + _e2eEsc(entry.res_body.slice(0,800)) + '</pre></div>';
+        }
+        reqHTML += '</details>';
+      });
+    } else {
+      reqHTML += '<div style="margin-top:8px;font-size:11px;color:var(--muted)">&#128295; Nenhuma requisi&ccedil;&atilde;o HTTP capturada.</div>';
+    }
+    var dlBtn = '<div style="margin-top:12px"><button onclick="(function(){var b=new Blob([JSON.stringify(Object.assign({},'+JSON.stringify({})+'),null,2)],{type:\'application/json\'});var a=document.createElement(\'a\');a.href=URL.createObjectURL(b);a.download=\'teste_\'+_e2eEsc(spec.title||\'spec\').replace(/[^a-z0-9]/gi,\'_\').slice(0,40)+\'.json\';a.click();})()" style="padding:5px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:#94a3b8;font-size:11px;cursor:pointer;transition:border-color .15s" onmouseover="this.style.borderColor=\'#3b82f6\'" onmouseout="this.style.borderColor=\'var(--border)\'">&#11123; Baixar Detalhes</button></div>';
     return '<div style="margin-bottom:14px">'
       + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
       + '<span>' + ic + '</span>'
@@ -1760,14 +1794,28 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       + '</div>'
       + '<div style="font-size:11px;color:var(--muted)">&#128196; ' + _e2eEsc(spec._suite || '') + ' &nbsp;·&nbsp; <span style="color:' + sc + ';font-weight:700">' + (spec.status || '').toUpperCase() + '</span> &nbsp;·&nbsp; ' + (spec.duration || 0) + 's</div>'
       + '</div>'
-      + _e2eErrBlock(spec.errors || []);
+      + _e2eErrBlock(spec.errors || [])
+      + reqHTML
+      + _e2eDownloadBtn(spec);
+  }
+
+  function _e2eDownloadBtn(spec) {
+    var json_str = JSON.stringify(spec).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return '<div style="margin-top:12px"><button onclick="(function(){'
+      + 'var s=' + JSON.stringify(spec) + ';'
+      + 'var b=new Blob([JSON.stringify(s,null,2)],{type:\'application/json\'});'
+      + 'var a=document.createElement(\'a\');a.href=URL.createObjectURL(b);'
+      + 'a.download=\'teste_\'+(s.title||\'\').replace(/[^a-z0-9]/gi,\'_\').slice(0,40)+\'.json\';'
+      + 'a.click();})()" style="padding:5px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:#94a3b8;font-size:11px;cursor:pointer" onmouseover="this.style.borderColor=\'#3b82f6\'" onmouseout="this.style.borderColor=\'var(--border)\'">&#11123; Baixar Detalhes</button></div>';
   }
 
   function _e2eErrBlock(errors) {
     if (!errors || !errors.length) return '<div style="font-size:12px;color:#22c55e;padding:8px 0">&#9989; Nenhum erro registrado.</div>';
     return errors.map(function(err, i) {
-      return '<div style="margin-top:8px;border-radius:6px;overflow:hidden;border:1px solid rgba(239,68,68,.3)">'
-        + (i > 0 ? '' : '<div style="background:rgba(239,68,68,.12);padding:5px 10px;font-size:10px;font-weight:700;color:#ef4444;letter-spacing:.06em">ERRO</div>')
+      var catColor = err.color || '#ef4444';
+      var catLabel = err.icon ? (err.icon + ' ' + (err.category || 'ERRO')) : (err.category || 'ERRO');
+      return '<div style="margin-top:8px;border-radius:6px;overflow:hidden;border:1px solid ' + catColor + '44">'
+        + '<div style="background:' + catColor + '18;padding:5px 10px;font-size:10px;font-weight:700;color:' + catColor + ';letter-spacing:.06em">' + _e2eEsc(catLabel) + '</div>'
         + (err.message ? '<div style="padding:10px 12px;font-size:11px;color:#fca5a5;font-family:monospace;white-space:pre-wrap;word-break:break-word;line-height:1.55;background:#0f172a">' + _e2eEsc(err.message) + '</div>' : '')
         + (err.snippet ? '<div style="padding:10px 12px;font-size:10px;color:#7dd3fc;font-family:monospace;white-space:pre;overflow-x:auto;line-height:1.5;background:#020617;border-top:1px solid rgba(255,255,255,.06)">' + _e2eEsc(err.snippet) + '</div>' : '')
         + '</div>';

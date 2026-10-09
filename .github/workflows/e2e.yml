@@ -120,26 +120,28 @@ jobs:
       - name: Gerar evidencias e2e
         run: |
           python3 << 'PYEOF'
-          import json, os, re, shutil, zipfile, datetime
-
-          ts       = datetime.datetime.utcnow()
-          ts_str   = ts.strftime('%d%m%Y_%H%M%S')
-          ts_disp  = ts.strftime('%d/%m/%Y %H:%M:%S') + ' UTC'
+          import json, os, re, shutil, zipfile, datetime, glob
+          
+          # ── BRT timezone (UTC-3) ──────────────────────────────────────────────────────
+          ts      = datetime.datetime.utcnow() - datetime.timedelta(hours=3)
+          ts_str  = ts.strftime('%d%m%Y_%H%M%S')
+          ts_disp = ts.strftime('%d/%m/%Y %H:%M:%S') + ' BRT'
+          
           vps_host = os.environ.get('VPS_HOST', '2.25.122.11')
           run_num  = os.environ.get('GITHUB_RUN_NUMBER', '0')
           run_id   = os.environ.get('GITHUB_RUN_ID', '')
           sha      = os.environ.get('GITHUB_SHA', '')[:7]
-
+          
           report_zip_name = 'Report_' + ts_str + '.zip'
           video_zip_name  = 'video_'  + ts_str + '.zip'
           base_url        = 'http://' + vps_host + '/k6/results/e2e/downloads/'
-
+          
           os.makedirs('e2e-output',   exist_ok=True)
           os.makedirs('e2e-evidence', exist_ok=True)
-
+          
           output = {
             'run': int(run_num), 'sha': sha,
-            'timestamp': ts.isoformat() + 'Z',
+            'timestamp': ts.isoformat(),
             'status': 'unknown',
             'summary': {'total': 0, 'passed': 0, 'failed': 0, 'skipped': 0, 'duration': 0},
             'suites': [],
@@ -148,7 +150,79 @@ jobs:
             'videos_zip': base_url + video_zip_name,
           }
           suites_flat = []
-
+          
+          # ── HAR parsing: build map test_title -> [{request, response}] ───────────────
+          har_map = {}  # title_key -> list of {url, method, status, req_headers, req_body, res_status, res_headers, res_body}
+          har_dir = 'e2e-download/har-evidence'
+          if os.path.isdir(har_dir):
+            for hf in glob.glob(har_dir + '/**/*.har', recursive=True) + glob.glob(har_dir + '/*.har'):
+              try:
+                with open(hf, encoding='utf-8') as f:
+                  har = json.load(f)
+                entries = har.get('log', {}).get('entries', [])
+                # HAR file name often matches test name pattern
+                base = os.path.splitext(os.path.basename(hf))[0]
+                # normalize: remove chromium suffix etc
+                key = re.sub(r'-chromium.*$', '', base, flags=re.IGNORECASE)
+                key = re.sub(r'-[a-f0-9]{5,}$', '', key).replace('-', ' ').strip().lower()
+                reqs = []
+                for entry in entries:
+                  req = entry.get('request', {})
+                  res = entry.get('response', {})
+                  url = req.get('url', '')
+                  # skip static assets
+                  if re.search(r'\.(js|css|png|jpg|jpeg|gif|ico|woff|woff2|svg|webp|map)(\?|$)', url, re.IGNORECASE):
+                    continue
+                  # skip telemetry/analytics
+                  if re.search(r'(analytics|gtag|hotjar|sentry|cdn\.)', url, re.IGNORECASE):
+                    continue
+                  method = req.get('method', '')
+                  status = res.get('status', 0)
+                  req_body_raw = (req.get('postData', {}) or {}).get('text', '') or ''
+                  res_body_raw = ''
+                  res_content = res.get('content', {}) or {}
+                  if res_content.get('text'):
+                    res_body_raw = res_content['text']
+                  reqs.append({
+                    'url': url, 'method': method, 'status': status,
+                    'req_body': req_body_raw[:2000],
+                    'res_body': res_body_raw[:2000],
+                  })
+                if reqs:
+                  har_map[key] = reqs
+              except Exception as ex:
+                print('HAR parse error ' + hf + ': ' + str(ex))
+          
+          def get_har(title):
+            key = title.lower()
+            # exact match
+            if key in har_map: return har_map[key]
+            # partial match
+            for k, v in har_map.items():
+              if k in key or key in k:
+                return v
+            return []
+          
+          # ── error categorization ──────────────────────────────────────────────────────
+          def categorize_error(msg, snippet=''):
+            m = (msg or '').lower()
+            s = (snippet or '').lower()
+            combined = m + ' ' + s
+            if 'timeout' in combined or 'timed out' in combined:
+              return {'label': 'Timeout', 'icon': '⏱', 'color': '#f59e0b'}
+            if re.search(r'(4\d\d|status 4\d\d|http 4)', combined):
+              return {'label': 'Erro Cliente (4xx)', 'icon': '⚠️', 'color': '#f97316'}
+            if re.search(r'(5\d\d|status 5\d\d|http 5|internal server)', combined):
+              return {'label': 'Erro Servidor (5xx)', 'icon': '💥', 'color': '#ef4444'}
+            if re.search(r'(network|econnrefused|enotfound|net::|failed to fetch)', combined):
+              return {'label': 'Erro de Rede', 'icon': '📡', 'color': '#a78bfa'}
+            if re.search(r'(expect|assert|tobevisible|tohavetext|tocontain|locator)', combined):
+              return {'label': 'Asserção', 'icon': '🔴', 'color': '#ef4444'}
+            if re.search(r'(ops!|algo deu errado|intent|success.*false|message.*informe|message.*erro)', combined):
+              return {'label': 'Erro de Aplicação', 'icon': '🔧', 'color': '#f87171'}
+            return {'label': 'Erro Geral', 'icon': '❌', 'color': '#ef4444'}
+          
+          # ── parse results ─────────────────────────────────────────────────────────────
           results_file = 'e2e-download/playwright-results.json'
           if os.path.exists(results_file):
             try:
@@ -157,29 +231,53 @@ jobs:
               total    = data.get('stats', {}).get('expected', 0)
               failed   = data.get('stats', {}).get('failed', 0) + data.get('stats', {}).get('unexpected', 0)
               skipped  = data.get('stats', {}).get('skipped', 0)
-              passed   = total - failed - skipped  # FIX: Playwright nao tem stats.passed
+              passed   = total - failed - skipped
               duration = int(data.get('stats', {}).get('duration', 0) / 1000)
               output['summary'] = {'total': total, 'passed': passed, 'failed': failed, 'skipped': skipped, 'duration': duration}
               output['status']  = 'passed' if failed == 0 else 'failed'
-
+          
               def collect_specs(suite):
                 specs = []
                 for spec in suite.get('specs', []):
                   st, errors = 'passed', []
+                  # duration: sum results[].duration for each test
+                  dur_ms = 0
                   for t in spec.get('tests', []):
                     ts2 = t.get('status', '')
                     if ts2 in ('failed', 'unexpected'): st = 'failed'
                     elif ts2 == 'skipped' and st == 'passed': st = 'skipped'
                     for r in t.get('results', []):
+                      dur_ms += r.get('duration', 0)
                       err = r.get('error')
                       if err and isinstance(err, dict):
-                        errors.append({'message': (err.get('message') or '')[:500], 'snippet': (err.get('snippet') or '')[:800]})
-                  specs.append({'title': spec.get('title', ''), 'status': st,
-                    'duration': int(sum(t.get('duration', 0) for t in spec.get('tests', [])) / 1000), 'errors': errors})
+                        msg  = (err.get('message') or '')[:500]
+                        snip = (err.get('snippet') or '')[:800]
+                        cat  = categorize_error(msg, snip)
+                        errors.append({'message': msg, 'snippet': snip,
+                          'category': cat['label'], 'icon': cat['icon'], 'color': cat['color']})
+                  # try to detect app errors from steps too
+                  if not errors:
+                    for t in spec.get('tests', []):
+                      for r in t.get('results', []):
+                        for step in r.get('steps', []):
+                          stitle = step.get('title', '')
+                          if re.search(r'(ops!|algo deu errado|success.*false)', stitle, re.IGNORECASE):
+                            cat = categorize_error(stitle)
+                            errors.append({'message': stitle[:500], 'snippet': '', 'category': cat['label'], 'icon': cat['icon'], 'color': cat['color']})
+                            if st == 'passed': st = 'failed'
+                  har_entries = get_har(spec.get('title', ''))
+                  cat_label = errors[0]['category'] if errors else ''
+                  specs.append({
+                    'title': spec.get('title', ''), 'status': st,
+                    'duration': round(dur_ms / 1000, 1),
+                    'errors': errors,
+                    'error_category': cat_label,
+                    'requests': har_entries[:30],
+                  })
                 for nested in suite.get('suites', []):
                   specs.extend(collect_specs(nested))
                 return specs
-
+          
               for suite in data.get('suites', []):
                 specs = collect_specs(suite)
                 sd = {'file': suite.get('title', 'unknown'), 'specs': specs,
@@ -191,80 +289,207 @@ jobs:
               print('Erro: ' + str(e)); output['status'] = 'error'
           else:
             print('playwright-results.json nao encontrado'); output['status'] = 'no_results'
-
+          
           with open('e2e-output/latest.json', 'w', encoding='utf-8') as f:
             json.dump(output, f, ensure_ascii=False, indent=2)
-          print(json.dumps(output, indent=2))
-
-          # ── helpers ──────────────────────────────────────────────────────────
+          print('latest.json gerado')
+          
+          # ── helpers ───────────────────────────────────────────────────────────────────
           def esc(s):
             return str(s).replace('&','&amp;').replace('<','&lt;').replace('>','&gt;').replace('"','&quot;')
-
+          
+          def jesc(s):
+            return str(s).replace('\\','\\\\').replace("'","\\'").replace('\n','\\n').replace('\r','')
+          
           sm = output['summary']
           pass_rate = round(sm['passed'] / sm['total'] * 100) if sm['total'] > 0 else 0
           st_color  = '#22c55e' if output['status'] == 'passed' else '#ef4444'
           st_label  = 'PASSOU' if output['status'] == 'passed' else 'FALHOU' if output['status'] == 'failed' else output['status'].upper()
           fail_col  = '#ef4444' if sm['failed'] > 0 else '#22c55e'
           rate_col  = '#22c55e' if pass_rate == 100 else '#f59e0b' if pass_rate >= 80 else '#ef4444'
-
-          # ── report.html ───────────────────────────────────────────────────────
+          
+          # ── report.html ───────────────────────────────────────────────────────────────
           all_specs = [(s['file'], sp) for s in suites_flat for sp in s['specs']]
+          
+          # Group by file for section headers with chevron
+          sections_by_file = {}
+          for sfile, sp in all_specs:
+            sections_by_file.setdefault(sfile, []).append(sp)
+          
+          # build per-spec data for JS download
+          specs_json_list = []
+          for sfile, sp in all_specs:
+            specs_json_list.append({
+              'file': sfile, 'title': sp['title'], 'status': sp['status'],
+              'duration': sp.get('duration', 0), 'errors': sp.get('errors', []),
+              'error_category': sp.get('error_category', ''), 'requests': sp.get('requests', [])
+            })
+          
           rows = ''
-          for i, (sfile, sp) in enumerate(all_specs):
-            c   = '#22c55e' if sp['status'] == 'passed' else '#ef4444' if sp['status'] == 'failed' else '#f59e0b'
-            lbl = 'PASSOU' if sp['status'] == 'passed' else 'FALHOU' if sp['status'] == 'failed' else 'IGNORADO'
-            det = ''
-            if sp.get('errors'):
-              for err in sp['errors']:
-                det += '<div style="margin-top:8px;padding:8px;background:#020617;border-radius:4px;font-family:monospace;font-size:11px;color:#fca5a5;white-space:pre-wrap;word-break:break-all">' + esc(err.get('message','')) + '</div>'
-                if err.get('snippet'):
-                  det += '<div style="margin-top:4px;padding:8px;background:#020617;border-radius:4px;font-family:monospace;font-size:11px;color:#64748b;white-space:pre-wrap;word-break:break-all">' + esc(err.get('snippet','')) + '</div>'
-            else:
-              det = '<div style="color:#22c55e;font-size:12px">&#9989; Nenhum erro registrado.</div>'
-            rows += '<tr class="sr" onclick="tg(' + str(i) + ')" style="cursor:pointer">'
-            rows += '<td style="color:#475569;font-size:11px;text-align:center">' + str(i+1).zfill(3) + '</td>'
-            rows += '<td style="color:#475569;font-size:11px">' + esc(sfile) + '</td>'
-            rows += '<td style="color:#e2e8f0">' + esc(sp['title']) + '</td>'
-            rows += '<td><span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;background:' + c + '22;color:' + c + '">' + lbl + '</span></td>'
-            rows += '<td style="color:#64748b;font-size:11px;text-align:right;font-family:monospace">' + str(sp.get('duration',0)) + 's</td>'
-            rows += '<td style="color:#334155;font-size:14px;text-align:center">&#8250;</td></tr>'
-            rows += '<tr id="d' + str(i) + '" style="display:none;background:#020617"><td colspan="6" style="padding:12px 24px">' + det + '</td></tr>'
-
+          global_i = 0
+          for sfile, specs_in_file in sections_by_file.items():
+            file_sid = 'fs' + str(hash(sfile) & 0x7FFFFFFF)
+            # count per-file status
+            f_pass = sum(1 for s in specs_in_file if s['status'] == 'passed')
+            f_fail = sum(1 for s in specs_in_file if s['status'] == 'failed')
+            f_skip = sum(1 for s in specs_in_file if s['status'] == 'skipped')
+            fhdr_col = '#ef4444' if f_fail > 0 else '#22c55e'
+            rows += '<tr class="fhdr" onclick="tgf(\'' + file_sid + '\',this)" style="cursor:pointer;background:#1e293b;user-select:none">'
+            rows += '<td colspan="6" style="padding:8px 12px;font-size:12px;font-weight:700;color:#94a3b8">'
+            rows += '<span class="fchev" style="display:inline-block;transition:transform .15s;transform:rotate(90deg);margin-right:6px;color:#475569">&#8250;</span>'
+            rows += esc(sfile)
+            rows += ' <span style="font-weight:400;font-size:11px;color:#475569">('
+            rows += '<span style="color:#22c55e">' + str(f_pass) + ' ok</span>'
+            if f_fail: rows += ' · <span style="color:#ef4444">' + str(f_fail) + ' fail</span>'
+            if f_skip: rows += ' · <span style="color:#f59e0b">' + str(f_skip) + ' skip</span>'
+            rows += ')</span></td></tr>'
+          
+            for sp in specs_in_file:
+              i = global_i
+              global_i += 1
+              c   = '#22c55e' if sp['status'] == 'passed' else '#ef4444' if sp['status'] == 'failed' else '#f59e0b'
+              lbl = 'PASSOU' if sp['status'] == 'passed' else 'FALHOU' if sp['status'] == 'failed' else 'IGNORADO'
+              cat_badge = ''
+              if sp.get('error_category'):
+                err0 = sp['errors'][0] if sp['errors'] else {}
+                cat_color = err0.get('color', '#ef4444')
+                cat_icon  = err0.get('icon', '❌')
+                cat_badge = '<span style="font-size:10px;padding:1px 6px;border-radius:8px;background:' + cat_color + '22;color:' + cat_color + ';margin-left:6px">' + esc(cat_icon + ' ' + sp['error_category']) + '</span>'
+          
+              det = ''
+              if sp.get('errors'):
+                for err in sp['errors']:
+                  det += '<div style="margin-top:6px;padding:8px;background:#020617;border-radius:4px">'
+                  det += '<div style="font-size:10px;font-weight:700;color:' + esc(err.get('color','#ef4444')) + ';margin-bottom:4px">' + esc(err.get('icon','') + ' ' + err.get('category','ERRO')) + '</div>'
+                  if err.get('message'):
+                    det += '<div style="font-family:monospace;font-size:11px;color:#fca5a5;white-space:pre-wrap;word-break:break-all">' + esc(err['message']) + '</div>'
+                  if err.get('snippet'):
+                    det += '<div style="margin-top:4px;font-family:monospace;font-size:11px;color:#64748b;white-space:pre-wrap;word-break:break-all">' + esc(err['snippet']) + '</div>'
+                  det += '</div>'
+              else:
+                det = '<div style="color:#22c55e;font-size:12px">&#9989; Nenhum erro registrado.</div>'
+          
+              # Request/response section
+              har_entries = sp.get('requests', [])
+              if har_entries:
+                det += '<div style="margin-top:10px;font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">&#127760; Requisições HTTP</div>'
+                for ei, entry in enumerate(har_entries[:15]):
+                  sc = '#ef4444' if str(entry.get('status',0)).startswith('4') or str(entry.get('status',0)).startswith('5') else '#22c55e'
+                  det += '<details style="margin-bottom:4px;background:#020617;border-radius:4px;border:1px solid #1e293b">'
+                  det += '<summary style="cursor:pointer;padding:5px 8px;font-size:11px;color:#94a3b8;list-style:none">'
+                  det += '<span style="font-weight:700;color:' + sc + '">[' + str(entry.get('status','?')) + ']</span> '
+                  det += '<span style="color:#60a5fa">' + esc(entry.get('method','')) + '</span> '
+                  det += '<span style="word-break:break-all">' + esc(entry.get('url','')[:120]) + '</span></summary>'
+                  if entry.get('req_body'):
+                    det += '<div style="padding:6px 10px;border-top:1px solid #1e293b">'
+                    det += '<div style="font-size:10px;color:#475569;margin-bottom:2px">REQUEST BODY</div>'
+                    det += '<pre style="font-size:10px;color:#7dd3fc;white-space:pre-wrap;word-break:break-all;margin:0">' + esc(entry['req_body'][:800]) + '</pre>'
+                    det += '</div>'
+                  if entry.get('res_body'):
+                    det += '<div style="padding:6px 10px;border-top:1px solid #1e293b">'
+                    det += '<div style="font-size:10px;color:#475569;margin-bottom:2px">RESPONSE BODY</div>'
+                    det += '<pre style="font-size:10px;color:#a5f3fc;white-space:pre-wrap;word-break:break-all;margin:0">' + esc(entry['res_body'][:800]) + '</pre>'
+                    det += '</div>'
+                  det += '</details>'
+              else:
+                det += '<div style="margin-top:8px;color:#475569;font-size:11px">&#128295; Nenhuma requisição HTTP capturada (HAR não disponível para este teste).</div>'
+          
+              # Download button data
+              dl_data = json.dumps(specs_json_list[i], ensure_ascii=False)
+          
+              rows += '<tr class="sr frow-' + file_sid + '" onclick="tg(' + str(i) + ')" style="cursor:pointer">'
+              rows += '<td style="color:#475569;font-size:11px;text-align:center">' + str(i+1).zfill(3) + '</td>'
+              rows += '<td><span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;background:' + c + '22;color:' + c + '">' + lbl + '</span>' + cat_badge + '</td>'
+              rows += '<td style="color:#e2e8f0">' + esc(sp['title']) + '</td>'
+              rows += '<td style="color:#64748b;font-size:11px;text-align:right;font-family:monospace">' + str(sp.get('duration',0)) + 's</td>'
+              rows += '<td style="color:#334155;font-size:14px;text-align:center">&#8250;</td></tr>'
+              rows += '<tr id="d' + str(i) + '" class="frow-' + file_sid + '" style="display:none;background:#020617">'
+              rows += '<td colspan="5" style="padding:12px 24px">' + det
+              rows += '<div style="margin-top:10px"><button onclick="dlSpec(' + str(i) + ',event)" style="padding:5px 14px;background:#1e293b;border:1px solid #334155;border-radius:6px;color:#94a3b8;font-size:11px;cursor:pointer">&#11123; Baixar Detalhes</button></div>'
+              rows += '</td></tr>'
+          
+          specs_js = json.dumps(specs_json_list, ensure_ascii=False)
+          
           rh  = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
           rh += '<title>E2E Report ' + ts_str + '</title>'
           rh += '<style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0f172a;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,sans-serif;padding:28px 24px}'
           rh += 'h1{font-size:18px;font-weight:700;margin-bottom:4px}.sub{font-size:12px;color:#64748b;margin-bottom:24px}'
-          rh += '.sum{display:flex;gap:14px;margin-bottom:28px;flex-wrap:wrap}.kpi{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 18px;text-align:center;min-width:90px}'
+          rh += '.sum{display:flex;gap:14px;margin-bottom:28px;flex-wrap:wrap}'
+          rh += '.kpi{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 18px;text-align:center;min-width:90px;cursor:pointer;transition:border-color .15s}'
+          rh += '.kpi:hover{border-color:#3b82f6}.kpi.active{border-color:#3b82f6;box-shadow:0 0 0 2px #3b82f622}'
           rh += '.kv{font-size:22px;font-weight:700}.kl{font-size:11px;color:#64748b;margin-top:2px}'
           rh += 'table{width:100%;border-collapse:collapse}thead tr{background:#1e293b}'
           rh += 'th{padding:9px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#475569;text-align:left;border-bottom:1px solid #334155}'
           rh += 'tr.sr:hover{background:#1e293b}td{padding:9px 12px;border-bottom:1px solid #1e293b;font-size:13px;vertical-align:middle}'
+          rh += 'tr.fhdr:hover{background:#243246!important}tr.sr.hidden{display:none!important}'
+          rh += 'details > summary::-webkit-details-marker{display:none}'
           rh += '</style></head><body>'
           rh += '<h1>&#127916; E2E / Evidencias &#8212; Playwright</h1>'
           rh += '<div class="sub">Run #' + run_num + ' &middot; SHA ' + sha + ' &middot; ' + ts_disp + ' &middot; <span style="color:' + st_color + ';font-weight:700">' + st_label + '</span></div>'
-          rh += '<div class="sum">'
-          rh += '<div class="kpi"><div class="kv" style="color:#94a3b8">' + str(sm['total']) + '</div><div class="kl">Total</div></div>'
-          rh += '<div class="kpi"><div class="kv" style="color:#22c55e">' + str(sm['passed']) + '</div><div class="kl">Passou</div></div>'
-          rh += '<div class="kpi"><div class="kv" style="color:' + fail_col + '">' + str(sm['failed']) + '</div><div class="kl">Falhou</div></div>'
-          rh += '<div class="kpi"><div class="kv" style="color:#f59e0b">' + str(sm['skipped']) + '</div><div class="kl">Ignorado</div></div>'
-          rh += '<div class="kpi"><div class="kv" style="color:#38bdf8">' + str(sm['duration']) + 's</div><div class="kl">Dura&ccedil;&atilde;o</div></div>'
-          rh += '<div class="kpi"><div class="kv" style="color:' + rate_col + '">' + str(pass_rate) + '%</div><div class="kl">Taxa OK</div></div>'
-          rh += '</div><table><thead><tr><th>#</th><th>Arquivo</th><th>Teste</th><th>Status</th><th>Dur.</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>'
-          rh += '<script>function tg(i){var d=document.getElementById("d"+i);if(d)d.style.display=d.style.display==="none"?"table-row":"none";}</script>'
-          rh += '</body></html>'
-
+          rh += '<div class="sum" id="kpis">'
+          rh += '<div class="kpi" onclick="setFilter(\'all\')"><div class="kv" style="color:#94a3b8">' + str(sm['total']) + '</div><div class="kl">Total</div></div>'
+          rh += '<div class="kpi" onclick="setFilter(\'passed\')"><div class="kv" style="color:#22c55e">' + str(sm['passed']) + '</div><div class="kl">Passou</div></div>'
+          rh += '<div class="kpi" onclick="setFilter(\'failed\')"><div class="kv" style="color:' + fail_col + '">' + str(sm['failed']) + '</div><div class="kl">Falhou</div></div>'
+          rh += '<div class="kpi" onclick="setFilter(\'skipped\')"><div class="kv" style="color:#f59e0b">' + str(sm['skipped']) + '</div><div class="kl">Ignorado</div></div>'
+          rh += '<div class="kpi" style="cursor:default"><div class="kv" style="color:#38bdf8">' + str(sm['duration']) + 's</div><div class="kl">Dura&ccedil;&atilde;o</div></div>'
+          rh += '<div class="kpi" style="cursor:default"><div class="kv" style="color:' + rate_col + '">' + str(pass_rate) + '%</div><div class="kl">Taxa OK</div></div>'
+          rh += '</div>'
+          rh += '<table><thead><tr><th>#</th><th>Status</th><th>Teste</th><th>Dura&ccedil;&atilde;o</th><th></th></tr></thead><tbody id="tbody">' + rows + '</tbody></table>'
+          rh += '<script>'
+          rh += 'var SPECS=' + specs_js + ';'
+          rh += 'var curFilter="all";'
+          rh += 'function tg(i){'
+          rh += '  var d=document.getElementById("d"+i);'
+          rh += '  if(d){var open=d.style.display!=="none";d.style.display=open?"none":"table-row";}'
+          rh += '  var rows=document.querySelectorAll("tr.sr");'
+          rh += '  var chev=rows[i]?rows[i].querySelectorAll("td")[4]:null;'
+          rh += '  if(chev)chev.innerHTML=d&&d.style.display!=="none"?"&#8744;":"&#8250;";'
+          rh += '}'
+          rh += 'function tgf(sid,hdr){'
+          rh += '  var rows=document.querySelectorAll(".frow-"+sid);'
+          rh += '  var chev=hdr?hdr.querySelector(".fchev"):null;'
+          rh += '  var anyVisible=false;'
+          rh += '  rows.forEach(function(r){if(r.style.display!=="none")anyVisible=true;});'
+          rh += '  rows.forEach(function(r){r.style.display=anyVisible?"none":"";});'
+          rh += '  if(chev)chev.style.transform=anyVisible?"rotate(0deg)":"rotate(90deg)";'
+          rh += '}'
+          rh += 'function setFilter(f){'
+          rh += '  curFilter=f;'
+          rh += '  document.querySelectorAll(".kpi").forEach(function(k,i){k.classList.remove("active");});'
+          rh += '  var kpis=document.querySelectorAll(".kpi");'
+          rh += '  var idx=["all","passed","failed","skipped"].indexOf(f);'
+          rh += '  if(idx>=0&&kpis[idx])kpis[idx].classList.add("active");'
+          rh += '  var rows=document.querySelectorAll("tr.sr");'
+          rh += '  rows.forEach(function(r,i){'
+          rh += '    var match=f==="all"||SPECS[i]&&SPECS[i].status===f;'
+          rh += '    r.classList.toggle("hidden",!match);'
+          rh += '    var det=document.getElementById("d"+i);'
+          rh += '    if(det&&!match)det.style.display="none";'
+          rh += '  });'
+          rh += '}'
+          rh += 'function dlSpec(i,ev){'
+          rh += '  ev.stopPropagation();'
+          rh += '  var s=SPECS[i];if(!s)return;'
+          rh += '  var blob=new Blob([JSON.stringify(s,null,2)],{type:"application/json"});'
+          rh += '  var a=document.createElement("a");'
+          rh += '  a.href=URL.createObjectURL(blob);'
+          rh += '  a.download="teste_"+(i+1).toString().padStart(3,"0")+"_"+(s.title||"").replace(/[^a-z0-9]/gi,"_").slice(0,40)+".json";'
+          rh += '  a.click();'
+          rh += '}'
+          rh += '</script></body></html>'
+          
           with open('e2e-evidence/report.html', 'w', encoding='utf-8') as f:
             f.write(rh)
           with zipfile.ZipFile('e2e-evidence/' + report_zip_name, 'w', zipfile.ZIP_DEFLATED) as zf:
             zf.write('e2e-evidence/report.html', 'report.html')
           print('Created ' + report_zip_name)
-
-          # ── video player ──────────────────────────────────────────────────────
+          
+          # ── video player ──────────────────────────────────────────────────────────────
           def clean_name(folder):
             n = re.sub(r'-chromium.*$', '', folder, flags=re.IGNORECASE)
             n = re.sub(r'-[a-f0-9]{5,}$', '', n)
             return n.replace('-', ' ').strip()
-
+          
           videos = []
           tr_dir = 'e2e-download/test-results'
           if os.path.isdir(tr_dir):
@@ -272,7 +497,7 @@ jobs:
               webm = os.path.join(tr_dir, folder, 'video.webm')
               if os.path.exists(webm):
                 videos.append({'name': clean_name(folder), 'orig': webm})
-
+          
           if videos:
             pdir = 'e2e-evidence/video_player'
             vdir = pdir + '/videos'
@@ -282,13 +507,13 @@ jobs:
               fname = str(i+1).zfill(3) + '.webm'
               shutil.copy2(v['orig'], vdir + '/' + fname)
               vids_js.append({'src': 'videos/' + fname, 'name': v['name']})
-
+          
             pl_items = '\n'.join(
               '<div class="pi" onclick="play(' + str(i) + ')" id="pi' + str(i) + '"><span class="idx">' + str(i+1).zfill(3) + '</span> ' + esc(v['name']) + '</div>'
               for i, v in enumerate(vids_js))
-            n_vids     = len(vids_js)
-            vids_jstr  = json.dumps(vids_js, ensure_ascii=False)
-
+            n_vids    = len(vids_js)
+            vids_jstr = json.dumps(vids_js, ensure_ascii=False)
+          
             vh  = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>E2E Videos ' + ts_str + '</title>'
             vh += '<style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0f172a;color:#e2e8f0;font-family:-apple-system,sans-serif;display:flex;height:100vh;overflow:hidden}'
             vh += '#player{flex:1;display:flex;flex-direction:column;padding:14px;gap:8px;overflow:hidden;min-width:0}'
@@ -311,7 +536,7 @@ jobs:
             vh += 'document.querySelectorAll(".pi").forEach(function(e,j){e.classList.toggle("active",j===i);});'
             vh += 'var a=document.getElementById("pi"+i);if(a)a.scrollIntoView({block:"nearest"});}'
             vh += 'vid.onended=function(){play(idx+1);};play(0);</script></body></html>'
-
+          
             with open(pdir + '/index.html', 'w', encoding='utf-8') as f:
               f.write(vh)
             with zipfile.ZipFile('e2e-evidence/' + video_zip_name, 'w', zipfile.ZIP_DEFLATED) as zf:

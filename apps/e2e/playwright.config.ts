@@ -23,6 +23,12 @@ export default defineConfig({
     navigationTimeout: 30_000,
     // Reutiliza sessão salva pelo global-setup (evita rate-limit de login)
     storageState: 'storageState.json',
+    // Captura tráfego HTTP por teste para exibição de request/response
+    recordHar: {
+      path: 'har-evidence',
+      content: 'embed',
+      omitContent: false,
+    },
   },
   timeout: 60_000,
   projects: [
