@@ -43,6 +43,15 @@
   - Drill-down por categoria com severidade (critical/high/medium/low)
   - Histórico de varreduras anteriores (últimas 5)
   - Badge colorido: 🟢 Seguro / 🟡 Atenção / 🔴 Crítico
+- [ ] **Checklist LGPD** — tab separada no painel com score de conformidade:
+  - Consentimento explícito coletado no cadastro
+  - Endpoint de exclusão de dados (`DELETE /api/auth/me`) implementado
+  - Portabilidade: exportar dados do titular (`GET /api/auth/me/export`)
+  - Bases legais documentadas por finalidade de uso dos dados
+  - DPO (Encarregado) definido e contato publicado
+  - Política de retenção: dados excluídos após período definido
+  - Notificação de incidente: plano de resposta documentado
+  - Score: X/7 itens ✅ com badge 🟢 Conforme / 🟡 Parcial / 🔴 Não Conforme
 
 ---
 
