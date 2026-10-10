@@ -30,6 +30,8 @@ services:
       MercadoLivre__ClientSecret: ${ML_CLIENT_SECRET:-}
       NEW_RELIC_USER_KEY: ${NEW_RELIC_USER_KEY:-}
       NEW_RELIC_ACCOUNT_ID: ${NEW_RELIC_ACCOUNT_ID:-}
+      PII_ENCRYPTION_KEY: ${PII_ENCRYPTION_KEY}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
     extra_hosts:
       - "host-gateway:host-gateway"
     depends_on:

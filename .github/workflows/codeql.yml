@@ -35,7 +35,11 @@ jobs:
           queries: security-and-quality
 
       - name: Restore dependencies
-        run: dotnet restore comprai.sln
+        run: |
+          dotnet restore comprai.sln
+          dotnet restore tests/UcpAgent.Domain.Tests/UcpAgent.Domain.Tests.csproj
+          dotnet restore tests/UcpAgent.Application.Tests/UcpAgent.Application.Tests.csproj
+          dotnet restore tests/UcpAgent.Catalog.MercadoLivre.Tests/UcpAgent.Catalog.MercadoLivre.Tests.csproj
 
       - name: Build
         run: dotnet build comprai.sln --no-restore --configuration Release
