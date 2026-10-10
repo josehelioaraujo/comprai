@@ -30,6 +30,20 @@
 - [ ] CORS produção: sem wildcard, origem única
 - [ ] Postgres: `pg_hba.conf` sem acesso externo, usuário da app sem superuser
 
+**Fase 5 — OpsWatch: Painel "Varredura de Segurança"**
+- [ ] Workflow `security-scan.yml` — `workflow_dispatch` manual + schedule semanal
+  - Step 1: gitleaks (secrets no histórico git) → JSON `results/security/gitleaks.json`
+  - Step 2: `dotnet list package --vulnerable` → JSON `results/security/dotnet-vulns.json`
+  - Step 3: `npm audit --json` (apps/web + apps/mobile) → `results/security/npm-audit.json`
+  - Step 4: Trivy nas imagens Docker → `results/security/trivy.json`
+  - Step 5: consolida tudo em `results/security/latest.json` com score geral
+- [ ] OpsWatch — nova aba/seção "Varredura de Segurança" no painel Segurança existente
+  - Botão "▶ Executar Varredura" → dispara `workflow_dispatch` via GitHub API
+  - Cards KPI: Secrets Expostos | Pacotes Vulneráveis | CVEs Docker | Score Geral
+  - Drill-down por categoria com severidade (critical/high/medium/low)
+  - Histórico de varreduras anteriores (últimas 5)
+  - Badge colorido: 🟢 Seguro / 🟡 Atenção / 🔴 Crítico
+
 ---
 
 ## ✅ V067 — HAR per-test Fix + Postman Collection Export (out/2026)
