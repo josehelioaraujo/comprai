@@ -26,6 +26,7 @@ services:
       Shopify__StoreUrl:    ${SHOPIFY_STORE_URL:-comprai-dev.myshopify.com}
       ConnectionStrings__Default: "Host=comprai-postgres;Port=5432;Database=comprai;Username=comprai;Password=${POSTGRES_PASSWORD};Timezone=UTC"
       PII_ENCRYPTION_KEY: ${PII_ENCRYPTION_KEY}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
     depends_on:
       - redis
       - comprai-postgres

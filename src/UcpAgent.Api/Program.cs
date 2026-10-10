@@ -299,12 +299,22 @@ builder.Services.AddScoped<ISearchService, SearchService>();
 builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<ICheckoutService, CheckoutService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
+// ── CORS ──────────────────────────────────────────────────────────────────────
+// Origens permitidas lidas de CORS_ALLOWED_ORIGINS (separadas por vírgula).
+// Em desenvolvimento (sem a variável) libera localhost:3000 e :5173.
+// Em produção DEVE ser configurada explicitamente via variável de ambiente.
+var corsOrigins = (builder.Configuration["CORS_ALLOWED_ORIGINS"]
+                   ?? Environment.GetEnvironmentVariable("CORS_ALLOWED_ORIGINS")
+                   ?? "http://localhost:3000,http://localhost:5173")
+                  .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy => policy
-        .AllowAnyOrigin()
+    options.AddPolicy("AllowConfigured", policy => policy
+        .WithOrigins(corsOrigins)
         .AllowAnyMethod()
-        .AllowAnyHeader());
+        .AllowAnyHeader()
+        .AllowCredentials());
 });
 
 // Ã¢ÂÂÃ¢ÂÂ DummyJSON Plugin Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
@@ -429,7 +439,7 @@ if (usarPostgres)
 // V059-F1A: Security headers (CSP, HSTS, X-Frame-Options, etc.)
 app.UseMiddleware<SecurityHeadersMiddleware>();
 
-app.UseCors("AllowAll");
+app.UseCors("AllowConfigured");
 app.UseAuthentication();
 app.UseAuthorization();
 
