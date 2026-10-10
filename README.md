@@ -936,6 +936,15 @@ strix scan http://2.25.122.11:5020 --output report.html
 - [x] Script `run-e2e-vps.sh` + `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` para execução na VPS
 - [x] **30 passando · 1 skipped · 0 falhando** ✅
 
+**V067 ✅**
+- [x] `apps/e2e/fixtures.ts` — fixture custom override de `context`; grava `har-evidence/{title}-chromium.har` por teste; `requests: []` corrigido ✅
+- [x] Causa raiz: `recordHar.path` sem extensão criava FILE em vez de diretório
+- [x] Botão global "Baixar Collection Postman" (laranja `#ff6c37`) — Postman Collection v2.1 com todos os specs
+- [x] `_e2eToPostmanCollection()` — agrupa suite → test → request; URL parsed; headers; savedResponses
+- [x] `e2eDownloadSpecPostman(idx)` + `e2eCopySpec(idx, btn)` — ações individuais por spec
+- [x] Ícones SVG 11×11 discretos (copy/download) com tooltip por linha de spec no OpsWatch
+- [x] Fix: `JSON.stringify()` inline em `onclick` quebrava o HTML — corrigido com referência por índice
+
 **V066 ✅**
 - [x] Botão "Baixar Todos os Testes" no OpsWatch e `report.html` — JSON com todos os specs + requisições HTTP
 - [x] Captura de Request/Response via HAR: `recordHar` no Playwright, artifact upload inclui `apps/e2e/har-evidence/`
@@ -943,7 +952,6 @@ strix scan http://2.25.122.11:5020 --output report.html
 - [x] Requisições HTTP exibidas inline no OpsWatch: método, status, path, req_headers, req_body, res_body
 - [x] `report.html` melhorado: tabela com drilldown, player de vídeos sequencial, filtro por status, timezone BRT
 - [x] OpsWatch: nested suites, collapse all, chevron nos jobs, botão cancelar workflow
-- [x] ⚠️ `requests: []` ainda pendente em alguns runs — investigar na V067
 
 **V065 ✅**
 - [x] `createPayment()` corrigida — `POST /api/payment/{orderId}` com body e headers corretos
@@ -1108,6 +1116,7 @@ http://<VPS>:3003   # App mobile independente
 | **V062** | E2E Evidence Recorder: 5 specs Playwright, workflow e2e.yml, painel OpsWatch, vídeo+screenshot |
 | **V063** | E2E Infrastructure: global-setup com retry, storageState, RateLimit.Auth configurável, fix AUTH_TRUST_HOST NextAuth v5 |
 | **V064** | E2E: 14 falhas → 0 — strict mode, purchase-flow híbrido, tolerância 429/ECONNREFUSED, script VPS |
+| **V067** | HAR per-test fix (requests: [] resolvido), Postman Collection export global+individual, ícones copy/download discretos por spec |
 | **V066** | E2E Evidence: botão "Baixar Todos", captura HAR request/response, norm_har_key, req_headers, report.html melhorado |
 | **V065** | Endpoint pagamento corrigido (POST /api/payment/{orderId}); OpsWatch E2E drill-down UX completo |
 | **V052** | BD como source of truth: UUID order, endereço snapshot, fulfillment_event, DI corrigido, smoke test fix |
@@ -1126,6 +1135,7 @@ http://<VPS>:3003   # App mobile independente
 | **Segurança** | ~~SecurityHeaders, Rate limiting, OWASP ZAP, Refresh token~~ ✅ V059 | — |
 | **Segurança cont.** | ~~Verificação de email (Resend), 2FA TOTP, job Strix removido~~ ✅ V060 | — |
 | **Segurança cont. / OpsWatch** | Painel Pentest OpsWatch, recuperação de senha, logout-all | V061 |
+| **V068 — Auditoria de Segurança + Criptografia PII** | Varredura gitleaks/trufflehog, AES-256-GCM em campos sensíveis (document, phone, address), mascaramento em API response, Serilog DestructuringPolicy, SAST no CI | Próximo |
 | **OMS + WMS + Carrier (plugins)** | Plugins hexagonais extensíveis: `Oms.Simulated/Vtex`, `Wms.Simulated/Totvs`, `Carrier.Simulated/Correios` | Futuro |
 | **LLM Diagnóstico** | `/api/ai/analyze` → Ollama + fallback Claude; botão "Analisar" no OpsWatch | Futuro |
 | **GROQ_MODEL_SELECTOR** | Seletor de modelo no `workflow_dispatch` do code-review | Futuro |

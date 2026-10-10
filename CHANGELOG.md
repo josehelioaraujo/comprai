@@ -1,5 +1,41 @@
 # Changelog
 
+## [V067] — 2026-10-10
+
+### Added — HAR per-test Fix + Postman Collection Export
+
+**Fix HAR capture por teste (causa raiz)**
+- `apps/e2e/fixtures.ts` criado — custom fixture que faz override de `context` do Playwright; cria `har-evidence/{safe-title}-chromium.har` por teste com `page.context().close()`
+- Causa raiz: `recordHar.path: 'har-evidence'` (sem extensão, sem barra) criava um FILE, não um diretório — Playwright sobrescrevia o mesmo arquivo a cada teste
+- Resultado confirmado no OpsWatch: request/response exibidos por teste ✅
+
+**Botão global "Baixar Collection Postman"**
+- `k6/dashboard/index.html`: botão laranja `#ff6c37` ao lado de "Baixar Todos os Testes" — gera Postman Collection v2.1 de todos os specs em um único arquivo JSON
+- `_e2eToPostmanCollection(specs, name)` — agrupa specs por suite → test → request; URL parsed (protocol/host/port/path/query); headers do HAR convertidos para formato Postman; `savedResponses` com `res_body`
+- `e2eDownloadPostmanAll()` — download global; `e2eDownloadSpecPostman(idx)` — download individual por índice
+
+**Ícones copy/postman discretos por linha de teste**
+- Botões icon-only (SVG inline 11×11px) com `title` tooltip em cada linha de spec no OpsWatch
+- Ícone clipboard: copia JSON do spec no clipboard, feedback verde no ícone por 1,2s
+- Ícone download: baixa Collection Postman individual do teste
+- `e2eCopySpec(idx, btn)` / `e2eDownloadSpecPostman(idx)` referenciam `_e2eSpecs[idx]` — evita `JSON.stringify()` inline em `onclick` (que quebraria o HTML)
+- `event.stopPropagation()` nos botões para não disparar o expand/collapse pai
+
+**Fix: tela quebrada por JSON.stringify inline em onclick**
+- Causa: `JSON.stringify(spec)` embutido diretamente em atributo `onclick` do HTML — aspas duplas do JSON quebravam o atributo
+- Fix: índice numérico `e2eCopySpec(idx, this)` com lookup em `_e2eSpecs[idx]` em tempo de execução
+- Regra: nunca embutir `JSON.stringify()` em atributos HTML; usar sempre referência por índice ou `data-*` attribute
+
+### Commits V067
+| Hash | Descrição |
+|------|-----------|
+| `af7add3` | fix(e2e): per-test HAR recording via fixtures — causa raiz do requests: [] |
+| `18a0470` | feat(opswatch): botões Download Collection Postman global e por teste |
+| `7df3cdc` | feat(opswatch): ícones copy/postman discretos por linha de teste com tooltip |
+| `8977a1d` | fix(opswatch): corrige quebra de tela nos botões copy/postman por linha |
+
+---
+
 ## [V066] — 2026-10-09
 
 ### Added — E2E: Baixar Todos + Request/Response Evidence

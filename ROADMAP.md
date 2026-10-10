@@ -1,5 +1,49 @@
 # 🗺️ Roadmap — Comprai
 
+## 🔜 V068 — Auditoria de Segurança + Criptografia de PII (out/2026)
+
+**Fase 1 — Reconhecimento**
+- [ ] Varredura histórico git completo com **gitleaks/trufflehog** (secrets em commits antigos)
+- [ ] `dotnet list package --vulnerable` + `npm audit` (apps/web e apps/mobile)
+- [ ] **Trivy/grype** nas imagens Docker — CVEs críticos
+- [ ] Inventário de campos PII nas tabelas: `customer`, `customer_address`, `payment`, `notification`
+- [ ] Mapeamento de PII em: logs Serilog, traces OTel, mensagens Kafka/Outbox, webhooks, HAR files E2E
+- [ ] Confirmar `storageState.json` + `har-evidence/` no `.gitignore`
+
+**Fase 2 — Banco de Dados: Criptografia e Mascaramento**
+- [ ] `IEncryptionService` + `EncryptionService` — AES-256-GCM, chave via secret `ENCRYPTION_KEY`
+- [ ] Criptografar em repouso: `customer.document`, `customer.phone`, `customer_address.*`
+- [ ] Mascarar em API response: email → `h***@***.com`, documento → `***.***.***-**`, telefone → `(**) *****-**00`
+- [ ] Migration: colunas `_enc` (bytea) → migrar dados → remover colunas plaintext
+- [ ] Key rotation sem downtime: campo `encryption_version` na tabela
+
+**Fase 3 — Código: PII em Logs, Traces e Tráfego**
+- [ ] Serilog `DestructuringPolicy` — mascara campos sensíveis automaticamente em todos os objetos logados
+- [ ] OTel: sanitizar atributos de span antes do export (email, document, address)
+- [ ] Kafka/Outbox: eventos de domínio carregam apenas IDs, nunca PII diretamente
+- [ ] DTOs de resposta: nunca expõem campos raw — somente mascarados ou omitidos
+
+**Fase 4 — Infra e CI/CD**
+- [ ] `secret-scan.yml` no CI (gitleaks action) — bloqueia push com credencial
+- [ ] SAST: semgrep ou CodeQL para SQL injection, XSS, insecure deserialization
+- [ ] Rate limiting ampliado: checkout, account update, address
+- [ ] CORS produção: sem wildcard, origem única
+- [ ] Postgres: `pg_hba.conf` sem acesso externo, usuário da app sem superuser
+
+---
+
+## ✅ V067 — HAR per-test Fix + Postman Collection Export (out/2026)
+- [x] `apps/e2e/fixtures.ts` — fixture custom override de `context`; cria `har-evidence/{title}-chromium.har` por teste
+- [x] Causa raiz resolvida: `recordHar.path` sem extensão criava FILE em vez de diretório — requests: [] corrigido ✅
+- [x] Botão global "Baixar Collection Postman" (laranja #ff6c37) — Postman Collection v2.1 com todos os specs
+- [x] `_e2eToPostmanCollection()` — agrupa suite → test → request; URL parsed; headers; savedResponses
+- [x] `e2eDownloadSpecPostman(idx)` — download individual de Collection Postman por teste
+- [x] Ícones SVG 11×11 discretos (copy/download) por linha de spec com tooltip — sem texto, sem quebra de layout
+- [x] Fix: nunca usar `JSON.stringify()` inline em `onclick` — referência por índice `_e2eSpecs[idx]`
+- [x] `event.stopPropagation()` nos botões ícone para não disparar o expand/collapse pai
+
+---
+
 ## ✅ V066 — E2E Evidence: Baixar Todos + Request/Response (out/2026)
 - [x] Botão "Baixar Todos os Testes" no OpsWatch e no `report.html` — JSON com todos os specs + requisições
 - [x] `_e2eLastData` declarado e populado em `loadE2eData` — resolve `ReferenceError` no download
