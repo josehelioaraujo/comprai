@@ -10453,21 +10453,26 @@ tr:hover td { background: rgba(255,255,255,.02); }
           </div>
 
           <!-- Painel de execução live -->
-          <div id="ss-exec-panel" style="display:none;background:var(--surface2);border:1px solid #818cf8;border-radius:10px;padding:14px 16px;margin-bottom:16px">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div id="ss-exec-panel" style="display:none;background:var(--surface2);border:1px solid #818cf8;border-radius:10px;overflow:hidden;margin-bottom:16px">
+            <div onclick="ssToggle('ss-exec-body')" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;user-select:none" onmouseover="this.style.background='rgba(129,140,248,.06)'" onmouseout="this.style.background=''">
               <div style="display:flex;align-items:center;gap:8px">
                 <span id="ss-exec-icon" style="font-size:16px">⏳</span>
                 <span id="ss-exec-status" style="font-size:13px;font-weight:600;color:#e2e8f0">Disparando workflow...</span>
               </div>
-              <span id="ss-exec-elapsed" style="font-size:11px;color:var(--muted);font-family:monospace"></span>
+              <div style="display:flex;align-items:center;gap:10px">
+                <span id="ss-exec-elapsed" style="font-size:11px;color:var(--muted);font-family:monospace"></span>
+                <span id="ss-exec-body-ch" style="color:#818cf8;font-size:11px">▼</span>
+              </div>
             </div>
-            <div style="background:var(--bg);border-radius:4px;height:5px;overflow:hidden;margin-bottom:10px">
-              <div id="ss-exec-bar" style="height:100%;background:#818cf8;width:0%;transition:width .5s ease;border-radius:4px"></div>
+            <div id="ss-exec-body" style="padding:0 14px 12px">
+              <div style="background:var(--bg);border-radius:4px;height:5px;overflow:hidden;margin-bottom:10px">
+                <div id="ss-exec-bar" style="height:100%;background:#818cf8;width:0%;transition:width .5s ease;border-radius:4px"></div>
+              </div>
+              <div style="margin-bottom:8px">
+                <a id="ss-exec-link" href="#" target="_blank" style="display:none;font-size:11px;color:#38bdf8;text-decoration:none">🔗 Ver no GitHub Actions</a>
+              </div>
+              <div id="ss-exec-jobs" style="display:flex;flex-direction:column;gap:6px"></div>
             </div>
-            <div style="margin-bottom:8px">
-              <a id="ss-exec-link" href="#" target="_blank" style="display:none;font-size:11px;color:#38bdf8;text-decoration:none">🔗 Ver no GitHub Actions</a>
-            </div>
-            <div id="ss-exec-jobs" style="display:flex;flex-direction:column;gap:6px"></div>
           </div>
 
           <!-- KPI cards -->
