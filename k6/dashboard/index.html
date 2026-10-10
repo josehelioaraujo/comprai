@@ -3650,8 +3650,16 @@ function loadSecScanData() {
     });
 }
 
+function ssToggle(id) {
+  const el = document.getElementById(id);
+  const ch = document.getElementById(id + '-ch');
+  if (!el) return;
+  const open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : '';
+  if (ch) ch.textContent = open ? '▶' : '▼';
+}
+
 function renderSecScan(d) {
-  // KPI cards
   const secretsTotal = d.secrets?.total ?? 0;
   const nugetTotal   = d.nuget?.total ?? 0;
   const trivyTotal   = d.trivy?.total ?? 0;
@@ -3684,37 +3692,55 @@ function renderSecScan(d) {
       </div>
     </div>`;
 
-  // Tabs
   const content = document.getElementById('secscan-content');
   if (!content) return;
 
   const nugetCounts = d.nuget?.counts ?? {};
   const trivyCounts = d.trivy?.counts ?? {};
 
+  const hdrStyle = 'display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 10px;border-radius:6px;user-select:none;';
+  const hdrHover = 'background:rgba(255,255,255,.04)';
+
   let html = `<div style="margin-bottom:12px;font-size:11px;color:var(--muted)">
     Última varredura: <strong style="color:var(--text)">${d.timestamp ?? '-'}</strong> · Run #<strong style="color:var(--text)">${d.run ?? '-'}</strong> · SHA: <code>${d.sha ?? '-'}</code>
   </div>`;
 
-  // Secrets section
-  html += `<div style="margin-bottom:16px">
-    <div style="font-size:13px;font-weight:700;color:#ef4444;margin-bottom:8px">🔑 Secrets / Credenciais (Gitleaks)</div>`;
+  // ── Secrets ──
+  const secretsBadge = secretsTotal === 0
+    ? '<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:rgba(34,197,94,.15);color:#22c55e">0 encontrados</span>'
+    : `<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:rgba(239,68,68,.15);color:#ef4444">${secretsTotal} encontrado(s)</span>`;
+  html += `<div style="margin-bottom:10px;border:1px solid rgba(239,68,68,.2);border-radius:8px;overflow:hidden">
+    <div style="${hdrStyle}" onclick="ssToggle('ss-secrets')" onmouseover="this.style.background='rgba(255,255,255,.04)'" onmouseout="this.style.background=''">
+      <span id="ss-secrets-ch" style="color:#ef4444;font-size:11px;min-width:12px">▼</span>
+      <span style="font-size:13px;font-weight:700;color:#ef4444">🔑 Secrets / Credenciais (Gitleaks)</span>
+      ${secretsBadge}
+    </div>
+    <div id="ss-secrets" style="padding:0 10px 10px">`;
   if (secretsTotal === 0) {
     html += '<div style="color:#22c55e;font-size:12px;padding:8px 12px;background:rgba(34,197,94,.08);border-radius:6px;border:1px solid rgba(34,197,94,.2)">✅ Nenhum secret exposto detectado no repositório</div>';
   } else {
-    html += `<div style="display:flex;flex-direction:column;gap:6px">`;
+    html += '<div style="display:flex;flex-direction:column;gap:6px">';
     for (const s of (d.secrets?.items ?? [])) {
       html += `<div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:6px;padding:8px 12px;font-size:11px">
-        <span style="color:#ef4444;font-weight:600">${s.rule}</span> · 
+        <span style="color:#ef4444;font-weight:600">${s.rule}</span> ·
         <code style="color:#94a3b8">${s.file}:${s.line}</code>
       </div>`;
     }
     html += '</div>';
   }
-  html += '</div>';
+  html += '</div></div>';
 
-  // NuGet section
-  html += `<div style="margin-bottom:16px">
-    <div style="font-size:13px;font-weight:700;color:#f59e0b;margin-bottom:8px">📦 NuGet Vulneráveis <span style="font-size:11px;font-weight:400;color:var(--muted)">C: ${nugetCounts.Critical??0} | H: ${nugetCounts.High??0} | M: ${nugetCounts.Moderate??0} | L: ${nugetCounts.Low??0}</span></div>`;
+  // ── NuGet ──
+  const nugetBadge = nugetTotal === 0
+    ? '<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:rgba(34,197,94,.15);color:#22c55e">Limpo</span>'
+    : `<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:rgba(245,158,11,.15);color:#f59e0b">C:${nugetCounts.Critical??0} H:${nugetCounts.High??0} M:${nugetCounts.Moderate??0} L:${nugetCounts.Low??0}</span>`;
+  html += `<div style="margin-bottom:10px;border:1px solid rgba(245,158,11,.2);border-radius:8px;overflow:hidden">
+    <div style="${hdrStyle}" onclick="ssToggle('ss-nuget')" onmouseover="this.style.background='rgba(255,255,255,.04)'" onmouseout="this.style.background=''">
+      <span id="ss-nuget-ch" style="color:#f59e0b;font-size:11px;min-width:12px">▼</span>
+      <span style="font-size:13px;font-weight:700;color:#f59e0b">📦 NuGet Vulneráveis</span>
+      ${nugetBadge}
+    </div>
+    <div id="ss-nuget" style="padding:0 10px 10px">`;
   if (nugetTotal === 0) {
     html += '<div style="color:#22c55e;font-size:12px;padding:8px 12px;background:rgba(34,197,94,.08);border-radius:6px;border:1px solid rgba(34,197,94,.2)">✅ Nenhuma vulnerabilidade NuGet detectada</div>';
   } else {
@@ -3731,11 +3757,19 @@ function renderSecScan(d) {
     }
     html += '</div>';
   }
-  html += '</div>';
+  html += '</div></div>';
 
-  // Trivy section
-  html += `<div style="margin-bottom:16px">
-    <div style="font-size:13px;font-weight:700;color:#3b82f6;margin-bottom:8px">🐋 CVEs Docker (Trivy) <span style="font-size:11px;font-weight:400;color:var(--muted)">C: ${trivyCounts.CRITICAL??0} | H: ${trivyCounts.HIGH??0} | M: ${trivyCounts.MEDIUM??0} | L: ${trivyCounts.LOW??0}</span></div>`;
+  // ── Trivy ──
+  const trivyBadge = trivyTotal === 0
+    ? '<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:rgba(34,197,94,.15);color:#22c55e">Limpo</span>'
+    : `<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:rgba(59,130,246,.15);color:#3b82f6">C:${trivyCounts.CRITICAL??0} H:${trivyCounts.HIGH??0} M:${trivyCounts.MEDIUM??0} L:${trivyCounts.LOW??0}</span>`;
+  html += `<div style="margin-bottom:10px;border:1px solid rgba(59,130,246,.2);border-radius:8px;overflow:hidden">
+    <div style="${hdrStyle}" onclick="ssToggle('ss-trivy')" onmouseover="this.style.background='rgba(255,255,255,.04)'" onmouseout="this.style.background=''">
+      <span id="ss-trivy-ch" style="color:#3b82f6;font-size:11px;min-width:12px">▼</span>
+      <span style="font-size:13px;font-weight:700;color:#3b82f6">🐋 CVEs Docker (Trivy)</span>
+      ${trivyBadge}
+    </div>
+    <div id="ss-trivy" style="padding:0 10px 10px">`;
   if (trivyTotal === 0) {
     html += '<div style="color:#22c55e;font-size:12px;padding:8px 12px;background:rgba(34,197,94,.08);border-radius:6px;border:1px solid rgba(34,197,94,.2)">✅ Nenhum CVE detectado na imagem Docker</div>';
   } else {
@@ -3752,9 +3786,9 @@ function renderSecScan(d) {
     }
     html += '</div>';
   }
-  html += '</div>';
+  html += '</div></div>';
 
-  // LGPD Checklist
+  // ── LGPD Checklist ──
   const lgpdItems = [
     { ok: secretsTotal === 0, label: 'Sem credenciais/secrets no repositório (Gitleaks)' },
     { ok: (nugetCounts.Critical ?? 0) === 0, label: 'Sem vulnerabilidades NuGet Critical' },
@@ -3765,16 +3799,24 @@ function renderSecScan(d) {
     { ok: true, label: 'PII criptografado em repouso (AES-GCM)' },
     { ok: true, label: 'Postgres least-privilege aplicado' },
   ];
-  html += '<div style="margin-bottom:16px"><div style="font-size:13px;font-weight:700;color:#818cf8;margin-bottom:8px">📋 LGPD / Compliance Checklist</div><div style="display:flex;flex-direction:column;gap:4px">';
+  const lgpdOk = lgpdItems.filter(i => i.ok).length;
+  const lgpdBadge = `<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:rgba(129,140,248,.15);color:#818cf8">${lgpdOk}/${lgpdItems.length} OK</span>`;
+  html += `<div style="margin-bottom:10px;border:1px solid rgba(129,140,248,.2);border-radius:8px;overflow:hidden">
+    <div style="${hdrStyle}" onclick="ssToggle('ss-lgpd')" onmouseover="this.style.background='rgba(255,255,255,.04)'" onmouseout="this.style.background=''">
+      <span id="ss-lgpd-ch" style="color:#818cf8;font-size:11px;min-width:12px">▼</span>
+      <span style="font-size:13px;font-weight:700;color:#818cf8">📋 LGPD / Compliance Checklist</span>
+      ${lgpdBadge}
+    </div>
+    <div id="ss-lgpd" style="padding:0 10px 10px">
+      <div style="display:flex;flex-direction:column;gap:4px">`;
   for (const item of lgpdItems) {
     const color = item.ok ? '#22c55e' : '#ef4444';
     const icon  = item.ok ? '✅' : '❌';
     html += `<div style="font-size:12px;padding:5px 10px;background:rgba(0,0,0,.15);border-radius:4px;display:flex;align-items:center;gap:8px">
-      <span>${icon}</span>
-      <span style="color:${color}">${item.label}</span>
+      <span>${icon}</span><span style="color:${color}">${item.label}</span>
     </div>`;
   }
-  html += '</div></div>';
+  html += '</div></div></div>';
 
   content.innerHTML = html;
 }
