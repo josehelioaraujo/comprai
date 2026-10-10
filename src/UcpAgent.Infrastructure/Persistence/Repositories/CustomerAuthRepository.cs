@@ -5,7 +5,7 @@ using UcpAgent.SharedKernel.Ports;
 namespace UcpAgent.Infrastructure.Persistence.Repositories;
 
 [ExcludeFromCodeCoverage]
-public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
+public sealed class CustomerAuthRepository(IDbConnectionFactory db, IEncryptionService enc) : IAuthPort
 {
     public async Task<AuthCustomerDto?> RegisterAsync(RegisterRequest req, CancellationToken ct = default)
     {
@@ -22,7 +22,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
             VALUES (@Name, @Email, @Document, 'credentials', NULL, @Hash, FALSE, 'web')
             RETURNING id, name, email, provider, avatar_url, email_verified, phone, document, totp_enabled
             """,
-            new { req.Name, req.Email, req.Document, Hash = hash });
+            new { req.Name, req.Email, Document = enc.Encrypt(req.Document), Hash = hash });
         return ToDto(row, null);
     }
 
@@ -96,7 +96,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
             WHERE id = @Id
             RETURNING id, name, email, provider, avatar_url, email_verified, phone, document, totp_enabled
             """,
-            new { req.Name, req.Phone, req.Document, Id = Guid.Parse(req.CustomerId) });
+            new { req.Name, Phone = enc.Encrypt(req.Phone), Document = enc.Encrypt(req.Document), Id = Guid.Parse(req.CustomerId) });
         return row is null ? null : ToDto(row, null);
     }
 
@@ -129,8 +129,12 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
             new {
                 CustomerId   = customerGuid,
                 Label        = req.Label ?? "principal",
-                req.ZipCode, req.Street, req.Number, req.Complement,
-                req.Neighborhood, req.City, req.State, req.IsDefault
+                req.ZipCode,
+                Street       = enc.Encrypt(req.Street),
+                Number       = enc.Encrypt(req.Number),
+                Complement   = enc.Encrypt(req.Complement),
+                Neighborhood = enc.Encrypt(req.Neighborhood),
+                req.City, req.State, req.IsDefault
             });
         return row is null ? null : ToAddressDto(row);
     }
@@ -331,15 +335,17 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
-    private static AuthCustomerDto ToDto(CustomerRow r, List<AddressRow>? addresses) =>
+    private AuthCustomerDto ToDto(CustomerRow r, List<AddressRow>? addresses) =>
         new(r.Id.ToString(), r.Name, r.Email, r.Provider, r.AvatarUrl, r.EmailVerified,
-            r.Phone, r.Document,
+            enc.Decrypt(r.Phone), enc.Decrypt(r.Document),
             addresses?.Select(ToAddressDto).ToList(),
             r.TotpEnabled);
 
-    private static CustomerAddressDto ToAddressDto(AddressRow a) =>
-        new(a.Id.ToString(), a.Label ?? "", a.ZipCode, a.Street,
-            a.Number, a.Complement, a.Neighborhood, a.City, a.State, a.IsDefault);
+    private CustomerAddressDto ToAddressDto(AddressRow a) =>
+        new(a.Id.ToString(), a.Label ?? "", a.ZipCode,
+            enc.Decrypt(a.Street) ?? "",
+            enc.Decrypt(a.Number), enc.Decrypt(a.Complement),
+            enc.Decrypt(a.Neighborhood), a.City, a.State, a.IsDefault);
 
     private sealed class CustomerRow
     {

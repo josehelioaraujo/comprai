@@ -348,6 +348,10 @@ if (usarPostgres)
     builder.Services.AddSingleton(
         _ => new UcpAgent.Infrastructure.Persistence.CompraiDbInitializer(connStr));
 
+    // Segurança — criptografia PII (Fase 2)
+    builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.IEncryptionService,
+        UcpAgent.Infrastructure.Security.AesGcmEncryptionService>();
+
     // Repositórios
     builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.CustomerRepository>();
     builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.OrderRepository>();
