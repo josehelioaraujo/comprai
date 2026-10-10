@@ -57,7 +57,7 @@ jobs:
       - name: Scan — Trivy (Docker image)
         id: trivy
         continue-on-error: true
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.20.0
         with:
           image-ref: 'ghcr.io/josehelioaraujo/comprai-api:latest'
           format: 'json'
