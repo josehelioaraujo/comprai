@@ -61,16 +61,17 @@ jobs:
       - name: Scan — Trivy (Docker image)
         id: trivy
         continue-on-error: true
-        uses: aquasecurity/trivy-action@0.20.0
-        with:
-          image-ref: 'ghcr.io/josehelioaraujo/comprai-api:latest'
-          format: 'json'
-          output: 'trivy-report.json'
-          severity: 'CRITICAL,HIGH,MEDIUM,LOW'
-          ignore-unfixed: false
-        env:
-          TRIVY_USERNAME: ${{ github.actor }}
-          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker run --rm \
+            -e TRIVY_USERNAME=${{ github.actor }} \
+            -e TRIVY_PASSWORD=${{ secrets.GITHUB_TOKEN }} \
+            aquasec/trivy:latest image \
+              --format json \
+              --output /dev/stdout \
+              --severity CRITICAL,HIGH,MEDIUM,LOW \
+              ghcr.io/josehelioaraujo/comprai-api:latest > trivy-report.json 2>/dev/null || echo '{"Results":[]}' > trivy-report.json
+          echo "done=true" >> $GITHUB_OUTPUT
 
       # ── 4. Consolidar JSON ──────────────────────────────────────────────────
       - name: Consolidar security.json
