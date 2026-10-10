@@ -5,6 +5,10 @@ on:
   schedule:
     - cron: '0 3 * * 0'   # todo domingo 03h UTC
 
+permissions:
+  contents: read
+  packages: read
+
 env:
   DOTNET_VERSION: '10.0.x'
   VPS_HOST: '2.25.122.11'
