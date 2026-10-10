@@ -124,20 +124,22 @@ public sealed class EmailNotificationWorker : BackgroundService
     {
         var customer = await ResolveCustomerAsync(n.CustomerId);
         if (customer is null) return;
+        var (email, name) = customer.Value;
 
         var subject = $"✅ Pedido {n.OrderId} confirmado!";
-        var html    = $"<h2>Olá, {customer.Name}!</h2><p>Pedido: <b>{n.OrderId}</b> | Total: R$ {n.Total:F2} | Itens: {n.ItemCount}</p>";
-        await SendEmail(customer.Email, subject, html);
+        var html    = $"<h2>Olá, {name}!</h2><p>Pedido: <b>{n.OrderId}</b> | Total: R$ {n.Total:F2} | Itens: {n.ItemCount}</p>";
+        await SendEmail(email, subject, html);
     }
 
     private async Task SendOrderStatus(OrderStatusNotification n)
     {
         var customer = await ResolveCustomerAsync(n.CustomerId);
         if (customer is null) return;
+        var (email, _) = customer.Value;
 
         var subject = $"📦 Pedido {n.OrderId}: {n.NewStatus}";
         var html    = $"<h2>Pedido {n.OrderId}</h2><p>Status: <b>{n.OldStatus}</b> → <b>{n.NewStatus}</b></p>";
-        await SendEmail(customer.Email, subject, html);
+        await SendEmail(email, subject, html);
     }
 
     /// <summary>
