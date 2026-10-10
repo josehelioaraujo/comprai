@@ -34,8 +34,9 @@ public sealed class RedisCheckoutAdapter(
             return new CheckoutResultDto(string.Empty, false, "Carrinho vazio");
 
         // orderId = UUID puro — compatível com order.id (UUID) no PostgreSQL
-        var orderId = Guid.NewGuid().ToString();
-        var total   = items.Sum(i => i.Subtotal);
+        var orderId            = Guid.NewGuid().ToString();
+        var total              = items.Sum(i => i.Subtotal);
+        Guid? resolvedCustomerId = authenticatedCustomerId; // capturado para a notificação
 
         // ── F1: Persistência PostgreSQL ──────────────────────────────────────
         if (_usarPostgres && customerRepo is not null && orderRepo is not null)
@@ -47,6 +48,7 @@ public sealed class RedisCheckoutAdapter(
                     ?? await customerRepo.UpsertAsync(
                            customer.Name, customer.Email, customer.Phone,
                            channel: "web", ct);
+                resolvedCustomerId = customerId;
                 logger.LogInformation("[F1] Customer resolved: {CustomerId} (auth={IsAuth})",
                     customerId, authenticatedCustomerId.HasValue);
 
@@ -94,11 +96,12 @@ public sealed class RedisCheckoutAdapter(
             new OrderCreatedEvent(orderId, sessionId, total, items.Count, DateTime.UtcNow),
             ct);
 
-        // RabbitMQ — notificação
+        // RabbitMQ — notificação (sem PII: worker busca email pelo CustomerId)
         _ = notifications.PublishAsync(
             NotificationQueues.OrderConfirmation,
             new OrderConfirmationNotification(
-                orderId, sessionId, customer.Email, customer.Name,
+                orderId, sessionId,
+                resolvedCustomerId?.ToString() ?? string.Empty,
                 total, items.Count, DateTime.UtcNow),
             ct);
 
