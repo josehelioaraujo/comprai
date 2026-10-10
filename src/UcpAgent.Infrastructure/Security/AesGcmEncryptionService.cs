@@ -24,9 +24,12 @@ public sealed class AesGcmEncryptionService : IEncryptionService
         var keyBase64 = configuration["PII_ENCRYPTION_KEY"]
             ?? throw new InvalidOperationException(
                 "Variável PII_ENCRYPTION_KEY não configurada. " +
-                "Gere com: openssl rand -base64 32");
+                "Gere com: openssl rand -base64 32 | tr '+/' '-_' | tr -d '='");
 
-        _key = Convert.FromBase64String(keyBase64);
+        // Suporta base64 padrão e URL-safe (sem padding)
+        var normalized = keyBase64.Replace('-', '+').Replace('_', '/');
+        var padded     = normalized.PadRight(normalized.Length + (4 - normalized.Length % 4) % 4, '=');
+        _key = Convert.FromBase64String(padded);
 
         if (_key.Length != 32)
             throw new InvalidOperationException(
