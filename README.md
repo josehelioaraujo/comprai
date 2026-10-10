@@ -936,6 +936,12 @@ strix scan http://2.25.122.11:5020 --output report.html
 - [x] Script `run-e2e-vps.sh` + `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` para execução na VPS
 - [x] **30 passando · 1 skipped · 0 falhando** ✅
 
+**V068 ✅**
+- [x] `security-scan.yml` — Gitleaks + dotnet --vulnerable + Trivy (docker run) → `latest.json` com score 0–100 e badge secure/warning/critical
+- [x] OpsWatch "Varredura de Segurança": cards KPI clicáveis, seções colapsáveis, drill-down por CVE/pacote/secret
+- [x] Botão ⧉ copy por item (via `data-cp`), botão ⬇ PDF, painel live de execução, modal glossário ℹ com 12 termos
+- [x] `PII_ENCRYPTION_KEY` propagado via docker-compose; CodeQL corrigido no `ci-cd.yml`
+
 **V067 ✅**
 - [x] `apps/e2e/fixtures.ts` — fixture custom override de `context`; grava `har-evidence/{title}-chromium.har` por teste; `requests: []` corrigido ✅
 - [x] Causa raiz: `recordHar.path` sem extensão criava FILE em vez de diretório

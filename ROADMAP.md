@@ -1,57 +1,53 @@
 # 🗺️ Roadmap — Comprai
 
-## 🔜 V068 — Auditoria de Segurança + Criptografia de PII (out/2026)
+## 🔜 V069 — Dashboard Administrativo (out/2026)
 
-**Fase 1 — Reconhecimento**
-- [ ] Varredura histórico git completo com **gitleaks/trufflehog** (secrets em commits antigos)
-- [ ] `dotnet list package --vulnerable` + `npm audit` (apps/web e apps/mobile)
-- [ ] **Trivy/grype** nas imagens Docker — CVEs críticos
-- [ ] Inventário de campos PII nas tabelas: `customer`, `customer_address`, `payment`, `notification`
-- [ ] Mapeamento de PII em: logs Serilog, traces OTel, mensagens Kafka/Outbox, webhooks, HAR files E2E
-- [ ] Confirmar `storageState.json` + `har-evidence/` no `.gitignore`
+**Frontend Admin Separada**
+- [ ] Stack: Next.js 15 App Router + Tailwind v4 | porta `3004` | `deploy-admin.yml`
+- [ ] Autenticação via JWT do backend — rota protegida por `role=admin`
+- [ ] Migration: campo `role` na tabela `customer`; middleware protege `/api/admin/*`
 
-**Fase 2 — Banco de Dados: Criptografia e Mascaramento**
-- [ ] `IEncryptionService` + `EncryptionService` — AES-256-GCM, chave via secret `ENCRYPTION_KEY`
-- [ ] Criptografar em repouso: `customer.document`, `customer.phone`, `customer_address.*`
-- [ ] Mascarar em API response: email → `h***@***.com`, documento → `***.***.***-**`, telefone → `(**) *****-**00`
-- [ ] Migration: colunas `_enc` (bytea) → migrar dados → remover colunas plaintext
-- [ ] Key rotation sem downtime: campo `encryption_version` na tabela
+**Layout e UX**
+- [ ] Sidebar fixa, topbar com filtro de período (hoje / 7d / 30d / custom), dark mode
+- [ ] Referência visual: MD. Mehedi Hasan "Ecommerce Admin Dashboard" (Dribbble) — sidebar roxa, KPI cards, gráfico Revenue Over Time
 
-**Fase 3 — Código: PII em Logs, Traces e Tráfego**
-- [ ] Serilog `DestructuringPolicy` — mascara campos sensíveis automaticamente em todos os objetos logados
-- [ ] OTel: sanitizar atributos de span antes do export (email, document, address)
-- [ ] Kafka/Outbox: eventos de domínio carregam apenas IDs, nunca PII diretamente
-- [ ] DTOs de resposta: nunca expõem campos raw — somente mascarados ou omitidos
+**KPI Cards Topo**
+- [ ] Pedidos Hoje | Receita Hoje | Taxa Conversão | Ticket Médio
+- [ ] Polling 30s ou WebSocket para KPIs em tempo real
 
-**Fase 4 — Infra e CI/CD**
-- [ ] `secret-scan.yml` no CI (gitleaks action) — bloqueia push com credencial
-- [ ] SAST: semgrep ou CodeQL para SQL injection, XSS, insecure deserialization
-- [ ] Rate limiting ampliado: checkout, account update, address
-- [ ] CORS produção: sem wildcard, origem única
-- [ ] Postgres: `pg_hba.conf` sem acesso externo, usuário da app sem superuser
+**Seções**
+- [ ] **Vendas**: volume por hora (gráfico linha), top produtos, top plugins/canais
+- [ ] **Pagamentos**: aprovados / pendentes / falhos / estornados — funil + distribuição por provider
+- [ ] **Entregas**: em separação / despachados / entregues / pendentes / atrasados
+- [ ] **Cancelamentos**: motivos (pizza), taxa por dia, valor perdido
+- [ ] **Clientes**: novos cadastros, 2FA ativo, verificados vs não verificados
+- [ ] **Segurança**: tentativas de login falhas, tokens revogados, alertas de rate limit
 
-**Fase 5 — OpsWatch: Painel "Varredura de Segurança"**
-- [ ] Workflow `security-scan.yml` — `workflow_dispatch` manual + schedule semanal
-  - Step 1: gitleaks (secrets no histórico git) → JSON `results/security/gitleaks.json`
-  - Step 2: `dotnet list package --vulnerable` → JSON `results/security/dotnet-vulns.json`
-  - Step 3: `npm audit --json` (apps/web + apps/mobile) → `results/security/npm-audit.json`
-  - Step 4: Trivy nas imagens Docker → `results/security/trivy.json`
-  - Step 5: consolida tudo em `results/security/latest.json` com score geral
-- [ ] OpsWatch — nova aba/seção "Varredura de Segurança" no painel Segurança existente
-  - Botão "▶ Executar Varredura" → dispara `workflow_dispatch` via GitHub API
-  - Cards KPI: Secrets Expostos | Pacotes Vulneráveis | CVEs Docker | Score Geral
-  - Drill-down por categoria com severidade (critical/high/medium/low)
-  - Histórico de varreduras anteriores (últimas 5)
-  - Badge colorido: 🟢 Seguro / 🟡 Atenção / 🔴 Crítico
-- [ ] **Checklist LGPD** — tab separada no painel com score de conformidade:
-  - Consentimento explícito coletado no cadastro
-  - Endpoint de exclusão de dados (`DELETE /api/auth/me`) implementado
-  - Portabilidade: exportar dados do titular (`GET /api/auth/me/export`)
-  - Bases legais documentadas por finalidade de uso dos dados
-  - DPO (Encarregado) definido e contato publicado
-  - Política de retenção: dados excluídos após período definido
-  - Notificação de incidente: plano de resposta documentado
-  - Score: X/7 itens ✅ com badge 🟢 Conforme / 🟡 Parcial / 🔴 Não Conforme
+**Tabela de Pedidos + Modal**
+- [ ] Tabela: `order_id`, cliente mascarado, valor, status, canal, ações
+- [ ] Modal detalhe: timeline do pedido (search → cart → checkout → payment → fulfillment)
+
+**Novos Endpoints**
+- [ ] `GET /api/admin/stats/summary` — KPIs com filtro de período
+- [ ] `GET /api/admin/orders` — paginado com filtros
+- [ ] `GET /api/admin/payments` — agrupado por status/provider
+- [ ] `GET /api/admin/fulfillment` — por status de entrega
+
+---
+
+## ✅ V068 — Varredura de Segurança Completa (out/2026)
+- [x] `PII_ENCRYPTION_KEY` propagado via docker-compose ao container
+- [x] CodeQL corrigido no `ci-cd.yml`
+- [x] `security-scan.yml`: Gitleaks + dotnet --vulnerable + Trivy (`docker run aquasec/trivy:latest`) → `latest.json` com score 0–100 + badge secure/warning/critical
+- [x] Fix trivy-action substituído por docker run direto (versão inexistente da action)
+- [x] OpsWatch: cards KPI clicáveis (scrollTo + expand na seção correspondente)
+- [x] Seções colapsáveis com chevron individual por item (Secrets, NuGet, CVEs Trivy, LGPD Checklist)
+- [x] Drill-down por CVE/pacote/secret com detalhes expandíveis
+- [x] Botão ⧉ copy por item (data-cp + navigator.clipboard, feedback ✓)
+- [x] Botão ⬇ PDF — relatório HTML estruturado com print automático
+- [x] Painel live de execução colapsável com status de jobs em tempo real
+- [x] Modal glossário ℹ — 12 termos (CVE, SAST, Trivy, Gitleaks, CVSS, LGPD, severidades)
+- [x] Fix `</script>` dentro de template literal (concatenação); fix `}}` duplicado; fix SyntaxError nos botões copy
 
 ---
 
