@@ -3659,6 +3659,54 @@ function ssToggle(id) {
   if (ch) ch.textContent = open ? '▶' : '▼';
 }
 
+function ssCopy(t, btn) {
+  navigator.clipboard.writeText(t).then(() => {
+    const o = btn.innerHTML; btn.innerHTML = '✓'; btn.style.color = '#22c55e';
+    setTimeout(() => { btn.innerHTML = o; btn.style.color = '#475569'; }, 1500);
+  }).catch(() => {});
+}
+
+function ssShowGlossary() {
+  if (document.getElementById('ss-glossary-modal')) { document.getElementById('ss-glossary-modal').remove(); return; }
+  const terms = [
+    { term: 'CVE', color: '#3b82f6', desc: 'Common Vulnerabilities and Exposures — identificador único para vulnerabilidades de segurança conhecidas publicamente. Ex: CVE-2023-44487 (HTTP/2 Rapid Reset).' },
+    { term: 'SAST', color: '#818cf8', desc: 'Static Application Security Testing — análise estática do código-fonte em busca de falhas de segurança sem executar o programa.' },
+    { term: 'Trivy', color: '#3b82f6', desc: 'Scanner open-source da Aqua Security que varre imagens Docker, repositórios e pacotes em busca de CVEs e misconfigurations.' },
+    { term: 'Gitleaks', color: '#ef4444', desc: 'Ferramenta SAST que analisa o histórico git em busca de secrets e credenciais expostos (API keys, senhas, tokens).' },
+    { term: 'NuGet Vulnerable', color: '#f59e0b', desc: 'Pacotes .NET listados pelo comando <code style="background:rgba(0,0,0,.3);padding:1px 4px;border-radius:3px">dotnet list --vulnerable</code> com CVEs conhecidas no repositório de advisories do .NET.' },
+    { term: 'Severity: CRITICAL', color: '#ef4444', desc: 'CVSS ≥ 9.0 — vulnerabilidade com alto impacto e exploração remota fácil. Deve ser corrigida imediatamente.' },
+    { term: 'Severity: HIGH', color: '#f97316', desc: 'CVSS 7.0–8.9 — impacto significativo. Correção prioritária no próximo ciclo de deploy.' },
+    { term: 'Severity: MEDIUM', color: '#f59e0b', desc: 'CVSS 4.0–6.9 — risco moderado, geralmente requer condições específicas para exploração.' },
+    { term: 'Severity: LOW', color: '#94a3b8', desc: 'CVSS < 4.0 — impacto mínimo; corrigir conforme disponibilidade.' },
+    { term: 'CVSS', color: '#818cf8', desc: 'Common Vulnerability Scoring System — sistema de pontuação 0–10 que mede a gravidade de uma vulnerabilidade com base em impacto e explorabilidade.' },
+    { term: 'LGPD', color: '#818cf8', desc: 'Lei Geral de Proteção de Dados (Lei 13.709/2018) — exige que sistemas protejam dados pessoais. O checklist aqui verifica controles técnicos básicos de conformidade.' },
+    { term: 'Score Geral', color: '#22c55e', desc: 'Pontuação composta (0–100) calculada com base em secrets, CVEs críticos/altos e NuGet críticos. Score ≥ 90 = Seguro, ≥ 70 = Atenção, < 70 = Crítico.' },
+  ];
+  const rows = terms.map(t => `
+    <div style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.05);display:flex;gap:12px;align-items:flex-start">
+      <span style="background:${t.color}22;color:${t.color};border:1px solid ${t.color}55;border-radius:5px;padding:2px 8px;font-size:11px;font-weight:700;white-space:nowrap;margin-top:1px">${t.term}</span>
+      <span style="font-size:12px;color:#cbd5e1;line-height:1.5">${t.desc}</span>
+    </div>`).join('');
+  const modal = document.createElement('div');
+  modal.id = 'ss-glossary-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6);backdrop-filter:blur(4px)';
+  modal.innerHTML = `
+    <div style="background:#1e2536;border:1px solid rgba(129,140,248,.3);border-radius:12px;width:min(580px,95vw);max-height:82vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.6)">
+      <div style="display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.08);background:rgba(129,140,248,.06)">
+        <span style="font-size:16px">ℹ️</span>
+        <span style="font-size:14px;font-weight:700;color:#e2e8f0">Glossário de Segurança</span>
+        <span style="font-size:11px;color:#64748b;flex:1">termos utilizados na varredura</span>
+        <button onclick="document.getElementById('ss-glossary-modal').remove()" style="background:none;border:none;color:#64748b;font-size:18px;cursor:pointer;line-height:1;padding:2px 6px;border-radius:4px" onmouseover="this.style.color='#e2e8f0'" onmouseout="this.style.color='#64748b'">✕</button>
+      </div>
+      <div style="overflow-y:auto;flex:1">${rows}</div>
+      <div style="padding:10px 18px;border-top:1px solid rgba(255,255,255,.06);text-align:right">
+        <button onclick="document.getElementById('ss-glossary-modal').remove()" style="font-size:12px;padding:5px 16px;background:rgba(129,140,248,.15);border:1px solid rgba(129,140,248,.4);color:#818cf8;border-radius:6px;cursor:pointer">Fechar</button>
+      </div>
+    </div>`;
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
+}
+
 function ssJumpTo(id) {
   const el = document.getElementById(id);
   const ch = document.getElementById(id + '-ch');
@@ -3871,6 +3919,7 @@ function renderSecScan(d) {
           <span style="color:#ef4444;font-weight:600;font-size:12px">${s.rule}</span>
           <code style="color:#94a3b8;font-size:11px">${s.file}:${s.line}</code>
           <span style="margin-left:auto;font-size:9px;color:var(--muted)">ver mais</span>
+          <button onclick="event.stopPropagation();ssCopy('${s.rule} | ${s.file}:${s.line}',this)" title="Copiar" style="background:none;border:none;cursor:pointer;color:#475569;font-size:12px;padding:2px 6px;border-radius:4px;line-height:1" onmouseover="this.style.color='#94a3b8'" onmouseout="this.style.color='#475569'">⧉</button>
         </div>
         <div id="${iid}" style="display:none;padding:8px 12px;background:rgba(0,0,0,.2);font-size:11px;border-top:1px solid rgba(239,68,68,.15)">
           <div><span style="color:var(--muted)">Regra:</span> <strong style="color:#ef4444">${s.rule}</strong></div>
@@ -3909,6 +3958,7 @@ function renderSecScan(d) {
           <span style="color:${c};min-width:65px;font-weight:600;font-size:11px">${p.severity}</span>
           <code style="color:#e2e8f0;font-size:11px">${p.package} ${p.resolved}</code>
           <span style="color:var(--muted);flex:1;text-align:right;font-size:11px">${p.project}</span>
+          <button onclick="event.stopPropagation();ssCopy('${p.severity} | ${p.package} ${p.resolved} | ${p.project}',this)" title="Copiar" style="background:none;border:none;cursor:pointer;color:#475569;font-size:12px;padding:2px 6px;border-radius:4px;line-height:1" onmouseover="this.style.color='#94a3b8'" onmouseout="this.style.color='#475569'">⧉</button>
         </div>
         <div id="${iid}" style="display:none;padding:8px 12px;background:rgba(0,0,0,.2);font-size:11px;border-top:1px solid rgba(255,255,255,.05)">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
@@ -3951,6 +4001,7 @@ function renderSecScan(d) {
           <code style="color:#e2e8f0;font-size:11px">${v.pkg} ${v.version}</code>
           <span style="color:var(--muted);flex:1;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.title||v.cve}</span>
           <span style="color:#94a3b8;font-size:10px;white-space:nowrap">${v.cve}</span>
+          <button onclick="event.stopPropagation();ssCopy('${v.cve} | ${v.severity} | ${v.pkg} ${v.version} → ${v.fixed||'N/A'} | ${(v.title||'').replace(/'/g,'\\'+'\\'')}',this)" title="Copiar" style="background:none;border:none;cursor:pointer;color:#475569;font-size:12px;padding:2px 6px;border-radius:4px;line-height:1" onmouseover="this.style.color='#94a3b8'" onmouseout="this.style.color='#475569'">⧉</button>
         </div>
         <div id="${iid}" style="display:none;padding:8px 12px;background:rgba(0,0,0,.2);font-size:11px;border-top:1px solid rgba(255,255,255,.05)">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
@@ -10441,6 +10492,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
         </button>
         <button onclick="event.stopPropagation();loadSecScanData()" style="font-size:11px;padding:4px 8px;margin-right:6px;background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;cursor:pointer">&#8635; Atualizar</button>
         <button id="secscan-pdf-btn" onclick="event.stopPropagation();ssDownloadPdf()" style="display:none;font-size:11px;padding:4px 10px;margin-right:6px;background:rgba(56,189,248,.1);border:1px solid rgba(56,189,248,.4);color:#38bdf8;border-radius:6px;cursor:pointer">⬇ PDF</button>
+        <button onclick="event.stopPropagation();ssShowGlossary()" title="Glossário dos termos" style="font-size:13px;width:24px;height:24px;padding:0;margin-right:8px;background:rgba(129,140,248,.12);border:1px solid rgba(129,140,248,.35);color:#818cf8;border-radius:50%;cursor:pointer;line-height:1">ℹ</button>
         <span class="section-chevron">&#9660;</span>
       </div>
       <div class="section-content">
