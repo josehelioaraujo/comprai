@@ -3919,7 +3919,7 @@ function renderSecScan(d) {
           <span style="color:#ef4444;font-weight:600;font-size:12px">${s.rule}</span>
           <code style="color:#94a3b8;font-size:11px">${s.file}:${s.line}</code>
           <span style="margin-left:auto;font-size:9px;color:var(--muted)">ver mais</span>
-          <button onclick="event.stopPropagation();ssCopy('${s.rule} | ${s.file}:${s.line}',this)" title="Copiar" style="background:none;border:none;cursor:pointer;color:#475569;font-size:12px;padding:2px 6px;border-radius:4px;line-height:1" onmouseover="this.style.color='#94a3b8'" onmouseout="this.style.color='#475569'">⧉</button>
+          <button data-cp="${s.rule} | ${s.file}:${s.line}" onclick="event.stopPropagation();ssCopy(this.dataset.cp,this)" title="Copiar" style="background:none;border:none;cursor:pointer;color:#475569;font-size:12px;padding:2px 6px;border-radius:4px;line-height:1" onmouseover="this.style.color='#94a3b8'" onmouseout="this.style.color='#475569'">⧉</button>
         </div>
         <div id="${iid}" style="display:none;padding:8px 12px;background:rgba(0,0,0,.2);font-size:11px;border-top:1px solid rgba(239,68,68,.15)">
           <div><span style="color:var(--muted)">Regra:</span> <strong style="color:#ef4444">${s.rule}</strong></div>
@@ -3958,7 +3958,7 @@ function renderSecScan(d) {
           <span style="color:${c};min-width:65px;font-weight:600;font-size:11px">${p.severity}</span>
           <code style="color:#e2e8f0;font-size:11px">${p.package} ${p.resolved}</code>
           <span style="color:var(--muted);flex:1;text-align:right;font-size:11px">${p.project}</span>
-          <button onclick="event.stopPropagation();ssCopy('${p.severity} | ${p.package} ${p.resolved} | ${p.project}',this)" title="Copiar" style="background:none;border:none;cursor:pointer;color:#475569;font-size:12px;padding:2px 6px;border-radius:4px;line-height:1" onmouseover="this.style.color='#94a3b8'" onmouseout="this.style.color='#475569'">⧉</button>
+          <button data-cp="${p.severity} | ${p.package} ${p.resolved} | ${p.project}" onclick="event.stopPropagation();ssCopy(this.dataset.cp,this)" title="Copiar" style="background:none;border:none;cursor:pointer;color:#475569;font-size:12px;padding:2px 6px;border-radius:4px;line-height:1" onmouseover="this.style.color='#94a3b8'" onmouseout="this.style.color='#475569'">⧉</button>
         </div>
         <div id="${iid}" style="display:none;padding:8px 12px;background:rgba(0,0,0,.2);font-size:11px;border-top:1px solid rgba(255,255,255,.05)">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
@@ -4001,7 +4001,7 @@ function renderSecScan(d) {
           <code style="color:#e2e8f0;font-size:11px">${v.pkg} ${v.version}</code>
           <span style="color:var(--muted);flex:1;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.title||v.cve}</span>
           <span style="color:#94a3b8;font-size:10px;white-space:nowrap">${v.cve}</span>
-          <button onclick="event.stopPropagation();ssCopy('${v.cve} | ${v.severity} | ${v.pkg} ${v.version} → ${v.fixed||'N/A'} | ${(v.title||'').replace(/'/g,'\\'+'\\'')}',this)" title="Copiar" style="background:none;border:none;cursor:pointer;color:#475569;font-size:12px;padding:2px 6px;border-radius:4px;line-height:1" onmouseover="this.style.color='#94a3b8'" onmouseout="this.style.color='#475569'">⧉</button>
+          <button data-cp="${v.cve} | ${v.severity} | ${v.pkg} ${v.version} | fixed:${v.fixed||'sem fix'}" onclick="event.stopPropagation();ssCopy(this.dataset.cp,this)" title="Copiar" style="background:none;border:none;cursor:pointer;color:#475569;font-size:12px;padding:2px 6px;border-radius:4px;line-height:1" onmouseover="this.style.color='#94a3b8'" onmouseout="this.style.color='#475569'">⧉</button>
         </div>
         <div id="${iid}" style="display:none;padding:8px 12px;background:rgba(0,0,0,.2);font-size:11px;border-top:1px solid rgba(255,255,255,.05)">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
