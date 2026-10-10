@@ -3634,11 +3634,19 @@ const PT_RISK_COLORS = {
 function loadSecScanData() {
   const BASE_URL = 'https://comprai.2.25.122.11.nip.io';
   fetch(BASE_URL + '/k6/results/security/latest.json?_t=' + Date.now())
-    .then(r => r.ok ? r.json() : Promise.reject(r.status))
-    .then(d => renderSecScan(d))
+    .then(r => {
+      if (!r.ok) {
+        // 404 = ainda não há varredura; não propagar como erro no console
+        const el = document.getElementById('secscan-content');
+        if (el) el.innerHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:40px 0">&#128274; Nenhuma varredura disponível ainda.<br><small>Execute a primeira varredura com o bot&#227;o acima.</small></div>';
+        return null;
+      }
+      return r.json();
+    })
+    .then(d => { if (d) renderSecScan(d); })
     .catch(e => {
       const el = document.getElementById('secscan-content');
-      if (el) el.innerHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:40px 0">Nenhuma varredura disponível ainda.<br><small>Execute a primeira varredura com o botão acima.</small></div>';
+      if (el) el.innerHTML = '<div style="color:#f87171;font-size:13px;text-align:center;padding:40px 0">Erro ao carregar dados de segurança.<br><small>' + e + '</small></div>';
     });
 }
 
@@ -3771,11 +3779,95 @@ function renderSecScan(d) {
   content.innerHTML = html;
 }
 
+// ── Varredura de Segurança — execução com painel live ────────────────────────
+let ssRunId = null, ssPollTimer = null, ssStartTs = null, ssElapsedTimer = null;
+
+function ssSetStatus(icon, text) {
+  const ic = document.getElementById('ss-exec-icon');
+  const tx = document.getElementById('ss-exec-status');
+  if (ic) ic.textContent = icon;
+  if (tx) tx.textContent = text;
+}
+function ssSetBar(pct) {
+  const b = document.getElementById('ss-exec-bar');
+  if (b) b.style.width = pct + '%';
+}
+function ssStartElapsed() {
+  ssStartTs = Date.now();
+  clearInterval(ssElapsedTimer);
+  ssElapsedTimer = setInterval(() => {
+    const el = document.getElementById('ss-exec-elapsed');
+    if (el) { const s = Math.round((Date.now()-ssStartTs)/1000); el.textContent = s+'s'; }
+  }, 1000);
+}
+function ssStopElapsed() { clearInterval(ssElapsedTimer); }
+function ssResetBtn(label) {
+  const btn = document.getElementById('secscan-run-btn');
+  if (btn) { btn.disabled = false; btn.innerHTML = (label||'▶ Executar Varredura'); }
+}
+
+function ssRenderJobs(jobs) {
+  const panel = document.getElementById('ss-exec-jobs');
+  if (!panel || !jobs.length) return;
+  const icons = { completed: { success:'✅', failure:'❌', skipped:'⏭', cancelled:'⛔' }, in_progress:'⏳', queued:'🕐' };
+  panel.innerHTML = jobs.map(j => {
+    const st = j.status === 'completed' ? (icons.completed[j.conclusion]||'✅') : (icons[j.status]||'⏸');
+    const steps = (j.steps||[]).filter(s => s.status !== 'queued');
+    const stepsHtml = steps.map(s => {
+      const si = s.status==='completed'?(s.conclusion==='success'?'✅':'❌'):(s.status==='in_progress'?'⏳':'⏸');
+      return `<div style="font-size:10px;color:var(--muted);padding:2px 0 2px 12px;border-left:2px solid var(--border);margin:2px 0">${si} ${s.name}</div>`;
+    }).join('');
+    return `<div style="background:var(--surface2);border-radius:6px;padding:8px 10px;font-size:12px">
+      <div style="display:flex;align-items:center;gap:6px;font-weight:600;color:var(--text)">${st} ${j.name}</div>
+      ${stepsHtml}
+    </div>`;
+  }).join('');
+}
+
+async function ssPollStatus() {
+  clearTimeout(ssPollTimer);
+  if (!ssRunId) return;
+  try {
+    const BASE_URL = 'https://comprai.2.25.122.11.nip.io';
+    const r = await fetch(BASE_URL + '/api/github/run/' + ssRunId + '/status');
+    if (!r.ok) throw new Error('status ' + r.status);
+    const data = await r.json();
+    const jobs = data.jobs ?? [];
+    ssRenderJobs(jobs);
+    const done  = jobs.filter(j => j.status === 'completed').length;
+    const total = Math.max(jobs.length, 1);
+    ssSetBar(35 + Math.round((done/total)*55));
+    const active = jobs.find(j => j.status === 'in_progress');
+    if (active) {
+      const step = (active.steps||[]).find(s => s.status === 'in_progress');
+      ssSetStatus('⏳', step ? step.name : active.name);
+    }
+    if (data.status === 'completed') {
+      ssSetBar(100);
+      ssStopElapsed();
+      const ok = data.conclusion === 'success';
+      ssSetStatus(ok ? '✅' : '❌', ok ? 'Varredura concluída! Atualizando resultados...' : 'Falhou — ' + data.conclusion);
+      ssResetBtn();
+      if (ok) { setTimeout(() => loadSecScanData(), 4000); }
+    } else {
+      ssPollTimer = setTimeout(() => ssPollStatus(), 5000);
+    }
+  } catch(e) { ssPollTimer = setTimeout(() => ssPollStatus(), 8000); }
+}
+
 async function secScanRunScan() {
   const btn = document.getElementById('secscan-run-btn');
   const pass = prompt('Senha admin para disparar varredura:');
   if (!pass) return;
-  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Disparando...'; }
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span> Disparando...'; }
+
+  // Mostrar painel de execução
+  const panel = document.getElementById('ss-exec-panel');
+  if (panel) { panel.style.display = ''; }
+  ssSetStatus('⏳', 'Disparando workflow...');
+  ssSetBar(10);
+  ssStartElapsed();
+
   try {
     const BASE_URL = 'https://comprai.2.25.122.11.nip.io';
     const resp = await fetch(BASE_URL + '/api/admin/security/scan', {
@@ -3784,20 +3876,25 @@ async function secScanRunScan() {
       body: JSON.stringify({ password: pass, target: 'scan' })
     });
     const data = await resp.json();
-    if (resp.ok) {
-      const runUrl = data.url ?? 'https://github.com/josehelioaraujo/comprai/actions/workflows/security-scan.yml';
-      if (btn) { btn.disabled = false; btn.innerHTML = '▶ Executar Varredura'; }
-      const msg = data.runId
-        ? '✅ Varredura iniciada! Run #' + data.runId + '\nResultados disponíveis em ~5 min.'
-        : '✅ Varredura enfileirada no GitHub Actions.';
-      if (confirm(msg + '\n\nAbrir GitHub Actions?')) window.open(runUrl, '_blank');
+    if (!resp.ok) throw new Error(data.detail ?? data.title ?? resp.status);
+
+    ssRunId = data.runId ?? null;
+    const link = document.getElementById('ss-exec-link');
+    if (link && data.url) { link.href = data.url; link.style.display = ''; }
+    ssSetStatus('⏳', 'Aguardando GitHub Actions...');
+    ssSetBar(20);
+    if (ssRunId) {
+      ssPollStatus();
     } else {
-      if (btn) { btn.disabled = false; btn.innerHTML = '▶ Executar Varredura'; }
-      alert('Erro: ' + (data.detail ?? data.title ?? resp.status));
+      ssSetStatus('✅', 'Varredura enfileirada. Resultados em ~5 min.');
+      ssSetBar(100);
+      ssResetBtn();
+      ssStopElapsed();
     }
   } catch (e) {
-    if (btn) { btn.disabled = false; btn.innerHTML = '▶ Executar Varredura'; }
-    alert('Erro de rede: ' + e.message);
+    ssSetStatus('❌', 'Erro: ' + e.message);
+    ssStopElapsed();
+    ssResetBtn();
   }
 }
 
@@ -10132,6 +10229,25 @@ tr:hover td { background: rgba(255,255,255,.02); }
             <strong style="color:#e2e8f0">Trivy</strong> (CVEs Docker) + checklist LGPD.
             Executada domingo 03h UTC ou sob demanda.
           </div>
+
+          <!-- Painel de execução live -->
+          <div id="ss-exec-panel" style="display:none;background:var(--surface2);border:1px solid #818cf8;border-radius:10px;padding:14px 16px;margin-bottom:16px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span id="ss-exec-icon" style="font-size:16px">⏳</span>
+                <span id="ss-exec-status" style="font-size:13px;font-weight:600;color:#e2e8f0">Disparando workflow...</span>
+              </div>
+              <span id="ss-exec-elapsed" style="font-size:11px;color:var(--muted);font-family:monospace"></span>
+            </div>
+            <div style="background:var(--bg);border-radius:4px;height:5px;overflow:hidden;margin-bottom:10px">
+              <div id="ss-exec-bar" style="height:100%;background:#818cf8;width:0%;transition:width .5s ease;border-radius:4px"></div>
+            </div>
+            <div style="margin-bottom:8px">
+              <a id="ss-exec-link" href="#" target="_blank" style="display:none;font-size:11px;color:#38bdf8;text-decoration:none">🔗 Ver no GitHub Actions</a>
+            </div>
+            <div id="ss-exec-jobs" style="display:flex;flex-direction:column;gap:6px"></div>
+          </div>
+
           <!-- KPI cards -->
           <div id="secscan-kpi" style="display:none">
             <div id="secscan-kpi-row"></div>
