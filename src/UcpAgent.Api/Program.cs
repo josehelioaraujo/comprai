@@ -1058,6 +1058,52 @@ app.MapPost("/api/admin/restart", async (AdminRestartRequest req, IConfiguration
 .WithTags("Admin")
 .AllowAnonymous();
 
+// ── Admin Security Scan (dispara security-scan.yml via workflow_dispatch) ───
+app.MapPost("/api/admin/security/scan", async (AdminRestartRequest req, IConfiguration config, IHttpClientFactory factory) =>
+{
+    var expected = config["Admin:RestartPassword"]
+                ?? Environment.GetEnvironmentVariable("ADMIN_RESTART_PASSWORD")
+                ?? string.Empty;
+    if (string.IsNullOrWhiteSpace(expected))
+        return Results.Problem("ADMIN_RESTART_PASSWORD não configurado.", statusCode: 503);
+
+    if (!string.Equals(req.Password, expected, StringComparison.Ordinal))
+    {
+        await Task.Delay(1000);
+        return Results.Problem("Senha incorreta.", statusCode: 401);
+    }
+
+    var ghPat = config["GitHub:Pat"] ?? Environment.GetEnvironmentVariable("GH_PAT") ?? string.Empty;
+    if (string.IsNullOrWhiteSpace(ghPat))
+        return Results.Problem("GH_PAT não configurado no servidor.", statusCode: 503);
+
+    const string repo     = "josehelioaraujo/comprai";
+    const string workflow = "security-scan.yml";
+    var client = factory.CreateClient("github");
+    var body = JsonSerializer.Serialize(new { @ref = "main" });
+    var resp = await client.PostAsync(
+        $"https://api.github.com/repos/{repo}/actions/workflows/{workflow}/dispatches",
+        new StringContent(body, System.Text.Encoding.UTF8, "application/json"));
+
+    if (!resp.IsSuccessStatusCode)
+        return Results.Problem($"GitHub API: {(int)resp.StatusCode}", statusCode: 502);
+
+    await Task.Delay(4000);
+    var runsResp = await client.GetAsync(
+        $"https://api.github.com/repos/{repo}/actions/workflows/{workflow}/runs?per_page=1&branch=main");
+    if (runsResp.IsSuccessStatusCode)
+    {
+        using var doc = JsonDocument.Parse(await runsResp.Content.ReadAsStringAsync());
+        var run = doc.RootElement.GetProperty("workflow_runs").EnumerateArray().FirstOrDefault();
+        if (run.ValueKind != JsonValueKind.Undefined)
+            return Results.Ok(new { runId = run.GetProperty("id").GetInt64(), url = run.GetProperty("html_url").GetString(), status = run.GetProperty("status").GetString() });
+    }
+    return Results.Ok(new { runId = (long?)null, url = (string?)null, status = "queued" });
+})
+.WithName("AdminSecurityScan")
+.WithTags("Admin")
+.AllowAnonymous();
+
 // ââ GitHub Run Status ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 app.MapGet("/api/github/run/{runId}/status", async (long runId, string? repo, IConfiguration config, IHttpClientFactory factory) =>
 {
