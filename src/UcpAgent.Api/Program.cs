@@ -45,6 +45,9 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
+// Dapper: mapeia automaticamente snake_case (password_hash → PasswordHash)
+Dapper.DefaultTypeMap.MatchNamesWithUnderscores = true;
+
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.AddOpenTelemetry(logging =>
 {
@@ -296,12 +299,22 @@ builder.Services.AddScoped<ISearchService, SearchService>();
 builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<ICheckoutService, CheckoutService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
+// ── CORS ──────────────────────────────────────────────────────────────────────
+// Origens permitidas lidas de CORS_ALLOWED_ORIGINS (separadas por vírgula).
+// Em desenvolvimento (sem a variável) libera localhost:3000 e :5173.
+// Em produção DEVE ser configurada explicitamente via variável de ambiente.
+var corsOrigins = (builder.Configuration["CORS_ALLOWED_ORIGINS"]
+                   ?? Environment.GetEnvironmentVariable("CORS_ALLOWED_ORIGINS")
+                   ?? "http://localhost:3000,http://localhost:5173")
+                  .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy => policy
-        .AllowAnyOrigin()
+    options.AddPolicy("AllowConfigured", policy => policy
+        .WithOrigins(corsOrigins)
         .AllowAnyMethod()
-        .AllowAnyHeader());
+        .AllowAnyHeader()
+        .AllowCredentials());
 });
 
 // Ã¢ÂÂÃ¢ÂÂ DummyJSON Plugin Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
@@ -344,6 +357,10 @@ if (usarPostgres)
     // DbInitializer — executa migrations DbUp na startup
     builder.Services.AddSingleton(
         _ => new UcpAgent.Infrastructure.Persistence.CompraiDbInitializer(connStr));
+
+    // Segurança — criptografia PII (Fase 2)
+    builder.Services.AddSingleton<UcpAgent.SharedKernel.Ports.IEncryptionService,
+        UcpAgent.Infrastructure.Security.AesGcmEncryptionService>();
 
     // Repositórios
     builder.Services.AddSingleton<UcpAgent.Infrastructure.Persistence.Repositories.CustomerRepository>();
@@ -422,7 +439,7 @@ if (usarPostgres)
 // V059-F1A: Security headers (CSP, HSTS, X-Frame-Options, etc.)
 app.UseMiddleware<SecurityHeadersMiddleware>();
 
-app.UseCors("AllowAll");
+app.UseCors("AllowConfigured");
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -469,13 +486,17 @@ app.MapScalarApiReference();
 
 // ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ Search (cache 5 min) ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬ÃÂ¢Ã¢ÂÂÃ¢ÂÂ¬
 app.MapGet("/api/search", async (
-    string q, int page, int pageSize,
-    string? category, decimal? minPrice, decimal? maxPrice,
+    string q,
+    string? category,
+    decimal? minPrice,
+    decimal? maxPrice,
     IMediator mediator,
     UcpAgent.SharedKernel.Ports.ICacheService cacheService,
     UcpMetrics metrics,
     HttpContext http,
-    CancellationToken ct) =>
+    CancellationToken ct,
+    int page = 1,
+    int pageSize = 10) =>
 {
     var sessionId = http.Request.Headers["X-Session-Id"].FirstOrDefault();
     var cacheKey = $"search:{q.ToLowerInvariant().Trim()}:{page}:{pageSize}:{category}:{minPrice}:{maxPrice}";
@@ -1034,6 +1055,52 @@ app.MapPost("/api/admin/restart", async (AdminRestartRequest req, IConfiguration
     return Results.Ok(new { runId = (long?)null, url = (string?)null, status = "queued" });
 })
 .WithName("AdminRestart")
+.WithTags("Admin")
+.AllowAnonymous();
+
+// ── Admin Security Scan (dispara security-scan.yml via workflow_dispatch) ───
+app.MapPost("/api/admin/security/scan", async (AdminRestartRequest req, IConfiguration config, IHttpClientFactory factory) =>
+{
+    var expected = config["Admin:RestartPassword"]
+                ?? Environment.GetEnvironmentVariable("ADMIN_RESTART_PASSWORD")
+                ?? string.Empty;
+    if (string.IsNullOrWhiteSpace(expected))
+        return Results.Problem("ADMIN_RESTART_PASSWORD não configurado.", statusCode: 503);
+
+    if (!string.Equals(req.Password, expected, StringComparison.Ordinal))
+    {
+        await Task.Delay(1000);
+        return Results.Problem("Senha incorreta.", statusCode: 401);
+    }
+
+    var ghPat = config["GitHub:Pat"] ?? Environment.GetEnvironmentVariable("GH_PAT") ?? string.Empty;
+    if (string.IsNullOrWhiteSpace(ghPat))
+        return Results.Problem("GH_PAT não configurado no servidor.", statusCode: 503);
+
+    const string repo     = "josehelioaraujo/comprai";
+    const string workflow = "security-scan.yml";
+    var client = factory.CreateClient("github");
+    var body = JsonSerializer.Serialize(new { @ref = "main" });
+    var resp = await client.PostAsync(
+        $"https://api.github.com/repos/{repo}/actions/workflows/{workflow}/dispatches",
+        new StringContent(body, System.Text.Encoding.UTF8, "application/json"));
+
+    if (!resp.IsSuccessStatusCode)
+        return Results.Problem($"GitHub API: {(int)resp.StatusCode}", statusCode: 502);
+
+    await Task.Delay(4000);
+    var runsResp = await client.GetAsync(
+        $"https://api.github.com/repos/{repo}/actions/workflows/{workflow}/runs?per_page=1&branch=main");
+    if (runsResp.IsSuccessStatusCode)
+    {
+        using var doc = JsonDocument.Parse(await runsResp.Content.ReadAsStringAsync());
+        var run = doc.RootElement.GetProperty("workflow_runs").EnumerateArray().FirstOrDefault();
+        if (run.ValueKind != JsonValueKind.Undefined)
+            return Results.Ok(new { runId = run.GetProperty("id").GetInt64(), url = run.GetProperty("html_url").GetString(), status = run.GetProperty("status").GetString() });
+    }
+    return Results.Ok(new { runId = (long?)null, url = (string?)null, status = "queued" });
+})
+.WithName("AdminSecurityScan")
 .WithTags("Admin")
 .AllowAnonymous();
 

@@ -25,9 +25,12 @@ services:
       Shopify__AccessToken: ${SHOPIFY_ACCESS_TOKEN}
       Shopify__StoreUrl:    ${SHOPIFY_STORE_URL:-comprai-dev.myshopify.com}
       ConnectionStrings__Default: "Host=comprai-postgres;Port=5432;Database=comprai;Username=comprai;Password=${POSTGRES_PASSWORD};Timezone=UTC"
+      PII_ENCRYPTION_KEY: ${PII_ENCRYPTION_KEY}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
     depends_on:
       - redis
       - comprai-postgres
+      - rabbitmq
     networks:
       - comprai-network
     restart: unless-stopped
@@ -152,9 +155,12 @@ services:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
       - comprai-network
-    profiles:
-      - rabbitmq
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
 
   jaeger:
     image: jaegertracing/all-in-one:latest

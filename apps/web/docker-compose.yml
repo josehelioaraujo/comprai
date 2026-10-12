@@ -1,13 +1,28 @@
 services:
   comprai-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://comprai.2.25.122.11.nip.io}
     image: comprai-web:latest
     container_name: comprai-web
     restart: unless-stopped
+    env_file:
+      - path: ../../.env
+        required: false
+      - path: .env
+        required: false
     ports:
       - "3002:3002"
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=https://comprai.2.25.122.11.nip.io
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://comprai.2.25.122.11.nip.io}
+      # NextAuth v5: AUTH_SECRET lido do env_file (../../.env ou .env local)
+      # Não repetir aqui com ${} — env_file já injeta; repetir com var vazia sobrescreve
+      - API_URL=http://comprai-api:5020
+      - AUTH_URL=${NEXTAUTH_URL:-http://2.25.122.11:3002}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://2.25.122.11:3002}
     networks:
       - comprai-network
 

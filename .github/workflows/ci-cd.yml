@@ -483,11 +483,12 @@ jobs:
           NEW_RELIC_ACCOUNT_ID: ${{ secrets.NEW_RELIC_ACCOUNT_ID }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          PII_ENCRYPTION_KEY: ${{ secrets.PII_ENCRYPTION_KEY }}
         with:
           host: ${{ env.VPS_HOST }}
           username: ${{ env.VPS_USER }}
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
-          envs: DATADOG_API_KEY,BUILD_VERSION,GH_PAT,ADMIN_RESTART_PASSWORD,ML_CLIENT_ID,ML_CLIENT_SECRET,NEW_RELIC_LICENSE_KEY,NEW_RELIC_USER_KEY,NEW_RELIC_ACCOUNT_ID,RESEND_API_KEY,POSTGRES_PASSWORD
+          envs: DATADOG_API_KEY,BUILD_VERSION,GH_PAT,ADMIN_RESTART_PASSWORD,ML_CLIENT_ID,ML_CLIENT_SECRET,NEW_RELIC_LICENSE_KEY,NEW_RELIC_USER_KEY,NEW_RELIC_ACCOUNT_ID,RESEND_API_KEY,POSTGRES_PASSWORD,PII_ENCRYPTION_KEY
           command_timeout: 15m
           script: |
             set -e
@@ -550,6 +551,11 @@ jobs:
             grep -q '^POSTGRES_PASSWORD=' .env \
               && sed -i "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=${POSTGRES_PASSWORD}|" .env \
               || echo "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" >> .env
+
+            # Injetar PII_ENCRYPTION_KEY no .env (criptografia AES-256-GCM — Fase 2)
+            grep -q '^PII_ENCRYPTION_KEY=' .env \
+              && sed -i "s|^PII_ENCRYPTION_KEY=.*|PII_ENCRYPTION_KEY=${PII_ENCRYPTION_KEY}|" .env \
+              || echo "PII_ENCRYPTION_KEY=${PII_ENCRYPTION_KEY}" >> .env
 
             # Garantir Redis connection string correta
             grep -q '^ConnectionStrings__Redis=' .env \

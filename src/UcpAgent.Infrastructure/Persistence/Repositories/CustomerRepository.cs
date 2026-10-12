@@ -1,14 +1,19 @@
 using Dapper;
 using UcpAgent.Infrastructure.Persistence;
+using UcpAgent.SharedKernel.Ports;
 
 namespace UcpAgent.Infrastructure.Persistence.Repositories;
 
 public sealed class CustomerRepository
 {
     private readonly IDbConnectionFactory _factory;
+    private readonly IEncryptionService   _enc;
 
-    public CustomerRepository(IDbConnectionFactory factory)
-        => _factory = factory;
+    public CustomerRepository(IDbConnectionFactory factory, IEncryptionService enc)
+    {
+        _factory = factory;
+        _enc     = enc;
+    }
 
     public Task<Guid?> GetIdByEmailAsync(string email, CancellationToken ct = default)
         => DbResiliencePolicy.ExecuteAsync(async token =>
@@ -32,6 +37,6 @@ public sealed class CustomerRepository
                         updated_at = NOW()
                 RETURNING id
                 """,
-                new { name, email, phone, channel });
+                new { name, email, phone = _enc.Encrypt(phone), channel });
         }, ct);
 }

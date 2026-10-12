@@ -113,6 +113,7 @@ jobs:
               --env "MICROSOFT_CLIENT_ID=${{ secrets.MICROSOFT_CLIENT_ID }}" \
               --env "MICROSOFT_CLIENT_SECRET=${{ secrets.MICROSOFT_CLIENT_SECRET }}" \
               --env "MICROSOFT_TENANT_ID=${{ secrets.MICROSOFT_TENANT_ID }}" \
+              --env "AUTH_TRUST_HOST=true" \
               ${{ env.IMAGE }}:latest
             sleep 8
             curl -sf http://localhost:${{ env.WEB_PORT }}/ && echo "✅ ${{ steps.version.outputs.version }} OK" || { docker logs comprai-web --tail 20; exit 1; }

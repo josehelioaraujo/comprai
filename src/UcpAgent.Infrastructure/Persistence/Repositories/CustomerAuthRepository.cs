@@ -5,7 +5,7 @@ using UcpAgent.SharedKernel.Ports;
 namespace UcpAgent.Infrastructure.Persistence.Repositories;
 
 [ExcludeFromCodeCoverage]
-public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
+public sealed class CustomerAuthRepository(IDbConnectionFactory db, IEncryptionService enc) : IAuthPort
 {
     public async Task<AuthCustomerDto?> RegisterAsync(RegisterRequest req, CancellationToken ct = default)
     {
@@ -22,7 +22,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
             VALUES (@Name, @Email, @Document, 'credentials', NULL, @Hash, FALSE, 'web')
             RETURNING id, name, email, provider, avatar_url, email_verified, phone, document, totp_enabled
             """,
-            new { req.Name, req.Email, req.Document, Hash = hash });
+            new { req.Name, req.Email, Document = enc.Encrypt(req.Document), Hash = hash });
         return ToDto(row, null);
     }
 
@@ -37,6 +37,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
             """,
             new { Email = email });
         if (row is null) return null;
+        if (row.PasswordHash is null) return null;   // usuário SSO sem senha
         if (!BCrypt.Net.BCrypt.Verify(password, row.PasswordHash)) return null;
         return ToDto(row, null);
     }
@@ -60,13 +61,14 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
 
     public async Task<AuthCustomerDto?> GetByIdAsync(string customerId, CancellationToken ct = default)
     {
+        var guid = Guid.Parse(customerId);
         using var conn = await db.CreateAsync(ct);
         var row = await conn.QuerySingleOrDefaultAsync<CustomerRow>(
             """
             SELECT id, name, email, provider, avatar_url, email_verified, phone, document, totp_enabled
             FROM customer WHERE id = @Id
             """,
-            new { Id = customerId });
+            new { Id = guid });
         if (row is null) return null;
 
         var addresses = (await conn.QueryAsync<AddressRow>(
@@ -76,7 +78,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
             WHERE customer_id = @Id
             ORDER BY is_default DESC, created_at DESC
             """,
-            new { Id = customerId })).ToList();
+            new { Id = guid })).ToList();
 
         return ToDto(row, addresses);
     }
@@ -94,7 +96,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
             WHERE id = @Id
             RETURNING id, name, email, provider, avatar_url, email_verified, phone, document, totp_enabled
             """,
-            new { req.Name, req.Phone, req.Document, Id = req.CustomerId });
+            new { req.Name, Phone = enc.Encrypt(req.Phone), Document = enc.Encrypt(req.Document), Id = Guid.Parse(req.CustomerId) });
         return row is null ? null : ToDto(row, null);
     }
 
@@ -102,10 +104,11 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
     {
         using var conn = await db.CreateAsync(ct);
 
+        var customerGuid = Guid.Parse(req.CustomerId);
         if (req.IsDefault)
             await conn.ExecuteAsync(
                 "UPDATE customer_address SET is_default = FALSE WHERE customer_id = @Id",
-                new { Id = req.CustomerId });
+                new { Id = customerGuid });
 
         var row = await conn.QuerySingleOrDefaultAsync<AddressRow>(
             """
@@ -124,10 +127,14 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
             RETURNING id, label, zip_code, street, number, complement, neighborhood, city, state, is_default
             """,
             new {
-                CustomerId   = req.CustomerId,
+                CustomerId   = customerGuid,
                 Label        = req.Label ?? "principal",
-                req.ZipCode, req.Street, req.Number, req.Complement,
-                req.Neighborhood, req.City, req.State, req.IsDefault
+                req.ZipCode,
+                Street       = enc.Encrypt(req.Street),
+                Number       = enc.Encrypt(req.Number),
+                Complement   = enc.Encrypt(req.Complement),
+                Neighborhood = enc.Encrypt(req.Neighborhood),
+                req.City, req.State, req.IsDefault
             });
         return row is null ? null : ToAddressDto(row);
     }
@@ -145,7 +152,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
                 updated_at               = NOW()
             WHERE id = @Id
             """,
-            new { Hash = tokenHash, ExpiresAt = expiresAt, Id = customerId });
+            new { Hash = tokenHash, ExpiresAt = expiresAt, Id = Guid.Parse(customerId) });
     }
 
     public async Task<AuthCustomerDto?> GetByRefreshTokenHashAsync(string tokenHash, CancellationToken ct = default)
@@ -173,7 +180,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
                 updated_at               = NOW()
             WHERE id = @Id
             """,
-            new { Id = customerId });
+            new { Id = Guid.Parse(customerId) });
     }
 
     // ── V060-F1: Email Verification ──────────────────────────────────────────
@@ -189,7 +196,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
                 updated_at                    = NOW()
             WHERE id = @Id
             """,
-            new { Code = code, ExpiresAt = expiresAt, Id = customerId });
+            new { Code = code, ExpiresAt = expiresAt, Id = Guid.Parse(customerId) });
     }
 
     public async Task<bool> VerifyEmailCodeAsync(string customerId, string code, CancellationToken ct = default)
@@ -206,7 +213,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
               AND email_verification_token      = @Code
               AND email_verification_expires_at > NOW()
             """,
-            new { Id = customerId, Code = code });
+            new { Id = Guid.Parse(customerId), Code = code });
         return affected > 0;
     }
 
@@ -222,7 +229,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
                 updated_at  = NOW()
             WHERE id = @Id
             """,
-            new { Secret = secret, Id = customerId });
+            new { Secret = secret, Id = Guid.Parse(customerId) });
     }
 
     public async Task<(bool Enabled, string? Secret)> GetTotpDataAsync(string customerId, CancellationToken ct = default)
@@ -230,7 +237,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
         using var conn = await db.CreateAsync(ct);
         var row = await conn.QuerySingleOrDefaultAsync<(bool Enabled, string? Secret)>(
             "SELECT totp_enabled, totp_secret FROM customer WHERE id = @Id",
-            new { Id = customerId });
+            new { Id = Guid.Parse(customerId) });
         return row;
     }
 
@@ -244,7 +251,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
                 updated_at   = NOW()
             WHERE id = @Id
             """,
-            new { Id = customerId });
+            new { Id = Guid.Parse(customerId) });
         return affected > 0;
     }
 
@@ -259,7 +266,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
                 updated_at   = NOW()
             WHERE id = @Id
             """,
-            new { Id = customerId });
+            new { Id = Guid.Parse(customerId) });
     }
 
     // ── V061-F1: Recuperação de Senha ────────────────────────────────────────
@@ -324,19 +331,21 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db) : IAuthPort
                 updated_at              = NOW()
             WHERE id = @Id
             """,
-            new { Id = customerId });
+            new { Id = Guid.Parse(customerId) });
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
-    private static AuthCustomerDto ToDto(CustomerRow r, List<AddressRow>? addresses) =>
+    private AuthCustomerDto ToDto(CustomerRow r, List<AddressRow>? addresses) =>
         new(r.Id.ToString(), r.Name, r.Email, r.Provider, r.AvatarUrl, r.EmailVerified,
-            r.Phone, r.Document,
+            enc.Decrypt(r.Phone), enc.Decrypt(r.Document),
             addresses?.Select(ToAddressDto).ToList(),
             r.TotpEnabled);
 
-    private static CustomerAddressDto ToAddressDto(AddressRow a) =>
-        new(a.Id.ToString(), a.Label ?? "", a.ZipCode, a.Street,
-            a.Number, a.Complement, a.Neighborhood, a.City, a.State, a.IsDefault);
+    private CustomerAddressDto ToAddressDto(AddressRow a) =>
+        new(a.Id.ToString(), a.Label ?? "", a.ZipCode,
+            enc.Decrypt(a.Street) ?? "",
+            enc.Decrypt(a.Number), enc.Decrypt(a.Complement),
+            enc.Decrypt(a.Neighborhood), a.City, a.State, a.IsDefault);
 
     private sealed class CustomerRow
     {

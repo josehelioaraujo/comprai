@@ -909,10 +909,63 @@ strix scan http://2.25.122.11:5020 --output report.html
 - [x] Login step-up: `LoginPage` detecta `requires2fa`, redireciona; next-auth aceita `{token, customer}` pré-validado
 - [x] Job Pentest Strix removido do pipeline
 
-**V061 🔜**
-- [ ] Painel Pentest no OpsWatch — findings ZAP em `/k6/results/pentest/latest.json`
-- [ ] Recuperação de senha via email (Resend, token UUID 1h)
-- [ ] `POST /api/auth/logout-all` — revogar todos os refresh tokens
+**V061 ✅**
+- [x] Painel Pentest no OpsWatch — findings ZAP em `/k6/results/pentest/latest.json`
+- [x] Recuperação de senha via email (Resend, token UUID→SHA-256, 1h, anti-enumeração 204)
+- [x] `POST /api/auth/logout-all` — revogar todos os refresh tokens do customer
+- [x] Páginas web `/auth/forgot-password` + `/auth/reset-password` (design white/purple)
+
+**V062 ✅**
+- [x] Playwright E2E com gravação de vídeo (.webm) e screenshots por teste
+- [x] Specs: `auth.spec.ts`, `search.spec.ts`, `checkout.spec.ts`, `account.spec.ts`, `purchase-flow.spec.ts`
+- [x] Workflow `e2e.yml` — trigger push main + schedule 03h UTC + `workflow_dispatch`
+- [x] Painel "E2E / Evidências" no OpsWatch — status por spec, vídeos, link HTML report
+
+**V063 ✅**
+- [x] `global-setup.ts` — login único com retry automático (4x, 65 s) antes de todos os testes
+- [x] `storageState.json` — sessão autenticada reutilizada em todos os testes (evita rate-limit)
+- [x] `RateLimitOptions.Auth` configurável via env `RateLimit__Auth__PermitLimit` para E2E/dev
+- [x] Fix crítico NextAuth v5: `AUTH_TRUST_HOST=true` + `AUTH_URL` no container `comprai-web`
+
+**V064 ✅**
+- [x] `strict mode violation` corrigido — `getByRole('button', { name: 'Entrar' })` em todos os specs
+- [x] `auth.spec.ts` test 7 — `test.use({ storageState: empty })` para validar redirect sem auth
+- [x] `purchase-flow.spec.ts` reescrito — fluxo híbrido API + UI com resumo final consolidado
+- [x] Tolerância a 429 rate-limit e `ECONNREFUSED` em todos os blocos de API
+- [x] `/api/search` com defaults `page=1&pageSize=10`; CS1737 corrigido
+- [x] Script `run-e2e-vps.sh` + `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` para execução na VPS
+- [x] **30 passando · 1 skipped · 0 falhando** ✅
+
+**V068 ✅**
+- [x] `security-scan.yml` — Gitleaks + dotnet --vulnerable + Trivy (docker run) → `latest.json` com score 0–100 e badge secure/warning/critical
+- [x] OpsWatch "Varredura de Segurança": cards KPI clicáveis, seções colapsáveis, drill-down por CVE/pacote/secret
+- [x] Botão ⧉ copy por item (via `data-cp`), botão ⬇ PDF, painel live de execução, modal glossário ℹ com 12 termos
+- [x] `PII_ENCRYPTION_KEY` propagado via docker-compose; CodeQL corrigido no `ci-cd.yml`
+
+**V067 ✅**
+- [x] `apps/e2e/fixtures.ts` — fixture custom override de `context`; grava `har-evidence/{title}-chromium.har` por teste; `requests: []` corrigido ✅
+- [x] Causa raiz: `recordHar.path` sem extensão criava FILE em vez de diretório
+- [x] Botão global "Baixar Collection Postman" (laranja `#ff6c37`) — Postman Collection v2.1 com todos os specs
+- [x] `_e2eToPostmanCollection()` — agrupa suite → test → request; URL parsed; headers; savedResponses
+- [x] `e2eDownloadSpecPostman(idx)` + `e2eCopySpec(idx, btn)` — ações individuais por spec
+- [x] Ícones SVG 11×11 discretos (copy/download) com tooltip por linha de spec no OpsWatch
+- [x] Fix: `JSON.stringify()` inline em `onclick` quebrava o HTML — corrigido com referência por índice
+
+**V066 ✅**
+- [x] Botão "Baixar Todos os Testes" no OpsWatch e `report.html` — JSON com todos os specs + requisições HTTP
+- [x] Captura de Request/Response via HAR: `recordHar` no Playwright, artifact upload inclui `apps/e2e/har-evidence/`
+- [x] `norm_har_key()` + Jaccard similarity — matching fuzzy entre arquivos `.har` e títulos de spec
+- [x] Requisições HTTP exibidas inline no OpsWatch: método, status, path, req_headers, req_body, res_body
+- [x] `report.html` melhorado: tabela com drilldown, player de vídeos sequencial, filtro por status, timezone BRT
+- [x] OpsWatch: nested suites, collapse all, chevron nos jobs, botão cancelar workflow
+
+**V065 ✅**
+- [x] `createPayment()` corrigida — `POST /api/payment/{orderId}` com body e headers corretos
+- [x] Smoke test de pagamento: `200 ✅ | MOCK-PAY-XXXXXXXX`
+- [x] OpsWatch — jobs/steps expansíveis (drill-down) na execução de workflow
+- [x] OpsWatch — suites E2E colapsáveis com chevron animado
+- [x] OpsWatch — todos os specs clicáveis, modal com cor por status (verde/vermelho/amarelo)
+- [x] OpsWatch — cards KPI Duração e Taxa OK abrem modal de resultados
 
 </details>
 
@@ -1065,6 +1118,13 @@ http://<VPS>:3003   # App mobile independente
 | **V056** | `ICartSnapshotService` (Clean Architecture); Front: X-Session-Id, sessionId payment, restore carrinho |
 | **V059** | Segurança: SecurityHeadersMiddleware, Rate limiting login/register, OWASP ZAP auth+headers, Refresh token rotação JWT |
 | **V060** | Segurança: Verificação de email pós-cadastro (Resend OTP), 2FA TOTP completo (Otp.NET, step-up login, next-auth pré-autenticado), job Strix removido |
+| **V061** | Segurança: Recuperação de senha (Resend, SHA-256, anti-enumeração), logout-all, painel Pentest no OpsWatch |
+| **V062** | E2E Evidence Recorder: 5 specs Playwright, workflow e2e.yml, painel OpsWatch, vídeo+screenshot |
+| **V063** | E2E Infrastructure: global-setup com retry, storageState, RateLimit.Auth configurável, fix AUTH_TRUST_HOST NextAuth v5 |
+| **V064** | E2E: 14 falhas → 0 — strict mode, purchase-flow híbrido, tolerância 429/ECONNREFUSED, script VPS |
+| **V067** | HAR per-test fix (requests: [] resolvido), Postman Collection export global+individual, ícones copy/download discretos por spec |
+| **V066** | E2E Evidence: botão "Baixar Todos", captura HAR request/response, norm_har_key, req_headers, report.html melhorado |
+| **V065** | Endpoint pagamento corrigido (POST /api/payment/{orderId}); OpsWatch E2E drill-down UX completo |
 | **V052** | BD como source of truth: UUID order, endereço snapshot, fulfillment_event, DI corrigido, smoke test fix |
 | **V051** | Testes CI verdes; F5 polling real de fulfillment; auto-dismiss PixCard/StripeCard pós-confirmação |
 
@@ -1081,6 +1141,7 @@ http://<VPS>:3003   # App mobile independente
 | **Segurança** | ~~SecurityHeaders, Rate limiting, OWASP ZAP, Refresh token~~ ✅ V059 | — |
 | **Segurança cont.** | ~~Verificação de email (Resend), 2FA TOTP, job Strix removido~~ ✅ V060 | — |
 | **Segurança cont. / OpsWatch** | Painel Pentest OpsWatch, recuperação de senha, logout-all | V061 |
+| **V068 — Auditoria de Segurança + Criptografia PII** | Varredura gitleaks/trufflehog, AES-256-GCM em campos sensíveis (document, phone, address), mascaramento em API response, Serilog DestructuringPolicy, SAST no CI | Próximo |
 | **OMS + WMS + Carrier (plugins)** | Plugins hexagonais extensíveis: `Oms.Simulated/Vtex`, `Wms.Simulated/Totvs`, `Carrier.Simulated/Correios` | Futuro |
 | **LLM Diagnóstico** | `/api/ai/analyze` → Ollama + fallback Claude; botão "Analisar" no OpsWatch | Futuro |
 | **GROQ_MODEL_SELECTOR** | Seletor de modelo no `workflow_dispatch` do code-review | Futuro |
