@@ -4,7 +4,7 @@ using UcpAgent.Infrastructure.Persistence;
 
 namespace UcpAgent.Infrastructure.Persistence.Repositories;
 
-// ── DTOs ─────────────────────────────────────────────────────────────────────
+// ââ DTOs âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 public sealed record AdminSummaryDto(
     int     TotalOrders,
@@ -76,16 +76,16 @@ public sealed record AdminCustomersStatsDto(
 public sealed record AdminSalesChartPoint(
     string  Date,
     decimal Revenue,
-    int     Orders);
+    long    Orders);
 
 public sealed record AdminTopProductDto(
     string  ProductId,
     string  ProductTitle,
     string? ImageUrl,
-    int     TotalQuantity,
+    long    TotalQuantity,
     decimal TotalRevenue);
 
-// ── Repository ───────────────────────────────────────────────────────────────
+// ââ Repository âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 [ExcludeFromCodeCoverage]
 public sealed class AdminQueryRepository(IDbConnectionFactory factory)
