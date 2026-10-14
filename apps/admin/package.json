@@ -1,6 +1,6 @@
 {
   "name": "comprai-admin",
-  "version": "1.0.2",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3004",
@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "next": "^15.5.27",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "recharts": "^2.15.0"
   },
   "devDependencies": {
