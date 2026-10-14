@@ -29,6 +29,7 @@ public sealed class JwtService(IConfiguration config)
             new Claim(JwtRegisteredClaimNames.Email, customer.Email),
             new Claim(JwtRegisteredClaimNames.Name,  customer.Name),
             new Claim("provider",                    customer.Provider),
+            new Claim(ClaimTypes.Role,               customer.Role),
             new Claim(JwtRegisteredClaimNames.Jti,  Guid.NewGuid().ToString())
         };
 

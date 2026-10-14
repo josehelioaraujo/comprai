@@ -20,7 +20,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db, IEncryptionS
             """
             INSERT INTO customer (name, email, document, provider, provider_id, password_hash, email_verified, channel)
             VALUES (@Name, @Email, @Document, 'credentials', NULL, @Hash, FALSE, 'web')
-            RETURNING id, name, email, provider, avatar_url, email_verified, phone, document, totp_enabled
+            RETURNING id, name, email, provider, avatar_url, email_verified, phone, document, totp_enabled, role
             """,
             new { req.Name, req.Email, Document = enc.Encrypt(req.Document), Hash = hash });
         return ToDto(row, null);
@@ -31,7 +31,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db, IEncryptionS
         using var conn = await db.CreateAsync(ct);
         var row = await conn.QuerySingleOrDefaultAsync<CustomerRow>(
             """
-            SELECT id, name, email, provider, avatar_url, email_verified, phone, document, password_hash, totp_enabled
+            SELECT id, name, email, provider, avatar_url, email_verified, phone, document, password_hash, totp_enabled, role
             FROM customer
             WHERE email = @Email AND provider = 'credentials'
             """,
@@ -53,7 +53,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db, IEncryptionS
                 SET name        = EXCLUDED.name,
                     avatar_url  = EXCLUDED.avatar_url,
                     updated_at  = NOW()
-            RETURNING id, name, email, provider, avatar_url, email_verified, phone, document, totp_enabled
+            RETURNING id, name, email, provider, avatar_url, email_verified, phone, document, totp_enabled, role
             """,
             new { req.Name, req.Email, req.Provider, ProviderId = req.ProviderId, req.AvatarUrl });
         return ToDto(row, null);
@@ -65,7 +65,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db, IEncryptionS
         using var conn = await db.CreateAsync(ct);
         var row = await conn.QuerySingleOrDefaultAsync<CustomerRow>(
             """
-            SELECT id, name, email, provider, avatar_url, email_verified, phone, document, totp_enabled
+            SELECT id, name, email, provider, avatar_url, email_verified, phone, document, totp_enabled, role
             FROM customer WHERE id = @Id
             """,
             new { Id = guid });
@@ -94,7 +94,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db, IEncryptionS
                 document   = @Document,
                 updated_at = NOW()
             WHERE id = @Id
-            RETURNING id, name, email, provider, avatar_url, email_verified, phone, document, totp_enabled
+            RETURNING id, name, email, provider, avatar_url, email_verified, phone, document, totp_enabled, role
             """,
             new { req.Name, Phone = enc.Encrypt(req.Phone), Document = enc.Encrypt(req.Document), Id = Guid.Parse(req.CustomerId) });
         return row is null ? null : ToDto(row, null);
@@ -160,7 +160,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db, IEncryptionS
         using var conn = await db.CreateAsync(ct);
         var row = await conn.QuerySingleOrDefaultAsync<CustomerRow>(
             """
-            SELECT id, name, email, provider, avatar_url, email_verified, phone, document, totp_enabled
+            SELECT id, name, email, provider, avatar_url, email_verified, phone, document, totp_enabled, role
             FROM customer
             WHERE refresh_token_hash = @Hash
               AND refresh_token_expires_at > NOW()
@@ -291,7 +291,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db, IEncryptionS
         using var conn = await db.CreateAsync(ct);
         var row = await conn.QuerySingleOrDefaultAsync<CustomerRow>(
             """
-            SELECT id, name, email, provider, avatar_url, email_verified, phone, document, totp_enabled
+            SELECT id, name, email, provider, avatar_url, email_verified, phone, document, totp_enabled, role
             FROM customer
             WHERE password_reset_token_hash = @TokenHash
               AND password_reset_expires_at  > NOW()
@@ -339,7 +339,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db, IEncryptionS
         new(r.Id.ToString(), r.Name, r.Email, r.Provider, r.AvatarUrl, r.EmailVerified,
             enc.Decrypt(r.Phone), enc.Decrypt(r.Document),
             addresses?.Select(ToAddressDto).ToList(),
-            r.TotpEnabled);
+            r.TotpEnabled, r.Role);
 
     private CustomerAddressDto ToAddressDto(AddressRow a) =>
         new(a.Id.ToString(), a.Label ?? "", a.ZipCode,
@@ -359,6 +359,7 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db, IEncryptionS
         public string? Document      { get; init; }
         public string? PasswordHash  { get; init; }
         public bool    TotpEnabled   { get; init; }
+        public string  Role          { get; init; } = "customer";
     }
 
     private sealed class AddressRow
