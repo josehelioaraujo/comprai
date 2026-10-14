@@ -25,6 +25,19 @@ async function handler(req: NextRequest, { params }: { params: Promise<{ path: s
       body: req.method !== 'GET' && req.method !== 'HEAD' ? await req.text() : undefined,
     })
 
+    // Se o backend rejeitar o token (expirado / revogado), limpar cookies
+    // e retornar 401 para que o frontend redirecione para /login.
+    if (res.status === 401) {
+      const response = NextResponse.json(
+        { error: 'Sessão expirada. Faça login novamente.' },
+        { status: 401 },
+      )
+      const cookieOpts = { maxAge: 0, path: '/' } as const
+      response.cookies.set('admin_token', '', cookieOpts)
+      response.cookies.set('admin_user', '', cookieOpts)
+      return response
+    }
+
     const data = await res.text()
     return new NextResponse(data, {
       status: res.status,

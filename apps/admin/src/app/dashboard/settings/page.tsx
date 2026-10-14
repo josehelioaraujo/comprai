@@ -1,6 +1,13 @@
 'use client'
 
 import { useState, useEffect, FormEvent } from 'react'
+import { fetchProxy } from '@/lib/fetch-proxy'
+
+interface MeResponse {
+  name?: string
+  phone?: string
+  email?: string
+}
 
 export default function SettingsPage() {
   const [name, setName] = useState('')
@@ -11,13 +18,17 @@ export default function SettingsPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    fetch('/api/proxy/api/auth/me')
-      .then(r => r.json())
+    fetchProxy<MeResponse>('/api/auth/me')
       .then(data => {
         setName(data.name ?? '')
         setPhone(data.phone ?? '')
       })
-      .catch(() => setError('Erro ao carregar dados.'))
+      .catch(err => {
+        // 'Unauthorized' → fetchProxy já redirecionou para /login
+        if ((err as Error).message !== 'Unauthorized') {
+          setError('Erro ao carregar dados.')
+        }
+      })
       .finally(() => setLoading(false))
   }, [])
 
@@ -27,30 +38,29 @@ export default function SettingsPage() {
     setError('')
     setSuccess(false)
     try {
-      const res = await fetch('/api/proxy/api/auth/me', {
+      await fetchProxy('/api/auth/me', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, phone }),
       })
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}))
-        setError(d.error ?? 'Erro ao salvar.')
-      } else {
-        setSuccess(true)
-        try {
-          const existing = Object.fromEntries(
-            document.cookie.split('; ').filter(Boolean).map(c => {
-              const idx = c.indexOf('=')
-              return [c.slice(0, idx), decodeURIComponent(c.slice(idx + 1))]
-            })
-          )
-          const u = existing.admin_user ? JSON.parse(existing.admin_user) : {}
-          const maxAge = 60 * 60 * 8
-          document.cookie = `admin_user=${encodeURIComponent(JSON.stringify({ ...u, name }))}; path=/; max-age=${maxAge}; samesite=lax`
-        } catch { /* ignore */ }
+      setSuccess(true)
+      // Atualizar o cookie admin_user com o novo nome (legível por JS)
+      try {
+        const existing = Object.fromEntries(
+          document.cookie.split('; ').filter(Boolean).map(c => {
+            const idx = c.indexOf('=')
+            return [c.slice(0, idx), decodeURIComponent(c.slice(idx + 1))]
+          })
+        )
+        const u = existing.admin_user ? JSON.parse(existing.admin_user) : {}
+        const maxAge = 60 * 60 * 8
+        document.cookie = `admin_user=${encodeURIComponent(JSON.stringify({ ...u, name }))}; path=/; max-age=${maxAge}; samesite=lax`
+      } catch { /* ignore */ }
+    } catch (err) {
+      // 'Unauthorized' → fetchProxy já redirecionou para /login
+      if ((err as Error).message !== 'Unauthorized') {
+        setError((err as Error).message || 'Erro ao salvar.')
       }
-    } catch {
-      setError('Erro de conexão.')
     } finally {
       setSaving(false)
     }

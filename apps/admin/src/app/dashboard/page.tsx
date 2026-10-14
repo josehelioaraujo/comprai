@@ -10,14 +10,11 @@ import type {
   AdminTopProduct, AdminOrderDetail
 } from '@/types'
 import { formatCurrency, formatDate, STATUS_LABELS, STATUS_COLORS } from '@/lib/api'
+import { fetchProxy } from '@/lib/fetch-proxy'
 
 // ── fetch helpers ────────────────────────────────────────────────────────────
 
-async function fetchAdmin<T>(path: string): Promise<T> {
-  const res = await fetch(`/api/proxy${path}`)
-  if (!res.ok) throw new Error(`${res.status}`)
-  return res.json()
-}
+const fetchAdmin = fetchProxy
 
 // ── KPI Card ─────────────────────────────────────────────────────────────────
 
