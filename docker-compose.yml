@@ -243,13 +243,13 @@ services:
     restart: unless-stopped
 
   comprai-admin:
-    image: ghcr.io/josehelioaraujo/comprai/comprai-admin:latest
+    image: ghcr.io/josehelioaraujo/comprai-admin:latest
     container_name: comprai-admin
     ports:
       - '3004:3004'
     environment:
       NODE_ENV: production
-      # API_BASE_URL é lida em runtime pelo proxy (não NEXT_PUBLIC_, para não ser baked no build)
+      # API_BASE_URL Ã© lida em runtime pelo proxy (nÃ£o NEXT_PUBLIC_, para nÃ£o ser baked no build)
       API_BASE_URL: ${ADMIN_API_URL:-http://comprai-api:5020}
       COOKIE_SECURE: 'false'
     depends_on:
