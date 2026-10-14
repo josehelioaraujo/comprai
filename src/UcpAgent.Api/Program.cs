@@ -1241,7 +1241,8 @@ app.MapGet("/api/github/run/latest", async (string? workflow, string? repo, ICon
 .AllowAnonymous();
 
 app.MapAuthEndpoints();
-app.MapAdminEndpoints();
+if (usarPostgres)
+    app.MapAdminEndpoints();
 
 app.UseOpenTelemetryPrometheusScrapingEndpoint();
 app.Run();
