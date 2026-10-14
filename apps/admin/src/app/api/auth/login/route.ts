@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await backendRes.json() as {
-      accessToken: string
+      token: string
       customer: { role: string; id: string; name: string; email: string }
     }
 
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     const response = NextResponse.json({ ok: true, name: data.customer.name })
 
     // Salvar token em cookie HttpOnly seguro
-    response.cookies.set('admin_token', data.accessToken, {
+    response.cookies.set('admin_token', data.token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
