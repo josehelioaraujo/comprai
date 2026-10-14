@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5020'
+// Use private env var (runtime, not build-time)
+const API_BASE_URL = process.env.API_BASE_URL ?? 'http://localhost:5020'
 
 export async function POST(req: NextRequest) {
   try {
     const { email, password } = await req.json()
 
-    const backendRes = await fetch(`${API_URL}/api/auth/login`, {
+    const backendRes = await fetch(`${API_BASE_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
@@ -28,13 +29,27 @@ export async function POST(req: NextRequest) {
 
     const response = NextResponse.json({ ok: true, name: data.customer.name })
 
-    // Salvar token em cookie HttpOnly
-    // COOKIE_SECURE=true apenas quando acessado via HTTPS
+    const secure = process.env.COOKIE_SECURE === 'true'
+    const maxAge = 60 * 60 * 8 // 8 horas
+
+    // Token HttpOnly — inacessível pelo JS do browser
     response.cookies.set('admin_token', data.token, {
       httpOnly: true,
-      secure: process.env.COOKIE_SECURE === 'true',
+      secure,
       sameSite: 'lax',
-      maxAge: 60 * 60 * 8, // 8 horas
+      maxAge,
+      path: '/',
+    })
+
+    // Info do usuário — legível pelo JS (para exibir nome no topbar)
+    response.cookies.set('admin_user', JSON.stringify({
+      name: data.customer.name,
+      email: data.customer.email,
+    }), {
+      httpOnly: false,
+      secure,
+      sameSite: 'lax',
+      maxAge,
       path: '/',
     })
 

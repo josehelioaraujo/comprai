@@ -27,6 +27,7 @@ services:
       ConnectionStrings__Default: "Host=comprai-postgres;Port=5432;Database=comprai;Username=comprai;Password=${POSTGRES_PASSWORD};Timezone=UTC"
       PII_ENCRYPTION_KEY: ${PII_ENCRYPTION_KEY}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
+      Jwt__ExpirationMinutes: '480'
     depends_on:
       - redis
       - comprai-postgres
@@ -248,7 +249,9 @@ services:
       - '3004:3004'
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_API_URL: ${ADMIN_API_URL:-http://comprai-api:5020}
+      # API_BASE_URL é lida em runtime pelo proxy (não NEXT_PUBLIC_, para não ser baked no build)
+      API_BASE_URL: ${ADMIN_API_URL:-http://comprai-api:5020}
+      COOKIE_SECURE: 'false'
     depends_on:
       - comprai-api
     networks:
