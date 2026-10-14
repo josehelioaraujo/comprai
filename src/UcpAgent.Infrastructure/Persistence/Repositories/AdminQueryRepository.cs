@@ -15,7 +15,7 @@ public sealed record AdminSummaryDto(
     decimal AvgOrderValue);
 
 public sealed record AdminOrderRow(
-    string  OrderId,
+    Guid    OrderId,
     string  Status,
     decimal Total,
     string? CustomerName,
