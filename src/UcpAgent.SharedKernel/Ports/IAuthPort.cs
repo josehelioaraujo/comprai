@@ -53,7 +53,8 @@ public record AuthCustomerDto(
     string? Phone    = null,
     string? Document = null,
     IReadOnlyList<CustomerAddressDto>? Addresses = null,
-    bool TotpEnabled = false);
+    bool TotpEnabled = false,
+    string Role = "customer");
 
 public interface IAuthPort
 {
