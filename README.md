@@ -548,6 +548,31 @@ docker compose --profile kafka up -d
 
 </details>
 
+<details>
+<summary>🌱 Seed Data (VPS / Dev)</summary>
+
+Scripts em `seed/` para popular ou limpar o banco de dados PostgreSQL:
+
+```bash
+# Popular com dados realistas (20 clientes, 23 pedidos, pagamentos, itens)
+docker exec -i comprai-postgres psql -U postgres -d comprai < /home/projetos/comprai/seed/seed.sql
+
+# Limpar todos os dados (mantém estrutura) — IRREVERSÍVEL
+docker exec -i comprai-postgres psql -U postgres -d comprai < /home/projetos/comprai/seed/clean.sql
+```
+
+> ⚠️ `clean.sql` faz `TRUNCATE CASCADE` em todas as tabelas. Use apenas em dev/homolog.
+
+**Dashboard Admin (porta 3004)**
+
+Após deploy CI/CD, o container `comprai-admin` não sobe automaticamente. Iniciar manualmente:
+
+```bash
+docker compose up -d --no-deps comprai-admin
+```
+
+</details>
+
 ---
 
 ## 🧪 Qualidade & Testes
@@ -936,6 +961,15 @@ strix scan http://2.25.122.11:5020 --output report.html
 - [x] Script `run-e2e-vps.sh` + `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` para execução na VPS
 - [x] **30 passando · 1 skipped · 0 falhando** ✅
 
+**V069 ✅**
+- [x] Dashboard Administrativo em Next.js 15 — porta `3004` com autenticação JWT `role=admin`
+- [x] KPI cards, tabela de pedidos, gráfico de vendas, seções Pagamentos / Entregas / Clientes
+- [x] Endpoints `GET /api/admin/stats/summary|orders|payments|fulfillment|customers|sales|top-products`
+- [x] Fix: int → long em 19 campos de 7 DTOs (`AdminQueryRepository`) — PostgreSQL `bigint` × Dapper posicional
+- [x] Fix: `AdminOrderRow.OrderId` string → `Guid` — PostgreSQL `uuid` mapeia para `System.Guid`
+- [x] `seed/seed.sql` — 20 clientes + 23 pedidos + itens + pagamentos (dados realistas BR)
+- [x] `seed/clean.sql` — `TRUNCATE CASCADE` em todas as tabelas (dev/homolog)
+
 **V068 ✅**
 - [x] `security-scan.yml` — Gitleaks + dotnet --vulnerable + Trivy (docker run) → `latest.json` com score 0–100 e badge secure/warning/critical
 - [x] OpsWatch "Varredura de Segurança": cards KPI clicáveis, seções colapsáveis, drill-down por CVE/pacote/secret
@@ -1141,7 +1175,8 @@ http://<VPS>:3003   # App mobile independente
 | **Segurança** | ~~SecurityHeaders, Rate limiting, OWASP ZAP, Refresh token~~ ✅ V059 | — |
 | **Segurança cont.** | ~~Verificação de email (Resend), 2FA TOTP, job Strix removido~~ ✅ V060 | — |
 | **Segurança cont. / OpsWatch** | Painel Pentest OpsWatch, recuperação de senha, logout-all | V061 |
-| **V068 — Auditoria de Segurança + Criptografia PII** | Varredura gitleaks/trufflehog, AES-256-GCM em campos sensíveis (document, phone, address), mascaramento em API response, Serilog DestructuringPolicy, SAST no CI | Próximo |
+| **~~V068 — Auditoria de Segurança + Criptografia PII~~** | ~~Varredura gitleaks/trufflehog, AES-256-GCM em campos sensíveis, mascaramento em API response, SAST no CI~~ ✅ V068 | — |
+| **~~V069 — Dashboard Administrativo~~** | ~~Next.js 15 porta 3004, KPI cards, gráfico vendas, endpoints /api/admin/*, fix int→long DTOs, seed data~~ ✅ V069 | — |
 | **OMS + WMS + Carrier (plugins)** | Plugins hexagonais extensíveis: `Oms.Simulated/Vtex`, `Wms.Simulated/Totvs`, `Carrier.Simulated/Correios` | Futuro |
 | **LLM Diagnóstico** | `/api/ai/analyze` → Ollama + fallback Claude; botão "Analisar" no OpsWatch | Futuro |
 | **GROQ_MODEL_SELECTOR** | Seletor de modelo no `workflow_dispatch` do code-review | Futuro |

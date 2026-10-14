@@ -1,5 +1,44 @@
 # Changelog
 
+## [V069] — 2026-10-14
+
+### Fixed — Dashboard Administrativo: Correções Dapper + Seed Data
+
+**Fix: int → long nos DTOs do AdminQueryRepository**
+- PostgreSQL `COUNT(*)` e `SUM()` sempre retornam `bigint` (Int64); DTOs estavam com `int` (Int32)
+- Dapper usa construtor posicional dos records C# com compatibilidade exata de tipo — sem conversão implícita
+- Resultado: HTTP 500 em todas as rotas de agregação (`/api/admin/stats/summary`, payments, fulfillment, customers, sales, top-products)
+- Corrigidos 19 campos em 7 DTOs: `AdminSummaryDto`, `AdminOrderRow`, `AdminPaymentsStatsDto`, `AdminFulfillmentStatsDto`, `AdminCustomersStatsDto`, `AdminSalesChartPoint`, `AdminTopProductDto`
+
+**Fix: AdminOrderRow.OrderId string → Guid**
+- PostgreSQL coluna `uuid` é mapeada pelo Dapper para `System.Guid`, não `string`
+- `AdminOrderRow` declarava `string OrderId` — Dapper falhava ao tentar instanciar o record com assinatura `(System.Guid, ...)`
+- Corrigido para `Guid OrderId`; `AdminOrderDetailDto` não foi afetado (usa mapeamento dinâmico com cast manual)
+
+**Seed Data**
+- `seed/seed.sql` — 20 clientes + 23 pedidos (delivered/shipped/processing/confirmed/pending/cancelled) + itens + pagamentos
+- `seed/clean.sql` — `TRUNCATE CASCADE` em todas as tabelas (dev/homolog only)
+- Como usar na VPS:
+  ```bash
+  # Popular
+  docker exec -i comprai-postgres psql -U postgres -d comprai < /home/projetos/comprai/seed/seed.sql
+  # Limpar
+  docker exec -i comprai-postgres psql -U postgres -d comprai < /home/projetos/comprai/seed/clean.sql
+  ```
+
+**Problema Conhecido**
+- Container `comprai-admin` (porta 3004) não sobe automaticamente após deploy CI/CD
+- Workaround: SSH na VPS → `docker compose up -d --no-deps comprai-admin`
+
+### Commits V069
+| Hash | Descrição |
+|------|-----------|
+| `08c7510` | fix: correct all int to long in AdminQueryRepository DTOs |
+| `3551349` | fix: AdminOrderRow.OrderId string→Guid to match PostgreSQL uuid type |
+| `4df5fed` | chore(seed): adicionar seed.sql e clean.sql para dados de teste |
+
+---
+
 ## [V068] — 2026-10-10
 
 ### Added — Varredura de Segurança Completa (OpsWatch + CI/CD)

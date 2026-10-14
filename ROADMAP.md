@@ -1,37 +1,21 @@
 # 🗺️ Roadmap — Comprai
 
-## 🔜 V069 — Dashboard Administrativo (out/2026)
-
-**Frontend Admin Separada**
-- [ ] Stack: Next.js 15 App Router + Tailwind v4 | porta `3004` | `deploy-admin.yml`
-- [ ] Autenticação via JWT do backend — rota protegida por `role=admin`
-- [ ] Migration: campo `role` na tabela `customer`; middleware protege `/api/admin/*`
-
-**Layout e UX**
-- [ ] Sidebar fixa, topbar com filtro de período (hoje / 7d / 30d / custom), dark mode
-- [ ] Referência visual: MD. Mehedi Hasan "Ecommerce Admin Dashboard" (Dribbble) — sidebar roxa, KPI cards, gráfico Revenue Over Time
-
-**KPI Cards Topo**
-- [ ] Pedidos Hoje | Receita Hoje | Taxa Conversão | Ticket Médio
-- [ ] Polling 30s ou WebSocket para KPIs em tempo real
-
-**Seções**
-- [ ] **Vendas**: volume por hora (gráfico linha), top produtos, top plugins/canais
-- [ ] **Pagamentos**: aprovados / pendentes / falhos / estornados — funil + distribuição por provider
-- [ ] **Entregas**: em separação / despachados / entregues / pendentes / atrasados
-- [ ] **Cancelamentos**: motivos (pizza), taxa por dia, valor perdido
-- [ ] **Clientes**: novos cadastros, 2FA ativo, verificados vs não verificados
-- [ ] **Segurança**: tentativas de login falhas, tokens revogados, alertas de rate limit
-
-**Tabela de Pedidos + Modal**
-- [ ] Tabela: `order_id`, cliente mascarado, valor, status, canal, ações
-- [ ] Modal detalhe: timeline do pedido (search → cart → checkout → payment → fulfillment)
-
-**Novos Endpoints**
-- [ ] `GET /api/admin/stats/summary` — KPIs com filtro de período
-- [ ] `GET /api/admin/orders` — paginado com filtros
-- [ ] `GET /api/admin/payments` — agrupado por status/provider
-- [ ] `GET /api/admin/fulfillment` — por status de entrega
+## ✅ V069 — Dashboard Administrativo (out/2026)
+- [x] Stack: Next.js 15 App Router + Tailwind v4 | porta `3004` | `deploy-admin.yml`
+- [x] Autenticação via JWT do backend — rota protegida por `role=admin`
+- [x] Sidebar fixa com KPI cards: Pedidos Hoje, Receita Hoje, Taxa Conversão, Ticket Médio
+- [x] Seção Vendas: gráfico de receita por dia, top produtos
+- [x] Seção Pagamentos: distribuição por status (confirmado/pendente/falhou) e provider (pix/credit_card/debit_card)
+- [x] Seção Entregas: em separação / despachados / entregues / atrasados
+- [x] Seção Clientes: novos cadastros, verificados, com 2FA
+- [x] Tabela de pedidos com modal de detalhe (timeline do pedido)
+- [x] Endpoints: `GET /api/admin/stats/summary|orders|payments|fulfillment|customers|sales|top-products`
+- [x] Fix: int → long em 19 campos de 7 DTOs (PostgreSQL `bigint` × Dapper posicional)
+- [x] Fix: `AdminOrderRow.OrderId` string → `Guid` (PostgreSQL `uuid` → `System.Guid`)
+- [x] `seed/seed.sql` — 20 clientes + 23 pedidos + itens + pagamentos (dados realistas BR)
+- [x] `seed/clean.sql` — `TRUNCATE CASCADE` em todas as tabelas (dev/homolog)
+- [x] Workaround documentado: `comprai-admin` não sobe automaticamente após deploy CI/CD
+  - `docker compose up -d --no-deps comprai-admin`
 
 ---
 
