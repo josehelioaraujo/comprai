@@ -7,11 +7,11 @@ namespace UcpAgent.Infrastructure.Persistence.Repositories;
 // ââ DTOs âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 public sealed record AdminSummaryDto(
-    int     TotalOrders,
+    long    TotalOrders,
     decimal TotalRevenue,
-    int     TotalCustomers,
-    int     PendingOrders,
-    int     CancelledOrders,
+    long    TotalCustomers,
+    long    PendingOrders,
+    long    CancelledOrders,
     decimal AvgOrderValue);
 
 public sealed record AdminOrderRow(
@@ -21,7 +21,7 @@ public sealed record AdminOrderRow(
     string? CustomerName,
     string? CustomerEmail,
     string? PaymentMethod,
-    int     ItemCount,
+    long    ItemCount,
     DateTime CreatedAt);
 
 public sealed record AdminOrderDetailDto(
@@ -53,25 +53,25 @@ public sealed record AdminOrderItemDto(
     string? ImageUrl);
 
 public sealed record AdminPaymentsStatsDto(
-    int     TotalPayments,
+    long    TotalPayments,
     decimal TotalConfirmed,
     decimal TotalPending,
     decimal TotalFailed,
-    int     PixCount,
-    int     CreditCardCount,
-    int     DebitCardCount);
+    long    PixCount,
+    long    CreditCardCount,
+    long    DebitCardCount);
 
 public sealed record AdminFulfillmentStatsDto(
-    int TotalShipped,
-    int TotalDelivered,
-    int TotalCancelled,
-    int AwaitingFulfillment);
+    long TotalShipped,
+    long TotalDelivered,
+    long TotalCancelled,
+    long AwaitingFulfillment);
 
 public sealed record AdminCustomersStatsDto(
-    int TotalCustomers,
-    int VerifiedCustomers,
-    int WithTotpCustomers,
-    int NewThisMonth);
+    long TotalCustomers,
+    long VerifiedCustomers,
+    long WithTotpCustomers,
+    long NewThisMonth);
 
 public sealed record AdminSalesChartPoint(
     string  Date,
