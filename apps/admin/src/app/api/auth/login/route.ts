@@ -28,12 +28,13 @@ export async function POST(req: NextRequest) {
 
     const response = NextResponse.json({ ok: true, name: data.customer.name })
 
-    // Salvar token em cookie HttpOnly seguro
+    // Salvar token em cookie HttpOnly
+    // COOKIE_SECURE=true apenas quando acessado via HTTPS
     response.cookies.set('admin_token', data.token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: process.env.COOKIE_SECURE === 'true',
       sameSite: 'lax',
-      maxAge: 60 * 60, // 1 hora
+      maxAge: 60 * 60 * 8, // 8 horas
       path: '/',
     })
 
