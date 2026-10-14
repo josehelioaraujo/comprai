@@ -1,5 +1,13 @@
 # 🗺️ Roadmap — Comprai
 
+## ✅ V069v2 — Fix Configurações 401 (out/2026)
+- [x] `apps/admin/src/lib/fetch-proxy.ts` — wrapper `fetchProxy<T>()` com redirect automático para `/login` em 401
+- [x] Proxy `/api/proxy/[...path]`: detecta 401 do backend, limpa `admin_token` + `admin_user` (maxAge=0)
+- [x] `settings/page.tsx` e `dashboard/page.tsx` usam `fetchProxy` em vez de `fetch` direto
+- [x] `seed/set-admin-role.sql` — script para elevar usuário existente para `role='admin'`
+
+---
+
 ## ✅ V069 — Dashboard Administrativo (out/2026)
 - [x] Stack: Next.js 15 App Router + Tailwind v4 | porta `3004` | `deploy-admin.yml`
 - [x] Autenticação via JWT do backend — rota protegida por `role=admin`

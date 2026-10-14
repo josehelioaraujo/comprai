@@ -1,5 +1,34 @@
 # Changelog
 
+## [V069v2] — 2026-10-14
+
+### Fixed — Admin: Página Configurações retornava 401
+
+**Causa raiz**
+O proxy `/api/proxy/[...path]` repassava o HTTP 401 do backend (JWT expirado ou inválido) sem limpar os cookies, e o frontend não redirecionava para `/login`, deixando o usuário preso em tela de erro.
+
+**Mudanças**
+
+| Arquivo | O que mudou |
+|---------|-------------|
+| `apps/admin/src/lib/fetch-proxy.ts` *(novo)* | Wrapper `fetchProxy<T>()`: redireciona automaticamente para `/login` em qualquer 401 |
+| `apps/admin/src/app/api/proxy/[...path]/route.ts` | Detecta 401 do backend; limpa `admin_token` + `admin_user` (Set-Cookie maxAge=0) antes de retornar |
+| `apps/admin/src/app/dashboard/settings/page.tsx` | Usa `fetchProxy` no GET e PUT; trata `Unauthorized` sem mostrar erro genérico |
+| `apps/admin/src/app/dashboard/page.tsx` | `fetchAdmin` agora é alias de `fetchProxy` — mesma cobertura no dashboard principal |
+| `seed/set-admin-role.sql` *(novo)* | Script para elevar usuário existente para `role='admin'` via UPDATE |
+
+**Como elevar usuário a admin na VPS**
+```bash
+docker exec -it comprai-db psql -U comprai -d comprai \
+  -c "UPDATE customer SET role='admin' WHERE email='SEU_EMAIL@exemplo.com';"
+```
+
+| Commit | Descrição |
+|--------|-----------|
+| `12b5de2` | fix(admin): corrigir 401 na página Configurações — proxy + fetchProxy utility |
+
+---
+
 ## [V069] — 2026-10-14
 
 ### Fixed — Dashboard Administrativo: Correções Dapper + Seed Data
