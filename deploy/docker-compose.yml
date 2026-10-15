@@ -54,6 +54,28 @@ services:
         max-file: "3"
         tag: "{{.Name}}"
 
+  comprai-admin:
+    image: ghcr.io/josehelioaraujo/comprai-admin:latest
+    container_name: comprai-admin
+    ports:
+      - "3004:3004"
+    environment:
+      NODE_ENV: production
+      API_BASE_URL: ${ADMIN_API_URL:-http://comprai-api:5020}
+      COOKIE_SECURE: "false"
+    depends_on:
+      comprai-api:
+        condition: service_started
+    networks:
+      - comprai-network
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+        tag: "{{.Name}}"
+
   comprai-postgres:
     image: postgres:16-alpine
     container_name: comprai-postgres
