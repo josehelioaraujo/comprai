@@ -101,11 +101,17 @@ DECLARE
 
 BEGIN
   -- ── Limpar dados existentes ──────────────────────────────────────────────────
-  DELETE FROM payment;
-  DELETE FROM order_item;
-  DELETE FROM "order";
-  DELETE FROM customer;
-  RAISE NOTICE '  Dados anteriores removidos.';
+  -- ATENÇÃO: preserva usuários com role != 'customer' (ex: admin)
+  DELETE FROM payment
+    WHERE order_id IN (SELECT id FROM "order"
+                       WHERE customer_id IN (SELECT id FROM customer WHERE role = 'customer'));
+  DELETE FROM order_item
+    WHERE order_id IN (SELECT id FROM "order"
+                       WHERE customer_id IN (SELECT id FROM customer WHERE role = 'customer'));
+  DELETE FROM "order"
+    WHERE customer_id IN (SELECT id FROM customer WHERE role = 'customer');
+  DELETE FROM customer WHERE role = 'customer';
+  RAISE NOTICE '  Dados anteriores removidos (admin preservado).';
 
   -- ── Clientes ────────────────────────────────────────────────────────────────
   FOR i IN 1..num_clientes LOOP
