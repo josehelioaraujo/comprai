@@ -152,23 +152,23 @@ public sealed class AdminQueryRepository(IDbConnectionFactory factory)
             await using var conn = await factory.CreateAsync(token);
 
             var orderRow = await conn.QuerySingleOrDefaultAsync("""
-                SELECT o.id             AS OrderId,
-                       o.status         AS Status,
-                       o.total_amount   AS Total,
-                       c.name           AS CustomerName,
-                       c.email          AS CustomerEmail,
-                       c.phone          AS CustomerPhone,
-                       o.tracking_code  AS TrackingCode,
-                       o.cancel_reason  AS CancelReason,
-                       p.method         AS PaymentMethod,
-                       p.status         AS PaymentStatus,
-                       p.amount         AS PaymentAmount,
-                       o.shipping_zip   AS ShippingZip,
+                SELECT o.id::TEXT        AS OrderId,
+                       o.status          AS Status,
+                       o.total_amount    AS Total,
+                       c.name            AS CustomerName,
+                       c.email           AS CustomerEmail,
+                       c.phone           AS CustomerPhone,
+                       o.tracking_code   AS TrackingCode,
+                       o.cancel_reason   AS CancelReason,
+                       p.method          AS PaymentMethod,
+                       p.status          AS PaymentStatus,
+                       p.amount          AS PaymentAmount,
+                       o.shipping_zip    AS ShippingZip,
                        o.shipping_street AS ShippingStreet,
                        o.shipping_number AS ShippingNumber,
-                       o.shipping_city  AS ShippingCity,
-                       o.shipping_state AS ShippingState,
-                       o.created_at     AS CreatedAt
+                       o.shipping_city   AS ShippingCity,
+                       o.shipping_state  AS ShippingState,
+                       o.created_at      AS CreatedAt
                 FROM "order" o
                 LEFT JOIN customer c ON c.id = o.customer_id
                 LEFT JOIN payment  p ON p.order_id = o.id
