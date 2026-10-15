@@ -98,7 +98,9 @@ jobs:
             git pull origin main
             echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u josehelioaraujo --password-stdin
             docker pull ${{ env.IMAGE }}:latest && echo "✅ Pull OK" || { echo "❌ Pull falhou"; exit 1; }
-            docker compose -p comprai -f deploy/docker-compose.yml --env-file .env up -d --no-deps --force-recreate comprai-admin
+            docker stop comprai-admin 2>/dev/null || true
+            docker rm   comprai-admin 2>/dev/null || true
+            docker compose -p comprai -f deploy/docker-compose.yml --env-file .env up -d --no-deps comprai-admin
             sleep 8
             curl -sf http://localhost:${{ env.ADMIN_PORT }}/login && echo "✅ ${{ steps.version.outputs.version }} OK" || { docker logs comprai-admin --tail 20; exit 1; }
 
