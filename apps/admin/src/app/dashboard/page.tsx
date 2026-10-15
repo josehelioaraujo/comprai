@@ -251,8 +251,8 @@ export default function DashboardPage() {
         fetchAdmin<AdminOrdersPage>(`/api/admin/orders?page=${page}&pageSize=${pageSize}${statusFilter ? `&status=${statusFilter}` : ''}`),
         fetchAdmin<AdminSalesChartPoint[]>('/api/admin/charts/sales?days=30'),
         fetchAdmin<AdminTopProduct[]>('/api/admin/charts/top-products?limit=6'),
-        fetchAdmin<AdminStatusBreakdown[]>('/api/admin/stats/status-breakdown'),
-        fetchAdmin<AdminPaymentBreakdown[]>('/api/admin/stats/payment-breakdown'),
+        fetchAdmin<AdminStatusBreakdown[]>('/api/admin/stats/status-breakdown').catch(() => [] as AdminStatusBreakdown[]),
+        fetchAdmin<AdminPaymentBreakdown[]>('/api/admin/stats/payment-breakdown').catch(() => [] as AdminPaymentBreakdown[]),
       ])
       setSummary(sum)
       setOrdersPage(ord)
