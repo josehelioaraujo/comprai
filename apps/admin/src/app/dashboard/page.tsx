@@ -394,8 +394,8 @@ export default function DashboardPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-800">
-                {['ID', 'Cliente', 'Status', 'Pagamento', 'Itens', 'Total', 'Data'].map(h => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                {['ID', 'Cliente', 'Produto', 'Status', 'Pgto', 'Total', 'Data'].map(h => (
+                  <th key={h} className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     {h}
                   </th>
                 ))}
@@ -404,7 +404,7 @@ export default function DashboardPage() {
             <tbody>
               {(ordersPage?.items.length ?? 0) === 0 && (
                 <tr>
-                  <td colSpan={7} className="text-center py-10 text-gray-600">Nenhum pedido encontrado.</td>
+                  <td colSpan={7} className="text-center py-8 text-gray-600">Nenhum pedido encontrado.</td>
                 </tr>
               )}
               {(ordersPage?.items ?? []).map(order => (
@@ -413,16 +413,28 @@ export default function DashboardPage() {
                   onClick={() => setSelectedOrder(order.orderId)}
                   className="border-b border-gray-800/50 hover:bg-gray-800/40 cursor-pointer transition"
                 >
-                  <td className="px-4 py-3 text-xs font-mono text-gray-400">{order.orderId.slice(0, 8)}…</td>
-                  <td className="px-4 py-3">
-                    <p className="text-sm text-white">{order.customerName ?? '—'}</p>
-                    <p className="text-xs text-gray-500">{order.customerEmail ?? ''}</p>
+                  <td className="px-3 py-2 text-xs font-mono text-gray-400">{order.orderId.slice(0, 8)}…</td>
+                  <td className="px-3 py-2">
+                    <p className="text-xs text-white leading-tight">{order.customerName ?? '—'}</p>
+                    <p className="text-[11px] text-gray-500 leading-tight truncate max-w-[140px]">{order.customerEmail ?? ''}</p>
                   </td>
-                  <td className="px-4 py-3"><StatusBadge status={order.status} /></td>
-                  <td className="px-4 py-3 text-sm text-gray-300">{order.paymentMethod ?? '—'}</td>
-                  <td className="px-4 py-3 text-sm text-gray-300 text-center">{order.itemCount}</td>
-                  <td className="px-4 py-3 text-sm font-semibold text-white">{formatCurrency(order.total)}</td>
-                  <td className="px-4 py-3 text-xs text-gray-500">{formatDate(order.createdAt)}</td>
+                  <td className="px-3 py-2 max-w-[180px]">
+                    {order.firstProductTitle ? (
+                      <>
+                        <p className="text-xs text-gray-200 leading-tight truncate">{order.firstProductTitle}</p>
+                        <p className="text-[11px] text-gray-500 leading-tight">
+                          {order.firstProductSku ? `SKU: ${order.firstProductSku}` : ''}
+                          {order.itemCount > 1 ? `${order.firstProductSku ? ' · ' : ''}+${order.itemCount - 1} item${order.itemCount - 1 > 1 ? 's' : ''}` : ''}
+                        </p>
+                      </>
+                    ) : (
+                      <span className="text-xs text-gray-600">—</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2"><StatusBadge status={order.status} /></td>
+                  <td className="px-3 py-2 text-xs text-gray-300">{order.paymentMethod ?? '—'}</td>
+                  <td className="px-3 py-2 text-xs font-semibold text-white whitespace-nowrap">{formatCurrency(order.total)}</td>
+                  <td className="px-3 py-2 text-[11px] text-gray-500 whitespace-nowrap">{formatDate(order.createdAt)}</td>
                 </tr>
               ))}
             </tbody>

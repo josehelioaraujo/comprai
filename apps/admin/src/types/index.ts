@@ -15,6 +15,8 @@ export interface AdminOrder {
   customerEmail: string | null
   paymentMethod: string | null
   itemCount: number
+  firstProductTitle: string | null
+  firstProductSku: string | null
   createdAt: string
 }
 

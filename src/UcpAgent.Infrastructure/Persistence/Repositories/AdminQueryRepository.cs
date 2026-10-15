@@ -22,6 +22,27 @@ public sealed record AdminOrderRow(
     string? CustomerEmail,
     string? PaymentMethod,
     long    ItemCount,
+    string? FirstProductTitle,
+    string? FirstProductSku,
+    DateTime CreatedAt);
+
+public sealed record AdminOrderDetailRow(
+    string   OrderId,
+    string   Status,
+    decimal  Total,
+    string?  CustomerName,
+    string?  CustomerEmail,
+    string?  CustomerPhone,
+    string?  TrackingCode,
+    string?  CancelReason,
+    string?  PaymentMethod,
+    string?  PaymentStatus,
+    decimal? PaymentAmount,
+    string?  ShippingZip,
+    string?  ShippingStreet,
+    string?  ShippingNumber,
+    string?  ShippingCity,
+    string?  ShippingState,
     DateTime CreatedAt);
 
 public sealed record AdminOrderDetailDto(
@@ -124,20 +145,29 @@ public sealed class AdminQueryRepository(IDbConnectionFactory factory)
                 new { Status = status });
 
             var rows = await conn.QueryAsync<AdminOrderRow>("""
-                SELECT o.id             AS OrderId,
-                       o.status         AS Status,
-                       o.total_amount   AS Total,
-                       c.name           AS CustomerName,
-                       c.email          AS CustomerEmail,
-                       p.method         AS PaymentMethod,
-                       COUNT(oi.id)     AS ItemCount,
-                       o.created_at     AS CreatedAt
+                SELECT o.id                  AS OrderId,
+                       o.status              AS Status,
+                       o.total_amount        AS Total,
+                       c.name                AS CustomerName,
+                       c.email               AS CustomerEmail,
+                       p.method              AS PaymentMethod,
+                       COUNT(oi.id)          AS ItemCount,
+                       first_item.product_title AS FirstProductTitle,
+                       first_item.sku           AS FirstProductSku,
+                       o.created_at          AS CreatedAt
                 FROM "order" o
                 LEFT JOIN customer   c  ON c.id = o.customer_id
                 LEFT JOIN payment    p  ON p.order_id = o.id
                 LEFT JOIN order_item oi ON oi.order_id = o.id
+                LEFT JOIN LATERAL (
+                    SELECT product_title, sku
+                    FROM order_item
+                    WHERE order_id = o.id
+                    ORDER BY created_at
+                    LIMIT 1
+                ) first_item ON true
                 WHERE (@Status::text IS NULL OR o.status = @Status)
-                GROUP BY o.id, c.name, c.email, p.method
+                GROUP BY o.id, c.name, c.email, p.method, first_item.product_title, first_item.sku
                 ORDER BY o.created_at DESC
                 LIMIT @PageSize OFFSET @Offset
                 """,
@@ -151,7 +181,7 @@ public sealed class AdminQueryRepository(IDbConnectionFactory factory)
         {
             await using var conn = await factory.CreateAsync(token);
 
-            var orderRow = await conn.QuerySingleOrDefaultAsync("""
+            var orderRow = await conn.QuerySingleOrDefaultAsync<AdminOrderDetailRow>("""
                 SELECT o.id::TEXT        AS OrderId,
                        o.status          AS Status,
                        o.total_amount    AS Total,
@@ -191,23 +221,23 @@ public sealed class AdminQueryRepository(IDbConnectionFactory factory)
                 new { OrderId = orderId })).ToList();
 
             return new AdminOrderDetailDto(
-                (string)orderRow.OrderId,
-                (string)orderRow.Status,
-                (decimal)orderRow.Total,
-                (string?)orderRow.CustomerName,
-                (string?)orderRow.CustomerEmail,
-                (string?)orderRow.CustomerPhone,
-                (string?)orderRow.TrackingCode,
-                (string?)orderRow.CancelReason,
-                (string?)orderRow.PaymentMethod,
-                (string?)orderRow.PaymentStatus,
-                (decimal?)orderRow.PaymentAmount,
-                (string?)orderRow.ShippingZip,
-                (string?)orderRow.ShippingStreet,
-                (string?)orderRow.ShippingNumber,
-                (string?)orderRow.ShippingCity,
-                (string?)orderRow.ShippingState,
-                (DateTime)orderRow.CreatedAt,
+                orderRow.OrderId,
+                orderRow.Status,
+                orderRow.Total,
+                orderRow.CustomerName,
+                orderRow.CustomerEmail,
+                orderRow.CustomerPhone,
+                orderRow.TrackingCode,
+                orderRow.CancelReason,
+                orderRow.PaymentMethod,
+                orderRow.PaymentStatus,
+                orderRow.PaymentAmount,
+                orderRow.ShippingZip,
+                orderRow.ShippingStreet,
+                orderRow.ShippingNumber,
+                orderRow.ShippingCity,
+                orderRow.ShippingState,
+                orderRow.CreatedAt,
                 items);
         }, ct);
 
