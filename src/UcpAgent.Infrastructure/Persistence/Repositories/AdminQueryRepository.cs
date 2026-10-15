@@ -149,29 +149,33 @@ public sealed class AdminQueryRepository(IDbConnectionFactory factory)
         {
             await using var conn = await factory.CreateAsync(token);
 
+            // Parse productId to Guid? so Npgsql sends the correct UUID type,
+            // avoiding a type-conflict when mixing ::text and ::uuid for the same param.
+            Guid? productGuid = productId is not null && Guid.TryParse(productId, out var g) ? g : null;
+
             var total = await conn.ExecuteScalarAsync<long>("""
                 SELECT COUNT(DISTINCT o.id)
                 FROM "order" o
                 LEFT JOIN payment p ON p.order_id = o.id
-                WHERE (@Status::text        IS NULL OR o.status  = @Status)
-                  AND (@PaymentMethod::text IS NULL OR p.method  = @PaymentMethod)
-                  AND (@ProductId::text     IS NULL OR EXISTS (
+                WHERE (@Status::text        IS NULL OR o.status = @Status)
+                  AND (@PaymentMethod::text IS NULL OR p.method = @PaymentMethod)
+                  AND (@ProductId          IS NULL OR EXISTS (
                         SELECT 1 FROM order_item oi2
-                        WHERE oi2.order_id = o.id AND oi2.product_id = @ProductId::uuid))
+                        WHERE oi2.order_id = o.id AND oi2.product_id = @ProductId))
                 """,
-                new { Status = status, PaymentMethod = paymentMethod, ProductId = productId });
+                new { Status = status, PaymentMethod = paymentMethod, ProductId = productGuid });
 
             var rows = await conn.QueryAsync<AdminOrderRow>("""
-                SELECT o.id                  AS OrderId,
-                       o.status              AS Status,
-                       o.total_amount        AS Total,
-                       c.name                AS CustomerName,
-                       c.email               AS CustomerEmail,
-                       p.method              AS PaymentMethod,
-                       COUNT(oi.id)          AS ItemCount,
+                SELECT o.id                     AS OrderId,
+                       o.status                 AS Status,
+                       o.total_amount           AS Total,
+                       c.name                   AS CustomerName,
+                       c.email                  AS CustomerEmail,
+                       p.method                 AS PaymentMethod,
+                       COUNT(oi.id)             AS ItemCount,
                        first_item.product_title AS FirstProductTitle,
                        first_item.sku           AS FirstProductSku,
-                       o.created_at          AS CreatedAt
+                       o.created_at             AS CreatedAt
                 FROM "order" o
                 LEFT JOIN customer   c  ON c.id = o.customer_id
                 LEFT JOIN payment    p  ON p.order_id = o.id
@@ -183,16 +187,17 @@ public sealed class AdminQueryRepository(IDbConnectionFactory factory)
                     ORDER BY created_at
                     LIMIT 1
                 ) first_item ON true
-                WHERE (@Status::text        IS NULL OR o.status  = @Status)
-                  AND (@PaymentMethod::text IS NULL OR p.method  = @PaymentMethod)
-                  AND (@ProductId::text     IS NULL OR EXISTS (
+                WHERE (@Status::text        IS NULL OR o.status = @Status)
+                  AND (@PaymentMethod::text IS NULL OR p.method = @PaymentMethod)
+                  AND (@ProductId          IS NULL OR EXISTS (
                         SELECT 1 FROM order_item oi3
-                        WHERE oi3.order_id = o.id AND oi3.product_id = @ProductId::uuid))
-                GROUP BY o.id, c.name, c.email, p.method, first_item.product_title, first_item.sku
+                        WHERE oi3.order_id = o.id AND oi3.product_id = @ProductId))
+                GROUP BY o.id, o.created_at, c.name, c.email, p.method,
+                         first_item.product_title, first_item.sku
                 ORDER BY o.created_at DESC
                 LIMIT @PageSize OFFSET @Offset
                 """,
-                new { Status = status, PaymentMethod = paymentMethod, ProductId = productId,
+                new { Status = status, PaymentMethod = paymentMethod, ProductId = productGuid,
                       PageSize = pageSize, Offset = (page - 1) * pageSize });
 
             return new AdminOrderPage(rows.ToList(), total);
