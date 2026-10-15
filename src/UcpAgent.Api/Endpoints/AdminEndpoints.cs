@@ -70,6 +70,22 @@ public static class AdminEndpoints
         })
         .WithName("AdminGetCustomersStats");
 
+        // GET /api/admin/stats/status-breakdown
+        group.MapGet("/stats/status-breakdown", async (AdminQueryRepository repo, CancellationToken ct) =>
+        {
+            var rows = await repo.GetStatusBreakdownAsync(ct);
+            return Results.Ok(rows);
+        })
+        .WithName("AdminGetStatusBreakdown");
+
+        // GET /api/admin/stats/payment-breakdown
+        group.MapGet("/stats/payment-breakdown", async (AdminQueryRepository repo, CancellationToken ct) =>
+        {
+            var rows = await repo.GetPaymentBreakdownAsync(ct);
+            return Results.Ok(rows);
+        })
+        .WithName("AdminGetPaymentBreakdown");
+
         // GET /api/admin/charts/sales?days=30
         group.MapGet("/charts/sales", async (AdminQueryRepository repo, int days = 30, CancellationToken ct = default) =>
         {

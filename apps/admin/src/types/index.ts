@@ -88,3 +88,15 @@ export interface AdminTopProduct {
   totalQuantity: number
   totalRevenue: number
 }
+
+export interface AdminStatusBreakdown {
+  status: string
+  count: number
+  total: number
+}
+
+export interface AdminPaymentBreakdown {
+  method: string
+  count: number
+  total: number
+}

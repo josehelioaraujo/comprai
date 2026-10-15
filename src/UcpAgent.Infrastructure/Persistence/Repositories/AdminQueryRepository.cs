@@ -110,6 +110,16 @@ public sealed record AdminTopProductDto(
     long    TotalQuantity,
     decimal TotalRevenue);
 
+public sealed record AdminStatusBreakdownDto(
+    string  Status,
+    long    Count,
+    decimal Total);
+
+public sealed record AdminPaymentBreakdownDto(
+    string  Method,
+    long    Count,
+    decimal Total);
+
 // ââ Repository âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 [ExcludeFromCodeCoverage]
@@ -305,6 +315,38 @@ public sealed class AdminQueryRepository(IDbConnectionFactory factory)
                 """,
                 new { Days = days });
             return (IReadOnlyList<AdminSalesChartPoint>)rows.ToList();
+        }, ct);
+
+    public Task<IReadOnlyList<AdminStatusBreakdownDto>> GetStatusBreakdownAsync(CancellationToken ct = default)
+        => DbResiliencePolicy.ExecuteAsync(async token =>
+        {
+            await using var conn = await factory.CreateAsync(token);
+            var rows = await conn.QueryAsync<AdminStatusBreakdownDto>("""
+                SELECT
+                    status                      AS Status,
+                    COUNT(*)                    AS Count,
+                    COALESCE(SUM(total_amount), 0) AS Total
+                FROM "order"
+                GROUP BY status
+                ORDER BY Count DESC
+                """);
+            return (IReadOnlyList<AdminStatusBreakdownDto>)rows.ToList();
+        }, ct);
+
+    public Task<IReadOnlyList<AdminPaymentBreakdownDto>> GetPaymentBreakdownAsync(CancellationToken ct = default)
+        => DbResiliencePolicy.ExecuteAsync(async token =>
+        {
+            await using var conn = await factory.CreateAsync(token);
+            var rows = await conn.QueryAsync<AdminPaymentBreakdownDto>("""
+                SELECT
+                    method                                                        AS Method,
+                    COUNT(*)                                                      AS Count,
+                    COALESCE(SUM(amount) FILTER (WHERE status = 'confirmed'), 0) AS Total
+                FROM payment
+                GROUP BY method
+                ORDER BY Count DESC
+                """);
+            return (IReadOnlyList<AdminPaymentBreakdownDto>)rows.ToList();
         }, ct);
 
     public Task<IReadOnlyList<AdminTopProductDto>> GetTopProductsAsync(int limit = 10, CancellationToken ct = default)

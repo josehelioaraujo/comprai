@@ -7,7 +7,7 @@ import {
 } from 'recharts'
 import type {
   AdminSummary, AdminOrdersPage, AdminSalesChartPoint,
-  AdminTopProduct, AdminOrderDetail
+  AdminTopProduct, AdminOrderDetail, AdminStatusBreakdown, AdminPaymentBreakdown
 } from '@/types'
 import { formatCurrency, formatDate, STATUS_LABELS, STATUS_COLORS } from '@/lib/api'
 import { fetchProxy } from '@/lib/fetch-proxy'
@@ -33,10 +33,10 @@ function KpiCard({
     red:    'from-red-900/40    to-red-800/10    border-red-700/30',
   }
   return (
-    <div className={`rounded-2xl border bg-gradient-to-br ${colors[color]} p-5`}>
-      <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">{label}</p>
-      <p className="text-lg font-bold text-white leading-tight truncate">{value}</p>
-      {sub && <p className="text-xs text-gray-500 mt-1">{sub}</p>}
+    <div className={`rounded-2xl border bg-gradient-to-br ${colors[color]} p-4`}>
+      <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-1.5">{label}</p>
+      <p className="text-sm font-bold text-white leading-tight break-words">{value}</p>
+      {sub && <p className="text-[10px] text-gray-500 mt-1">{sub}</p>}
     </div>
   )
 }
@@ -231,10 +231,12 @@ function OrderModal({ orderId, onClose }: { orderId: string; onClose: () => void
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const [summary, setSummary]         = useState<AdminSummary | null>(null)
-  const [ordersPage, setOrdersPage]   = useState<AdminOrdersPage | null>(null)
-  const [salesChart, setSalesChart]   = useState<AdminSalesChartPoint[]>([])
-  const [topProducts, setTopProducts] = useState<AdminTopProduct[]>([])
+  const [summary, setSummary]               = useState<AdminSummary | null>(null)
+  const [ordersPage, setOrdersPage]         = useState<AdminOrdersPage | null>(null)
+  const [salesChart, setSalesChart]         = useState<AdminSalesChartPoint[]>([])
+  const [topProducts, setTopProducts]       = useState<AdminTopProduct[]>([])
+  const [statusBreakdown, setStatusBreakdown]   = useState<AdminStatusBreakdown[]>([])
+  const [paymentBreakdown, setPaymentBreakdown] = useState<AdminPaymentBreakdown[]>([])
   const [selectedOrder, setSelectedOrder] = useState<string | null>(null)
   const [ordersOpen, setOrdersOpen]       = useState(true)
   const [statusFilter, setStatusFilter]   = useState<string>('')
@@ -244,16 +246,20 @@ export default function DashboardPage() {
 
   const load = useCallback(async () => {
     try {
-      const [sum, ord, chart, top] = await Promise.all([
+      const [sum, ord, chart, top, stBreak, payBreak] = await Promise.all([
         fetchAdmin<AdminSummary>('/api/admin/stats/summary'),
         fetchAdmin<AdminOrdersPage>(`/api/admin/orders?page=${page}&pageSize=${pageSize}${statusFilter ? `&status=${statusFilter}` : ''}`),
         fetchAdmin<AdminSalesChartPoint[]>('/api/admin/charts/sales?days=30'),
-        fetchAdmin<AdminTopProduct[]>('/api/admin/charts/top-products?limit=8'),
+        fetchAdmin<AdminTopProduct[]>('/api/admin/charts/top-products?limit=6'),
+        fetchAdmin<AdminStatusBreakdown[]>('/api/admin/stats/status-breakdown'),
+        fetchAdmin<AdminPaymentBreakdown[]>('/api/admin/stats/payment-breakdown'),
       ])
       setSummary(sum)
       setOrdersPage(ord)
       setSalesChart(chart)
       setTopProducts(top)
+      setStatusBreakdown(stBreak)
+      setPaymentBreakdown(payBreak)
     } catch (e) {
       console.error('Dashboard load error:', e)
     } finally {
@@ -335,6 +341,96 @@ export default function DashboardPage() {
             </BarChart>
           </ResponsiveContainer>
         </div>
+      </div>
+
+      {/* Summary Panels */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+
+        {/* Por Forma de Pagamento */}
+        <div className="rounded-2xl bg-gray-900 border border-gray-800 p-4">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Por Pagamento</p>
+          {paymentBreakdown.length === 0 && <p className="text-xs text-gray-600">Sem dados</p>}
+          {(() => {
+            const maxCount = Math.max(...paymentBreakdown.map(r => r.count), 1)
+            const labels: Record<string, string> = { pix: 'PIX', credit_card: 'Cartão Crédito', debit_card: 'Cartão Débito' }
+            const colors: Record<string, string> = { pix: 'bg-emerald-500', credit_card: 'bg-purple-500', debit_card: 'bg-blue-500' }
+            return paymentBreakdown.map(r => (
+              <div key={r.method} className="mb-3 last:mb-0">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-gray-300">{labels[r.method] ?? r.method}</span>
+                  <div className="text-right">
+                    <span className="text-xs font-semibold text-white">{r.count} pedidos</span>
+                    <span className="text-[10px] text-gray-500 ml-2">{formatCurrency(r.total)}</span>
+                  </div>
+                </div>
+                <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${colors[r.method] ?? 'bg-gray-500'}`}
+                    style={{ width: `${Math.round((r.count / maxCount) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            ))
+          })()}
+        </div>
+
+        {/* Por Status */}
+        <div className="rounded-2xl bg-gray-900 border border-gray-800 p-4">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Por Status</p>
+          {statusBreakdown.length === 0 && <p className="text-xs text-gray-600">Sem dados</p>}
+          {(() => {
+            const maxCount = Math.max(...statusBreakdown.map(r => r.count), 1)
+            const barColors: Record<string, string> = {
+              delivered: 'bg-green-500', shipped: 'bg-blue-500',
+              processing: 'bg-indigo-500', confirmed: 'bg-purple-500',
+              pending: 'bg-yellow-500', cancelled: 'bg-red-500',
+            }
+            return statusBreakdown.map(r => (
+              <div key={r.status} className="mb-3 last:mb-0">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-gray-300">{STATUS_LABELS[r.status] ?? r.status}</span>
+                  <div className="text-right">
+                    <span className="text-xs font-semibold text-white">{r.count}</span>
+                    <span className="text-[10px] text-gray-500 ml-2">{formatCurrency(r.total)}</span>
+                  </div>
+                </div>
+                <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${barColors[r.status] ?? 'bg-gray-500'}`}
+                    style={{ width: `${Math.round((r.count / maxCount) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            ))
+          })()}
+        </div>
+
+        {/* Top Produtos */}
+        <div className="rounded-2xl bg-gray-900 border border-gray-800 p-4">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Top Produtos</p>
+          {topProducts.length === 0 && <p className="text-xs text-gray-600">Sem dados</p>}
+          {(() => {
+            const maxQty = Math.max(...topProducts.map(r => r.totalQuantity), 1)
+            return topProducts.map(r => (
+              <div key={r.productId} className="mb-3 last:mb-0">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-gray-300 truncate max-w-[160px]">{r.productTitle}</span>
+                  <div className="text-right ml-2 flex-shrink-0">
+                    <span className="text-xs font-semibold text-white">{r.totalQuantity} un.</span>
+                    <span className="text-[10px] text-gray-500 ml-1">{formatCurrency(r.totalRevenue)}</span>
+                  </div>
+                </div>
+                <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-purple-500"
+                    style={{ width: `${Math.round((r.totalQuantity / maxQty) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            ))
+          })()}
+        </div>
+
       </div>
 
       {/* Orders Table */}
