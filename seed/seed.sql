@@ -75,11 +75,14 @@ DECLARE
   num_clientes INT := 30;
   num_pedidos  INT := 60;
 
-  v_cust_id   UUID;
-  v_order_id  UUID;
-  v_loc       TEXT[];
-  v_prod      TEXT[];
-  v_primeiro  TEXT;
+  v_cust_id    UUID;
+  v_order_id   UUID;
+  v_loc        TEXT[];
+  v_prod_nome  TEXT;
+  v_prod_sku   TEXT;
+  v_prod_min   NUMERIC;
+  v_prod_max   NUMERIC;
+  v_primeiro   TEXT;
   v_sobrenome TEXT;
   v_nome      TEXT;
   v_email     TEXT;
@@ -170,11 +173,13 @@ BEGIN
     -- Itens do pedido
     v_itens := 1 + (floor(random() * 4))::INT;
     FOR j IN 1..v_itens LOOP
-      v_idx_p := 1 + (floor(random() * array_length(produtos, 1)))::INT % array_length(produtos, 1);
-      v_prod  := produtos[v_idx_p];
+      v_idx_p    := 1 + (floor(random() * array_length(produtos, 1)))::INT % array_length(produtos, 1);
+      v_prod_nome := produtos[v_idx_p][1];
+      v_prod_sku  := produtos[v_idx_p][2];
+      v_prod_min  := produtos[v_idx_p][3]::NUMERIC;
+      v_prod_max  := produtos[v_idx_p][4]::NUMERIC;
       v_qty   := 1 + (floor(random() * 3))::INT;
-      v_preco := v_prod[3]::NUMERIC
-               + floor(random() * (v_prod[4]::NUMERIC - v_prod[3]::NUMERIC))::NUMERIC;
+      v_preco := v_prod_min + floor(random() * (v_prod_max - v_prod_min))::NUMERIC;
       v_total := v_total + (v_qty * v_preco);
 
       INSERT INTO order_item (
@@ -182,8 +187,8 @@ BEGIN
       ) VALUES (
         v_order_id,
         gen_random_uuid()::TEXT,
-        v_prod[1],
-        v_prod[2],
+        v_prod_nome,
+        v_prod_sku,
         v_qty,
         v_preco,
         (ARRAY['MercadoLivre','Shopify','FakeCatalog'])[1 + (floor(random() * 3))::INT % 3],
