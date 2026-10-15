@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -237,18 +237,41 @@ export default function DashboardPage() {
   const [topProducts, setTopProducts]       = useState<AdminTopProduct[]>([])
   const [statusBreakdown, setStatusBreakdown]   = useState<AdminStatusBreakdown[]>([])
   const [paymentBreakdown, setPaymentBreakdown] = useState<AdminPaymentBreakdown[]>([])
-  const [selectedOrder, setSelectedOrder] = useState<string | null>(null)
-  const [ordersOpen, setOrdersOpen]       = useState(true)
-  const [statusFilter, setStatusFilter]   = useState<string>('')
+  const [selectedOrder, setSelectedOrder]       = useState<string | null>(null)
+  const [ordersOpen, setOrdersOpen]             = useState(true)
+  const [statusFilter, setStatusFilter]         = useState<string>('')
+  const [paymentFilter, setPaymentFilter]       = useState<string>('')
+  const [productFilter, setProductFilter]       = useState<{ id: string; title: string } | null>(null)
   const [page, setPage]               = useState(1)
   const [pageSize, setPageSize]       = useState(20)
   const [loading, setLoading]         = useState(true)
+  const ordersRef = useRef<HTMLDivElement>(null)
+
+  function applyFilter(type: 'status' | 'payment' | 'product', value: string, extra?: string) {
+    setPage(1)
+    if (type === 'status') {
+      const next = statusFilter === value ? '' : value
+      setStatusFilter(next); setPaymentFilter(''); setProductFilter(null)
+    } else if (type === 'payment') {
+      const next = paymentFilter === value ? '' : value
+      setPaymentFilter(next); setStatusFilter(''); setProductFilter(null)
+    } else {
+      const next = productFilter?.id === value ? null : { id: value, title: extra ?? value }
+      setProductFilter(next); setStatusFilter(''); setPaymentFilter('')
+    }
+    setOrdersOpen(true)
+    setTimeout(() => ordersRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+  }
 
   const load = useCallback(async () => {
     try {
+      const qs = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
+      if (statusFilter)      qs.set('status',        statusFilter)
+      if (paymentFilter)     qs.set('paymentMethod', paymentFilter)
+      if (productFilter?.id) qs.set('productId',     productFilter.id)
       const [sum, ord, chart, top, stBreak, payBreak] = await Promise.all([
         fetchAdmin<AdminSummary>('/api/admin/stats/summary'),
-        fetchAdmin<AdminOrdersPage>(`/api/admin/orders?page=${page}&pageSize=${pageSize}${statusFilter ? `&status=${statusFilter}` : ''}`),
+        fetchAdmin<AdminOrdersPage>(`/api/admin/orders?${qs}`),
         fetchAdmin<AdminSalesChartPoint[]>('/api/admin/charts/sales?days=30'),
         fetchAdmin<AdminTopProduct[]>('/api/admin/charts/top-products?limit=6'),
         fetchAdmin<AdminStatusBreakdown[]>('/api/admin/stats/status-breakdown').catch(() => [] as AdminStatusBreakdown[]),
@@ -265,7 +288,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, pageSize, statusFilter])
+  }, [page, pageSize, statusFilter, paymentFilter, productFilter])
 
   useEffect(() => { load() }, [load])
 
@@ -284,13 +307,11 @@ export default function DashboardPage() {
       )}
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <KpiCard label="Pedidos" value={String(summary?.totalOrders ?? 0)} color="blue" />
         <KpiCard label="Receita Total" value={formatCurrency(summary?.totalRevenue ?? 0)} color="green" />
         <KpiCard label="Ticket Médio" value={formatCurrency(summary?.avgOrderValue ?? 0)} color="purple" />
         <KpiCard label="Clientes" value={String(summary?.totalCustomers ?? 0)} color="blue" />
-        <KpiCard label="Pendentes" value={String(summary?.pendingOrders ?? 0)} color="red" />
-        <KpiCard label="Cancelados" value={String(summary?.cancelledOrders ?? 0)} color="red" />
       </div>
 
       {/* Charts row */}
@@ -335,23 +356,31 @@ export default function DashboardPage() {
             const maxCount = Math.max(...paymentBreakdown.map(r => r.count), 1)
             const labels: Record<string, string> = { pix: 'PIX', credit_card: 'Cartão Crédito', debit_card: 'Cartão Débito' }
             const colors: Record<string, string> = { pix: 'bg-emerald-500', credit_card: 'bg-purple-500', debit_card: 'bg-blue-500' }
-            return paymentBreakdown.map(r => (
-              <div key={r.method} className="mb-3 last:mb-0">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs text-gray-300">{labels[r.method] ?? r.method}</span>
-                  <div className="text-right">
-                    <span className="text-xs font-semibold text-white">{r.count} pedidos</span>
-                    <span className="text-[10px] text-gray-500 ml-2">{formatCurrency(r.total)}</span>
+            return paymentBreakdown.map(r => {
+              const active = paymentFilter === r.method
+              return (
+                <button
+                  key={r.method}
+                  onClick={() => applyFilter('payment', r.method)}
+                  className={`w-full text-left mb-3 last:mb-0 rounded-lg px-2 py-1.5 transition
+                    ${active ? 'bg-white/5 ring-1 ring-white/20' : 'hover:bg-white/5'}`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={`text-xs ${active ? 'text-white font-semibold' : 'text-gray-300'}`}>{labels[r.method] ?? r.method}</span>
+                    <div className="text-right">
+                      <span className="text-xs font-semibold text-white">{r.count} pedidos</span>
+                      <span className="text-[10px] text-gray-500 ml-2">{formatCurrency(r.total)}</span>
+                    </div>
                   </div>
-                </div>
-                <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${colors[r.method] ?? 'bg-gray-500'}`}
-                    style={{ width: `${Math.round((r.count / maxCount) * 100)}%` }}
-                  />
-                </div>
-              </div>
-            ))
+                  <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${colors[r.method] ?? 'bg-gray-500'} ${active ? 'brightness-125' : ''}`}
+                      style={{ width: `${Math.round((r.count / maxCount) * 100)}%` }}
+                    />
+                  </div>
+                </button>
+              )
+            })
           })()}
         </div>
 
@@ -366,23 +395,31 @@ export default function DashboardPage() {
               processing: 'bg-indigo-500', confirmed: 'bg-purple-500',
               pending: 'bg-yellow-500', cancelled: 'bg-red-500',
             }
-            return statusBreakdown.map(r => (
-              <div key={r.status} className="mb-3 last:mb-0">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs text-gray-300">{STATUS_LABELS[r.status] ?? r.status}</span>
-                  <div className="text-right">
-                    <span className="text-xs font-semibold text-white">{r.count}</span>
-                    <span className="text-[10px] text-gray-500 ml-2">{formatCurrency(r.total)}</span>
+            return statusBreakdown.map(r => {
+              const active = statusFilter === r.status
+              return (
+                <button
+                  key={r.status}
+                  onClick={() => applyFilter('status', r.status)}
+                  className={`w-full text-left mb-3 last:mb-0 rounded-lg px-2 py-1.5 transition
+                    ${active ? 'bg-white/5 ring-1 ring-white/20' : 'hover:bg-white/5'}`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={`text-xs ${active ? 'text-white font-semibold' : 'text-gray-300'}`}>{STATUS_LABELS[r.status] ?? r.status}</span>
+                    <div className="text-right">
+                      <span className="text-xs font-semibold text-white">{r.count}</span>
+                      <span className="text-[10px] text-gray-500 ml-2">{formatCurrency(r.total)}</span>
+                    </div>
                   </div>
-                </div>
-                <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${barColors[r.status] ?? 'bg-gray-500'}`}
-                    style={{ width: `${Math.round((r.count / maxCount) * 100)}%` }}
-                  />
-                </div>
-              </div>
-            ))
+                  <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${barColors[r.status] ?? 'bg-gray-500'} ${active ? 'brightness-125' : ''}`}
+                      style={{ width: `${Math.round((r.count / maxCount) * 100)}%` }}
+                    />
+                  </div>
+                </button>
+              )
+            })
           })()}
         </div>
 
@@ -392,33 +429,41 @@ export default function DashboardPage() {
           {topProducts.length === 0 && <p className="text-xs text-gray-600">Sem dados</p>}
           {(() => {
             const maxQty = Math.max(...topProducts.map(r => r.totalQuantity), 1)
-            return topProducts.map(r => (
-              <div key={r.productId} className="mb-3 last:mb-0">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs text-gray-300 truncate max-w-[160px]">{r.productTitle}</span>
-                  <div className="text-right ml-2 flex-shrink-0">
-                    <span className="text-xs font-semibold text-white">{r.totalQuantity} pedidos</span>
-                    <span className="text-[10px] text-gray-500 ml-1">{formatCurrency(r.totalRevenue)}</span>
+            return topProducts.map(r => {
+              const active = productFilter?.id === r.productId
+              return (
+                <button
+                  key={r.productId}
+                  onClick={() => applyFilter('product', r.productId, r.productTitle)}
+                  className={`w-full text-left mb-3 last:mb-0 rounded-lg px-2 py-1.5 transition
+                    ${active ? 'bg-white/5 ring-1 ring-white/20' : 'hover:bg-white/5'}`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={`text-xs truncate max-w-[160px] ${active ? 'text-white font-semibold' : 'text-gray-300'}`}>{r.productTitle}</span>
+                    <div className="text-right ml-2 flex-shrink-0">
+                      <span className="text-xs font-semibold text-white">{r.totalQuantity} pedidos</span>
+                      <span className="text-[10px] text-gray-500 ml-1">{formatCurrency(r.totalRevenue)}</span>
+                    </div>
                   </div>
-                </div>
-                <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-purple-500"
-                    style={{ width: `${Math.round((r.totalQuantity / maxQty) * 100)}%` }}
-                  />
-                </div>
-              </div>
-            ))
+                  <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full bg-purple-500 ${active ? 'brightness-125' : ''}`}
+                      style={{ width: `${Math.round((r.totalQuantity / maxQty) * 100)}%` }}
+                    />
+                  </div>
+                </button>
+              )
+            })
           })()}
         </div>
 
       </div>
 
       {/* Orders Table */}
-      <div className="rounded-2xl bg-gray-900 border border-gray-800">
+      <div ref={ordersRef} className="rounded-2xl bg-gray-900 border border-gray-800">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800 gap-4 flex-wrap">
           {/* Título + chevron + info de paginação */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <button
               onClick={() => setOrdersOpen(o => !o)}
               className="flex items-center gap-2 group"
@@ -440,6 +485,27 @@ export default function DashboardPage() {
                 })()}
               </span>
             )}
+            {/* Active filter badge */}
+            {(statusFilter || paymentFilter || productFilter) && (() => {
+              const PAYMENT_LABELS: Record<string,string> = { pix: 'PIX', credit_card: 'Cartão Crédito', debit_card: 'Cartão Débito' }
+              const label = statusFilter
+                ? STATUS_LABELS[statusFilter] ?? statusFilter
+                : paymentFilter
+                  ? PAYMENT_LABELS[paymentFilter] ?? paymentFilter
+                  : productFilter!.title
+              return (
+                <button
+                  onClick={() => { setStatusFilter(''); setPaymentFilter(''); setProductFilter(null); setPage(1) }}
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-900/50 border border-purple-700/50
+                             text-purple-300 text-xs hover:bg-purple-900/80 transition"
+                >
+                  <span>{label}</span>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )
+            })()}
           </div>
 
           {/* Controles */}
@@ -454,7 +520,7 @@ export default function DashboardPage() {
             </select>
             <select
               value={statusFilter}
-              onChange={e => { setStatusFilter(e.target.value); setPage(1) }}
+              onChange={e => { setStatusFilter(e.target.value); setPaymentFilter(''); setProductFilter(null); setPage(1) }}
               className="text-sm bg-gray-800 border border-gray-700 text-gray-300 rounded-lg px-3 py-1.5
                          focus:outline-none focus:border-purple-500"
             >

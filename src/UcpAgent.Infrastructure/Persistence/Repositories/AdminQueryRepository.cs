@@ -142,7 +142,9 @@ public sealed class AdminQueryRepository(IDbConnectionFactory factory)
         }, ct);
 
     public Task<AdminOrderPage> GetOrdersAsync(
-        int page = 1, int pageSize = 20, string? status = null, CancellationToken ct = default)
+        int page = 1, int pageSize = 20, string? status = null,
+        string? paymentMethod = null, string? productId = null,
+        CancellationToken ct = default)
         => DbResiliencePolicy.ExecuteAsync(async token =>
         {
             await using var conn = await factory.CreateAsync(token);
@@ -150,9 +152,14 @@ public sealed class AdminQueryRepository(IDbConnectionFactory factory)
             var total = await conn.ExecuteScalarAsync<long>("""
                 SELECT COUNT(DISTINCT o.id)
                 FROM "order" o
-                WHERE (@Status::text IS NULL OR o.status = @Status)
+                LEFT JOIN payment p ON p.order_id = o.id
+                WHERE (@Status::text        IS NULL OR o.status  = @Status)
+                  AND (@PaymentMethod::text IS NULL OR p.method  = @PaymentMethod)
+                  AND (@ProductId::text     IS NULL OR EXISTS (
+                        SELECT 1 FROM order_item oi2
+                        WHERE oi2.order_id = o.id AND oi2.product_id = @ProductId::uuid))
                 """,
-                new { Status = status });
+                new { Status = status, PaymentMethod = paymentMethod, ProductId = productId });
 
             var rows = await conn.QueryAsync<AdminOrderRow>("""
                 SELECT o.id                  AS OrderId,
@@ -176,12 +183,17 @@ public sealed class AdminQueryRepository(IDbConnectionFactory factory)
                     ORDER BY created_at
                     LIMIT 1
                 ) first_item ON true
-                WHERE (@Status::text IS NULL OR o.status = @Status)
+                WHERE (@Status::text        IS NULL OR o.status  = @Status)
+                  AND (@PaymentMethod::text IS NULL OR p.method  = @PaymentMethod)
+                  AND (@ProductId::text     IS NULL OR EXISTS (
+                        SELECT 1 FROM order_item oi3
+                        WHERE oi3.order_id = o.id AND oi3.product_id = @ProductId::uuid))
                 GROUP BY o.id, c.name, c.email, p.method, first_item.product_title, first_item.sku
                 ORDER BY o.created_at DESC
                 LIMIT @PageSize OFFSET @Offset
                 """,
-                new { Status = status, PageSize = pageSize, Offset = (page - 1) * pageSize });
+                new { Status = status, PaymentMethod = paymentMethod, ProductId = productId,
+                      PageSize = pageSize, Offset = (page - 1) * pageSize });
 
             return new AdminOrderPage(rows.ToList(), total);
         }, ct);

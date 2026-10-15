@@ -21,13 +21,14 @@ public static class AdminEndpoints
         })
         .WithName("AdminGetSummary");
 
-        // GET /api/admin/orders?page=1&pageSize=20&status=pending
+        // GET /api/admin/orders?page=1&pageSize=20&status=pending&paymentMethod=pix&productId=...
         group.MapGet("/orders", async (
             AdminQueryRepository repo,
-            int page = 1, int pageSize = 20, string? status = null,
+            int page = 1, int pageSize = 20,
+            string? status = null, string? paymentMethod = null, string? productId = null,
             CancellationToken ct = default) =>
         {
-            var page_ = await repo.GetOrdersAsync(page, pageSize, status, ct);
+            var page_ = await repo.GetOrdersAsync(page, pageSize, status, paymentMethod, productId, ct);
             return Results.Ok(new {
                 items      = page_.Items,
                 total      = page_.Total,
