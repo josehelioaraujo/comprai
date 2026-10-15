@@ -95,6 +95,7 @@ jobs:
           script: |
             set -e
             cd /home/projetos/comprai
+            git pull origin main
             echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u josehelioaraujo --password-stdin
             docker pull ${{ env.IMAGE }}:latest && echo "✅ Pull OK" || { echo "❌ Pull falhou"; exit 1; }
             docker compose -p comprai -f deploy/docker-compose.yml --env-file .env up -d --no-deps --force-recreate comprai-admin
