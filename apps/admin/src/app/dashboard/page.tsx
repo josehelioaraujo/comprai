@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import {
-  AreaChart, Area, BarChart, Bar,
+  AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts'
 import type {
@@ -322,25 +322,6 @@ export default function DashboardPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* Top Products Bar Chart */}
-        <div className="rounded-2xl bg-gray-900 border border-gray-800 p-5">
-          <p className="text-sm font-semibold text-white mb-4">Top Produtos (qtd)</p>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={topProducts} layout="vertical" margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" horizontal={false} />
-              <XAxis type="number" tick={{ fill: '#6b7280', fontSize: 11 }} tickLine={false} axisLine={false} />
-              <YAxis type="category" dataKey="productTitle" width={90} tick={{ fill: '#6b7280', fontSize: 10 }}
-                tickLine={false} axisLine={false}
-                tickFormatter={v => v.length > 12 ? v.slice(0, 12) + '…' : v} />
-              <Tooltip
-                contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 8 }}
-                labelStyle={{ color: '#9ca3af', fontSize: 12 }}
-                formatter={(v: number) => [v, 'Unidades']}
-              />
-              <Bar dataKey="totalQuantity" fill="#7c3aed" radius={[0, 4, 4, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
       </div>
 
       {/* Summary Panels */}
@@ -416,7 +397,7 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs text-gray-300 truncate max-w-[160px]">{r.productTitle}</span>
                   <div className="text-right ml-2 flex-shrink-0">
-                    <span className="text-xs font-semibold text-white">{r.totalQuantity} un.</span>
+                    <span className="text-xs font-semibold text-white">{r.totalQuantity} pedidos</span>
                     <span className="text-[10px] text-gray-500 ml-1">{formatCurrency(r.totalRevenue)}</span>
                   </div>
                 </div>
