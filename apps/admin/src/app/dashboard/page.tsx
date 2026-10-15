@@ -56,6 +56,7 @@ function StatusBadge({ status }: { status: string }) {
 function OrderModal({ orderId, onClose }: { orderId: string; onClose: () => void }) {
   const [detail, setDetail] = useState<AdminOrderDetail | null>(null)
   const [loading, setLoading] = useState(true)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     fetchAdmin<AdminOrderDetail>(`/api/admin/orders/${orderId}`)
@@ -64,16 +65,76 @@ function OrderModal({ orderId, onClose }: { orderId: string; onClose: () => void
       .finally(() => setLoading(false))
   }, [orderId])
 
+  function handleCopy() {
+    if (!detail) return
+    const text = [
+      `Pedido: ${detail.orderId}`,
+      `Status: ${STATUS_LABELS[detail.status] ?? detail.status}`,
+      ``,
+      `Cliente: ${detail.customerName ?? '—'}`,
+      `E-mail: ${detail.customerEmail ?? '—'}`,
+      detail.customerPhone ? `Telefone: ${detail.customerPhone}` : null,
+      ``,
+      `Pagamento: ${detail.paymentMethod ?? '—'} — ${STATUS_LABELS[detail.paymentStatus ?? ''] ?? detail.paymentStatus ?? '—'}`,
+      `Total: ${formatCurrency(detail.total)}`,
+      ``,
+      detail.shippingCity ? `Entrega: ${detail.shippingStreet}${detail.shippingNumber ? `, ${detail.shippingNumber}` : ''} — ${detail.shippingCity}/${detail.shippingState} ${detail.shippingZip}` : null,
+      detail.trackingCode ? `Rastreio: ${detail.trackingCode}` : null,
+      ``,
+      `Itens:`,
+      ...detail.items.map(i => `  • ${i.productTitle}${i.sku ? ` [${i.sku}]` : ''} — ${i.quantity}× ${formatCurrency(i.unitPrice)}`),
+      ``,
+      `Data: ${formatDate(detail.createdAt)}`,
+    ].filter(l => l !== null).join('\n')
+
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
-      <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-gray-900 border border-gray-700 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" onClick={onClose}>
+      <div
+        className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-gray-900 border border-gray-700 shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
           <h2 className="text-lg font-semibold text-white">Detalhe do Pedido</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white transition">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-2">
+            {detail && (
+              <button
+                onClick={handleCopy}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                  copied
+                    ? 'bg-green-700/30 text-green-400 border border-green-700/40'
+                    : 'bg-gray-800 text-gray-300 border border-gray-700 hover:bg-gray-700'
+                }`}
+              >
+                {copied ? (
+                  <>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Copiado!
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-4 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    Copiar
+                  </>
+                )}
+              </button>
+            )}
+            <button onClick={onClose} className="text-gray-400 hover:text-white transition">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div className="p-6">
@@ -85,7 +146,7 @@ function OrderModal({ orderId, onClose }: { orderId: string; onClose: () => void
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-xs text-gray-500">ID</p>
-                  <p className="text-sm text-gray-300 font-mono">{detail.orderId.slice(0, 8)}…</p>
+                  <p className="text-sm text-gray-300 font-mono">{detail.orderId}</p>
                 </div>
                 <StatusBadge status={detail.status} />
               </div>
@@ -163,6 +224,7 @@ export default function DashboardPage() {
   const [salesChart, setSalesChart]   = useState<AdminSalesChartPoint[]>([])
   const [topProducts, setTopProducts] = useState<AdminTopProduct[]>([])
   const [selectedOrder, setSelectedOrder] = useState<string | null>(null)
+  const [ordersOpen, setOrdersOpen]       = useState(true)
   const [statusFilter, setStatusFilter]   = useState<string>('')
   const [page, setPage]               = useState(1)
   const [loading, setLoading]         = useState(true)
@@ -265,7 +327,18 @@ export default function DashboardPage() {
       {/* Orders Table */}
       <div className="rounded-2xl bg-gray-900 border border-gray-800">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
-          <p className="text-sm font-semibold text-white">Pedidos Recentes</p>
+          <button
+            onClick={() => setOrdersOpen(o => !o)}
+            className="flex items-center gap-2 group"
+          >
+            <p className="text-sm font-semibold text-white">Pedidos Recentes</p>
+            <svg
+              className={`w-4 h-4 text-gray-500 group-hover:text-gray-300 transition-transform duration-200 ${ordersOpen ? 'rotate-0' : '-rotate-90'}`}
+              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
           <select
             value={statusFilter}
             onChange={e => { setStatusFilter(e.target.value); setPage(1) }}
@@ -279,7 +352,7 @@ export default function DashboardPage() {
           </select>
         </div>
 
-        <div className="overflow-x-auto">
+        {ordersOpen && <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-800">
@@ -316,10 +389,10 @@ export default function DashboardPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </div>}
 
         {/* Pagination */}
-        <div className="flex items-center justify-between px-5 py-3 border-t border-gray-800">
+        {ordersOpen && <div className="flex items-center justify-between px-5 py-3 border-t border-gray-800">
           <p className="text-xs text-gray-600">Página {page}</p>
           <div className="flex gap-2">
             <button
@@ -337,7 +410,7 @@ export default function DashboardPage() {
               Próxima →
             </button>
           </div>
-        </div>
+        </div>}
       </div>
     </>
   )
