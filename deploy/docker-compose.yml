@@ -79,15 +79,15 @@ services:
   comprai-redis:
     image: redis:7-alpine
     container_name: comprai-redis
+    command: redis-server --save "" --appendonly no --loglevel warning
     ports:
       - "6379:6379"
-    volumes:
-      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
     networks:
       - comprai-network
     restart: unless-stopped
@@ -293,7 +293,6 @@ services:
     restart: unless-stopped
 
 volumes:
-  redis_data:
   rabbitmq_data:
   kafka_data:
   postgres_data:
