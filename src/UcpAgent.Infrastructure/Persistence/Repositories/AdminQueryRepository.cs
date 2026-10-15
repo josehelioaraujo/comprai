@@ -78,6 +78,10 @@ public sealed record AdminSalesChartPoint(
     decimal Revenue,
     long    Orders);
 
+public sealed record AdminOrderPage(
+    IReadOnlyList<AdminOrderRow> Items,
+    long Total);
+
 public sealed record AdminTopProductDto(
     string  ProductId,
     string  ProductTitle,
@@ -106,11 +110,19 @@ public sealed class AdminQueryRepository(IDbConnectionFactory factory)
                 """);
         }, ct);
 
-    public Task<IReadOnlyList<AdminOrderRow>> GetOrdersAsync(
+    public Task<AdminOrderPage> GetOrdersAsync(
         int page = 1, int pageSize = 20, string? status = null, CancellationToken ct = default)
         => DbResiliencePolicy.ExecuteAsync(async token =>
         {
             await using var conn = await factory.CreateAsync(token);
+
+            var total = await conn.ExecuteScalarAsync<long>("""
+                SELECT COUNT(DISTINCT o.id)
+                FROM "order" o
+                WHERE (@Status::text IS NULL OR o.status = @Status)
+                """,
+                new { Status = status });
+
             var rows = await conn.QueryAsync<AdminOrderRow>("""
                 SELECT o.id             AS OrderId,
                        o.status         AS Status,
@@ -130,7 +142,8 @@ public sealed class AdminQueryRepository(IDbConnectionFactory factory)
                 LIMIT @PageSize OFFSET @Offset
                 """,
                 new { Status = status, PageSize = pageSize, Offset = (page - 1) * pageSize });
-            return (IReadOnlyList<AdminOrderRow>)rows.ToList();
+
+            return new AdminOrderPage(rows.ToList(), total);
         }, ct);
 
     public Task<AdminOrderDetailDto?> GetOrderDetailAsync(string orderId, CancellationToken ct = default)

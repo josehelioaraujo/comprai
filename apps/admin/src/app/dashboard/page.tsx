@@ -6,7 +6,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts'
 import type {
-  AdminSummary, AdminOrder, AdminSalesChartPoint,
+  AdminSummary, AdminOrdersPage, AdminSalesChartPoint,
   AdminTopProduct, AdminOrderDetail
 } from '@/types'
 import { formatCurrency, formatDate, STATUS_LABELS, STATUS_COLORS } from '@/lib/api'
@@ -220,25 +220,26 @@ function OrderModal({ orderId, onClose }: { orderId: string; onClose: () => void
 
 export default function DashboardPage() {
   const [summary, setSummary]         = useState<AdminSummary | null>(null)
-  const [orders, setOrders]           = useState<AdminOrder[]>([])
+  const [ordersPage, setOrdersPage]   = useState<AdminOrdersPage | null>(null)
   const [salesChart, setSalesChart]   = useState<AdminSalesChartPoint[]>([])
   const [topProducts, setTopProducts] = useState<AdminTopProduct[]>([])
   const [selectedOrder, setSelectedOrder] = useState<string | null>(null)
   const [ordersOpen, setOrdersOpen]       = useState(true)
   const [statusFilter, setStatusFilter]   = useState<string>('')
   const [page, setPage]               = useState(1)
+  const [pageSize, setPageSize]       = useState(20)
   const [loading, setLoading]         = useState(true)
 
   const load = useCallback(async () => {
     try {
       const [sum, ord, chart, top] = await Promise.all([
         fetchAdmin<AdminSummary>('/api/admin/stats/summary'),
-        fetchAdmin<AdminOrder[]>(`/api/admin/orders?page=${page}&pageSize=20${statusFilter ? `&status=${statusFilter}` : ''}`),
+        fetchAdmin<AdminOrdersPage>(`/api/admin/orders?page=${page}&pageSize=${pageSize}${statusFilter ? `&status=${statusFilter}` : ''}`),
         fetchAdmin<AdminSalesChartPoint[]>('/api/admin/charts/sales?days=30'),
         fetchAdmin<AdminTopProduct[]>('/api/admin/charts/top-products?limit=8'),
       ])
       setSummary(sum)
-      setOrders(ord)
+      setOrdersPage(ord)
       setSalesChart(chart)
       setTopProducts(top)
     } catch (e) {
@@ -246,7 +247,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, statusFilter])
+  }, [page, pageSize, statusFilter])
 
   useEffect(() => { load() }, [load])
 
@@ -326,30 +327,67 @@ export default function DashboardPage() {
 
       {/* Orders Table */}
       <div className="rounded-2xl bg-gray-900 border border-gray-800">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
-          <button
-            onClick={() => setOrdersOpen(o => !o)}
-            className="flex items-center gap-2 group"
-          >
-            <p className="text-sm font-semibold text-white">Pedidos Recentes</p>
-            <svg
-              className={`w-4 h-4 text-gray-500 group-hover:text-gray-300 transition-transform duration-200 ${ordersOpen ? 'rotate-0' : '-rotate-90'}`}
-              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800 gap-4 flex-wrap">
+          {/* Título + chevron + info de paginação */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setOrdersOpen(o => !o)}
+              className="flex items-center gap-2 group"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          <select
-            value={statusFilter}
-            onChange={e => { setStatusFilter(e.target.value); setPage(1) }}
-            className="text-sm bg-gray-800 border border-gray-700 text-gray-300 rounded-lg px-3 py-1.5
-                       focus:outline-none focus:border-purple-500"
-          >
-            <option value="">Todos os status</option>
-            {Object.entries(STATUS_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>{v}</option>
-            ))}
-          </select>
+              <p className="text-sm font-semibold text-white">Pedidos Recentes</p>
+              <svg
+                className={`w-4 h-4 text-gray-500 group-hover:text-gray-300 transition-transform duration-200 ${ordersOpen ? 'rotate-0' : '-rotate-90'}`}
+                fill="none" stroke="currentColor" viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {ordersPage && (
+              <span className="text-xs text-gray-500">
+                {(() => {
+                  const from = (page - 1) * pageSize + 1
+                  const to   = Math.min(page * pageSize, ordersPage.total)
+                  return `${from}–${to} de ${ordersPage.totalPages} pág. · Total: ${ordersPage.total} registros`
+                })()}
+              </span>
+            )}
+          </div>
+
+          {/* Controles */}
+          <div className="flex items-center gap-2">
+            <select
+              value={pageSize}
+              onChange={e => { setPageSize(Number(e.target.value)); setPage(1) }}
+              className="text-sm bg-gray-800 border border-gray-700 text-gray-300 rounded-lg px-2 py-1.5
+                         focus:outline-none focus:border-purple-500"
+            >
+              {[10, 20, 50].map(n => <option key={n} value={n}>{n}/pág</option>)}
+            </select>
+            <select
+              value={statusFilter}
+              onChange={e => { setStatusFilter(e.target.value); setPage(1) }}
+              className="text-sm bg-gray-800 border border-gray-700 text-gray-300 rounded-lg px-3 py-1.5
+                         focus:outline-none focus:border-purple-500"
+            >
+              <option value="">Todos os status</option>
+              {Object.entries(STATUS_LABELS).map(([k, v]) => (
+                <option key={k} value={k}>{v}</option>
+              ))}
+            </select>
+            <button
+              disabled={page <= 1}
+              onClick={() => setPage(p => p - 1)}
+              className="px-2.5 py-1.5 rounded-lg bg-gray-800 text-gray-300 text-xs disabled:opacity-40 hover:bg-gray-700 transition"
+            >←</button>
+            <span className="text-xs text-gray-400 min-w-[40px] text-center">
+              {page}{ordersPage ? `/${ordersPage.totalPages}` : ''}
+            </span>
+            <button
+              disabled={!ordersPage || page >= ordersPage.totalPages}
+              onClick={() => setPage(p => p + 1)}
+              className="px-2.5 py-1.5 rounded-lg bg-gray-800 text-gray-300 text-xs disabled:opacity-40 hover:bg-gray-700 transition"
+            >→</button>
+          </div>
         </div>
 
         {ordersOpen && <div className="overflow-x-auto">
@@ -364,12 +402,12 @@ export default function DashboardPage() {
               </tr>
             </thead>
             <tbody>
-              {orders.length === 0 && (
+              {(ordersPage?.items.length ?? 0) === 0 && (
                 <tr>
                   <td colSpan={7} className="text-center py-10 text-gray-600">Nenhum pedido encontrado.</td>
                 </tr>
               )}
-              {orders.map(order => (
+              {(ordersPage?.items ?? []).map(order => (
                 <tr
                   key={order.orderId}
                   onClick={() => setSelectedOrder(order.orderId)}
@@ -391,26 +429,6 @@ export default function DashboardPage() {
           </table>
         </div>}
 
-        {/* Pagination */}
-        {ordersOpen && <div className="flex items-center justify-between px-5 py-3 border-t border-gray-800">
-          <p className="text-xs text-gray-600">Página {page}</p>
-          <div className="flex gap-2">
-            <button
-              disabled={page <= 1}
-              onClick={() => setPage(p => p - 1)}
-              className="px-3 py-1.5 rounded-lg bg-gray-800 text-gray-300 text-xs disabled:opacity-40 hover:bg-gray-700 transition"
-            >
-              ← Anterior
-            </button>
-            <button
-              disabled={orders.length < 20}
-              onClick={() => setPage(p => p + 1)}
-              className="px-3 py-1.5 rounded-lg bg-gray-800 text-gray-300 text-xs disabled:opacity-40 hover:bg-gray-700 transition"
-            >
-              Próxima →
-            </button>
-          </div>
-        </div>}
       </div>
     </>
   )

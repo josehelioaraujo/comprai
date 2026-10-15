@@ -27,8 +27,14 @@ public static class AdminEndpoints
             int page = 1, int pageSize = 20, string? status = null,
             CancellationToken ct = default) =>
         {
-            var orders = await repo.GetOrdersAsync(page, pageSize, status, ct);
-            return Results.Ok(orders);
+            var page_ = await repo.GetOrdersAsync(page, pageSize, status, ct);
+            return Results.Ok(new {
+                items      = page_.Items,
+                total      = page_.Total,
+                page,
+                pageSize,
+                totalPages = (long)Math.Ceiling((double)page_.Total / pageSize),
+            });
         })
         .WithName("AdminGetOrders");
 

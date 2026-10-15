@@ -18,6 +18,14 @@ export interface AdminOrder {
   createdAt: string
 }
 
+export interface AdminOrdersPage {
+  items: AdminOrder[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
 export interface AdminOrderDetail {
   orderId: string
   status: string
