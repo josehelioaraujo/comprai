@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
+import pkg from '../../../package.json'
 
-const VERSION = 'v1.0.2'
+const VERSION = `v${pkg.version}`
 
 const navItems = [
   {

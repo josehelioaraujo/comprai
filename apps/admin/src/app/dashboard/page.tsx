@@ -87,10 +87,26 @@ function OrderModal({ orderId, onClose }: { orderId: string; onClose: () => void
       `Data: ${formatDate(detail.createdAt)}`,
     ].filter(l => l !== null).join('\n')
 
-    navigator.clipboard.writeText(text).then(() => {
+    const doCopy = async () => {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text)
+      } else {
+        // Fallback para HTTP (sem secure context)
+        const el = document.createElement('textarea')
+        el.value = text
+        el.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none'
+        document.body.appendChild(el)
+        el.focus()
+        el.select()
+        document.execCommand('copy')
+        document.body.removeChild(el)
+      }
+    }
+
+    doCopy().then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    })
+    }).catch(console.error)
   }
 
   return (
@@ -143,11 +159,7 @@ function OrderModal({ orderId, onClose }: { orderId: string; onClose: () => void
           {detail && (
             <div className="space-y-5">
               {/* Header */}
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs text-gray-500">ID</p>
-                  <p className="text-sm text-gray-300 font-mono">{detail.orderId}</p>
-                </div>
+              <div className="flex items-start justify-end">
                 <StatusBadge status={detail.status} />
               </div>
 
