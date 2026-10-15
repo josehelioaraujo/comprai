@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 
+export const dynamic = 'force-dynamic'
+
 // Use private (non-NEXT_PUBLIC_) env var so it's read at runtime, not inlined at build time
 const API_BASE_URL = process.env.API_BASE_URL ?? 'http://localhost:5020'
 
