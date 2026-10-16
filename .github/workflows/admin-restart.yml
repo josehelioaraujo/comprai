@@ -7,7 +7,7 @@ on:
         description: 'O que reiniciar'
         required: true
         type: choice
-        options: [api, redis, all, redeploy]
+        options: [api, redis, all, redeploy, logs]
 
 env:
   VPS_HOST: '2.25.122.11'
@@ -67,6 +67,19 @@ jobs:
                 up -d --force-recreate
               sleep 20
               curl -sf http://localhost:5020/health/live && echo "✅ API OK" || echo "❌ API não respondeu"
+              ;;
+            logs)
+              echo "📋 Logs recentes da API (últimas 100 linhas)..."
+              docker logs comprai-api --tail 100 2>&1
+              echo "---"
+              echo "📋 Testando endpoint /api/admin/orders:"
+              curl -sf http://localhost:5020/api/admin/orders?page=1\&pageSize=5 -H "Authorization: Bearer test" 2>&1 | head -20 || true
+              echo "---"
+              echo "📋 Testando sem auth (deve retornar 401 ou erro):"
+              curl -s http://localhost:5020/api/admin/orders?page=1\&pageSize=5 2>&1 | head -20
+              echo "---"
+              echo "📋 Verificando imagem em uso:"
+              docker inspect comprai-api --format '{{.Config.Image}} | Created: {{.Created}}' 2>&1
               ;;
             *)
               echo "❌ Target desconhecido: $TARGET"
