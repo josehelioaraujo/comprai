@@ -58,20 +58,26 @@ builder.Services.AddObservabilidade(builder.Configuration);
 builder.Services.AddSingleton<UcpMetrics>();
 
 // ââ Resend (email) â modo fake quando RESEND_API_KEY nÃ£o configurado âââââââââ
+// Email — provider plugável: Brevo > Resend > Null
+var brevoApiKey  = builder.Configuration["Brevo:ApiKey"]  ?? string.Empty;
 var resendApiKey = builder.Configuration["Resend:ApiKey"]
     ?? Environment.GetEnvironmentVariable("RESEND_API_KEY")
     ?? string.Empty;
-if (!string.IsNullOrEmpty(resendApiKey))
+
+if (!string.IsNullOrEmpty(brevoApiKey))
+{
+    // Brevo SMTP relay — envia para qualquer destinatário sem domínio verificado
+    builder.Services.AddSingleton<UcpAgent.Api.Auth.IEmailService, UcpAgent.Api.Auth.BrevoEmailService>();
+}
+else if (!string.IsNullOrEmpty(resendApiKey))
 {
     builder.Services.AddResend(o => { o.ApiToken = resendApiKey; });
-}
-// Sem RESEND_API_KEY: IResend nÃ£o Ã© registrado â EmailNotificationWorker usa IResend? (opcional)
-
-// V060-F1: IEmailService
-if (!string.IsNullOrEmpty(resendApiKey))
     builder.Services.AddSingleton<UcpAgent.Api.Auth.IEmailService, UcpAgent.Api.Auth.ResendEmailService>();
+}
 else
+{
     builder.Services.AddSingleton<UcpAgent.Api.Auth.IEmailService, UcpAgent.Api.Auth.NullEmailService>();
+}
 
 builder.Services.AddSingleton<UcpAgent.Api.Auth.TotpService>(); // V060-F2
 

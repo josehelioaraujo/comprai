@@ -482,13 +482,14 @@ jobs:
           NEW_RELIC_USER_KEY: ${{ secrets.NEW_RELIC_USER_KEY }}
           NEW_RELIC_ACCOUNT_ID: ${{ secrets.NEW_RELIC_ACCOUNT_ID }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          BREVO_SMTP_KEY: ${{ secrets.BREVO_SMTP_KEY }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           PII_ENCRYPTION_KEY: ${{ secrets.PII_ENCRYPTION_KEY }}
         with:
           host: ${{ env.VPS_HOST }}
           username: ${{ env.VPS_USER }}
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
-          envs: DATADOG_API_KEY,BUILD_VERSION,GH_PAT,ADMIN_RESTART_PASSWORD,ML_CLIENT_ID,ML_CLIENT_SECRET,NEW_RELIC_LICENSE_KEY,NEW_RELIC_USER_KEY,NEW_RELIC_ACCOUNT_ID,RESEND_API_KEY,POSTGRES_PASSWORD,PII_ENCRYPTION_KEY
+          envs: DATADOG_API_KEY,BUILD_VERSION,GH_PAT,ADMIN_RESTART_PASSWORD,ML_CLIENT_ID,ML_CLIENT_SECRET,NEW_RELIC_LICENSE_KEY,NEW_RELIC_USER_KEY,NEW_RELIC_ACCOUNT_ID,RESEND_API_KEY,BREVO_SMTP_KEY,POSTGRES_PASSWORD,PII_ENCRYPTION_KEY
           command_timeout: 15m
           script: |
             set -e
@@ -544,8 +545,16 @@ jobs:
               && sed -i "s|^RESEND_API_KEY=.*|RESEND_API_KEY=${RESEND_API_KEY}|" .env \
               || echo "RESEND_API_KEY=${RESEND_API_KEY}" >> .env
             grep -q '^Resend__FromEmail=' .env \
-              && sed -i "s|^Resend__FromEmail=.*|Resend__FromEmail=helioandrade@hotmail.com|" .env \
-              || echo "Resend__FromEmail=helioandrade@hotmail.com" >> .env
+              && sed -i "s|^Resend__FromEmail=.*|Resend__FromEmail=onboarding@resend.dev|" .env \
+              || echo "Resend__FromEmail=onboarding@resend.dev" >> .env
+
+            # Brevo SMTP (tem prioridade sobre Resend quando configurado)
+            grep -q '^BREVO_SMTP_KEY=' .env \
+              && sed -i "s|^BREVO_SMTP_KEY=.*|BREVO_SMTP_KEY=${BREVO_SMTP_KEY}|" .env \
+              || echo "BREVO_SMTP_KEY=${BREVO_SMTP_KEY}" >> .env
+            grep -q '^BREVO_SMTP_LOGIN=' .env \
+              && sed -i "s|^BREVO_SMTP_LOGIN=.*|BREVO_SMTP_LOGIN=84a2bc001@smtp-brevo.com|" .env \
+              || echo "BREVO_SMTP_LOGIN=84a2bc001@smtp-brevo.com" >> .env
 
             # Injetar POSTGRES_PASSWORD no .env
             grep -q '^POSTGRES_PASSWORD=' .env \

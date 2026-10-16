@@ -1,4 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Net;
+using System.Net.Mail;
 using Resend;
 
 namespace UcpAgent.Api.Auth;
@@ -137,8 +139,107 @@ public sealed class ResendEmailService(IResend resend, IConfiguration config) : 
 }
 
 /// <summary>
+/// Implementação via Brevo SMTP relay.
+/// Registrada quando Brevo:ApiKey está configurado.
+/// Envia para qualquer destinatário sem necessidade de domínio verificado.
+/// </summary>
+[ExcludeFromCodeCoverage]
+public sealed class BrevoEmailService(IConfiguration config) : IEmailService
+{
+    private const string SmtpHost = "smtp-relay.brevo.com";
+    private const int    SmtpPort = 587;
+
+    private readonly string _login  = config["Brevo:Login"]  ?? string.Empty;
+    private readonly string _apiKey = config["Brevo:ApiKey"] ?? string.Empty;
+    private readonly string _from   = config["Brevo:From"]   ?? "helioaraujoandrade@outlook.com";
+
+    private async Task SendAsync(string toEmail, string subject, string html, CancellationToken ct)
+    {
+        using var client = new SmtpClient(SmtpHost, SmtpPort)
+        {
+            Credentials = new NetworkCredential(_login, _apiKey),
+            EnableSsl   = true,
+        };
+        using var msg = new MailMessage(_from, toEmail, subject, html) { IsBodyHtml = true };
+        await client.SendMailAsync(msg, ct);
+    }
+
+    public Task SendVerificationEmailAsync(string toEmail, string toName, string code, CancellationToken ct = default)
+    {
+        var html = $"""
+            <div style="font-family:Inter,sans-serif;max-width:480px;margin:auto;padding:2rem">
+              <h2 style="color:#1a1a2e;margin:0 0 1rem">Verificação de e-mail</h2>
+              <p style="color:#374151;margin:0 0 .5rem">Olá, {Encode(toName)}!</p>
+              <p style="color:#374151;margin:0 0 1.5rem">
+                Use o código abaixo para confirmar seu endereço de e-mail no Comprai.
+              </p>
+              <div style="font-size:2.25rem;font-weight:700;letter-spacing:.6rem;
+                          background:#f3f4f6;padding:1.25rem;border-radius:12px;
+                          text-align:center;color:#111827;font-family:monospace">
+                {code}
+              </div>
+              <p style="color:#9ca3af;font-size:.8125rem;margin:1.25rem 0 0">
+                Válido por 15 minutos. Não compartilhe este código.
+              </p>
+            </div>
+            """;
+        return SendAsync(toEmail, $"Seu código de verificação Comprai: {code}", html, ct);
+    }
+
+    public Task SendPasswordResetEmailAsync(string toEmail, string toName, string resetLink, CancellationToken ct = default)
+    {
+        var html = $"""
+            <div style="font-family:Inter,sans-serif;max-width:480px;margin:auto;padding:2rem">
+              <h2 style="color:#1a1a2e;margin:0 0 1rem">Redefinição de senha</h2>
+              <p style="color:#374151;margin:0 0 .5rem">Olá, {Encode(toName)}!</p>
+              <p style="color:#374151;margin:0 0 1.5rem">
+                Recebemos uma solicitação para redefinir a senha da sua conta Comprai.
+                Clique no botão abaixo para criar uma nova senha.
+              </p>
+              <a href="{WebUtility.HtmlEncode(resetLink)}"
+                 style="display:inline-block;background:#7c3aed;color:#fff;font-weight:700;
+                        padding:.75rem 1.75rem;border-radius:8px;text-decoration:none;font-size:15px">
+                Redefinir senha
+              </a>
+              <p style="color:#9ca3af;font-size:.8125rem;margin:1.25rem 0 0">
+                Link válido por 1 hora. Se você não solicitou isso, ignore este e-mail.
+              </p>
+            </div>
+            """;
+        return SendAsync(toEmail, "Redefinição de senha — Comprai", html, ct);
+    }
+
+    public Task SendAdminInviteEmailAsync(string toEmail, string toName, string confirmLink, CancellationToken ct = default)
+    {
+        var html = $"""
+            <div style="font-family:Inter,sans-serif;max-width:480px;margin:auto;padding:2rem">
+              <h2 style="color:#1a1a2e;margin:0 0 1rem;text-align:center">Bem-vindo ao Comprai Admin</h2>
+              <p style="color:#374151;margin:0 0 .5rem">Olá, {Encode(toName)}!</p>
+              <p style="color:#374151;margin:0 0 1.5rem">
+                Sua conta de administrador foi criada. Clique no botão abaixo para confirmar
+                seu e-mail e ativar o acesso ao painel administrativo.
+              </p>
+              <div style="text-align:center;margin:2rem 0">
+                <a href="{WebUtility.HtmlEncode(confirmLink)}"
+                   style="display:inline-block;background:#7c3aed;color:#fff;font-weight:700;
+                          padding:.875rem 2rem;border-radius:10px;text-decoration:none;font-size:15px">
+                  ✓ Confirmar cadastro
+                </a>
+              </div>
+              <p style="color:#9ca3af;font-size:.8125rem;margin:1.25rem 0 0;text-align:center">
+                Link válido por 24 horas.
+              </p>
+            </div>
+            """;
+        return SendAsync(toEmail, "Confirme seu cadastro — Comprai Admin", html, ct);
+    }
+
+    private static string Encode(string s) => WebUtility.HtmlEncode(s);
+}
+
+/// <summary>
 /// Implementação nula: loga o código sem enviar e-mail.
-/// Usada quando RESEND_API_KEY não está configurado.
+/// Usada quando nenhum provider está configurado.
 /// </summary>
 [ExcludeFromCodeCoverage]
 public sealed class NullEmailService(ILogger<NullEmailService> logger) : IEmailService
