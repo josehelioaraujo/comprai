@@ -28,6 +28,9 @@ services:
       PII_ENCRYPTION_KEY: ${PII_ENCRYPTION_KEY}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
       Jwt__ExpirationMinutes: '480'
+      Brevo__ApiKey: ${BREVO_SMTP_KEY:-}
+      Brevo__Login: ${BREVO_SMTP_LOGIN:-}
+      Brevo__From: ${BREVO_FROM_EMAIL:-helioaraujoandrade@outlook.com}
     depends_on:
       - redis
       - comprai-postgres
