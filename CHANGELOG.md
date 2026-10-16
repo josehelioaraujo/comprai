@@ -1,5 +1,40 @@
 # Changelog
 
+## [V069v4] — 2026-10-16
+
+### Fixed — Fluxo Completo de Reset de Senha
+
+**Problemas resolvidos**
+
+| # | Problema | Causa raiz | Fix |
+|---|----------|------------|-----|
+| 1 | Email de reset não chegava | Vars Brevo ausentes no `docker-compose.yml` raiz — container usava `NullEmailService` | Adicionado `Brevo__ApiKey`, `Brevo__Login`, `Brevo__From` ao `comprai-api` service |
+| 2 | Remetente rejeitado pelo Brevo | `helioaraujoandrade@outlook.com` não verificado como sender na conta Brevo | Sender verificado via painel Brevo |
+| 3 | Página `/reset-password` redirecionava para login | Next.js middleware bloqueava a rota (não estava na lista de públicas) | Adicionado `pathname.startsWith('/reset-password')` nas rotas públicas |
+| 4 | Reset retornava 400 "Token inválido" | Proxy Next.js em `reset-password/route.ts` tratava apenas status `204` como sucesso — backend retorna `200 OK`; qualquer outra resposta caia no `else` que devolvia 400 | Substituído `status === 204` por `backendRes.ok` (200–299) |
+| 5 | CI/CD travado no SonarCloud | Job de deploy dependia do SonarCloud | Deploy desacoplado do Sonar |
+
+**Arquivos modificados**
+
+| Arquivo | O que mudou |
+|---------|-------------|
+| `docker-compose.yml` | Vars `Brevo__ApiKey`, `Brevo__Login`, `Brevo__From` adicionadas ao serviço `comprai-api` |
+| `apps/admin/src/middleware.ts` | `/reset-password` adicionado às rotas públicas |
+| `apps/admin/src/app/api/auth/reset-password/route.ts` | Proxy trata `backendRes.ok` (200-299) como sucesso em vez de só 204 |
+| `ci-cd.yml` | Deploy não depende mais do job SonarCloud |
+
+**Fluxo completo verificado**
+`Esqueci minha senha` → email Brevo recebido → clique no link → tela de redefinição → nova senha → `Senha redefinida!` → redirect para login ✅
+
+| Commit | Descrição |
+|--------|-----------|
+| `02c153a` | ci: deploy não depende mais do sonar |
+| `c704747` | fix: adicionar vars Brevo no docker-compose raiz |
+| `6259bda` | fix: liberar rota /reset-password no middleware admin |
+| `cfab6f6` | fix: corrigir proxy reset-password que convertia 200 em 400 |
+
+---
+
 ## [V069v3] — 2026-10-15
 
 ### Fixed — Admin Orders: HTTP 500 em `/api/admin/orders`

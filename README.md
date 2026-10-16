@@ -961,6 +961,13 @@ strix scan http://2.25.122.11:5020 --output report.html
 - [x] Script `run-e2e-vps.sh` + `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` para execução na VPS
 - [x] **30 passando · 1 skipped · 0 falhando** ✅
 
+**V069v4 ✅**
+- [x] Fix: fluxo completo de reset de senha — 4 bugs em cadeia corrigidos
+- [x] Vars Brevo adicionadas ao `docker-compose.yml` raiz; sender verificado → email de reset chega corretamente
+- [x] Rota `/reset-password` liberada no middleware Next.js (era redirecionada para login)
+- [x] Proxy `reset-password/route.ts`: `status === 204` → `backendRes.ok` — backend retorna 200 OK; antes o proxy convertia sucesso em 400
+- [x] CI/CD: deploy desacoplado do SonarCloud
+
 **V069v3 ✅**
 - [x] Fix: HTTP 500 em `GET /api/admin/orders` com filtro de produto — causa dupla: conflito de tipo Npgsql (`::text` vs `::uuid`) + `order_item.product_id` é `VARCHAR(200)`, não UUID
 - [x] Fix definitivo: `string? productId` (não `Guid?`) + `@ProductId::text IS NULL` uniforme nos dois queries (COUNT e rows)
@@ -1186,6 +1193,7 @@ http://<VPS>:3003   # App mobile independente
 | **~~V068 — Auditoria de Segurança + Criptografia PII~~** | ~~Varredura gitleaks/trufflehog, AES-256-GCM em campos sensíveis, mascaramento em API response, SAST no CI~~ ✅ V068 | — |
 | **~~V069 — Dashboard Administrativo~~** | ~~Next.js 15 porta 3004, KPI cards, gráfico vendas, endpoints /api/admin/*, fix int→long DTOs, seed data~~ ✅ V069 | — |
 | **~~V069v2 — Fix 401 Configurações~~** | ~~Proxy limpa cookies JWT expirado + `fetchProxy<T>()` redireciona para /login automaticamente~~ ✅ V069v2 | — |
+| **~~V069v4 — Fix Reset de Senha~~** | ~~Vars Brevo, sender verificado, middleware `/reset-password`, proxy 200 vs 204, CI desacoplado do Sonar~~ ✅ V069v4 | — |
 | **~~V069v3 — Fix HTTP 500 Admin Orders~~** | ~~Causa dupla: conflito tipo Npgsql + `product_id` é VARCHAR(200), não UUID; fix: `string? productId` + `::text` uniforme~~ ✅ V069v3 | — |
 | **OMS + WMS + Carrier (plugins)** | Plugins hexagonais extensíveis: `Oms.Simulated/Vtex`, `Wms.Simulated/Totvs`, `Carrier.Simulated/Correios` | Futuro |
 | **LLM Diagnóstico** | `/api/ai/analyze` → Ollama + fallback Claude; botão "Analisar" no OpsWatch | Futuro |

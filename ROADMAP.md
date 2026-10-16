@@ -1,5 +1,15 @@
 # 🗺️ Roadmap — Comprai
 
+## ✅ V069v4 — Fix Fluxo Completo de Reset de Senha (out/2026)
+- [x] Vars Brevo (`Brevo__ApiKey`, `Brevo__Login`, `Brevo__From`) adicionadas ao `docker-compose.yml` raiz — sem elas o container usava `NullEmailService`
+- [x] Sender `helioaraujoandrade@outlook.com` verificado no Brevo
+- [x] Rota `/reset-password` liberada no middleware Next.js (rotas públicas)
+- [x] Proxy `reset-password/route.ts` corrigido: `status === 204` → `backendRes.ok` — backend retorna 200 OK, não 204
+- [x] CI/CD: deploy desacoplado do SonarCloud
+- [x] Commits: `02c153a` · `c704747` · `6259bda` · `cfab6f6`
+
+---
+
 ## ✅ V069v3 — Fix Admin Orders HTTP 500 (out/2026)
 - [x] Causa raiz real: `order_item.product_id` é `VARCHAR(200)` — parâmetro como `Guid?` (UUID) causava erro de operador PostgreSQL `=(varchar,uuid)` ao planejar o query, mesmo sem filtros
 - [x] Fix: revertido para `string? productId` com `@ProductId::text IS NULL` em ambos os queries (COUNT + rows) — tipo text consistente para Npgsql, compatível com VARCHAR no PostgreSQL
