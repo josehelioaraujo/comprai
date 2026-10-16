@@ -442,7 +442,7 @@ jobs:
   deploy:
     name: 🚀 Deploy VPS Hostinger
     runs-on: ubuntu-latest
-    needs: [integration-tests, sonar]
+    needs: [integration-tests]
     if: github.ref == 'refs/heads/main'
     permissions:
       contents: read
