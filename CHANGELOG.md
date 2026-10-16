@@ -1,5 +1,34 @@
 # Changelog
 
+## [V069v3] — 2026-10-15
+
+### Fixed — Admin Orders: HTTP 500 em `/api/admin/orders`
+
+**Causa raiz (dupla)**
+
+| Camada | Problema |
+|--------|----------|
+| Npgsql (plan) | `@ProductId` aparecia com `::text` em um lugar e `::uuid` em outro — Npgsql não consegue inferir tipo único → falha antes de executar |
+| PostgreSQL (plan) | Fix intermediário converteu `productId` para `Guid?` (tipo UUID), mas `order_item.product_id` é `VARCHAR(200)` — PostgreSQL não tem operador `=(varchar, uuid)` → query falha ao planejar, mesmo sem filtros ativos |
+
+**Fix final**
+Manter `productId` como `string?` e usar `@ProductId::text` consistentemente em ambas as ocorrências (null check e comparação). Npgsql recebe contexto `text` uniforme — sem conflito; PostgreSQL compara `varchar = text` — compatível.
+
+| Arquivo | O que mudou |
+|---------|-------------|
+| `src/UcpAgent.Infrastructure/Persistence/Repositories/AdminQueryRepository.cs` | Revertido `Guid? productGuid` → `string? productId`; `@ProductId::text IS NULL` em ambos os queries (COUNT e rows) |
+
+**Diagnóstico auxiliar**
+- `admin-restart.yml` ganhou opção `logs` (SSH → `docker logs comprai-api --tail 100`) para facilitar diagnóstico futuro
+
+| Commit | Descrição |
+|--------|-----------|
+| `cf49acd` | fix(admin): resolve Npgsql UUID/text type conflict in GetOrdersAsync *(intermediário)* |
+| `1883e1e` | chore(ops): add logs option to admin-restart workflow |
+| `4bada16` | fix(admin): correct ProductId type — product_id is VARCHAR, not UUID |
+
+---
+
 ## [V069v2] — 2026-10-14
 
 ### Fixed — Admin: Página Configurações retornava 401

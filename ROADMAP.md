@@ -1,5 +1,13 @@
 # 🗺️ Roadmap — Comprai
 
+## ✅ V069v3 — Fix Admin Orders HTTP 500 (out/2026)
+- [x] Causa raiz real: `order_item.product_id` é `VARCHAR(200)` — parâmetro como `Guid?` (UUID) causava erro de operador PostgreSQL `=(varchar,uuid)` ao planejar o query, mesmo sem filtros
+- [x] Fix: revertido para `string? productId` com `@ProductId::text IS NULL` em ambos os queries (COUNT + rows) — tipo text consistente para Npgsql, compatível com VARCHAR no PostgreSQL
+- [x] `admin-restart.yml`: opção `logs` adicionada (SSH + `docker logs comprai-api --tail 100`) para diagnóstico rápido via GitHub Actions
+- [x] Commits: `cf49acd` (intermediário) · `1883e1e` (ops/logs) · `4bada16` (fix definitivo)
+
+---
+
 ## ✅ V069v2 — Fix Configurações 401 (out/2026)
 - [x] `apps/admin/src/lib/fetch-proxy.ts` — wrapper `fetchProxy<T>()` com redirect automático para `/login` em 401
 - [x] Proxy `/api/proxy/[...path]`: detecta 401 do backend, limpa `admin_token` + `admin_user` (maxAge=0)
