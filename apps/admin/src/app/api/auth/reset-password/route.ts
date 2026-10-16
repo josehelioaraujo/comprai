@@ -10,8 +10,9 @@ export async function POST(req: NextRequest) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
-    if (backendRes.status === 204) {
-      return new NextResponse(null, { status: 204 })
+    if (backendRes.ok) {
+      const data = await backendRes.json().catch(() => ({}))
+      return NextResponse.json(data, { status: 200 })
     }
     if (backendRes.status === 400) {
       const data = await backendRes.json().catch(() => ({}))
