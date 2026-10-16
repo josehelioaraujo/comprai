@@ -1,5 +1,66 @@
 # Changelog
 
+## [V070] — 2026-10-16
+
+### Changed — Reorganização de Pastas + Estabilização CI/CD
+
+**Objetivo**
+Eliminar a distinção histórica `apps/` vs `frontend/`, renomear `k6/` para `opswatch/` e garantir que todos os 4 workflows de CI/CD passem sem falhas.
+
+**Renomeações de pasta**
+
+| Antes | Depois |
+|-------|--------|
+| `apps/web/` | `frontend/web/` |
+| `apps/mobile/` | `frontend/mobile/` |
+| `apps/admin/` | `frontend/admin/` |
+| `apps/e2e/` | `tests/e2e/` |
+| `newman/` | `tests/newman/` |
+| `k6/` | `opswatch/` |
+
+**Fixes de build e deploy**
+
+| # | Problema | Fix |
+|---|----------|-----|
+| 1 | `Dockerfile` opswatch copiava `k6/` (caminho inexistente) | `COPY k6/ ./k6/` → `COPY opswatch/ ./opswatch/` |
+| 2 | `eslint-config-next ^14` incompatível com Next.js 15 | Bumped para `^15.5.27` em web e mobile |
+| 3 | `tailwindcss ^4` (alpha) com erros no Docker build standalone | Revertido para `^3.4.17` (stable) |
+| 4 | `next/font/google` falhava no build standalone com tailwindcss v3 | Substituído por `<link>` tag no `layout.tsx` de web e mobile |
+| 5 | Health check do `deploy-web.yml` falhava em `curl http://localhost:3002/` | `page.tsx` faz `redirect('/chat')` (307) e o container demorava > 8s para subir |
+| 6 | Sem endpoint dedicado de health | Criado `frontend/web/src/app/api/healthz/route.ts` — retorna `{ok:true}` 200 sem auth |
+
+**Resultado**
+
+| Workflow | Status |
+|----------|--------|
+| CI/CD #1055 | ✅ |
+| Deploy Web #103 | ✅ |
+| Deploy Mobile | ✅ |
+| CodeQL SAST #76 | ✅ |
+| Secret Scan #76 | ✅ |
+
+**Arquivos modificados**
+
+| Arquivo | O que mudou |
+|---------|-------------|
+| `opswatch/dashboard/Dockerfile` | `COPY k6/` → `COPY opswatch/` |
+| `frontend/web/package.json` | `eslint-config-next ^14` → `^15.5.27`; `tailwindcss ^4` → `^3.4.17` |
+| `frontend/mobile/package.json` | `eslint-config-next ^14` → `^15.5.27`; `tailwindcss ^4` → `^3.4.17` |
+| `frontend/web/src/app/layout.tsx` | `next/font/google` → `<link>` no `<head>` |
+| `frontend/mobile/src/app/layout.tsx` | `next/font/google` → `<link>` no `<head>` |
+| `frontend/web/src/app/api/healthz/route.ts` | Novo — `force-dynamic`, retorna `{ok:true, ts}` sempre 200 |
+| `.github/workflows/deploy-web.yml` | `sleep 8→20`; `curl /` → `curl /api/healthz`; `--tail 20→30` |
+| Todos os workflows | Paths `apps/` → `frontend/`, `k6/` → `opswatch/` |
+
+| Commit | Descrição |
+|--------|-----------|
+| `2d2308d` | refactor: reorganização de pastas V070 — 153 arquivos renomeados |
+| `afb653e` | fix: Dockerfile opswatch path + eslint-config-next ^15 |
+| `d72108b` | fix: tailwindcss ^3, remove next/font/google nos builds Docker |
+| `4fb3db4` | fix: Deploy Web health check — /api/healthz + sleep 20 |
+
+---
+
 ## [V069v4] — 2026-10-16
 
 ### Fixed — Fluxo Completo de Reset de Senha

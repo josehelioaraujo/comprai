@@ -935,7 +935,7 @@ strix scan http://2.25.122.11:5020 --output report.html
 - [x] Job Pentest Strix removido do pipeline
 
 **V061 ✅**
-- [x] Painel Pentest no OpsWatch — findings ZAP em `/k6/results/pentest/latest.json`
+- [x] Painel Pentest no OpsWatch — findings ZAP em `/opswatch/results/pentest/latest.json`
 - [x] Recuperação de senha via email (Resend, token UUID→SHA-256, 1h, anti-enumeração 204)
 - [x] `POST /api/auth/logout-all` — revogar todos os refresh tokens do customer
 - [x] Páginas web `/auth/forgot-password` + `/auth/reset-password` (design white/purple)
@@ -992,7 +992,7 @@ strix scan http://2.25.122.11:5020 --output report.html
 - [x] `PII_ENCRYPTION_KEY` propagado via docker-compose; CodeQL corrigido no `ci-cd.yml`
 
 **V067 ✅**
-- [x] `apps/e2e/fixtures.ts` — fixture custom override de `context`; grava `har-evidence/{title}-chromium.har` por teste; `requests: []` corrigido ✅
+- [x] `tests/e2e/fixtures.ts` — fixture custom override de `context`; grava `har-evidence/{title}-chromium.har` por teste; `requests: []` corrigido ✅
 - [x] Causa raiz: `recordHar.path` sem extensão criava FILE em vez de diretório
 - [x] Botão global "Baixar Collection Postman" (laranja `#ff6c37`) — Postman Collection v2.1 com todos os specs
 - [x] `_e2eToPostmanCollection()` — agrupa suite → test → request; URL parsed; headers; savedResponses
@@ -1002,7 +1002,7 @@ strix scan http://2.25.122.11:5020 --output report.html
 
 **V066 ✅**
 - [x] Botão "Baixar Todos os Testes" no OpsWatch e `report.html` — JSON com todos os specs + requisições HTTP
-- [x] Captura de Request/Response via HAR: `recordHar` no Playwright, artifact upload inclui `apps/e2e/har-evidence/`
+- [x] Captura de Request/Response via HAR: `recordHar` no Playwright, artifact upload inclui `tests/e2e/har-evidence/`
 - [x] `norm_har_key()` + Jaccard similarity — matching fuzzy entre arquivos `.har` e títulos de spec
 - [x] Requisições HTTP exibidas inline no OpsWatch: método, status, path, req_headers, req_body, res_body
 - [x] `report.html` melhorado: tabela com drilldown, player de vídeos sequencial, filtro por status, timezone BRT
@@ -1068,7 +1068,7 @@ O Comprai possui dois frontends independentes construídos com **Next.js 15 + Ty
 Interface full desktop com sidebar de navegação, modo escuro/claro e fluxo UCP completo via chat.
 
 **Stack:** Next.js 15 App Router · Tailwind CSS v3 · TypeScript  
-**Porta:** `3002` · **Deploy:** `apps/web/` — `deploy-web.yml`  
+**Porta:** `3002` · **Deploy:** `frontend/web/` — `deploy-web.yml`  
 **Acesso:** `http://<VPS>:3002`
 
 #### Características
@@ -1101,7 +1101,7 @@ http://<VPS>:3002/widget # Widget embeddável
 Interface mobile-first que simula um smartphone, com navegação por gestos e layout 420px.
 
 **Stack:** Next.js 15 App Router · Tailwind CSS v3 · TypeScript  
-**Porta:** `3003` · **Deploy:** `apps/mobile/` — `deploy-mobile.yml`  
+**Porta:** `3003` · **Deploy:** `frontend/mobile/` — `deploy-mobile.yml`  
 **Acesso:** `http://<VPS>:3003`
 
 #### Características
@@ -1111,7 +1111,7 @@ Interface mobile-first que simula um smartphone, com navegação por gestos e la
 - **Carrossel de produtos** — navegação por setas e arrasto (touch + mouse drag)
 - **Fulfillment simulado** — timeline de 7 etapas (`payment_confirmed → preparing → ready_to_ship → handed_to_carrier → in_transit → out_for_delivery → delivered`) com delays progressivos
 - **Persistência local** — pedidos em `localStorage` + sincronização com Redis (`persistOrder`)
-- **Deploy standalone** — imagem Docker própria (`comprai-mobile`), workflow independente do `apps/web`
+- **Deploy standalone** — imagem Docker própria (`comprai-mobile`), workflow independente do `frontend/web`
 
 #### Variáveis de Ambiente
 | Variável | Descrição | Padrão |

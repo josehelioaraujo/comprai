@@ -1,5 +1,33 @@
 # 🗺️ Roadmap — Comprai
 
+## 🔜 V071 — Mobile UI Redesign (próxima)
+- [ ] Redesign completo da interface mobile (`frontend/mobile/`) — referência visual: Shopify mobile (clean, branco, bottom nav)
+- [ ] Bottom navigation: Home / Busca / Carrinho / Conta
+- [ ] Tela Home com banners, categorias em destaque e produtos recomendados
+- [ ] Tela de Busca com filtros e resultado em grid
+- [ ] Tela de Carrinho redesenhada com resumo de pedido
+- [ ] Tela de Conta com perfil, pedidos e endereço
+- [ ] Paleta: branco + tipografia preta + acento roxo (consistente com web)
+- [ ] Deploy independente — `deploy-mobile.yml` já funcional na porta 3003
+
+---
+
+## ✅ V070 — Reorganização de Pastas + Estabilização CI/CD (out/2026)
+- [x] `apps/web/` → `frontend/web/` | `apps/mobile/` → `frontend/mobile/` | `apps/admin/` → `frontend/admin/`
+- [x] `apps/e2e/` → `tests/e2e/` | `newman/` → `tests/newman/` | `k6/` → `opswatch/`
+- [x] 153 arquivos renomeados em commit único (commit `2d2308d`)
+- [x] Todos os GitHub Actions workflows atualizados para os novos paths
+- [x] Fix CI/CD: `opswatch/dashboard/Dockerfile` corrigido (`COPY k6/` → `COPY opswatch/`)
+- [x] Fix build web/mobile: `eslint-config-next ^14` → `^15.5.27`
+- [x] Fix build web/mobile: `tailwindcss ^4` (alpha) → `^3.4.17` (stable)
+- [x] Fix build web/mobile: `next/font/google` removido → `<link>` tag no `layout.tsx`
+- [x] Fix Deploy Web: endpoint `/api/healthz` criado (`force-dynamic`, 200 sem auth, sem redirect)
+- [x] Fix Deploy Web: health check atualizado (`curl /` → `curl /api/healthz`, `sleep 8→20`)
+- [x] Resultado: todos os 4 workflows ✅ (CI/CD #1055, Deploy Web #103, CodeQL #76, Secret Scan #76)
+- [x] Commits: `2d2308d` · `afb653e` · `d72108b` · `4fb3db4`
+
+---
+
 ## ✅ V069v4 — Fix Fluxo Completo de Reset de Senha (out/2026)
 - [x] Vars Brevo (`Brevo__ApiKey`, `Brevo__Login`, `Brevo__From`) adicionadas ao `docker-compose.yml` raiz — sem elas o container usava `NullEmailService`
 - [x] Sender `helioaraujoandrade@outlook.com` verificado no Brevo
