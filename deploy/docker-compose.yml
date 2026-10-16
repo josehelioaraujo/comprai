@@ -33,7 +33,7 @@ services:
       PII_ENCRYPTION_KEY: ${PII_ENCRYPTION_KEY}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
       Resend__ApiKey: ${RESEND_API_KEY:-}
-      Resend__From: ${RESEND_FROM_EMAIL:-noreply@comprai.app}
+      Resend__From: ${Resend__FromEmail:-noreply@comprai.app}
       App__AdminUrl: ${ADMIN_APP_URL:-http://2.25.122.11:3004}
       App__WebUrl: ${WEB_APP_URL:-http://2.25.122.11:3000}
     extra_hosts:
