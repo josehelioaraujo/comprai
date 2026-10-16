@@ -36,7 +36,7 @@ jobs:
 
       - name: Calcular complexidade e acoplamento
         run: |
-          mkdir -p k6/results/metrics
+          mkdir -p opswatch/results/metrics
           python3 << 'PYEOF'
           import os, re, json
           from collections import defaultdict, Counter
@@ -147,9 +147,9 @@ jobs:
                   "instability":round(ce_v/total,3) if total>0 else 0.0,"deps":deps}
               print(f"{proj}: Ca={ca_v} Ce={ce_v}")
 
-          json.dump(complexity, open("k6/results/metrics/complexity.json","w"), indent=2)
+          json.dump(complexity, open("opswatch/results/metrics/complexity.json","w"), indent=2)
           json.dump({"projects":coupling_data,"generated_at":datetime.datetime.utcnow().isoformat()+"Z"},
-              open("k6/results/metrics/coupling.json","w"), indent=2)
+              open("opswatch/results/metrics/coupling.json","w"), indent=2)
           print("JSONs gerados com sucesso")
           PYEOF
 
@@ -157,22 +157,22 @@ jobs:
         run: |
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
             ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
-            "mkdir -p /var/www/html/k6/results/metrics"
+            "mkdir -p /var/www/html/opswatch/results/metrics"
 
       - name: Publicar complexity.json
         run: |
           scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
-            k6/results/metrics/complexity.json \
-            ${{ env.VPS_USER }}@${{ env.VPS_HOST }}:/var/www/html/k6/results/metrics/complexity.json
+            opswatch/results/metrics/complexity.json \
+            ${{ env.VPS_USER }}@${{ env.VPS_HOST }}:/var/www/html/opswatch/results/metrics/complexity.json
 
       - name: Publicar coupling.json
         run: |
           scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
-            k6/results/metrics/coupling.json \
-            ${{ env.VPS_USER }}@${{ env.VPS_HOST }}:/var/www/html/k6/results/metrics/coupling.json
+            opswatch/results/metrics/coupling.json \
+            ${{ env.VPS_USER }}@${{ env.VPS_HOST }}:/var/www/html/opswatch/results/metrics/coupling.json
 
       - name: Verificar arquivos na VPS
         run: |
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
             ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
-            "ls -lh /var/www/html/k6/results/metrics/ && echo OK"
+            "ls -lh /var/www/html/opswatch/results/metrics/ && echo OK"

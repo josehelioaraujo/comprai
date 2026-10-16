@@ -158,7 +158,7 @@ jobs:
           host: 2.25.122.11
           username: root
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
-          script: mkdir -p /var/www/html/k6/results/mutation
+          script: mkdir -p /var/www/html/opswatch/results/mutation
 
       - name: Copiar latest.json para VPS
         uses: appleboy/scp-action@v0.1.7
@@ -167,7 +167,7 @@ jobs:
           username: root
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
           source: "mutation-output/latest.json"
-          target: "/var/www/html/k6/results/mutation/"
+          target: "/var/www/html/opswatch/results/mutation/"
           strip_components: 1
 
       - name: Copiar index.json para VPS
@@ -177,7 +177,7 @@ jobs:
           username: root
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
           source: "mutation-output/index.json"
-          target: "/var/www/html/k6/results/"
+          target: "/var/www/html/opswatch/results/"
           strip_components: 1
           overwrite: true
 
@@ -230,7 +230,7 @@ jobs:
           import json
           from pathlib import Path
 
-          HISTORY = Path("/var/www/html/k6/results/history.json")
+          HISTORY = Path("/var/www/html/opswatch/results/history.json")
           ENTRY   = Path("/tmp/history-entry-mutation.json")
 
           history = json.loads(HISTORY.read_text()) if HISTORY.exists() else []
@@ -285,7 +285,7 @@ jobs:
               f"| Sem cobertura | {s['no_coverage']} |",
               "",
               f"Artifact: mutation-report-run{run} (30 dias)",
-              "Dashboard: https://comprai.2.25.122.11.nip.io/k6",
+              "Dashboard: https://comprai.2.25.122.11.nip.io/opswatch",
           ]
 
           summary_file = os.environ.get("GITHUB_STEP_SUMMARY")

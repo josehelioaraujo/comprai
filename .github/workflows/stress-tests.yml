@@ -70,18 +70,18 @@ jobs:
           exit 1
       - name: Run Smoke
         run: |
-          mkdir -p k6/results
-          k6 run --out json=k6/results/raw.json k6/scripts/smoke.js
-          gzip -9 k6/results/raw.json
+          mkdir -p opswatch/results
+          k6 run --out json=opswatch/results/raw.json opswatch/scripts/smoke.js
+          gzip -9 opswatch/results/raw.json
         env:
           TARGET_URL:   ${{ inputs.target_url }}
           VUS_OVERRIDE: ${{ inputs.vus }}
-          RESULTS_DIR:  k6/results
+          RESULTS_DIR:  opswatch/results
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: k6-smoke-run-${{ github.run_number }}
-          path: k6/results/
+          path: opswatch/results/
           retention-days: 30
 
   # -- 2. LOAD ------------------------------------------------------------------
@@ -129,18 +129,18 @@ jobs:
           exit 1
       - name: Run Load
         run: |
-          mkdir -p k6/results
-          k6 run --out json=k6/results/raw.json k6/scripts/load.js
-          gzip -9 k6/results/raw.json
+          mkdir -p opswatch/results
+          k6 run --out json=opswatch/results/raw.json opswatch/scripts/load.js
+          gzip -9 opswatch/results/raw.json
         env:
           TARGET_URL:   ${{ inputs.target_url }}
           VUS_OVERRIDE: ${{ inputs.vus }}
-          RESULTS_DIR:  k6/results
+          RESULTS_DIR:  opswatch/results
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: k6-load-run-${{ github.run_number }}
-          path: k6/results/
+          path: opswatch/results/
           retention-days: 30
 
   # -- 3. STRESS ----------------------------------------------------------------
@@ -188,19 +188,19 @@ jobs:
           exit 1
       - name: Run Stress
         run: |
-          mkdir -p k6/results
-          k6 run --out json=k6/results/raw.json k6/scripts/stress.js
-          gzip -9 k6/results/raw.json
+          mkdir -p opswatch/results
+          k6 run --out json=opswatch/results/raw.json opswatch/scripts/stress.js
+          gzip -9 opswatch/results/raw.json
         env:
           TARGET_URL:   ${{ inputs.target_url }}
           VUS_OVERRIDE: ${{ inputs.vus }}
           PEAK_VUS:     ${{ inputs.vus }}
-          RESULTS_DIR:  k6/results
+          RESULTS_DIR:  opswatch/results
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: k6-stress-run-${{ github.run_number }}
-          path: k6/results/
+          path: opswatch/results/
           retention-days: 30
 
   # -- 4. SPIKE -----------------------------------------------------------------
@@ -248,18 +248,18 @@ jobs:
           exit 1
       - name: Run Spike
         run: |
-          mkdir -p k6/results
-          k6 run --out json=k6/results/raw.json k6/scripts/spike.js
-          gzip -9 k6/results/raw.json
+          mkdir -p opswatch/results
+          k6 run --out json=opswatch/results/raw.json opswatch/scripts/spike.js
+          gzip -9 opswatch/results/raw.json
         env:
           TARGET_URL:   ${{ inputs.target_url }}
           VUS_OVERRIDE: ${{ inputs.vus }}
-          RESULTS_DIR:  k6/results
+          RESULTS_DIR:  opswatch/results
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: k6-spike-run-${{ github.run_number }}
-          path: k6/results/
+          path: opswatch/results/
           retention-days: 30
 
   # -- 5. SOAK ------------------------------------------------------------------
@@ -307,18 +307,18 @@ jobs:
           exit 1
       - name: Run Soak
         run: |
-          mkdir -p k6/results
-          k6 run --out json=k6/results/raw.json k6/scripts/soak.js
-          gzip -9 k6/results/raw.json
+          mkdir -p opswatch/results
+          k6 run --out json=opswatch/results/raw.json opswatch/scripts/soak.js
+          gzip -9 opswatch/results/raw.json
         env:
           TARGET_URL:   ${{ inputs.target_url }}
           VUS_OVERRIDE: ${{ inputs.vus }}
-          RESULTS_DIR:  k6/results
+          RESULTS_DIR:  opswatch/results
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: k6-soak-run-${{ github.run_number }}
-          path: k6/results/
+          path: opswatch/results/
           retention-days: 30
 
   # -- 6. RESULTADO FINAL -------------------------------------------------------
@@ -336,39 +336,39 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: k6-smoke-run-${{ github.run_number }}
-          path: k6/results/smoke/
+          path: opswatch/results/smoke/
 
       - name: Download Load
         continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: k6-load-run-${{ github.run_number }}
-          path: k6/results/load/
+          path: opswatch/results/load/
 
       - name: Download Stress
         continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: k6-stress-run-${{ github.run_number }}
-          path: k6/results/stress/
+          path: opswatch/results/stress/
 
       - name: Download Spike
         continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: k6-spike-run-${{ github.run_number }}
-          path: k6/results/spike/
+          path: opswatch/results/spike/
 
       - name: Download Soak
         continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: k6-soak-run-${{ github.run_number }}
-          path: k6/results/soak/
+          path: opswatch/results/soak/
       - name: Descompactar raw data
         if: always()
         run: |
-          for f in k6/results/*/raw.json.gz; do
+          for f in opswatch/results/*/raw.json.gz; do
             [ -f "$f" ] && gunzip "$f" || true
           done
 
@@ -387,7 +387,7 @@ jobs:
           RUN_NUMBER = os.environ.get('RUN_NUMBER', '')
           RUN_DATE   = os.environ.get('RUN_DATE', '')
 
-          template_path = Path('k6/dashboard/index.html')
+          template_path = Path('opswatch/dashboard/index.html')
           if not template_path.exists():
               print('Template nao encontrado; abortando geracao do dashboard.')
               sys.exit(0)
@@ -395,9 +395,9 @@ jobs:
           types_to_run = ['smoke', 'load', 'stress', 'spike', 'soak'] if TEST_TYPE == 'all' else [TEST_TYPE]
 
           for t in types_to_run:
-              summary_path = Path(f'k6/results/{t}/summary.json')
-              raw_path     = Path(f'k6/results/{t}/raw.json')
-              output_path  = Path(f'k6/results/{t}/dashboard.html')
+              summary_path = Path(f'opswatch/results/{t}/summary.json')
+              raw_path     = Path(f'opswatch/results/{t}/raw.json')
+              output_path  = Path(f'opswatch/results/{t}/dashboard.html')
               if not summary_path.exists() and not raw_path.exists():
                   print(f'[{t}] sem dados (job skipped/falhou), ignorando.')
                   continue
@@ -534,7 +534,7 @@ jobs:
           out += '| Tipo | p50 ms | p95 ms | p99 ms | Req/s | Total | Erro % | Status |\n'
           out += '|------|--------|--------|--------|-------|-------|--------|--------|\n'
           for t in types_to_report:
-              sp = Path(f'k6/results/{t}/summary.json')
+              sp = Path(f'opswatch/results/{t}/summary.json')
               if sp.exists():
                   try:
                       s    = json.loads(sp.read_text())
@@ -553,7 +553,7 @@ jobs:
                   out += f'| {t} | - | - | - | - | - | - | SKIP |\n'
 
           artifact_name = f'k6-dashboards-run-{RUN_NUMBER}'
-          pages_url = 'https://comprai.2.25.122.11.nip.io/k6'
+          pages_url = 'https://comprai.2.25.122.11.nip.io/opswatch'
           out += f'\n---\n### Dashboard\n\nU0001f310 **[Abrir Dashboard na VPS]({pages_url})** \u2014 sem precisar baixar nada\n\n> Artefato **`{artifact_name}`** tamb├®m dispon├¡vel na se├º├úo Artifacts (reten├º├úo: 30 dias).\n'
 
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
@@ -572,8 +572,8 @@ jobs:
         with:
           name: k6-dashboards-run-${{ github.run_number }}
           path: |
-            k6/results/*/dashboard.html
-            k6/results/*/summary.json
+            opswatch/results/*/dashboard.html
+            opswatch/results/*/summary.json
           retention-days: 30
 
   # -- 6. PUBLICAR GITHUB PAGES -------------------------------------------------
@@ -622,11 +622,11 @@ jobs:
 
       - name: Coletar JSONs e gerar index.json
         run: |
-          mkdir -p k6/results
+          mkdir -p opswatch/results
           for TYPE in smoke load stress spike soak; do
             SRC="./dl/${TYPE}/${TYPE}.json"
             if [ -f "$SRC" ]; then
-              cp "$SRC" "k6/results/${TYPE}.json"
+              cp "$SRC" "opswatch/results/${TYPE}.json"
               echo "OK: ${TYPE}.json"
             else
               echo "SKIP: ${TYPE}.json"
@@ -636,7 +636,7 @@ jobs:
           import json, os
           from pathlib import Path
           types = ['smoke', 'load', 'stress', 'spike', 'soak']
-          tests = [{'type': t, 'file': f'{t}.json'} for t in types if Path(f'k6/results/{t}.json').exists()]
+          tests = [{'type': t, 'file': f'{t}.json'} for t in types if Path(f'opswatch/results/{t}.json').exists()]
           import datetime
           sha = os.environ.get('GIT_SHA','')[:7]
           ts  = datetime.datetime.utcnow().isoformat() + 'Z'
@@ -653,7 +653,7 @@ jobs:
           for t_info in tests:
               t = t_info['type']
               try:
-                  data = json.loads(Path(f'k6/results/{t}.json').read_text())
+                  data = json.loads(Path(f'opswatch/results/{t}.json').read_text())
                   # Threshold failures
                   for sc in data.get('scenarios', []):
                       for th in sc.get('thresholds', []):
@@ -675,7 +675,7 @@ jobs:
               except: pass
           index['conclusion'] = 'failure' if threshold_failures else 'success'
           index['threshold_failures'] = threshold_failures
-          Path('k6/results/index.json').write_text(json.dumps(index, indent=2))
+          Path('opswatch/results/index.json').write_text(json.dumps(index, indent=2))
           print('index.json | tests:', len(tests), '| routes_by_type:', [t for t in types if index.get(t,{}).get('routes')], '| threshold_failures:', len(threshold_failures))
           PYEOF
         env:
@@ -691,8 +691,8 @@ jobs:
 
       - name: Enviar JSONs para VPS via SCP
         run: |
-          ssh -i ~/.ssh/vps_key -o StrictHostKeyChecking=no root@2.25.122.11 "mkdir -p /var/www/html/k6/results"
-          scp -i ~/.ssh/vps_key -o StrictHostKeyChecking=no k6/results/*.json root@2.25.122.11:/var/www/html/k6/results/
+          ssh -i ~/.ssh/vps_key -o StrictHostKeyChecking=no root@2.25.122.11 "mkdir -p /var/www/html/opswatch/results"
+          scp -i ~/.ssh/vps_key -o StrictHostKeyChecking=no opswatch/results/*.json root@2.25.122.11:/var/www/html/opswatch/results/
           # Atualiza dashboard HTML via git pull
           ssh -i ~/.ssh/vps_key -o StrictHostKeyChecking=no root@2.25.122.11 << 'EOFGIT'
             set -e
@@ -704,7 +704,7 @@ jobs:
             else
               git clone https://${{ secrets.GH_PAT }}@github.com/josehelioaraujo/comprai.git . --depth=1
             fi
-            cp -rf k6/dashboard/* /var/www/html/k6/ 2>/dev/null || true
+            cp -rf opswatch/dashboard/* /var/www/html/opswatch/ 2>/dev/null || true
             chown -R www-data:www-data /var/www/html/k6 2>/dev/null || chmod -R 755 /var/www/html/k6 || true
             echo "Deploy concluido!"
           EOFGIT
@@ -715,13 +715,13 @@ jobs:
         run: |
           # gh-config sem token — token fica server-side no proxy nginx
           cat > /tmp/gh-config.json << 'EOFCFG'
-          {"repo":"${{ github.repository }}","workflow_file":"stress-tests.yml","ref":"main","dispatch_url":"/k6/dispatch"}
+          {"repo":"${{ github.repository }}","workflow_file":"stress-tests.yml","ref":"main","dispatch_url":"/opswatch/dispatch"}
           EOFCFG
-          scp -i ~/.ssh/vps_key -o StrictHostKeyChecking=no /tmp/gh-config.json root@2.25.122.11:/var/www/html/k6/results/gh-config.json
+          scp -i ~/.ssh/vps_key -o StrictHostKeyChecking=no /tmp/gh-config.json root@2.25.122.11:/var/www/html/opswatch/results/gh-config.json
 
           # Escrever proxy nginx com token via shell (sem Python inline)
-          cat > /tmp/k6-dispatch.conf << EOFCONF
-          location = /k6/dispatch {
+          cat > /tmp/opswatch-dispatch.conf << EOFCONF
+          location = /opswatch/dispatch {
               proxy_pass https://api.github.com/repos/josehelioaraujo/comprai/actions/workflows/stress-tests.yml/dispatches;
               proxy_http_version 1.1;
               proxy_set_header Host api.github.com;
@@ -735,21 +735,21 @@ jobs:
               proxy_pass_request_headers off;
           }
           EOFCONF
-          scp -i ~/.ssh/vps_key -o StrictHostKeyChecking=no /tmp/k6-dispatch.conf root@2.25.122.11:/tmp/k6-dispatch.conf
+          scp -i ~/.ssh/vps_key -o StrictHostKeyChecking=no /tmp/opswatch-dispatch.conf root@2.25.122.11:/tmp/opswatch-dispatch.conf
 
           # Instalar no nginx e recarregar
           ssh -i ~/.ssh/vps_key -o StrictHostKeyChecking=no root@2.25.122.11 << 'EOFNGINX'
             set -e
             mkdir -p /etc/nginx/snippets
-            mv /tmp/k6-dispatch.conf /etc/nginx/snippets/k6-dispatch.conf
-            chmod 600 /etc/nginx/snippets/k6-dispatch.conf
+            mv /tmp/opswatch-dispatch.conf /etc/nginx/snippets/opswatch-dispatch.conf
+            chmod 600 /etc/nginx/snippets/opswatch-dispatch.conf
 
             # Adicionar include no server block se ainda nao estiver
             for cfg in /etc/nginx/sites-enabled/* /etc/nginx/conf.d/*.conf; do
               [ -f "$cfg" ] || continue
               if grep -q "k6\|/var/www/html\|nip.io" "$cfg" 2>/dev/null; then
                 if ! grep -q "k6-dispatch" "$cfg"; then
-                  sed -i "s|^}$|    include /etc/nginx/snippets/k6-dispatch.conf;\n}|" "$cfg"
+                  sed -i "s|^}$|    include /etc/nginx/snippets/opswatch-dispatch.conf;\n}|" "$cfg"
                   echo "Include adicionado em $cfg"
                 else
                   echo "Include ja presente em $cfg"
@@ -766,5 +766,5 @@ jobs:
         run: |
           echo "## Dashboard K6 - Run #${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "[Abrir Dashboard](https://comprai.2.25.122.11.nip.io/k6/dashboard/)" >> $GITHUB_STEP_SUMMARY
+          echo "[Abrir Dashboard](https://comprai.2.25.122.11.nip.io/opswatch/dashboard/)" >> $GITHUB_STEP_SUMMARY
 

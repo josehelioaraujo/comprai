@@ -2,7 +2,7 @@
 """
 Fix: inserir função obsLoadAccess() no index.html da VPS
 """
-PATH = '/var/www/html/k6/dashboard/index.html'
+PATH = '/var/www/html/opswatch/dashboard/index.html'
 
 with open(PATH, encoding='utf-8') as f:
     html = f.read()

@@ -37,14 +37,14 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: apps/e2e/package.json
+          cache-dependency-path: tests/e2e/package.json
 
       - name: Install dependencias E2E
-        working-directory: apps/e2e
+        working-directory: tests/e2e
         run: npm install
 
       - name: Install Playwright Chromium
-        working-directory: apps/e2e
+        working-directory: tests/e2e
         run: npx playwright install chromium --with-deps
 
       - name: Aguardar API estar saudavel
@@ -74,7 +74,7 @@ jobs:
           done
 
       - name: Executar testes E2E
-        working-directory: apps/e2e
+        working-directory: tests/e2e
         env:
           E2E_BASE_URL:      ${{ env.E2E_BASE_URL }}
           E2E_API_URL:       ${{ env.E2E_API_URL }}
@@ -89,9 +89,9 @@ jobs:
         if: always()
         run: |
           echo "=== har-evidence dir ==="
-          ls -la apps/e2e/har-evidence/ 2>/dev/null || echo "AVISO: apps/e2e/har-evidence/ nao existe"
+          ls -la tests/e2e/har-evidence/ 2>/dev/null || echo "AVISO: tests/e2e/har-evidence/ nao existe"
           echo "=== count .har files ==="
-          find apps/e2e/har-evidence -name "*.har" 2>/dev/null | wc -l || echo "0"
+          find tests/e2e/har-evidence -name "*.har" 2>/dev/null | wc -l || echo "0"
 
       - name: Upload Playwright Report
         uses: actions/upload-artifact@v4
@@ -99,10 +99,10 @@ jobs:
         with:
           name: playwright-report-${{ github.run_number }}
           path: |
-            apps/e2e/playwright-report/
-            apps/e2e/playwright-results.json
-            apps/e2e/test-results/
-            apps/e2e/har-evidence/
+            tests/e2e/playwright-report/
+            tests/e2e/playwright-results.json
+            tests/e2e/test-results/
+            tests/e2e/har-evidence/
           retention-days: 30
           if-no-files-found: warn
 
@@ -143,7 +143,7 @@ jobs:
           
           report_zip_name = 'Report_' + ts_str + '.zip'
           video_zip_name  = 'video_'  + ts_str + '.zip'
-          base_url        = 'http://' + vps_host + '/k6/results/e2e/downloads/'
+          base_url        = 'http://' + vps_host + '/opswatch/results/e2e/downloads/'
           
           os.makedirs('e2e-output',   exist_ok=True)
           os.makedirs('e2e-evidence', exist_ok=True)
@@ -601,7 +601,7 @@ jobs:
           host: ${{ env.VPS_HOST }}
           username: ${{ env.VPS_USER }}
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
-          script: mkdir -p /var/www/html/k6/results/e2e /var/www/html/k6/results/e2e/downloads
+          script: mkdir -p /var/www/html/opswatch/results/e2e /var/www/html/opswatch/results/e2e/downloads
 
       - name: Publicar evidencias na VPS
         uses: appleboy/scp-action@v0.1.7
@@ -611,7 +611,7 @@ jobs:
           username: ${{ env.VPS_USER }}
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
           source: "e2e-evidence/"
-          target: "/var/www/html/k6/results/e2e/downloads/"
+          target: "/var/www/html/opswatch/results/e2e/downloads/"
           strip_components: 1
           overwrite: true
         continue-on-error: true
@@ -623,6 +623,6 @@ jobs:
           username: ${{ env.VPS_USER }}
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
           source: "e2e-output/latest.json"
-          target: "/var/www/html/k6/results/e2e/"
+          target: "/var/www/html/opswatch/results/e2e/"
           strip_components: 1
           overwrite: true

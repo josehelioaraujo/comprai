@@ -211,13 +211,13 @@ jobs:
           ssh-keyscan -H ${{ env.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
 
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
-            "mkdir -p /var/www/html/k6/results/security"
+            "mkdir -p /var/www/html/opswatch/results/security"
 
           scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
             security.json \
-            ${{ env.VPS_USER }}@${{ env.VPS_HOST }}:/var/www/html/k6/results/security/latest.json
+            ${{ env.VPS_USER }}@${{ env.VPS_HOST }}:/var/www/html/opswatch/results/security/latest.json
 
-          echo "✅ security.json publicado em /var/www/html/k6/results/security/latest.json"
+          echo "✅ security.json publicado em /var/www/html/opswatch/results/security/latest.json"
 
       # ── 6. Append history.json ───────────────────────────────────────────────
       - name: Append history.json
@@ -264,7 +264,7 @@ jobs:
           import json
           from pathlib import Path
 
-          HISTORY = Path('/var/www/html/k6/results/history.json')
+          HISTORY = Path('/var/www/html/opswatch/results/history.json')
           ENTRY   = Path('/tmp/history-entry-security.json')
 
           history = json.loads(HISTORY.read_text()) if HISTORY.exists() else []

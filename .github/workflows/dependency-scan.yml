@@ -129,11 +129,11 @@ jobs:
           ssh-keyscan -H ${{ env.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
 
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ env.VPS_USER }}@${{ env.VPS_HOST }} \
-            "mkdir -p /var/www/html/k6/results/vulnerabilities"
+            "mkdir -p /var/www/html/opswatch/results/vulnerabilities"
 
           scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no \
             vulnerabilities.json \
-            ${{ env.VPS_USER }}@${{ env.VPS_HOST }}:/var/www/html/k6/results/vulnerabilities/latest.json
+            ${{ env.VPS_USER }}@${{ env.VPS_HOST }}:/var/www/html/opswatch/results/vulnerabilities/latest.json
 
           echo "✅ vulnerabilities.json publicado na VPS"
 
@@ -186,7 +186,7 @@ jobs:
           import json
           from pathlib import Path
 
-          HISTORY = Path("/var/www/html/k6/results/history.json")
+          HISTORY = Path("/var/www/html/opswatch/results/history.json")
           ENTRY   = Path("/tmp/history-entry-deps.json")
 
           history = json.loads(HISTORY.read_text()) if HISTORY.exists() else []

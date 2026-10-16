@@ -2,7 +2,7 @@
 set -e
 
 REPO_DIR=/home/projetos/comprai
-WEB_DIR=$REPO_DIR/apps/web
+WEB_DIR=$REPO_DIR/frontend/web
 IMAGE=comprai-web
 
 echo "=== Comprai Web — Setup VPS ==="

@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'apps/web/**'
+      - 'frontend/web/**'
       - '.github/workflows/deploy-web.yml'
   workflow_dispatch:
 
@@ -37,7 +37,7 @@ jobs:
       - name: Bump patch version
         id: version
         run: |
-          cd apps/web
+          cd frontend/web
           OLD=$(node -p "require('./package.json').version")
           NEW=$(node -e "
             const [major,minor,patch] = '$OLD'.split('.').map(Number);
@@ -73,8 +73,8 @@ jobs:
       - name: Build e Push imagem para GHCR
         uses: docker/build-push-action@v6
         with:
-          context: apps/web
-          file: apps/web/Dockerfile
+          context: frontend/web
+          file: frontend/web/Dockerfile
           push: true
           tags: |
             ${{ env.IMAGE }}:latest

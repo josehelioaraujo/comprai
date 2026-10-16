@@ -287,8 +287,8 @@ jobs:
             /d:sonar.projectBaseDir="${{ github.workspace }}" \
             "/d:sonar.cs.opencover.reportsPaths=${{ github.workspace }}/coverage/**/coverage.opencover.xml" \
             /d:sonar.sources="src" \
-            /d:sonar.exclusions="**/Migrations/**,**/Program.cs,src/UcpAgent.Infrastructure/**,src/plugins/**,src/UcpAgent.McpServer/**,src/UcpAgent.Api/Mocks/**,src/UcpAgent.Api/Endpoints/**,src/UcpAgent.Api/Adapters/**,tests/**,**/*.html,**/wwwroot/**,k6/**,.github/**,docs/**,deploy/**,newman/**,observability/**,**/*.py,**/*.sh" \
-            /d:sonar.coverage.exclusions="**/Migrations/**,src/UcpAgent.Infrastructure/**,src/plugins/**,src/UcpAgent.McpServer/**,src/UcpAgent.Api/Mocks/**,src/UcpAgent.Api/Endpoints/**,src/UcpAgent.Api/Adapters/**,tests/**,**/*.html,**/wwwroot/**,k6/**,.github/**,docs/**,deploy/**,newman/**,observability/**"
+            /d:sonar.exclusions="**/Migrations/**,**/Program.cs,src/UcpAgent.Infrastructure/**,src/plugins/**,src/UcpAgent.McpServer/**,src/UcpAgent.Api/Mocks/**,src/UcpAgent.Api/Endpoints/**,src/UcpAgent.Api/Adapters/**,tests/**,**/*.html,**/wwwroot/**,opswatch/**,.github/**,docs/**,deploy/**,tests/newman/**,observability/**,**/*.py,**/*.sh" \
+            /d:sonar.coverage.exclusions="**/Migrations/**,src/UcpAgent.Infrastructure/**,src/plugins/**,src/UcpAgent.McpServer/**,src/UcpAgent.Api/Mocks/**,src/UcpAgent.Api/Endpoints/**,src/UcpAgent.Api/Adapters/**,tests/**,**/*.html,**/wwwroot/**,opswatch/**,.github/**,docs/**,deploy/**,tests/newman/**,observability/**"
 
       - name: Build para análise
         run: dotnet build comprai.sln --no-restore --configuration Release
@@ -361,8 +361,8 @@ jobs:
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
           envs: SONAR_JSON
           script: |
-            mkdir -p /var/www/html/k6/results/sonar
-            echo "$SONAR_JSON" > /var/www/html/k6/results/sonar/latest.json
+            mkdir -p /var/www/html/opswatch/results/sonar
+            echo "$SONAR_JSON" > /var/www/html/opswatch/results/sonar/latest.json
             echo "✅ sonar/latest.json publicado"
 
       - name: Append history.json — Evolução
@@ -414,7 +414,7 @@ jobs:
             from pathlib import Path
             from datetime import datetime, timezone
 
-            HISTORY = Path("/var/www/html/k6/results/history.json")
+            HISTORY = Path("/var/www/html/opswatch/results/history.json")
             history = json.loads(HISTORY.read_text()) if HISTORY.exists() else []
 
             # Ler entry do arquivo temporário se existir, senão criar vazio
@@ -646,7 +646,7 @@ jobs:
 
   # ── 4b. DEPLOY DASHBOARD ────────────────────────────────────────────────────
   deploy-dashboard:
-    name: 📊 Deploy Dashboard K6
+    name: 📊 Deploy Dashboard OpsWatch
     runs-on: ubuntu-latest
     needs: deploy
     steps:
@@ -658,11 +658,25 @@ jobs:
 
       - name: Injetar versao do OpsWatch
         run: |
-          COMMITS=$(git rev-list --count HEAD -- k6/dashboard/index.html)
+          COMMITS=$(git rev-list --count HEAD -- opswatch/dashboard/index.html)
           SHORT_SHA=$(git rev-parse --short HEAD)
           VERSION="0.1.${COMMITS} (${SHORT_SHA})"
           echo "OpsWatch version: $VERSION"
-          sed -i "s/__OPSWATCH_VERSION__/${VERSION}/" k6/dashboard/index.html
+          sed -i "s/__OPSWATCH_VERSION__/${VERSION}/" opswatch/dashboard/index.html
+
+      - name: Migrar diretório k6→opswatch na VPS (idempotente)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          script: |
+            if [ -d /var/www/html/k6 ] && [ ! -d /var/www/html/opswatch ]; then
+              echo "Migrando /var/www/html/k6 → /var/www/html/opswatch"
+              mv /var/www/html/k6 /var/www/html/opswatch
+            else
+              mkdir -p /var/www/html/opswatch/dashboard
+            fi
 
       - name: Copiar dashboard para VPS
         uses: appleboy/scp-action@v0.1.7
@@ -670,8 +684,8 @@ jobs:
           host: ${{ env.VPS_HOST }}
           username: ${{ env.VPS_USER }}
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
-          source: "k6/dashboard/index.html"
-          target: "/var/www/html/k6/dashboard/"
+          source: "opswatch/dashboard/index.html"
+          target: "/var/www/html/opswatch/dashboard/"
           strip_components: 2
           overwrite: true
 
@@ -700,7 +714,7 @@ jobs:
         run: |
           for i in 1 2 3; do
             echo "Tentativa $i/3: executando Smoke Tests..."
-            if newman run newman/comprai-smoke.json \
+            if newman run tests/newman/comprai-smoke.json \
               --env-var "baseUrl=http://${{ env.VPS_HOST }}:${{ env.API_PORT }}" \
               --env-var "mcpUrl=http://${{ env.VPS_HOST }}:${{ env.MCP_PORT }}" \
               --env-var "ML_ACCESS_TOKEN=${ML_ACCESS_TOKEN}" \
