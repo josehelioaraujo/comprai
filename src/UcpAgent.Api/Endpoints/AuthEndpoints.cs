@@ -104,8 +104,9 @@ public static class AuthEndpoints
         // Resposta sempre 204 — não revela se o e-mail existe (proteção de enumeração).
         group.MapPost("/forgot-password", async (
             [FromBody] ForgotPasswordRequest req,
-            IAuthPort auth, IEmailService email, IConfiguration config) =>
+            IAuthPort auth, IEmailService email, IConfiguration config, ILoggerFactory lf) =>
         {
+            var log = lf.CreateLogger("Auth.ForgotPassword");
             if (string.IsNullOrWhiteSpace(req.Email))
                 return Results.NoContent();
 
@@ -122,7 +123,7 @@ public static class AuthEndpoints
                     var webUrl = config["App:WebUrl"] ?? "http://2.25.122.11:3002";
                     var resetLink = $"{webUrl}/auth/reset-password?token={Uri.EscapeDataString(plainToken)}";
                     try { await email.SendPasswordResetEmailAsync(found.Email, found.Name, resetLink); }
-                    catch { /* best-effort — token já salvo */ }
+                    catch (Exception ex) { log.LogError(ex, "[ForgotPassword] Falha ao enviar e-mail para {Email}", emailNorm); }
                 }
             }
 
@@ -375,8 +376,9 @@ public static class AuthEndpoints
         // Envia e-mail de reset com link apontando para App:AdminUrl (não App:WebUrl).
         adminGroup.MapPost("/forgot-password", async (
             [FromBody] ForgotPasswordRequest req,
-            IAuthPort auth, IEmailService email, IConfiguration config) =>
+            IAuthPort auth, IEmailService email, IConfiguration config, ILoggerFactory lf) =>
         {
+            var log = lf.CreateLogger("Auth.AdminForgotPassword");
             if (string.IsNullOrWhiteSpace(req.Email))
                 return Results.NoContent();
 
@@ -393,7 +395,7 @@ public static class AuthEndpoints
                     var adminUrl = config["App:AdminUrl"] ?? "http://2.25.122.11:3004";
                     var resetLink = $"{adminUrl}/reset-password?token={Uri.EscapeDataString(plainToken)}";
                     try { await email.SendPasswordResetEmailAsync(found.Email, found.Name, resetLink); }
-                    catch { /* best-effort */ }
+                    catch (Exception ex) { log.LogError(ex, "[AdminForgotPassword] Falha ao enviar e-mail para {Email}", emailNorm); }
                 }
             }
 
