@@ -67,4 +67,11 @@ public sealed class NullAuthPort : IAuthPort
     // V061-F2: Logout-all — no-op no Null Object
     public Task RevokeAllRefreshTokensAsync(string customerId, CancellationToken ct = default)
         => Task.CompletedTask;
+
+    // V070: Admin Registration — no-op no Null Object
+    public Task<AuthCustomerDto?> RegisterAdminAsync(string email, string password, CancellationToken ct = default)
+        => Task.FromResult<AuthCustomerDto?>(null);
+
+    public Task<bool> ConfirmAdminEmailAsync(string tokenHash, CancellationToken ct = default)
+        => Task.FromResult(false);
 }

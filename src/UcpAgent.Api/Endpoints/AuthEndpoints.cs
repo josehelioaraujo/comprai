@@ -19,6 +19,7 @@ public static class AuthEndpoints
 
     public static void MapAuthEndpoints(this WebApplication app)
     {
+        MapAdminAuthEndpoints(app, PasswordResetTokenTtl);
         var group = app.MapGroup("/api/auth").WithTags("Auth");
 
         group.MapPost("/register", async (
@@ -314,6 +315,132 @@ public static class AuthEndpoints
         }).RequireAuthorization().RequireRateLimiting(RateLimitExtensions.AuthPolicy);
     }
 
+    // ── V070: Admin Registration ──────────────────────────────────────────────
+
+    // POST /api/auth/admin/register
+    // Cria usuário com role='admin' (email_verified=FALSE) e envia e-mail de confirmação.
+    // Resposta: 204 sempre (não revela se e-mail já existe — proteção de enumeração).
+    private static void MapAdminAuthEndpoints(WebApplication app, TimeSpan PasswordResetTokenTtl)
+    {
+        var adminGroup = app.MapGroup("/api/auth/admin").WithTags("Auth");
+
+        adminGroup.MapPost("/register", async (
+            [FromBody] AdminRegisterRequest req,
+            IAuthPort auth, IEmailService email, IConfiguration config) =>
+        {
+            if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
+                return Results.BadRequest(new { error = "email e password são obrigatórios." });
+
+            if (req.Password.Length < 8)
+                return Results.BadRequest(new { error = "A senha deve ter pelo menos 8 caracteres." });
+
+            var emailNorm = req.Email.Trim().ToLowerInvariant();
+            var customer = await auth.RegisterAdminAsync(emailNorm, req.Password);
+            if (customer is null)
+                return Results.Conflict(new { error = "E-mail já cadastrado." });
+
+            // Gera token de confirmação e salva no campo password_reset_token_hash (TTL 24h)
+            var (plainToken, tokenHash) = JwtService.GenerateRefreshToken();
+            var expiresAt = DateTime.UtcNow.AddHours(24);
+            await auth.SavePasswordResetTokenByEmailAsync(emailNorm, tokenHash, expiresAt);
+
+            var adminUrl = config["App:AdminUrl"] ?? "http://2.25.122.11:3004";
+            var confirmLink = $"{adminUrl}/api/auth/admin/confirm-email?token={Uri.EscapeDataString(plainToken)}";
+            try { await email.SendAdminInviteEmailAsync(customer.Email, customer.Name, confirmLink); }
+            catch { /* best-effort */ }
+
+            return Results.NoContent();
+        }).RequireRateLimiting(RateLimitExtensions.AuthPolicy);
+
+        // GET /api/auth/admin/confirm-email?token=...
+        // Confirma e-mail do admin via link clicável. Retorna HTML.
+        adminGroup.MapGet("/confirm-email", async (
+            [FromQuery] string? token,
+            IAuthPort auth) =>
+        {
+            if (string.IsNullOrWhiteSpace(token))
+                return Results.Content(HtmlConfirm(false, "Token ausente."), "text/html");
+
+            string tokenHash;
+            try { tokenHash = JwtService.HashRefreshToken(token); }
+            catch { return Results.Content(HtmlConfirm(false, "Token inválido."), "text/html"); }
+
+            var ok = await auth.ConfirmAdminEmailAsync(tokenHash);
+            return Results.Content(
+                ok ? HtmlConfirm(true, null) : HtmlConfirm(false, "Token inválido ou expirado."),
+                "text/html");
+        });
+
+        // POST /api/auth/admin/forgot-password
+        // Envia e-mail de reset com link apontando para App:AdminUrl (não App:WebUrl).
+        adminGroup.MapPost("/forgot-password", async (
+            [FromBody] ForgotPasswordRequest req,
+            IAuthPort auth, IEmailService email, IConfiguration config) =>
+        {
+            if (string.IsNullOrWhiteSpace(req.Email))
+                return Results.NoContent();
+
+            var (plainToken, tokenHash) = JwtService.GenerateRefreshToken();
+            var expiresAt = DateTime.UtcNow.Add(PasswordResetTokenTtl);
+            var emailNorm = req.Email.Trim().ToLowerInvariant();
+
+            var saved = await auth.SavePasswordResetTokenByEmailAsync(emailNorm, tokenHash, expiresAt);
+            if (saved)
+            {
+                var found = await auth.GetByPasswordResetTokenAsync(tokenHash);
+                if (found is not null)
+                {
+                    var adminUrl = config["App:AdminUrl"] ?? "http://2.25.122.11:3004";
+                    var resetLink = $"{adminUrl}/reset-password?token={Uri.EscapeDataString(plainToken)}";
+                    try { await email.SendPasswordResetEmailAsync(found.Email, found.Name, resetLink); }
+                    catch { /* best-effort */ }
+                }
+            }
+
+            return Results.NoContent();
+        }).RequireRateLimiting(RateLimitExtensions.AuthPolicy);
+    }
+
+    private static string HtmlConfirm(bool success, string? message) => $$"""
+        <!DOCTYPE html>
+        <html lang="pt-BR">
+        <head>
+          <meta charset="utf-8"/>
+          <meta name="viewport" content="width=device-width,initial-scale=1"/>
+          <title>Comprai Admin — {{(success ? "Cadastro confirmado" : "Erro")}}</title>
+          <style>
+            *{box-sizing:border-box;margin:0;padding:0}
+            body{font-family:Inter,system-ui,sans-serif;background:#030712;
+                 min-height:100vh;display:flex;align-items:center;justify-content:center}
+            .card{background:#111827;border:1px solid #1f2937;border-radius:20px;
+                  padding:3rem 2.5rem;max-width:420px;width:90%;text-align:center}
+            .icon{width:64px;height:64px;border-radius:16px;
+                  background:{{(success ? "#14532d" : "#450a0a")}};
+                  display:inline-flex;align-items:center;justify-content:center;margin-bottom:1.5rem}
+            h1{font-size:1.375rem;font-weight:700;color:#f9fafb;margin-bottom:.75rem}
+            p{color:#9ca3af;font-size:.9375rem;line-height:1.6;margin-bottom:1.75rem}
+            a{display:inline-block;background:#7c3aed;color:#fff;font-weight:700;
+              padding:.75rem 1.75rem;border-radius:10px;text-decoration:none;font-size:15px}
+            a:hover{background:#6d28d9}
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <div class="icon">
+              {{(success
+                ? """<svg width="32" height="32" fill="none" stroke="#4ade80" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>"""
+                : """<svg width="32" height="32" fill="none" stroke="#f87171" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>""")}}
+            </div>
+            <h1>{{(success ? "Cadastro confirmado!" : "Link inválido")}}</h1>
+            <p>{{(success
+              ? "Seu e-mail foi verificado com sucesso. Você já pode acessar o painel administrativo do Comprai."
+              : (message ?? "O link de confirmação é inválido ou expirou. Solicite um novo cadastro."))}}</p>
+            <a href="/login">Ir para o login</a>
+          </div>
+        </body>
+        </html>
+        """;
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
     private static async Task<AuthResponse> IssueTokenPairAsync(IAuthPort auth, JwtService jwt, AuthCustomerDto customer)
@@ -355,4 +482,6 @@ public static class AuthEndpoints
     // V061-F1
     public record ForgotPasswordRequest(string Email);
     public record ResetPasswordRequest(string Token, string NewPassword);
+    // V070
+    public record AdminRegisterRequest(string Email, string Password);
 }

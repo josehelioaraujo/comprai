@@ -144,4 +144,17 @@ public interface IAuthPort
     /// Chamado em POST /api/auth/logout-all.
     /// </summary>
     Task RevokeAllRefreshTokensAsync(string customerId, CancellationToken ct = default);
+
+    // ── V070: Admin Registration ─────────────────────────────────────────
+    /// <summary>
+    /// Registra novo usuário com role='admin' e email_verified=FALSE.
+    /// Retorna null se e-mail já existe.
+    /// </summary>
+    Task<AuthCustomerDto?> RegisterAdminAsync(string email, string password, CancellationToken ct = default);
+
+    /// <summary>
+    /// Confirma e-mail de admin via token de convite (salvo em password_reset_token_hash).
+    /// Marca email_verified=TRUE e limpa o token. Retorna false se inválido/expirado.
+    /// </summary>
+    Task<bool> ConfirmAdminEmailAsync(string tokenHash, CancellationToken ct = default);
 }

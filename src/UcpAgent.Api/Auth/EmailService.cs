@@ -8,6 +8,7 @@ public interface IEmailService
 {
     Task SendVerificationEmailAsync(string toEmail, string toName, string code, CancellationToken ct = default);
     Task SendPasswordResetEmailAsync(string toEmail, string toName, string resetLink, CancellationToken ct = default);
+    Task SendAdminInviteEmailAsync(string toEmail, string toName, string confirmLink, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -83,6 +84,55 @@ public sealed class ResendEmailService(IResend resend, IConfiguration config) : 
         await resend.EmailSendAsync(msg, ct);
     }
 
+    public async Task SendAdminInviteEmailAsync(string toEmail, string toName, string confirmLink, CancellationToken ct = default)
+    {
+        var html = $"""
+            <div style="font-family:Inter,sans-serif;max-width:480px;margin:auto;padding:2rem">
+              <div style="text-align:center;margin-bottom:1.5rem">
+                <div style="display:inline-flex;align-items:center;justify-content:center;
+                            width:56px;height:56px;border-radius:16px;background:#7c3aed">
+                  <svg width="28" height="28" fill="none" stroke="#fff" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955
+                         11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29
+                         9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                  </svg>
+                </div>
+              </div>
+              <h2 style="color:#1a1a2e;margin:0 0 1rem;text-align:center">Bem-vindo ao Comprai Admin</h2>
+              <p style="color:#374151;margin:0 0 .5rem">Olá, {Encode(toName)}!</p>
+              <p style="color:#374151;margin:0 0 1.5rem">
+                Sua conta de administrador foi criada. Clique no botão abaixo para confirmar
+                seu e-mail e ativar o acesso ao painel administrativo.
+              </p>
+              <div style="text-align:center;margin:2rem 0">
+                <a href="{System.Net.WebUtility.HtmlEncode(confirmLink)}"
+                   style="display:inline-block;background:#7c3aed;color:#fff;font-weight:700;
+                          padding:.875rem 2rem;border-radius:10px;text-decoration:none;
+                          font-size:15px;letter-spacing:.01em">
+                  ✓ Confirmar cadastro
+                </a>
+              </div>
+              <p style="color:#9ca3af;font-size:.8125rem;margin:1.25rem 0 0;text-align:center">
+                Link válido por 24 horas. Se você não solicitou este acesso, ignore este e-mail.
+              </p>
+              <p style="color:#d1d5db;font-size:.75rem;margin:.5rem 0 0;text-align:center">
+                Ou copie e cole no navegador:<br/>
+                <span style="color:#6b7280">{System.Net.WebUtility.HtmlEncode(confirmLink)}</span>
+              </p>
+            </div>
+            """;
+
+        var msg = new EmailMessage
+        {
+            From     = _from,
+            Subject  = "Confirme seu cadastro — Comprai Admin",
+            HtmlBody = html,
+        };
+        msg.To.Add(toEmail);
+        await resend.EmailSendAsync(msg, ct);
+    }
+
     private static string Encode(string s) => System.Net.WebUtility.HtmlEncode(s);
 }
 
@@ -106,6 +156,14 @@ public sealed class NullEmailService(ILogger<NullEmailService> logger) : IEmailS
         logger.LogInformation(
             "[NullEmailService] Link de reset de senha para {Email}: {Link} (não enviado — sem RESEND_API_KEY)",
             toEmail, resetLink);
+        return Task.CompletedTask;
+    }
+
+    public Task SendAdminInviteEmailAsync(string toEmail, string toName, string confirmLink, CancellationToken ct = default)
+    {
+        logger.LogInformation(
+            "[NullEmailService] Link de confirmação admin para {Email}: {Link} (não enviado — sem RESEND_API_KEY)",
+            toEmail, confirmLink);
         return Task.CompletedTask;
     }
 }

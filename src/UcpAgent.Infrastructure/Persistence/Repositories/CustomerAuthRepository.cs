@@ -318,6 +318,45 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db, IEncryptionS
         return affected > 0;
     }
 
+    // ── V070: Admin Registration ─────────────────────────────────────────────
+
+    public async Task<AuthCustomerDto?> RegisterAdminAsync(string email, string password, CancellationToken ct = default)
+    {
+        using var conn = await db.CreateAsync(ct);
+        var exists = await conn.ExecuteScalarAsync<bool>(
+            "SELECT EXISTS(SELECT 1 FROM customer WHERE email = @Email)",
+            new { Email = email });
+        if (exists) return null;
+
+        var hash = BCrypt.Net.BCrypt.HashPassword(password);
+        var row = await conn.QuerySingleAsync<CustomerRow>(
+            """
+            INSERT INTO customer (name, email, provider, password_hash, email_verified, role, channel)
+            VALUES (@Name, @Email, 'credentials', @Hash, FALSE, 'admin', 'admin')
+            RETURNING id, name, email, provider, avatar_url, email_verified, phone, document, totp_enabled, role
+            """,
+            new { Name = email.Split('@')[0], Email = email, Hash = hash });
+        return ToDto(row, null);
+    }
+
+    public async Task<bool> ConfirmAdminEmailAsync(string tokenHash, CancellationToken ct = default)
+    {
+        using var conn = await db.CreateAsync(ct);
+        var affected = await conn.ExecuteAsync(
+            """
+            UPDATE customer
+            SET email_verified            = TRUE,
+                password_reset_token_hash = NULL,
+                password_reset_expires_at = NULL,
+                updated_at                = NOW()
+            WHERE password_reset_token_hash = @TokenHash
+              AND password_reset_expires_at  > NOW()
+              AND role = 'admin'
+            """,
+            new { TokenHash = tokenHash });
+        return affected > 0;
+    }
+
     // ── V061-F2: Logout de todos os dispositivos ─────────────────────────────
 
     public async Task RevokeAllRefreshTokensAsync(string customerId, CancellationToken ct = default)
