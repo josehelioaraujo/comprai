@@ -5,7 +5,7 @@ export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
   // Rotas públicas
-  if (pathname.startsWith('/login') || pathname.startsWith('/api/auth')) {
+  if (pathname.startsWith('/login') || pathname.startsWith('/reset-password') || pathname.startsWith('/api/auth')) {
     // Se já autenticado e tentar acessar login, redireciona pro dashboard
     if (token && pathname === '/login') {
       return NextResponse.redirect(new URL('/dashboard', req.url))
