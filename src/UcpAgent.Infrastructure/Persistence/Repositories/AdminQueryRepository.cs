@@ -149,21 +149,20 @@ public sealed class AdminQueryRepository(IDbConnectionFactory factory)
         {
             await using var conn = await factory.CreateAsync(token);
 
-            // Parse productId to Guid? so Npgsql sends the correct UUID type,
-            // avoiding a type-conflict when mixing ::text and ::uuid for the same param.
-            Guid? productGuid = productId is not null && Guid.TryParse(productId, out var g) ? g : null;
-
+            // product_id in order_item is VARCHAR(200) — keep productId as string?
+            // and use ::text casts consistently so Npgsql infers a single, uniform
+            // type (text) for @ProductId across all occurrences. No uuid cast needed.
             var total = await conn.ExecuteScalarAsync<long>("""
                 SELECT COUNT(DISTINCT o.id)
                 FROM "order" o
                 LEFT JOIN payment p ON p.order_id = o.id
-                WHERE (@Status::text        IS NULL OR o.status = @Status)
-                  AND (@PaymentMethod::text IS NULL OR p.method = @PaymentMethod)
-                  AND (@ProductId          IS NULL OR EXISTS (
+                WHERE (@Status::text        IS NULL OR o.status        = @Status)
+                  AND (@PaymentMethod::text IS NULL OR p.method        = @PaymentMethod)
+                  AND (@ProductId::text     IS NULL OR EXISTS (
                         SELECT 1 FROM order_item oi2
                         WHERE oi2.order_id = o.id AND oi2.product_id = @ProductId))
                 """,
-                new { Status = status, PaymentMethod = paymentMethod, ProductId = productGuid });
+                new { Status = status, PaymentMethod = paymentMethod, ProductId = productId });
 
             var rows = await conn.QueryAsync<AdminOrderRow>("""
                 SELECT o.id                     AS OrderId,
@@ -187,9 +186,9 @@ public sealed class AdminQueryRepository(IDbConnectionFactory factory)
                     ORDER BY created_at
                     LIMIT 1
                 ) first_item ON true
-                WHERE (@Status::text        IS NULL OR o.status = @Status)
-                  AND (@PaymentMethod::text IS NULL OR p.method = @PaymentMethod)
-                  AND (@ProductId          IS NULL OR EXISTS (
+                WHERE (@Status::text        IS NULL OR o.status        = @Status)
+                  AND (@PaymentMethod::text IS NULL OR p.method        = @PaymentMethod)
+                  AND (@ProductId::text     IS NULL OR EXISTS (
                         SELECT 1 FROM order_item oi3
                         WHERE oi3.order_id = o.id AND oi3.product_id = @ProductId))
                 GROUP BY o.id, o.created_at, c.name, c.email, p.method,
@@ -197,7 +196,7 @@ public sealed class AdminQueryRepository(IDbConnectionFactory factory)
                 ORDER BY o.created_at DESC
                 LIMIT @PageSize OFFSET @Offset
                 """,
-                new { Status = status, PaymentMethod = paymentMethod, ProductId = productGuid,
+                new { Status = status, PaymentMethod = paymentMethod, ProductId = productId,
                       PageSize = pageSize, Offset = (page - 1) * pageSize });
 
             return new AdminOrderPage(rows.ToList(), total);
