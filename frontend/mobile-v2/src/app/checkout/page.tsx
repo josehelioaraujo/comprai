@@ -117,7 +117,7 @@ export default function CheckoutPage() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/>
           </svg>
         </Link>
-        <h1 className="text-xl font-bold text-ink">Finalizar Compra</h1>
+        <h1 className="text-xl font-bold text-ink">Finalizar Pedido</h1>
       </div>
 
       <form onSubmit={handlePlaceOrder} className="p-4 space-y-4 pb-8">

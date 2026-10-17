@@ -39,7 +39,7 @@ export default function CartSummary({ cart, disabled }: Props) {
 
       <Link href="/checkout" className={disabled ? 'pointer-events-none' : ''}>
         <Button fullWidth disabled={disabled || cart.items.length === 0}>
-          Ir para o Checkout
+          Finalizar Pedido
           <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/>
           </svg>
