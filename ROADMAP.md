@@ -1,14 +1,26 @@
 # 🗺️ Roadmap — Comprai
 
-## 🔜 V071 — Mobile UI Redesign (próxima)
-- [ ] Redesign completo da interface mobile (`frontend/mobile/`) — referência visual: Shopify mobile (clean, branco, bottom nav)
-- [ ] Bottom navigation: Home / Busca / Carrinho / Conta
-- [ ] Tela Home com banners, categorias em destaque e produtos recomendados
-- [ ] Tela de Busca com filtros e resultado em grid
-- [ ] Tela de Carrinho redesenhada com resumo de pedido
-- [ ] Tela de Conta com perfil, pedidos e endereço
-- [ ] Paleta: branco + tipografia preta + acento roxo (consistente com web)
-- [ ] Deploy independente — `deploy-mobile.yml` já funcional na porta 3003
+## 🔜 V072 — Web UI Redesign (próxima)
+- [ ] Redesign completo da interface web (`frontend/web/`) — referência visual: Nixtio Marketplace Web UI
+- [ ] Consistência visual com o mobile-v2 (paleta #7C3AED, tipografia preta, fundo branco)
+- [ ] Layout desktop responsivo com sidebar de categorias
+- [ ] Tela de produto detalhada com galeria de imagens
+- [ ] Header com busca global e mini-carrinho
+- [ ] Deploy independente na porta 3002
+
+---
+
+## ✅ V071 — Mobile UI Redesign — `frontend/mobile-v2/` (out/2026)
+- [x] Nova pasta `frontend/mobile-v2/` — porta 3005 (mobile original em 3003 intacto)
+- [x] Next.js 15 + React 19 + TypeScript strict + Tailwind CSS v3 + NextAuth v5
+- [x] Visual Nixtio Skincare — fundo branco, tipografia preta, acento roxo #7C3AED
+- [x] Bottom nav: Home (chat IA) / Search / Cart / Account
+- [x] Fluxo completo: busca → carrinho → checkout → pagamento → pedidos → rastreio
+- [x] Cadastro + auto-login pós-registro (pre-auth bypass no NextAuth)
+- [x] Verificação de email via Brevo (OTP 6 dígitos)
+- [x] 18 componentes + 10 páginas — `npx tsc --noEmit` → 0 erros ✅
+- [x] Dockerfile multi-stage + CI/CD `deploy-mobile-v2.yml` → GHCR
+- [x] Commit: `9b88fdf`
 
 ---
 

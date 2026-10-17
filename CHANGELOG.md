@@ -1,5 +1,62 @@
 # Changelog
 
+## [V071] — 2026-10-17
+
+### Added — Mobile UI Redesign (`frontend/mobile-v2/`, porta 3005)
+
+**Objetivo**
+Redesign completo da interface mobile com visual inspirado no Nixtio Skincare (fundo branco, tipografia preta, acento roxo #7C3AED), usando pasta separada para não impactar o `frontend/mobile/` existente (porta 3003).
+
+**Stack**
+- Next.js 15 App Router + React 19 + TypeScript strict
+- NextAuth v5 (`next-auth@^5.0.0-beta.25`) — Credentials + Google OAuth
+- Tailwind CSS v3.4.17 (stable)
+- Porta 3005
+
+**Fluxo completo de compra**
+
+| Tela | Rota | Descrição |
+|------|------|-----------|
+| Home | `/` | Chat assistente de IA com ProductCards inline |
+| Search | `/search` | SearchBar fixo no topo + ProductGrid 2 colunas |
+| Cart | `/cart` | Controles de quantidade, remover item, CartSummary |
+| Checkout | `/checkout` | Endereço + método de pagamento (pix/credit_card/boleto) |
+| Account | `/account` | Perfil, banner de verificação de email (Brevo), pedidos |
+| Orders | `/orders` | Lista com badges de status coloridos |
+| Order Detail | `/orders/[id]` | TrackingTimeline com eventos de fulfillment |
+| Login | `/auth/login` | Credentials + Google OAuth |
+| Register | `/auth/register` | Auto-login pós-cadastro via pre-auth bypass |
+| Verify Email | `/auth/verify` | OTP de 6 dígitos (Brevo) |
+
+**Componentes criados** (18 componentes + 10 páginas)
+- UI: `Button`, `Input`, `Spinner`
+- Layout: `AppShell`, `BottomNav` (Home / Search / Cart / Account)
+- Search: `SearchBar`, `ProductCard`, `ProductGrid`
+- Cart: `CartItemRow`, `CartSummary`
+- Account: `ProfileCard`, `OrderListItem`
+- Auth: `LoginForm`, `RegisterForm`, `VerifyEmailForm`
+- Home: `HomeChat`
+- Tracking: `TrackingTimeline`
+
+**Auth / session**
+- `session.user.apiToken` via callbacks jwt/session do NextAuth
+- Pre-auth bypass: register retorna token → `signIn('credentials', { token, customer })` sem segunda chamada ao backend
+- `sessionStorage` com chave `cv2_session_id` para sessão de carrinho de convidado
+
+**Infra**
+- `Dockerfile` multi-stage (node:22-alpine, `output: 'standalone'`)
+- `deploy-mobile-v2.yml` → `ghcr.io/josehelioaraujo/comprai-mobile-v2`
+- `docker-compose.yml`: serviço `comprai-mobile-v2` na porta 3005
+- `/api/healthz` endpoint
+
+**TypeScript**: `npx tsc --noEmit` → 0 erros ✅
+
+**Commits**: `9b88fdf`
+
+> ⚠️ **Pós-deploy**: adicionar secret `NEXTAUTH_URL_MOBILE_V2=http://2.25.122.11:3005` no GitHub (`Settings → Secrets → Actions`).
+
+---
+
 ## [V070] — 2026-10-16
 
 ### Changed — Reorganização de Pastas + Estabilização CI/CD
