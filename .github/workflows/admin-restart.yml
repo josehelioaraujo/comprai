@@ -60,7 +60,7 @@ jobs:
               ;;
             redeploy)
               echo "🔄 Redeploy completo..."
-              git pull origin main
+              git fetch origin main && git reset --hard origin/main
               docker compose -f deploy/docker-compose.yml --env-file .env build --no-cache comprai-api
               docker compose -f deploy/docker-compose.yml --env-file .env \
                 --profile datadog --profile kafka --profile rabbitmq \

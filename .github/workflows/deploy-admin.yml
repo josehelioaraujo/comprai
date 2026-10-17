@@ -95,7 +95,8 @@ jobs:
           script: |
             set -e
             cd /home/projetos/comprai
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
             echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u josehelioaraujo --password-stdin
             docker pull ${{ env.IMAGE }}:latest && echo "✅ Pull OK" || { echo "❌ Pull falhou"; exit 1; }
             docker stop comprai-admin 2>/dev/null || true
