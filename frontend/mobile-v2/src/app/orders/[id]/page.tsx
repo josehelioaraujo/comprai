@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth'
-import { redirect, notFound } from 'next/navigation'
-import { apiGetFulfillment, apiGetOrders } from '@/lib/api'
+import { notFound } from 'next/navigation'
+import { apiGetFulfillment, apiGetOrder } from '@/lib/api'
 import AppShell from '@/components/layout/AppShell'
 import TrackingTimeline from '@/components/tracking/TrackingTimeline'
 import Link from 'next/link'
@@ -15,16 +15,12 @@ const fmt = (n: number) =>
 export default async function OrderDetailPage({ params }: Props) {
   const { id } = await params
   const session = await auth()
-  if (!session) redirect('/auth/login')
+  const token   = session?.user?.apiToken
 
-  let events: import('@/types').FulfillmentEvent[] = []
-  let order: import('@/types').OrderSummary | null  = null
-
-  try {
-    const orders = await apiGetOrders(undefined, session.user.apiToken)
-    order = orders.find(o => o.orderId === id) ?? null
-    events = await apiGetFulfillment(id, session.user.apiToken)
-  } catch { /* empty */ }
+  const [order, events] = await Promise.all([
+    apiGetOrder(id, token),
+    apiGetFulfillment(id, token),
+  ])
 
   if (!order) notFound()
 

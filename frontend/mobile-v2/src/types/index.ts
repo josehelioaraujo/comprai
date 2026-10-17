@@ -32,12 +32,14 @@ export interface Product {
 // ── Cart ──────────────────────────────────────────────────────────────────────
 
 export interface CartItem {
+  itemId: string      // 8-char ID used by the backend for removal
   productId: string
   title: string
   price: number
   quantity: number
   image?: string
   source?: string
+  url?: string
 }
 
 export interface Cart {

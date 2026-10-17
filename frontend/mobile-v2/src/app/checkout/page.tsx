@@ -14,7 +14,6 @@ import { getSessionId } from '@/lib/session'
 import type { Cart } from '@/types'
 import Link from 'next/link'
 
-const BACKEND = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000'
 const fmt = (n: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n)
 
@@ -37,10 +36,6 @@ export default function CheckoutPage() {
   const [payment,    setPayment]    = useState<PaymentMethod>('pix')
 
   useEffect(() => {
-    if (status === 'unauthenticated') router.replace('/auth/login')
-  }, [status, router])
-
-  useEffect(() => {
     const sessionId = getSessionId()
     apiGetCart(sessionId)
       .then(c => setCart(c))
@@ -50,35 +45,55 @@ export default function CheckoutPage() {
 
   async function handlePlaceOrder(e: React.FormEvent) {
     e.preventDefault()
-    if (!session?.user?.apiToken) return
     setError('')
     setPlacing(true)
 
     const sessionId = getSessionId()
     const subtotal  = cart.items.reduce((s, i) => s + i.price * i.quantity, 0)
     const shipping  = subtotal > 200 ? 0 : 19.9
+    const total     = subtotal + shipping
 
     try {
-      const res = await fetch(`${BACKEND}/api/orders`, {
+      // Step 1: Create checkout → get orderId
+      const checkoutRes = await fetch(`/proxy/api/checkout/${sessionId}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.user.apiToken}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sessionId,
-          paymentMethod: payment,
-          shippingAddress: { street, city, state, zipCode },
+          name:    session?.user?.name  ?? 'Guest',
+          email:   session?.user?.email ?? 'guest@example.com',
+          phone:   '(11) 99999-0000',
+          address: `${street}, ${city} - ${state}, ${zipCode}`,
+          cep:     zipCode,
         }),
       })
+      if (!checkoutRes.ok) {
+        const msg = await checkoutRes.text()
+        throw new Error(msg || 'Checkout failed')
+      }
+      const checkout = await checkoutRes.json()
+      const orderId: string = checkout.orderId ?? checkout.id
 
-      if (!res.ok) {
-        const msg = await res.text()
-        throw new Error(msg || 'Failed to place order')
+      // Step 2: Process payment
+      const paymentRes = await fetch(`/proxy/api/payment/${orderId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount:    total.toFixed(2),
+          currency:  'BRL',
+          sessionId,
+          method: {
+            provider:   'mock',
+            cardToken:  payment === 'credit_card' ? 'tok_test_mock' : null,
+            pixKey:     payment === 'pix'         ? 'mock-pix-key'  : null,
+          },
+        }),
+      })
+      if (!paymentRes.ok) {
+        const msg = await paymentRes.text()
+        throw new Error(msg || 'Payment failed')
       }
 
-      const order = await res.json()
-      router.push(`/orders/${order.orderId ?? order.id}`)
+      router.push(`/orders/${orderId}`)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to place order')
     } finally {
@@ -86,7 +101,7 @@ export default function CheckoutPage() {
     }
   }
 
-  if (status === 'loading' || loading) {
+  if (loading) {
     return <AppShell hideNav><div className="flex justify-center py-20"><Spinner size={32} /></div></AppShell>
   }
 

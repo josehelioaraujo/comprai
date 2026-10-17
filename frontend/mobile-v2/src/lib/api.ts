@@ -1,6 +1,11 @@
-import type { AuthResponse, Product, Cart, OrderSummary, FulfillmentEvent } from '@/types'
+import type { AuthResponse, Product, Cart, CartItem, OrderSummary, FulfillmentEvent } from '@/types'
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5020'
+// In the browser we call /proxy/* so Next.js server-side rewrites forward to the API
+// (avoids CORS — the browser never talks directly to the backend IP).
+// In SSR/Node.js context, use the direct API URL.
+const BASE = typeof window !== 'undefined'
+  ? '/proxy'
+  : (process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5020')
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -97,35 +102,77 @@ export async function apiSearch(query: string, sessionId: string): Promise<Produ
 
 // ── Cart ──────────────────────────────────────────────────────────────────────
 
-export async function apiGetCart(sessionId: string): Promise<Cart> {
-  return request<Cart>(`/api/cart/${sessionId}`)
+/** Raw shape returned by GET /api/cart/{sessionId} */
+interface RawCartItem {
+  itemId:   string
+  product:  { id: string; title: string; price: number; imageUrl?: string; url?: string; category?: string; source: string }
+  quantity: number
+  subtotal: number
+}
+interface RawCart {
+  sessionId: string
+  items:     RawCartItem[]
+  total:     number
 }
 
-/** Add or update item quantity in cart.
- *  Pass full product details on first add; for quantity updates (increase/decrease)
- *  the backend uses the stored data — pass empty strings for title/image/source. */
+function mapCart(raw: RawCart): Cart {
+  return {
+    sessionId: raw.sessionId,
+    total:     raw.total,
+    items:     (raw.items ?? []).map(i => ({
+      itemId:    i.itemId,
+      productId: i.product.id,
+      title:     i.product.title,
+      price:     i.product.price,
+      quantity:  i.quantity,
+      image:     i.product.imageUrl ?? '',
+      source:    i.product.source,
+      url:       i.product.url,
+    } satisfies CartItem)),
+  }
+}
+
+export async function apiGetCart(sessionId: string): Promise<Cart> {
+  const raw = await request<RawCart>(`/api/cart/${sessionId}`)
+  return mapCart(raw)
+}
+
+/**
+ * Add a product to cart.  The backend accumulates quantity if the same
+ * (productId + source) already exists, so calling with quantity:1 increments.
+ * Returns the updated cart (fetched after add).
+ */
 export async function apiAddToCart(
   productId: string,
   quantity:  number,
   sessionId: string,
-  meta?: { title?: string; price?: number; image?: string; source?: string },
+  meta?: { title?: string; price?: number; image?: string; source?: string; url?: string },
 ): Promise<Cart> {
-  return request<Cart>('/api/cart/add', {
+  await request<{ itemId: string }>(`/api/cart/${sessionId}/items`, {
     method: 'POST',
     body:   JSON.stringify({
-      sessionId,
-      productId,
+      product: {
+        id:       productId,
+        title:    meta?.title    ?? '',
+        price:    meta?.price    ?? 0,
+        imageUrl: meta?.image    ?? '',
+        url:      meta?.url      ?? '',
+        category: meta?.source   ?? '',
+        source:   meta?.source   ?? 'catalog',
+      },
       quantity,
-      ...(meta ?? {}),
     }),
   })
+  return apiGetCart(sessionId)
 }
 
-export async function apiRemoveFromCart(productId: string, sessionId: string): Promise<Cart> {
-  return request<Cart>('/api/cart/remove', {
-    method: 'POST',
-    body:   JSON.stringify({ sessionId, productId }),
-  })
+/**
+ * Remove a cart item by its itemId (the 8-char backend ID, not productId).
+ * Returns the updated cart.
+ */
+export async function apiRemoveFromCart(itemId: string, sessionId: string): Promise<Cart> {
+  await request<void>(`/api/cart/${sessionId}/items/${itemId}`, { method: 'DELETE' })
+  return apiGetCart(sessionId)
 }
 
 // ── Orders ────────────────────────────────────────────────────────────────────
@@ -139,6 +186,19 @@ export async function apiGetOrders(
   return request<OrderSummary[]>(`/api/orders${qs}`, {}, token)
 }
 
+/** Fetch a single order by ID (no auth required). */
+export async function apiGetOrder(orderId: string, token?: string): Promise<OrderSummary | null> {
+  try {
+    return await request<OrderSummary>(`/api/orders/${orderId}`, {}, token)
+  } catch {
+    return null
+  }
+}
+
 export async function apiGetFulfillment(orderId: string, token?: string): Promise<FulfillmentEvent[]> {
-  return request<FulfillmentEvent[]>(`/api/orders/${orderId}/fulfillment`, {}, token)
+  try {
+    return await request<FulfillmentEvent[]>(`/api/orders/${orderId}/fulfillment`, {}, token)
+  } catch {
+    return []
+  }
 }

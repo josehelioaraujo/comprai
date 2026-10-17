@@ -29,35 +29,43 @@ export default function CartPage() {
 
   useEffect(() => { refresh() }, [])
 
-  async function handleIncrease(productId: string) {
+  async function handleIncrease(itemId: string) {
     const sessionId = getSessionId()
-    const item = cart.items.find(i => i.productId === productId)
+    const item = cart.items.find(i => i.itemId === itemId)
     if (!item) return
     try {
-      const updated = await apiAddToCart(productId, item.quantity + 1, sessionId)
+      // Backend accumulates: same product → qty + 1
+      const updated = await apiAddToCart(item.productId, 1, sessionId, {
+        title: item.title, price: item.price, image: item.image, source: item.source, url: item.url,
+      })
       setCart(updated)
     } catch { /* silent */ }
   }
 
-  async function handleDecrease(productId: string) {
+  async function handleDecrease(itemId: string) {
     const sessionId = getSessionId()
-    const item = cart.items.find(i => i.productId === productId)
+    const item = cart.items.find(i => i.itemId === itemId)
     if (!item) return
     try {
       if (item.quantity <= 1) {
-        const updated = await apiRemoveFromCart(productId, sessionId)
+        // Remove entirely
+        const updated = await apiRemoveFromCart(itemId, sessionId)
         setCart(updated)
       } else {
-        const updated = await apiAddToCart(productId, item.quantity - 1, sessionId)
+        // Remove then re-add with (qty - 1)
+        await apiRemoveFromCart(itemId, sessionId)
+        const updated = await apiAddToCart(item.productId, item.quantity - 1, sessionId, {
+          title: item.title, price: item.price, image: item.image, source: item.source, url: item.url,
+        })
         setCart(updated)
       }
     } catch { /* silent */ }
   }
 
-  async function handleRemove(productId: string) {
+  async function handleRemove(itemId: string) {
     const sessionId = getSessionId()
     try {
-      const updated = await apiRemoveFromCart(productId, sessionId)
+      const updated = await apiRemoveFromCart(itemId, sessionId)
       setCart(updated)
     } catch { /* silent */ }
   }
@@ -89,7 +97,7 @@ export default function CartPage() {
         <div className="p-4 space-y-3">
           {cart.items.map(item => (
             <CartItemRow
-              key={item.productId}
+              key={item.itemId}
               item={item}
               onIncrease={handleIncrease}
               onDecrease={handleDecrease}

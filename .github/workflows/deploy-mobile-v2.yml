@@ -111,6 +111,7 @@ jobs:
               -e "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" \
               -e "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" \
               -e "NEXT_PUBLIC_API_URL=${{ env.API_URL }}" \
+              -e "API_URL=${{ env.API_URL }}" \
               ${{ env.IMAGE }}:latest
             sleep 8
             curl -sf http://localhost:${{ env.PORT }}/api/healthz && echo "✅ OK" \

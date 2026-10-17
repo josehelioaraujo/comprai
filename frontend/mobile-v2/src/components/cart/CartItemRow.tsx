@@ -39,7 +39,7 @@ export default function CartItemRow({ item, onIncrease, onDecrease, onRemove }: 
         <div className="flex items-center gap-3 mt-2">
           {/* qty controls */}
           <div className="flex items-center gap-2">
-            <button onClick={() => onDecrease(item.productId)}
+            <button onClick={() => onDecrease(item.itemId)}
               className="w-7 h-7 rounded-lg bg-surface text-ink flex items-center justify-center
                 hover:bg-brand-light active:scale-90 transition-all">
               <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -47,7 +47,7 @@ export default function CartItemRow({ item, onIncrease, onDecrease, onRemove }: 
               </svg>
             </button>
             <span className="text-sm font-semibold w-5 text-center">{item.quantity}</span>
-            <button onClick={() => onIncrease(item.productId)}
+            <button onClick={() => onIncrease(item.itemId)}
               className="w-7 h-7 rounded-lg bg-surface text-ink flex items-center justify-center
                 hover:bg-brand-light active:scale-90 transition-all">
               <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -57,7 +57,7 @@ export default function CartItemRow({ item, onIncrease, onDecrease, onRemove }: 
           </div>
 
           {/* remove */}
-          <button onClick={() => onRemove(item.productId)}
+          <button onClick={() => onRemove(item.itemId)}
             className="ml-auto text-muted hover:text-red-500 transition-colors" aria-label="Remove">
             <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round"
