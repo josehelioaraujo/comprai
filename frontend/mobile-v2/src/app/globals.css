@@ -11,6 +11,18 @@
   --muted:        #6B7280;
   --border:       #E5E7EB;
   --nav-height:   64px;
+  --bg-phone:     #e5e7eb;
+  --bg-card:      #ffffff;
+}
+
+.dark {
+  --surface:      #1C1C1E;
+  --ink:          #F2F2F7;
+  --muted:        #8E8E93;
+  --border:       #3A3A3C;
+  --brand-light:  #2D1B6B;
+  --bg-phone:     #1a1a1a;
+  --bg-card:      #2C2C2E;
 }
 
 * {
@@ -23,10 +35,11 @@ html, body {
 }
 
 body {
-  background: #e5e7eb;
+  background: var(--bg-phone);
   color: var(--ink);
   font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  transition: background 0.2s;
 }
 
 
