@@ -1,7 +1,5 @@
 import type { NextConfig } from 'next'
 
-const API_URL = process.env.API_URL ?? 'http://localhost:5020'
-
 const nextConfig: NextConfig = {
   output: 'standalone',
   images: {
@@ -10,15 +8,8 @@ const nextConfig: NextConfig = {
       { protocol: 'http',  hostname: '**' },
     ],
   },
-  // Proxy /proxy/* → API (avoids CORS — browser only ever talks to same origin)
-  async rewrites() {
-    return [
-      {
-        source: '/proxy/:path*',
-        destination: `${API_URL}/:path*`,
-      },
-    ]
-  },
+  // /proxy/* is handled by src/app/proxy/[...path]/route.ts at runtime
+  // (reads API_URL env var at request time, not at build time)
 }
 
 export default nextConfig
