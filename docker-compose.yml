@@ -245,6 +245,34 @@ services:
       - monitoring
     restart: unless-stopped
 
+  comprai-mobile-v2:
+    image: ghcr.io/josehelioaraujo/comprai-mobile-v2:latest
+    container_name: comprai-mobile-v2
+    ports:
+      - '3005:3005'
+    environment:
+      NODE_ENV: production
+      PORT: '3005'
+      AUTH_TRUST_HOST: 'true'
+      NEXTAUTH_URL:    ${NEXTAUTH_URL_MOBILE_V2:-http://localhost:3005}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      NEXT_PUBLIC_API_URL: ${API_URL:-http://comprai-api:5020}
+      GOOGLE_CLIENT_ID:     ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+    depends_on:
+      - comprai-api
+    networks:
+      - comprai-network
+    restart: unless-stopped
+    profiles:
+      - frontend
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+        tag: '{{.Name}}'
+
   comprai-admin:
     image: ghcr.io/josehelioaraujo/comprai-admin:latest
     container_name: comprai-admin

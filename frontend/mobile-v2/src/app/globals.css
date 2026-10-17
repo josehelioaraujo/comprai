@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand:        #7C3AED;
+  --brand-light:  #EDE9FE;
+  --brand-dark:   #5B21B6;
+  --surface:      #F9FAFB;
+  --ink:          #111111;
+  --muted:        #6B7280;
+  --border:       #E5E7EB;
+  --nav-height:   64px;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  height: 100%;
+  overscroll-behavior: none;
+}
+
+body {
+  background: #fff;
+  color: var(--ink);
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* scroll suave dentro de listas */
+.scroll-snap-y {
+  scroll-snap-type: y mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* remove spinners de input number */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+}
+
+/* linha de status iOS segura */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}

@@ -1,0 +1,123 @@
+name: Deploy Mobile V2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/mobile-v2/**'
+      - '.github/workflows/deploy-mobile-v2.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-mobile-v2-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  IMAGE:    ghcr.io/josehelioaraujo/comprai-mobile-v2
+  VPS_HOST: 2.25.122.11
+  VPS_USER: root
+  PORT:     3005
+  API_URL:  http://2.25.122.11:5020
+
+jobs:
+  deploy:
+    name: 📱 Build & Deploy Mobile V2
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_PAT }}
+          fetch-depth: 0
+
+      - name: Bump patch version
+        id: version
+        run: |
+          cd frontend/mobile-v2
+          OLD=$(node -p "require('./package.json').version")
+          NEW=$(node -e "
+            const [major,minor,patch] = '$OLD'.split('.').map(Number);
+            console.log(major + '.' + minor + '.' + (patch+1));
+          ")
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json','utf8'));
+            pkg.version = '$NEW';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json
+          git commit -m "chore(mobile-v2): bump version $OLD → $NEW [skip ci]"
+          git pull --rebase origin main
+          git push
+          echo "version=$NEW"   >> $GITHUB_OUTPUT
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & Push image
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend/mobile-v2
+          file:    frontend/mobile-v2/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ steps.version.outputs.version }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ env.API_URL }}
+          cache-from: type=gha
+          cache-to:   type=gha,mode=max
+
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host:     ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key:      ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          script: |
+            set -e
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u josehelioaraujo --password-stdin
+            docker pull ${{ env.IMAGE }}:latest && echo "✅ Pull OK" || { echo "❌ Pull failed"; exit 1; }
+            docker stop comprai-mobile-v2 2>/dev/null || true
+            docker rm   comprai-mobile-v2 2>/dev/null || true
+            docker run -d \
+              --name comprai-mobile-v2 \
+              --restart unless-stopped \
+              --network comprai-network \
+              -p ${{ env.PORT }}:${{ env.PORT }} \
+              -e NODE_ENV=production \
+              -e PORT=${{ env.PORT }} \
+              -e AUTH_TRUST_HOST=true \
+              -e "NEXTAUTH_URL=${{ secrets.NEXTAUTH_URL_MOBILE_V2 }}" \
+              -e "NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}" \
+              -e "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" \
+              -e "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" \
+              -e "NEXT_PUBLIC_API_URL=${{ env.API_URL }}" \
+              ${{ env.IMAGE }}:latest
+            sleep 8
+            curl -sf http://localhost:${{ env.PORT }}/api/healthz && echo "✅ OK" \
+              || { docker logs comprai-mobile-v2 --tail 30; exit 1; }
+
+      - name: Summary
+        run: |
+          echo "## 📱 Deploy Mobile V2 ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL:** http://${{ env.VPS_HOST }}:${{ env.PORT }}"        >> $GITHUB_STEP_SUMMARY
+          echo "- **Container:** comprai-mobile-v2"                           >> $GITHUB_STEP_SUMMARY
+          echo "- **SHA:** ${{ steps.version.outputs.sha }}"                  >> $GITHUB_STEP_SUMMARY
+          echo ""                                                              >> $GITHUB_STEP_SUMMARY
+          echo "> ℹ️ Add secret **NEXTAUTH_URL_MOBILE_V2** with value: \`http://${{ env.VPS_HOST }}:${{ env.PORT }}\`" >> $GITHUB_STEP_SUMMARY
