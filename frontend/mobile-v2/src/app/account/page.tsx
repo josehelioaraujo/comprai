@@ -18,14 +18,14 @@ export default async function AccountPage() {
                 d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
             </svg>
           </div>
-          <h2 className="text-xl font-bold text-ink">Sign in to your account</h2>
-          <p className="text-sm text-muted mt-2 mb-6">Track orders, manage your profile, and more.</p>
+          <h2 className="text-xl font-bold text-ink">Entre na sua conta</h2>
+          <p className="text-sm text-muted mt-2 mb-6">Acompanhe pedidos, gerencie seu perfil e muito mais.</p>
           <div className="w-full space-y-3">
             <Link href="/auth/login">
-              <Button fullWidth>Sign In</Button>
+              <Button fullWidth>Entrar</Button>
             </Link>
             <Link href="/auth/register">
-              <Button variant="secondary" fullWidth>Create Account</Button>
+              <Button variant="secondary" fullWidth>Criar Conta</Button>
             </Link>
           </div>
         </div>
@@ -36,7 +36,7 @@ export default async function AccountPage() {
   return (
     <AppShell>
       <div className="px-4 pt-12 pb-3 bg-white border-b border-border">
-        <h1 className="text-xl font-bold text-ink">Account</h1>
+        <h1 className="text-xl font-bold text-ink">Conta</h1>
       </div>
       <div className="p-4">
         <ProfileCard session={session} />

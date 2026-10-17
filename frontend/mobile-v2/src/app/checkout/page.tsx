@@ -95,7 +95,7 @@ export default function CheckoutPage() {
 
       router.push(`/orders/${orderId}`)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to place order')
+      setError(err instanceof Error ? err.message : 'Falha ao realizar o pedido')
     } finally {
       setPlacing(false)
     }
@@ -117,13 +117,13 @@ export default function CheckoutPage() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/>
           </svg>
         </Link>
-        <h1 className="text-xl font-bold text-ink">Checkout</h1>
+        <h1 className="text-xl font-bold text-ink">Finalizar Compra</h1>
       </div>
 
       <form onSubmit={handlePlaceOrder} className="p-4 space-y-4 pb-8">
         {/* order items preview */}
         <div className="bg-white rounded-2xl shadow-card p-4 space-y-2">
-          <h3 className="text-sm font-semibold text-ink">Your Order</h3>
+          <h3 className="text-sm font-semibold text-ink">Seu Pedido</h3>
           {cart.items.map(item => (
             <div key={item.productId} className="flex justify-between text-sm">
               <span className="text-muted line-clamp-1 flex-1 mr-2">
@@ -135,9 +135,9 @@ export default function CheckoutPage() {
             </div>
           ))}
           <div className="border-t border-border pt-2 flex justify-between text-sm">
-            <span className="text-muted">Shipping</span>
+            <span className="text-muted">Frete</span>
             <span className={shipping === 0 ? 'text-green-600 font-medium' : 'text-ink'}>
-              {shipping === 0 ? 'Free' : fmt(shipping)}
+              {shipping === 0 ? 'Grátis' : fmt(shipping)}
             </span>
           </div>
           <div className="flex justify-between font-bold text-ink">
@@ -147,22 +147,22 @@ export default function CheckoutPage() {
 
         {/* delivery */}
         <div className="bg-white rounded-2xl shadow-card p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-ink">Delivery Address</h3>
-          <Input label="Street & Number" value={street} onChange={e => setStreet(e.target.value)}
+          <h3 className="text-sm font-semibold text-ink">Endereço de Entrega</h3>
+          <Input label="Rua e Número" value={street} onChange={e => setStreet(e.target.value)}
             placeholder="Rua Exemplo, 123" required />
           <div className="grid grid-cols-2 gap-3">
-            <Input label="City" value={city} onChange={e => setCity(e.target.value)}
+            <Input label="Cidade" value={city} onChange={e => setCity(e.target.value)}
               placeholder="São Paulo" required />
-            <Input label="State" value={state} onChange={e => setState(e.target.value)}
+            <Input label="Estado" value={state} onChange={e => setState(e.target.value)}
               placeholder="SP" maxLength={2} required />
           </div>
-          <Input label="ZIP Code" value={zipCode} onChange={e => setZipCode(e.target.value)}
+          <Input label="CEP" value={zipCode} onChange={e => setZipCode(e.target.value)}
             placeholder="00000-000" required />
         </div>
 
         {/* payment */}
         <div className="bg-white rounded-2xl shadow-card p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-ink">Payment Method</h3>
+          <h3 className="text-sm font-semibold text-ink">Forma de Pagamento</h3>
           {(['pix', 'credit_card', 'boleto'] as PaymentMethod[]).map(m => (
             <label key={m} className={[
               'flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors',
@@ -171,7 +171,7 @@ export default function CheckoutPage() {
               <input type="radio" name="payment" value={m} checked={payment === m}
                 onChange={() => setPayment(m)} className="accent-brand" />
               <span className="text-sm font-medium capitalize text-ink">
-                {m === 'credit_card' ? 'Credit Card' : m === 'boleto' ? 'Boleto' : 'Pix'}
+                {m === 'credit_card' ? 'Cartão de Crédito' : m === 'boleto' ? 'Boleto' : 'Pix'}
               </span>
             </label>
           ))}
@@ -180,7 +180,7 @@ export default function CheckoutPage() {
         {error && <p className="text-sm text-red-500 text-center">{error}</p>}
 
         <Button type="submit" fullWidth loading={placing} disabled={cart.items.length === 0}>
-          Place Order · {fmt(total)}
+          Confirmar Pedido · {fmt(total)}
         </Button>
       </form>
     </AppShell>

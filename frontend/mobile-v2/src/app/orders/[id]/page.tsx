@@ -33,7 +33,7 @@ export default async function OrderDetailPage({ params }: Props) {
           </svg>
         </Link>
         <div>
-          <h1 className="text-lg font-bold text-ink leading-none">Order Details</h1>
+          <h1 className="text-lg font-bold text-ink leading-none">Detalhes do Pedido</h1>
           <p className="text-xs text-muted">#{order.orderId.slice(-8).toUpperCase()}</p>
         </div>
       </div>
@@ -46,7 +46,7 @@ export default async function OrderDetailPage({ params }: Props) {
             <span className="font-semibold text-ink capitalize">{order.status}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-muted">Items</span>
+            <span className="text-muted">Itens</span>
             <span className="font-medium text-ink">{order.itemCount}</span>
           </div>
           <div className="flex justify-between text-sm">
@@ -55,13 +55,13 @@ export default async function OrderDetailPage({ params }: Props) {
           </div>
           {order.paymentMethod && (
             <div className="flex justify-between text-sm">
-              <span className="text-muted">Payment</span>
+              <span className="text-muted">Pagamento</span>
               <span className="font-medium text-ink capitalize">{order.paymentMethod}</span>
             </div>
           )}
           {(order.shippingCity || order.shippingState) && (
             <div className="flex justify-between text-sm">
-              <span className="text-muted">Ship to</span>
+              <span className="text-muted">Entregar em</span>
               <span className="font-medium text-ink">
                 {[order.shippingCity, order.shippingState].filter(Boolean).join(', ')}
               </span>
@@ -69,14 +69,14 @@ export default async function OrderDetailPage({ params }: Props) {
           )}
           {order.tracking && (
             <div className="flex justify-between text-sm">
-              <span className="text-muted">Tracking</span>
+              <span className="text-muted">Rastreio</span>
               <span className="font-mono font-medium text-brand text-xs">{order.tracking}</span>
             </div>
           )}
           <div className="flex justify-between text-sm">
-            <span className="text-muted">Date</span>
+            <span className="text-muted">Data</span>
             <span className="text-ink">
-              {new Date(order.createdAt).toLocaleDateString('en-US', {
+              {new Date(order.createdAt).toLocaleDateString('pt-BR', {
                 year: 'numeric', month: 'short', day: 'numeric',
               })}
             </span>
@@ -85,7 +85,7 @@ export default async function OrderDetailPage({ params }: Props) {
 
         {/* tracking timeline */}
         <div className="bg-white rounded-2xl shadow-card p-4">
-          <h3 className="text-sm font-semibold text-ink mb-4">Tracking History</h3>
+          <h3 className="text-sm font-semibold text-ink mb-4">Histórico de Rastreio</h3>
           <TrackingTimeline events={events} />
         </div>
       </div>

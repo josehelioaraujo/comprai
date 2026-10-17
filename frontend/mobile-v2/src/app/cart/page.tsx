@@ -75,9 +75,9 @@ export default function CartPage() {
   return (
     <AppShell cartCount={cartCount}>
       <div className="px-4 pt-12 pb-3 bg-white border-b border-border">
-        <h1 className="text-xl font-bold text-ink">Cart</h1>
+        <h1 className="text-xl font-bold text-ink">Carrinho</h1>
         {!loading && cartCount > 0 && (
-          <p className="text-xs text-muted mt-0.5">{cartCount} item{cartCount > 1 ? 's' : ''}</p>
+          <p className="text-xs text-muted mt-0.5">{cartCount} iten{cartCount > 1 ? 's' : ''}</p>
         )}
       </div>
 
@@ -90,8 +90,8 @@ export default function CartPage() {
             <path strokeLinecap="round" strokeLinejoin="round"
               d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
           </svg>
-          <p className="text-sm font-medium text-ink">Your cart is empty</p>
-          <p className="text-xs text-muted mt-1">Add products from Search or the Home assistant</p>
+          <p className="text-sm font-medium text-ink">Seu carrinho está vazio</p>
+          <p className="text-xs text-muted mt-1">Adicione produtos pela Busca ou pelo assistente</p>
         </div>
       ) : (
         <div className="p-4 space-y-3">

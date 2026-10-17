@@ -8,10 +8,10 @@ import Button from '@/components/ui/Button'
 import ProductCard from '@/components/search/ProductCard'
 
 const SUGGESTIONS = [
-  'I need a gift under R$100',
-  'Show me running shoes',
-  'Best laptop for students',
-  'Bluetooth headphones',
+  'Preciso de um presente até R$100',
+  'Tênis para corrida',
+  'Melhor notebook para estudantes',
+  'Fones de ouvido Bluetooth',
 ]
 
 interface Props {
@@ -21,7 +21,7 @@ interface Props {
 export default function HomeChat({ onAddToCart }: Props) {
   const [messages, setMessages]   = useState<ChatMessage[]>([{
     id: '0', role: 'assistant',
-    content: "Hi! I'm your shopping assistant. Tell me what you're looking for and I'll find the best options for you. 🛍️",
+    content: "Olá! Sou seu assistente de compras. Me diga o que você procura e vou encontrar as melhores opções para você. 🛍️",
     ts: Date.now(),
   }])
   const [input, setInput]   = useState('')
@@ -49,8 +49,8 @@ export default function HomeChat({ onAddToCart }: Props) {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: products.length
-          ? `I found ${products.length} option${products.length > 1 ? 's' : ''} for "${text.trim()}":`
-          : `Sorry, I couldn't find anything for "${text.trim()}". Try different keywords.`,
+          ? `Encontrei ${products.length} opção${products.length > 1 ? 'ões' : ''} para "${text.trim()}":`
+          : `Não encontrei nada para "${text.trim()}". Tente outras palavras.`,
         ts: Date.now(),
         products,
       }
@@ -58,7 +58,7 @@ export default function HomeChat({ onAddToCart }: Props) {
     } catch {
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(), role: 'assistant',
-        content: 'Something went wrong. Please try again.',
+        content: 'Algo deu errado. Tente novamente.',
         ts: Date.now(),
       }])
     } finally {
@@ -71,7 +71,7 @@ export default function HomeChat({ onAddToCart }: Props) {
       {/* header */}
       <div className="px-4 pt-12 pb-4 bg-white border-b border-border">
         <h1 className="text-xl font-bold text-ink">Comprai</h1>
-        <p className="text-xs text-muted mt-0.5">AI Shopping Assistant</p>
+        <p className="text-xs text-muted mt-0.5">Assistente de Compras com IA</p>
       </div>
 
       {/* messages */}
@@ -129,7 +129,7 @@ export default function HomeChat({ onAddToCart }: Props) {
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input) } }}
-          placeholder="What are you looking for?"
+          placeholder="O que você está procurando?"
           rows={1}
           className="flex-1 resize-none rounded-2xl border border-border bg-surface px-4 py-3 text-sm
             text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand/30

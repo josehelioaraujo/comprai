@@ -10,7 +10,7 @@ interface Props {
   autoFocus?:  boolean
 }
 
-export default function SearchBar({ value, onChange, onSubmit, placeholder = 'Search products…', autoFocus }: Props) {
+export default function SearchBar({ value, onChange, onSubmit, placeholder = 'Buscar produtos…', autoFocus }: Props) {
   const ref = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -39,7 +39,7 @@ export default function SearchBar({ value, onChange, onSubmit, placeholder = 'Se
         <button
           onClick={() => onChange('')}
           className="absolute right-4 text-muted hover:text-ink transition-colors"
-          aria-label="Clear"
+          aria-label="Limpar"
         >
           <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>

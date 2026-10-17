@@ -66,10 +66,10 @@ export default function BottomNav({ cartCount = 0 }: Props) {
   const pathname = usePathname()
 
   const items: NavItem[] = [
-    { href: '/',        label: 'Home',    icon: HomeIcon    },
-    { href: '/search',  label: 'Search',  icon: SearchIcon  },
-    { href: '/cart',    label: 'Cart',    icon: CartIcon, badge: cartCount },
-    { href: '/account', label: 'Account', icon: AccountIcon },
+    { href: '/',        label: 'Início',   icon: HomeIcon    },
+    { href: '/search',  label: 'Buscar',   icon: SearchIcon  },
+    { href: '/cart',    label: 'Carrinho', icon: CartIcon, badge: cartCount },
+    { href: '/account', label: 'Conta',    icon: AccountIcon },
   ]
 
   return (

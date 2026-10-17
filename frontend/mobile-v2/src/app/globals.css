@@ -23,11 +23,12 @@ html, body {
 }
 
 body {
-  background: #fff;
+  background: #e5e7eb;
   color: var(--ink);
   font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+
 
 /* scroll suave dentro de listas */
 .scroll-snap-y {

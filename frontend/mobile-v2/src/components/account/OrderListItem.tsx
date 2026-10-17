@@ -14,11 +14,11 @@ const STATUS_STYLE: Record<string, string> = {
 }
 
 const STATUS_LABEL: Record<string, string> = {
-  pending:   'Pending',
-  confirmed: 'Confirmed',
-  shipped:   'Shipped',
-  delivered: 'Delivered',
-  cancelled: 'Cancelled',
+  pending:   'Pendente',
+  confirmed: 'Confirmado',
+  shipped:   'Enviado',
+  delivered: 'Entregue',
+  cancelled: 'Cancelado',
 }
 
 const fmt = (n: number) =>
@@ -35,11 +35,11 @@ export default function OrderListItem({ order }: Props) {
         <div className="flex-1 min-w-0">
           <p className="text-xs text-muted">Order #{order.orderId.slice(-8).toUpperCase()}</p>
           <p className="text-sm font-semibold text-ink mt-0.5">
-            {order.itemCount} item{order.itemCount > 1 ? 's' : ''}
+            {order.itemCount} iten{order.itemCount > 1 ? 's' : ''}
             {order.shippingCity && ` · ${order.shippingCity}, ${order.shippingState}`}
           </p>
           <p className="text-xs text-muted mt-0.5">
-            {new Date(order.createdAt).toLocaleDateString('en-US', {
+            {new Date(order.createdAt).toLocaleDateString('pt-BR', {
               year: 'numeric', month: 'short', day: 'numeric',
             })}
           </p>
@@ -59,7 +59,7 @@ export default function OrderListItem({ order }: Props) {
               d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
           </svg>
-          Track: {order.tracking}
+          Rastrear: {order.tracking}
         </div>
       )}
     </Link>

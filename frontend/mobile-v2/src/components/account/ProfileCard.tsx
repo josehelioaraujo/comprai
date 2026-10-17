@@ -41,12 +41,12 @@ export default function ProfileCard({ session }: Props) {
               d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
           </svg>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-amber-800">Email not verified</p>
-            <p className="text-xs text-amber-700 mt-0.5">Verify to complete your account</p>
+            <p className="text-xs font-semibold text-amber-800">E-mail não verificado</p>
+            <p className="text-xs text-amber-700 mt-0.5">Verifique para completar seu cadastro</p>
           </div>
           <Link href="/auth/verify"
             className="text-xs font-bold text-amber-800 bg-amber-100 rounded-lg px-3 py-1.5 shrink-0">
-            Verify
+            Verificar
           </Link>
         </div>
       )}
@@ -58,7 +58,7 @@ export default function ProfileCard({ session }: Props) {
             <path strokeLinecap="round" strokeLinejoin="round"
               d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
           </svg>
-          <span className="flex-1 text-sm font-medium text-ink">My Orders</span>
+          <span className="flex-1 text-sm font-medium text-ink">Meus Pedidos</span>
           <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/>
           </svg>
@@ -68,7 +68,7 @@ export default function ProfileCard({ session }: Props) {
             <path strokeLinecap="round" strokeLinejoin="round"
               d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
           </svg>
-          <span className="flex-1 text-sm font-medium text-ink">Edit Profile</span>
+          <span className="flex-1 text-sm font-medium text-ink">Editar Perfil</span>
           <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/>
           </svg>
@@ -86,7 +86,7 @@ export default function ProfileCard({ session }: Props) {
           <path strokeLinecap="round" strokeLinejoin="round"
             d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
         </svg>
-        Sign Out
+        Sair
       </Button>
     </div>
   )

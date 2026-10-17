@@ -46,7 +46,7 @@ export default function ProductCard({ product, onAddToCart }: Props) {
         )}
         {!product.available && (
           <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
-            <span className="text-xs font-semibold text-muted">Out of stock</span>
+            <span className="text-xs font-semibold text-muted">Sem estoque</span>
           </div>
         )}
       </div>
@@ -79,7 +79,7 @@ export default function ProductCard({ product, onAddToCart }: Props) {
             <button
               onClick={() => onAddToCart(product)}
               className="w-8 h-8 rounded-xl bg-brand text-white flex items-center justify-center hover:bg-brand-dark active:scale-90 transition-all"
-              aria-label="Add to cart"
+              aria-label="Adicionar ao carrinho"
             >
               <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/>

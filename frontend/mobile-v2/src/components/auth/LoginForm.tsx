@@ -27,13 +27,13 @@ export default function LoginForm({ callbackUrl = '/' }: Props) {
         email, password, redirect: false,
       })
       if (res?.error) {
-        setError('Invalid email or password.')
+        setError('E-mail ou senha inválidos.')
       } else {
         router.push(callbackUrl)
         router.refresh()
       }
     } catch {
-      setError('Something went wrong. Please try again.')
+      setError('Algo deu errado. Tente novamente.')
     } finally {
       setLoading(false)
     }
@@ -42,16 +42,16 @@ export default function LoginForm({ callbackUrl = '/' }: Props) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <Input
-        label="Email"
+        label="E-mail"
         type="email"
         value={email}
         onChange={e => setEmail(e.target.value)}
-        placeholder="you@example.com"
+        placeholder="voce@exemplo.com"
         autoComplete="email"
         required
       />
       <Input
-        label="Password"
+        label="Senha"
         type="password"
         value={password}
         onChange={e => setPassword(e.target.value)}
@@ -65,14 +65,14 @@ export default function LoginForm({ callbackUrl = '/' }: Props) {
       )}
 
       <Button type="submit" fullWidth loading={loading}>
-        Sign In
+        Entrar
       </Button>
 
       <div className="relative my-4">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-border" />
         </div>
-        <div className="relative flex justify-center text-xs text-muted bg-white px-2">or</div>
+        <div className="relative flex justify-center text-xs text-muted bg-white px-2">ou</div>
       </div>
 
       <Button
@@ -87,12 +87,12 @@ export default function LoginForm({ callbackUrl = '/' }: Props) {
           <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
           <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
         </svg>
-        Continue with Google
+        Continuar com Google
       </Button>
 
       <p className="text-center text-xs text-muted">
-        Don&apos;t have an account?{' '}
-        <Link href="/auth/register" className="text-brand font-semibold">Sign up</Link>
+        Não tem uma conta?{' '}
+        <Link href="/auth/register" className="text-brand font-semibold">Cadastre-se</Link>
       </p>
     </form>
   )

@@ -8,7 +8,7 @@ export default function TrackingTimeline({ events }: Props) {
   if (!events.length) {
     return (
       <div className="text-center py-8 text-sm text-muted">
-        No tracking events yet.
+        Nenhum evento de rastreio ainda.
       </div>
     )
   }
@@ -43,7 +43,7 @@ export default function TrackingTimeline({ events }: Props) {
                   <p className="text-xs text-brand font-mono mt-0.5">{ev.trackingCode}</p>
                 )}
                 <p className="text-xs text-muted mt-1">
-                  {new Date(ev.occurredAt).toLocaleString('en-US', {
+                  {new Date(ev.occurredAt).toLocaleString('pt-BR', {
                     month: 'short', day: 'numeric',
                     hour: '2-digit', minute: '2-digit',
                   })}

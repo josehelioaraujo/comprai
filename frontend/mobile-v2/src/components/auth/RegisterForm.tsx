@@ -22,11 +22,11 @@ export default function RegisterForm() {
     setError('')
 
     if (password !== confirm) {
-      setError('Passwords do not match.')
+      setError('As senhas não coincidem.')
       return
     }
     if (password.length < 6) {
-      setError('Password must be at least 6 characters.')
+      setError('A senha deve ter pelo menos 6 caracteres.')
       return
     }
 
@@ -43,7 +43,7 @@ export default function RegisterForm() {
       })
 
       if (res?.error) {
-        setError('Account created but sign-in failed. Please log in manually.')
+        setError('Conta criada, mas o login falhou. Por favor, entre manualmente.')
         router.push('/auth/login')
         return
       }
@@ -52,7 +52,7 @@ export default function RegisterForm() {
       router.push('/account')
       router.refresh()
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Registration failed'
+      const msg = err instanceof Error ? err.message : 'Falha no cadastro'
       setError(msg)
     } finally {
       setLoading(false)
@@ -62,38 +62,38 @@ export default function RegisterForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <Input
-        label="Full Name"
+        label="Nome completo"
         type="text"
         value={name}
         onChange={e => setName(e.target.value)}
-        placeholder="Jane Doe"
+        placeholder="João Silva"
         autoComplete="name"
         required
       />
       <Input
-        label="Email"
+        label="E-mail"
         type="email"
         value={email}
         onChange={e => setEmail(e.target.value)}
-        placeholder="you@example.com"
+        placeholder="voce@exemplo.com"
         autoComplete="email"
         required
       />
       <Input
-        label="Password"
+        label="Senha"
         type="password"
         value={password}
         onChange={e => setPassword(e.target.value)}
-        placeholder="At least 6 characters"
+        placeholder="Mínimo 6 caracteres"
         autoComplete="new-password"
         required
       />
       <Input
-        label="Confirm Password"
+        label="Confirmar Senha"
         type="password"
         value={confirm}
         onChange={e => setConfirm(e.target.value)}
-        placeholder="Repeat your password"
+        placeholder="Repita sua senha"
         autoComplete="new-password"
         required
       />
@@ -101,16 +101,16 @@ export default function RegisterForm() {
       {error && <p className="text-sm text-red-500 text-center">{error}</p>}
 
       <Button type="submit" fullWidth loading={loading}>
-        Create Account
+        Criar Conta
       </Button>
 
       <p className="text-center text-xs text-muted">
-        Already have an account?{' '}
-        <Link href="/auth/login" className="text-brand font-semibold">Sign in</Link>
+        Já tem uma conta?{' '}
+        <Link href="/auth/login" className="text-brand font-semibold">Entrar</Link>
       </p>
 
       <p className="text-center text-[11px] text-muted leading-relaxed">
-        By registering you agree to our Terms of Service and Privacy Policy.
+        Ao se cadastrar você concorda com nossos Termos de Serviço e Política de Privacidade.
       </p>
     </form>
   )

@@ -30,9 +30,9 @@ export default function VerifyEmailForm() {
     setInfo('')
     try {
       await apiSendVerification(session.user.apiToken)
-      setInfo('Verification code sent to your email.')
+      setInfo('Código de verificação enviado para o seu e-mail.')
     } catch {
-      setError('Failed to send code. Please try again.')
+      setError('Falha ao enviar o código. Tente novamente.')
     } finally {
       setSending(false)
     }
@@ -58,7 +58,7 @@ export default function VerifyEmailForm() {
     if (!session?.user?.apiToken) return
     const code = digits.join('')
     if (code.length < CODE_LENGTH) {
-      setError('Please enter the full 6-digit code.')
+      setError('Por favor insira o código completo de 6 dígitos.')
       return
     }
     setError('')
@@ -68,7 +68,7 @@ export default function VerifyEmailForm() {
       router.push('/account')
       router.refresh()
     } catch {
-      setError('Invalid or expired code. Please request a new one.')
+      setError('Código inválido ou expirado. Solicite um novo código.')
     } finally {
       setVerifying(false)
     }
@@ -78,7 +78,7 @@ export default function VerifyEmailForm() {
     <div className="space-y-6">
       <div className="text-center space-y-2">
         <p className="text-sm text-muted">
-          Enter the 6-digit code we sent to <strong className="text-ink">{session?.user?.email}</strong>
+          Digite o código de 6 dígitos enviado para <strong className="text-ink">{session?.user?.email}</strong>
         </p>
       </div>
 
@@ -109,7 +109,7 @@ export default function VerifyEmailForm() {
 
       <Button fullWidth onClick={handleVerify} loading={verifying}
         disabled={digits.join('').length < CODE_LENGTH}>
-        Verify Email
+        Verificar E-mail
       </Button>
 
       <div className="text-center">
@@ -118,7 +118,7 @@ export default function VerifyEmailForm() {
           disabled={sending}
           className="text-xs text-brand font-semibold disabled:opacity-50"
         >
-          {sending ? 'Sending…' : "Didn't receive it? Resend code"}
+          {sending ? 'Enviando…' : 'Não recebeu? Reenviar código'}
         </button>
       </div>
     </div>

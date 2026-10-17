@@ -64,8 +64,8 @@ export default function SearchPage() {
             <path strokeLinecap="round" strokeLinejoin="round"
               d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
           </svg>
-          <p className="text-sm font-medium text-ink">Search for anything</p>
-          <p className="text-xs text-muted mt-1">Electronics, fashion, home, and more</p>
+          <p className="text-sm font-medium text-ink">Busque qualquer produto</p>
+          <p className="text-xs text-muted mt-1">Eletrônicos, moda, casa e muito mais</p>
         </div>
       ) : (
         <ProductGrid products={products} onAddToCart={handleAddToCart} loading={loading} />

@@ -14,8 +14,8 @@ export default function VerifyPage() {
                 d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-ink">Verify your email</h1>
-          <p className="text-sm text-muted mt-1">Check your inbox for the 6-digit code</p>
+          <h1 className="text-2xl font-bold text-ink">Verifique seu e-mail</h1>
+          <p className="text-sm text-muted mt-1">Confira sua caixa de entrada pelo código de 6 dígitos</p>
         </div>
 
         <VerifyEmailForm />

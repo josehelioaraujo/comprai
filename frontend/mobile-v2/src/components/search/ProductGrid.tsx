@@ -38,8 +38,8 @@ export default function ProductGrid({ products, onAddToCart, loading }: Props) {
           <path strokeLinecap="round" strokeLinejoin="round"
             d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
         </svg>
-        <p className="text-sm font-medium text-ink">No results found</p>
-        <p className="text-xs text-muted mt-1">Try different keywords or browse categories</p>
+        <p className="text-sm font-medium text-ink">Nenhum resultado encontrado</p>
+        <p className="text-xs text-muted mt-1">Tente outras palavras ou navegue pelas categorias</p>
       </div>
     )
   }

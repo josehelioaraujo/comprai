@@ -22,7 +22,7 @@ export default async function OrdersPage() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/>
           </svg>
         </Link>
-        <h1 className="text-xl font-bold text-ink">My Orders</h1>
+        <h1 className="text-xl font-bold text-ink">Meus Pedidos</h1>
       </div>
 
       {orders.length === 0 ? (
@@ -32,8 +32,8 @@ export default async function OrdersPage() {
             <path strokeLinecap="round" strokeLinejoin="round"
               d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
           </svg>
-          <p className="text-sm font-medium text-ink">No orders yet</p>
-          <p className="text-xs text-muted mt-1">Complete your first purchase to see it here</p>
+          <p className="text-sm font-medium text-ink">Nenhum pedido ainda</p>
+          <p className="text-xs text-muted mt-1">Conclua sua primeira compra para vê-la aqui</p>
         </div>
       ) : (
         <div className="p-4 space-y-3">
