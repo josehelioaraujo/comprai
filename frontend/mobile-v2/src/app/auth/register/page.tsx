@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import AppShell from '@/components/layout/AppShell'
 import RegisterForm from '@/components/auth/RegisterForm'
 

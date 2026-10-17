@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import AppShell from '@/components/layout/AppShell'
 import VerifyEmailForm from '@/components/auth/VerifyEmailForm'
 

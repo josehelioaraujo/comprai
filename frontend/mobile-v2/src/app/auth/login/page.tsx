@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { Suspense } from 'react'
 import AppShell from '@/components/layout/AppShell'
 import LoginForm from '@/components/auth/LoginForm'
