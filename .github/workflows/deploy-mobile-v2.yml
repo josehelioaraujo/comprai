@@ -101,7 +101,7 @@ jobs:
             docker run -d \
               --name comprai-mobile-v2 \
               --restart unless-stopped \
-              --network comprai-network \
+              --network comprai_comprai-network \
               -p ${{ env.PORT }}:${{ env.PORT }} \
               -e NODE_ENV=production \
               -e PORT=${{ env.PORT }} \
