@@ -1,5 +1,25 @@
 # Changelog
 
+## [V071.1] — 2026-10-17
+
+### Fixed — mobile-v2: estabilização pós-deploy
+
+| Fix | Detalhe |
+|-----|---------|
+| Dark/Light mode | Botão sol/lua no topo direito via `next-themes`; default light; `suppressHydrationWarning` no `<html>` |
+| Renomear "Checkout" → "Finalizar Pedido" | `checkout/page.tsx` + `CartSummary.tsx` |
+| Total do pedido zerado (parcial) | `MockCheckoutPort.cs` injetado com `ICartSnapshotPort` — lê `TotalAmount` do carrinho; fix deployado na API |
+| Docker port mapping | `-p 3005:3000` → `-p 3005:3005` + `-e PORT=3005` |
+| Auth.js UntrustedHost | `-e AUTH_TRUST_HOST=true` adicionado ao `docker run` e workflow |
+| CI network name | `--network comprai-network` → `--network comprai_comprai-network` |
+| `npm ci` no Docker | `package-lock.json` não tinha `next-themes`; corrigido com `npm install --package-lock-only` |
+
+**⚠️ Pendência — V072:** valor do pedido PIX ainda aparece R$ 0,00 na tela de confirmação (`/orders/[id]`). A API recebe o total correto, mas a persistência ou a leitura posterior pode estar descartando o campo. Investigar e cobrir com testes end-to-end na V072.
+
+**Commits:** `b794e0a` · `be21832` · `6c3be2d`
+
+---
+
 ## [V071] — 2026-10-17
 
 ### Added — Mobile UI Redesign (`frontend/mobile-v2/`, porta 3005)

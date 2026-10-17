@@ -1,6 +1,16 @@
 # 🗺️ Roadmap — Comprai
 
-## 🔜 V072 — Web UI Redesign (próxima)
+## 🔜 V072 — Web UI Redesign + Fix Valor PIX (próxima)
+
+### 🐛 Fix prioritário — Valor zerado no pedido PIX
+- [ ] Investigar por que `Total` aparece R$ 0,00 na tela `/orders/[id]` após pagamento PIX
+  - API recebe o valor correto no checkout (`MockCheckoutPort` já lê `TotalAmount` do carrinho)
+  - Suspeita: `OrderStatusDto.Total` não está sendo persistido/recuperado corretamente no `IOrderPort.SaveAsync` → `GetAsync`
+  - Verificar `RedisOrderRepository` (ou equivalente) — campo `Total` pode estar sendo serializado/desserializado com default 0
+- [ ] Cobrir com teste end-to-end: busca → carrinho → checkout PIX → confirmar total correto na tela de pedido
+- [ ] Smoke tests Newman devem incluir asserção de `total > 0` no response de `/orders/{id}`
+
+### 🎨 Web UI Redesign
 - [ ] Redesign completo da interface web (`frontend/web/`) — referência visual: Nixtio Marketplace Web UI
 - [ ] Consistência visual com o mobile-v2 (paleta #7C3AED, tipografia preta, fundo branco)
 - [ ] Layout desktop responsivo com sidebar de categorias

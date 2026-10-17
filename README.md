@@ -1096,7 +1096,7 @@ http://<VPS>:3002/widget # Widget embeddável
 
 ---
 
-### 📱 Interface Mobile
+### 📱 Interface Mobile (v1 — legado)
 
 Interface mobile-first que simula um smartphone, com navegação por gestos e layout 420px.
 
@@ -1109,21 +1109,46 @@ Interface mobile-first que simula um smartphone, com navegação por gestos e la
 - **Stepper bottom nav** — barra de progresso fixa no rodapé com 5 steps: Busca → Carrinho → Pedido → Pagamento → Entrega
 - **Atalhos contextuais** — sugestões no footer mudam automaticamente conforme o step atual do UCP
 - **Carrossel de produtos** — navegação por setas e arrasto (touch + mouse drag)
-- **Fulfillment simulado** — timeline de 7 etapas (`payment_confirmed → preparing → ready_to_ship → handed_to_carrier → in_transit → out_for_delivery → delivered`) com delays progressivos
-- **Persistência local** — pedidos em `localStorage` + sincronização com Redis (`persistOrder`)
-- **Deploy standalone** — imagem Docker própria (`comprai-mobile`), workflow independente do `frontend/web`
+- **Fulfillment simulado** — timeline de 7 etapas com delays progressivos
+- **Persistência local** — pedidos em `localStorage` + sincronização com Redis
+
+---
+
+### 📱 Interface Mobile v2 (V071+)
+
+Redesign completo da interface mobile com visual clean (fundo branco, acento roxo `#7C3AED`), autenticação real e fluxo de compra completo.
+
+**Stack:** Next.js 15 App Router · React 19 · TypeScript strict · Tailwind CSS v3 · NextAuth v5 · next-themes  
+**Porta:** `3005` · **Deploy:** `frontend/mobile-v2/` — `deploy-mobile-v2.yml`  
+**Imagem:** `ghcr.io/josehelioaraujo/comprai-mobile-v2`  
+**Acesso:** `http://<VPS>:3005`
+
+#### Características
+- **Layout smartphone 430px** — shadow 3D, safe-area, fundo `#e5e7eb`
+- **Dark/Light mode** — botão sol/lua no topo direito; default light; persistido via `next-themes`
+- **Bottom nav** — Home (chat IA) / Search / Cart / Account
+- **Fluxo completo** — busca → carrinho → "Finalizar Pedido" → PIX/Cartão/Boleto → rastreio de entrega
+- **Auth completo** — Credentials + Google OAuth + verificação de email OTP (Brevo) + pré-auth bypass no registro
+- **Sessão de convidado** — `sessionStorage` com `cv2_session_id` (sem login obrigatório para carrinho)
+- **18 componentes + 10 páginas** — `npx tsc --noEmit` → 0 erros ✅
 
 #### Variáveis de Ambiente
-| Variável | Descrição | Padrão |
-|---|---|---|
-| `NEXT_PUBLIC_API_URL` | URL da API backend | `http://localhost:5020` |
-| `NEXT_PUBLIC_APP_VERSION` | Versão exibida no header | `1.0.0` |
-| `NEXT_PUBLIC_FULFILLMENT_SIMULATION` | Ativa simulação local de entrega | `true` |
+| Variável | Descrição |
+|---|---|
+| `PORT` | Porta interna Next.js (`3005`) |
+| `API_URL` | URL interna da API (via Docker network) |
+| `NEXT_PUBLIC_API_URL` | URL pública da API |
+| `NEXTAUTH_URL` | URL pública do app (`http://<VPS>:3005`) |
+| `NEXTAUTH_SECRET` | Secret JWT do NextAuth |
+| `AUTH_TRUST_HOST` | `true` — obrigatório sem domínio HTTPS |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | OAuth Google |
 
 #### Acesso
 ```
-http://<VPS>:3003   # App mobile independente
+http://<VPS>:3005   # Mobile v2
 ```
+
+> ⚠️ **Pendência (V072):** valor do pedido aparece R$ 0,00 na confirmação após pagamento PIX. Investigação e fix programados para V072.
 
 
 ## 🗺️ Roadmap
