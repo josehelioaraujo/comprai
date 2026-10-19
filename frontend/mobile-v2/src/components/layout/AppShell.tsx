@@ -49,7 +49,7 @@ function ThemeToggle() {
 export default function AppShell({ children, cartCount = 0, hideNav = false }: Props) {
   return (
     /* Page background: bg-card on mobile (seamless), bg-phone on desktop (shows behind frame) */
-    <div className="min-h-screen bg-[var(--bg-card)] sm:bg-[var(--bg-phone)] sm:flex sm:items-start sm:justify-center sm:py-10 sm:px-6">
+    <div className="min-h-screen bg-[var(--bg-card)] sm:bg-[var(--bg-phone)] sm:flex sm:items-center sm:justify-center sm:py-10 sm:px-6 sm:min-h-screen">
 
       {/* ── Phone frame (sm+) ──────────────────────────────────────── */}
       <div className="relative w-full max-w-[430px] mx-auto

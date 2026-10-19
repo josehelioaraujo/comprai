@@ -86,7 +86,16 @@ export default async function OrderDetailPage({ params }: Props) {
         {/* tracking timeline */}
         <div className="bg-white rounded-2xl shadow-card p-4">
           <h3 className="text-sm font-semibold text-ink mb-4">Histórico de Rastreio</h3>
-          <TrackingTimeline events={events} />
+          <TrackingTimeline
+            events={events}
+            seedEvent={{
+              description: 'Pedido recebido',
+              location: order.shippingCity
+                ? `${order.shippingCity}${order.shippingState ? `, ${order.shippingState}` : ''}`
+                : undefined,
+              occurredAt: order.createdAt,
+            }}
+          />
         </div>
       </div>
     </AppShell>

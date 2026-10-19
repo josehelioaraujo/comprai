@@ -1,11 +1,27 @@
 import type { FulfillmentEvent } from '@/types'
 
-interface Props {
-  events: FulfillmentEvent[]
+interface SeedEvent {
+  description: string
+  location?: string
+  occurredAt: string
 }
 
-export default function TrackingTimeline({ events }: Props) {
-  if (!events.length) {
+interface Props {
+  events: FulfillmentEvent[]
+  /** Evento-semente exibido no final da timeline quando não há outros eventos
+   *  (ex: "Pedido recebido" com a data de criação do pedido). */
+  seedEvent?: SeedEvent
+}
+
+export default function TrackingTimeline({ events, seedEvent }: Props) {
+  // Monta a lista combinada: eventos reais + seed no final (se não há nenhum real ainda)
+  const hasReal = events.length > 0
+  const list: (FulfillmentEvent | (SeedEvent & { trackingCode?: string }))[] = [
+    ...events,
+    ...(seedEvent && !hasReal ? [seedEvent] : []),
+  ]
+
+  if (!list.length) {
     return (
       <div className="text-center py-8 text-sm text-muted">
         Nenhum evento de rastreio ainda.
@@ -19,7 +35,7 @@ export default function TrackingTimeline({ events }: Props) {
       <div className="absolute left-4 top-2 bottom-2 w-0.5 bg-border" />
 
       <div className="space-y-4">
-        {events.map((ev, i) => {
+        {list.map((ev, i) => {
           const isFirst = i === 0
           return (
             <div key={i} className="relative flex gap-4 pl-4">

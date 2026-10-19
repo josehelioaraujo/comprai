@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import Input  from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
 import Link   from 'next/link'
+import { resetSessionId } from '@/lib/session'
 
 interface Props {
   callbackUrl?: string
@@ -13,10 +14,11 @@ interface Props {
 
 export default function LoginForm({ callbackUrl = '/' }: Props) {
   const router = useRouter()
-  const [email,    setEmail]    = useState('')
-  const [password, setPassword] = useState('')
-  const [error,    setError]    = useState('')
-  const [loading,  setLoading]  = useState(false)
+  const [email,       setEmail]       = useState('')
+  const [password,    setPassword]    = useState('')
+  const [showPass,    setShowPass]    = useState(false)
+  const [error,       setError]       = useState('')
+  const [loading,     setLoading]     = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -29,6 +31,7 @@ export default function LoginForm({ callbackUrl = '/' }: Props) {
       if (res?.error) {
         setError('E-mail ou senha inválidos.')
       } else {
+        resetSessionId()          // novo carrinho para este login
         router.push(callbackUrl)
         router.refresh()
       }
@@ -50,15 +53,48 @@ export default function LoginForm({ callbackUrl = '/' }: Props) {
         autoComplete="email"
         required
       />
-      <Input
-        label="Senha"
-        type="password"
-        value={password}
-        onChange={e => setPassword(e.target.value)}
-        placeholder="••••••••"
-        autoComplete="current-password"
-        required
-      />
+
+      {/* senha com toggle de visibilidade */}
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-medium text-muted uppercase tracking-wide">Senha</label>
+          <Link href="/auth/forgot-password" className="text-xs text-brand font-medium hover:underline">
+            Esqueceu a senha?
+          </Link>
+        </div>
+        <div className="relative">
+          <input
+            type={showPass ? 'text' : 'password'}
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            placeholder="••••••••"
+            autoComplete="current-password"
+            required
+            className="w-full rounded-2xl border border-border bg-surface px-4 py-3 pr-11 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand transition-colors"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPass(v => !v)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-ink transition-colors p-1"
+            aria-label={showPass ? 'Ocultar senha' : 'Mostrar senha'}
+          >
+            {showPass ? (
+              /* olho fechado */
+              <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round"
+                  d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19M6.53 6.53L17.47 17.47"/>
+                <line x1="1" y1="1" x2="23" y2="23" strokeLinecap="round"/>
+              </svg>
+            ) : (
+              /* olho aberto */
+              <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            )}
+          </button>
+        </div>
+      </div>
 
       {error && (
         <p className="text-sm text-red-500 text-center">{error}</p>

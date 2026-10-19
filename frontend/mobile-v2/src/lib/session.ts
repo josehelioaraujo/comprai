@@ -24,3 +24,12 @@ export function getSessionId(): string {
   }
   return id
 }
+
+/** Gera um novo sessionId — chamar no login e no logout para garantir
+ *  que cada usuário comece com um carrinho limpo. */
+export function resetSessionId(): string {
+  if (typeof window === 'undefined') return ''
+  const id = generateUUID()
+  sessionStorage.setItem(SESSION_KEY, id)
+  return id
+}

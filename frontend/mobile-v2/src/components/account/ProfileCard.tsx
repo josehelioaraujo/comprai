@@ -5,6 +5,7 @@ import { signOut } from 'next-auth/react'
 import type { Session } from 'next-auth'
 import Button from '@/components/ui/Button'
 import Link from 'next/link'
+import { resetSessionId } from '@/lib/session'
 
 interface Props {
   session: Session
@@ -79,7 +80,7 @@ export default function ProfileCard({ session }: Props) {
       <Button
         variant="ghost"
         fullWidth
-        onClick={() => signOut({ callbackUrl: '/auth/login' })}
+        onClick={() => { resetSessionId(); signOut({ callbackUrl: '/auth/login' }) }}
         className="!text-red-500 hover:!bg-red-50"
       >
         <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
