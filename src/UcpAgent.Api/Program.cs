@@ -137,6 +137,7 @@ var jwtSecret = builder.Configuration["Jwt:Secret"] ?? "comprai-dev-secret-chang
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(opt =>
     {
+        opt.MapInboundClaims = false; // preserva "sub" sem mapear para ClaimTypes.NameIdentifier
         opt.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer           = true,
