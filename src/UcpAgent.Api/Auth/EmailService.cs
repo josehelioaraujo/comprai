@@ -153,7 +153,7 @@ public sealed class ResendEmailService(IResend resend, IConfiguration config) : 
 /// Envia para qualquer destinatário sem necessidade de domínio verificado.
 /// </summary>
 [ExcludeFromCodeCoverage]
-public sealed class BrevoEmailService(IConfiguration config) : IEmailService
+public sealed class BrevoEmailService(IConfiguration config, ILogger<BrevoEmailService> logger) : IEmailService
 {
     private const string SmtpHost = "smtp-relay.brevo.com";
     private const int    SmtpPort = 587;
@@ -164,13 +164,34 @@ public sealed class BrevoEmailService(IConfiguration config) : IEmailService
 
     private async Task SendAsync(string toEmail, string subject, string html, CancellationToken ct)
     {
-        using var client = new SmtpClient(SmtpHost, SmtpPort)
+        var loginOk  = !string.IsNullOrEmpty(_login);
+        var apiKeyOk = !string.IsNullOrEmpty(_apiKey);
+        logger.LogInformation(
+            "[Brevo] Enviando e-mail | To={To} | From={From} | Subject={Subject} | Login={LoginOk} | ApiKey={ApiKeyOk}",
+            toEmail, _from, subject, loginOk, apiKeyOk);
+
+        if (!loginOk || !apiKeyOk)
         {
-            Credentials = new NetworkCredential(_login, _apiKey),
-            EnableSsl   = true,
-        };
-        using var msg = new MailMessage(_from, toEmail, subject, html) { IsBodyHtml = true };
-        await client.SendMailAsync(msg, ct);
+            logger.LogError("[Brevo] Credenciais ausentes — Brevo:Login={LoginOk} Brevo:ApiKey={ApiKeyOk}. E-mail não enviado.", loginOk, apiKeyOk);
+            return;
+        }
+
+        try
+        {
+            using var client = new SmtpClient(SmtpHost, SmtpPort)
+            {
+                Credentials = new NetworkCredential(_login, _apiKey),
+                EnableSsl   = true,
+            };
+            using var msg = new MailMessage(_from, toEmail, subject, html) { IsBodyHtml = true };
+            await client.SendMailAsync(msg, ct);
+            logger.LogInformation("[Brevo] E-mail enviado com sucesso | To={To}", toEmail);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[Brevo] Falha SMTP | Host={Host}:{Port} | To={To}", SmtpHost, SmtpPort, toEmail);
+            throw;
+        }
     }
 
     public Task SendVerificationEmailAsync(string toEmail, string toName, string code, CancellationToken ct = default)

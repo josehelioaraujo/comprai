@@ -68,15 +68,18 @@ if (!string.IsNullOrEmpty(brevoApiKey))
 {
     // Brevo SMTP relay — envia para qualquer destinatário sem domínio verificado
     builder.Services.AddSingleton<UcpAgent.Api.Auth.IEmailService, UcpAgent.Api.Auth.BrevoEmailService>();
+    Console.WriteLine("[EmailProvider] ✅ Brevo SMTP ativo");
 }
 else if (!string.IsNullOrEmpty(resendApiKey))
 {
     builder.Services.AddResend(o => { o.ApiToken = resendApiKey; });
     builder.Services.AddSingleton<UcpAgent.Api.Auth.IEmailService, UcpAgent.Api.Auth.ResendEmailService>();
+    Console.WriteLine("[EmailProvider] ✅ Resend ativo");
 }
 else
 {
     builder.Services.AddSingleton<UcpAgent.Api.Auth.IEmailService, UcpAgent.Api.Auth.NullEmailService>();
+    Console.WriteLine("[EmailProvider] ⚠️  NullEmailService — BREVO_SMTP_KEY e RESEND_API_KEY não configurados");
 }
 
 builder.Services.AddSingleton<UcpAgent.Api.Auth.TotpService>(); // V060-F2

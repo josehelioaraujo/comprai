@@ -195,24 +195,43 @@ public static class AuthEndpoints
             var log = lf.CreateLogger("Auth.SendVerification");
 
             var customerId = JwtService.GetCustomerId(ctx.User);
-            if (customerId is null) return Results.Unauthorized();
+            if (customerId is null)
+            {
+                log.LogWarning("[SendVerification] JWT sem claim 'sub' — 401");
+                return Results.Unauthorized();
+            }
+
+            log.LogInformation("[SendVerification] Iniciando para customerId={CustomerId}", customerId);
 
             var customer = await auth.GetByIdAsync(customerId);
-            if (customer is null) return Results.NotFound();
+            if (customer is null)
+            {
+                log.LogWarning("[SendVerification] Cliente não encontrado | customerId={CustomerId}", customerId);
+                return Results.NotFound();
+            }
 
             if (customer.EmailVerified)
+            {
+                log.LogInformation("[SendVerification] E-mail já verificado | customerId={CustomerId}", customerId);
                 return Results.Ok(new { message = "Email já verificado." });
+            }
 
             var code = GenerateOtp();
+            log.LogInformation("[SendVerification] OTP gerado | customerId={CustomerId} | Email={Email} | Provider={Provider}",
+                customerId, customer.Email, email.GetType().Name);
+
             await auth.SaveVerificationCodeAsync(customerId, code, DateTime.UtcNow.Add(VerificationCodeTtl));
+            log.LogInformation("[SendVerification] OTP salvo no Redis | customerId={CustomerId} | TTL={Ttl}", customerId, VerificationCodeTtl);
 
             try
             {
                 await email.SendVerificationEmailAsync(customer.Email, customer.Name, code);
+                log.LogInformation("[SendVerification] E-mail enviado com sucesso | customerId={CustomerId} | Email={Email}", customerId, customer.Email);
             }
             catch (Exception ex)
             {
-                log.LogError(ex, "[SendVerification] Falha ao enviar e-mail para {Email}", customer.Email);
+                log.LogError(ex, "[SendVerification] Falha ao enviar e-mail | customerId={CustomerId} | Email={Email} | Provider={Provider}",
+                    customerId, customer.Email, email.GetType().Name);
                 // Retorna 200 mesmo assim: o código foi salvo no Redis e o usuário pode tentar reenviar.
                 return Results.Ok(new { message = "Código de verificação enviado." });
             }
