@@ -639,15 +639,29 @@ app.MapGet("/callback", async (string code, UcpAgent.Catalog.MercadoLivreOrders.
 app.MapGet("/api/ml/orders", async (
     string? status, int limit, int offset,
     UcpAgent.Catalog.MercadoLivreOrders.MlOrdersService orders, CancellationToken ct) => {
-    var result = await orders.GetOrdersAsync(status, limit == 0 ? 20 : limit, offset, ct);
-    return Results.Ok(new { data = result, total = result.Count });
+    try
+    {
+        var result = await orders.GetOrdersAsync(status, limit == 0 ? 20 : limit, offset, ct);
+        return Results.Ok(new { data = result, total = result.Count });
+    }
+    catch (InvalidOperationException ex) when (ex.Message.Contains("token") || ex.Message.Contains("Token"))
+    {
+        return Results.Unauthorized();
+    }
 }).WithTags("MercadoLivre");
 
 app.MapGet("/api/ml/orders/{orderId}", async (
     string orderId,
     UcpAgent.Catalog.MercadoLivreOrders.MlOrdersService orders, CancellationToken ct) => {
-    var order = await orders.GetOrderAsync(orderId, ct);
-    return order is null ? Results.NotFound() : Results.Ok(order);
+    try
+    {
+        var order = await orders.GetOrderAsync(orderId, ct);
+        return order is null ? Results.NotFound() : Results.Ok(order);
+    }
+    catch (InvalidOperationException ex) when (ex.Message.Contains("token") || ex.Message.Contains("Token"))
+    {
+        return Results.Unauthorized();
+    }
 }).WithTags("MercadoLivre");
 
 //  ML Webhook 
