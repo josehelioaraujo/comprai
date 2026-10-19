@@ -594,6 +594,8 @@ jobs:
             mkdir -p wwwroot
             cp docs/price-watcher-test.html wwwroot/
 
+            # Garantir que a porta da API está acessível externamente (smoke tests)
+            ufw allow ${{ env.API_PORT }}/tcp || true
 
             # ── Garantir Ollama como serviço systemd ──────────────────────────
             if ! systemctl is-enabled ollama > /dev/null 2>&1; then
