@@ -599,9 +599,28 @@ app.MapGet("/api/orders/{orderId}", async (
     string orderId, IMediator mediator, CancellationToken ct) =>
 {
     var result = await mediator.Send(new GetOrderQuery(orderId), ct);
-    return result.IsSuccess
-        ? (result.Value is null ? Results.NotFound() : Results.Ok(result.Value))
-        : Results.Problem(result.Error);
+    if (!result.IsSuccess) return Results.Problem(result.Error);
+    if (result.Value is null)  return Results.NotFound();
+
+    var dto   = result.Value;
+    var items = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement[]>(
+        dto.ItemsJson ?? "[]",
+        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
+
+    return Results.Ok(new
+    {
+        orderId       = dto.OrderId,
+        status        = dto.Status,
+        total         = dto.Total,
+        itemCount     = items.Length,
+        createdAt     = dto.CreatedAt,
+        customer      = dto.Customer,
+        itemsJson     = dto.ItemsJson,
+        paymentMethod = (string?)null,
+        shippingCity  = dto.Customer.City,
+        shippingState = dto.Customer.State,
+        tracking      = (string?)null
+    });
 })
 .WithTags("Order").WithName("GetOrder");
 

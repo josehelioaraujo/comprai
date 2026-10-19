@@ -11,14 +11,7 @@ public sealed class MockOrderPort : IOrderPort
     public Task<OrderStatusDto?> GetStatusAsync(string orderId, CancellationToken ct = default)
     {
         _store.TryGetValue(orderId, out var dto);
-        dto ??= new OrderStatusDto(
-            OrderId:   orderId,
-            Status:    "Pending",
-            Total:     0,
-            Customer:  new CustomerDto("", "", "", ""),
-            ItemsJson: "[]",
-            CreatedAt: DateTime.UtcNow);
-        return Task.FromResult<OrderStatusDto?>(dto);
+        return Task.FromResult<OrderStatusDto?>(dto); // null → 404 quando não encontrado
     }
 
     public Task<string?> GetOrderIdBySessionAsync(string sessionId, CancellationToken ct = default)
