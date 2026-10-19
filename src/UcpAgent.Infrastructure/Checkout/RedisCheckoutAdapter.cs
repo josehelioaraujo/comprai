@@ -103,13 +103,18 @@ public sealed class RedisCheckoutAdapter(
             logger.LogWarning(ex, "[Checkout] Falha ao publicar OrderCreated no Kafka — pedido {OrderId} já salvo, evento ignorado", orderId);
         }
 
-        // RabbitMQ — notificação (sem PII: worker busca email pelo CustomerId)
+        // RabbitMQ — notificação com dados completos para e-mail de confirmação
         _ = notifications.PublishAsync(
             NotificationQueues.OrderConfirmation,
             new OrderConfirmationNotification(
                 orderId, sessionId,
-                resolvedCustomerId?.ToString() ?? string.Empty,
-                total, items.Count, DateTime.UtcNow),
+                CustomerId:    resolvedCustomerId?.ToString() ?? string.Empty,
+                Total:         total,
+                ItemCount:     items.Count,
+                CreatedAt:     DateTime.UtcNow,
+                CustomerEmail: customer.Email ?? string.Empty,
+                CustomerName:  customer.Name  ?? string.Empty,
+                ItemsJson:     JsonSerializer.Serialize(items)),
             ct);
 
         // Enqueue fulfillment simulation (se ativo)

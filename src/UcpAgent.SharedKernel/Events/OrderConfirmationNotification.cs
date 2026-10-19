@@ -4,7 +4,7 @@ namespace UcpAgent.SharedKernel.Events;
 
 /// <summary>
 /// Payload da notificação de confirmação de pedido — publicado no RabbitMQ.
-/// Não carrega PII diretamente: o worker busca email/nome no banco pelo CustomerId.
+/// Inclui dados suficientes para montar e-mail rico sem consulta adicional ao banco.
 /// </summary>
 [ExcludeFromCodeCoverage]
 public record OrderConfirmationNotification(
@@ -13,4 +13,9 @@ public record OrderConfirmationNotification(
     string CustomerId,
     decimal Total,
     int ItemCount,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    // Dados adicionais para e-mail rico (preenchidos pelo RedisCheckoutAdapter)
+    string CustomerEmail  = "",
+    string CustomerName   = "",
+    string ItemsJson      = "",   // JSON de IReadOnlyList<CartItemDto>
+    string PaymentMethod  = "");

@@ -11,6 +11,8 @@ public interface IEmailService
     Task SendVerificationEmailAsync(string toEmail, string toName, string code, CancellationToken ct = default);
     Task SendPasswordResetEmailAsync(string toEmail, string toName, string resetLink, CancellationToken ct = default);
     Task SendAdminInviteEmailAsync(string toEmail, string toName, string confirmLink, CancellationToken ct = default);
+    /// <summary>Envia e-mail transacional genérico com HTML pronto.</summary>
+    Task SendTransactionalAsync(string toEmail, string toName, string subject, string htmlBody, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -135,6 +137,13 @@ public sealed class ResendEmailService(IResend resend, IConfiguration config) : 
         await resend.EmailSendAsync(msg, ct);
     }
 
+    public async Task SendTransactionalAsync(string toEmail, string toName, string subject, string htmlBody, CancellationToken ct = default)
+    {
+        var msg = new EmailMessage { From = _from, Subject = subject, HtmlBody = htmlBody };
+        msg.To.Add(toEmail);
+        await resend.EmailSendAsync(msg, ct);
+    }
+
     private static string Encode(string s) => System.Net.WebUtility.HtmlEncode(s);
 }
 
@@ -234,6 +243,9 @@ public sealed class BrevoEmailService(IConfiguration config) : IEmailService
         return SendAsync(toEmail, "Confirme seu cadastro — Comprai Admin", html, ct);
     }
 
+    public Task SendTransactionalAsync(string toEmail, string toName, string subject, string htmlBody, CancellationToken ct = default)
+        => SendAsync(toEmail, subject, htmlBody, ct);
+
     private static string Encode(string s) => WebUtility.HtmlEncode(s);
 }
 
@@ -265,6 +277,14 @@ public sealed class NullEmailService(ILogger<NullEmailService> logger) : IEmailS
         logger.LogInformation(
             "[NullEmailService] Link de confirmação admin para {Email}: {Link} (não enviado — sem RESEND_API_KEY)",
             toEmail, confirmLink);
+        return Task.CompletedTask;
+    }
+
+    public Task SendTransactionalAsync(string toEmail, string toName, string subject, string htmlBody, CancellationToken ct = default)
+    {
+        logger.LogInformation(
+            "[NullEmailService] E-mail transacional para {Email} | {Subject} (não enviado — sem provider configurado)",
+            toEmail, subject);
         return Task.CompletedTask;
     }
 }
