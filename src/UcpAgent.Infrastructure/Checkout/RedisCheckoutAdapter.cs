@@ -90,11 +90,18 @@ public sealed class RedisCheckoutAdapter(
         await orders.SaveSessionOrderAsync(sessionId, orderId, ct);
         await cart.ClearAsync(sessionId, ct);
 
-        // Kafka — evento de domínio
-        await events.PublishAsync(
-            UcpTopics.OrderCreated,
-            new OrderCreatedEvent(orderId, sessionId, total, items.Count, DateTime.UtcNow),
-            ct);
+        // Kafka — evento de domínio (fire-and-log: falha não aborta o checkout)
+        try
+        {
+            await events.PublishAsync(
+                UcpTopics.OrderCreated,
+                new OrderCreatedEvent(orderId, sessionId, total, items.Count, DateTime.UtcNow),
+                ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "[Checkout] Falha ao publicar OrderCreated no Kafka — pedido {OrderId} já salvo, evento ignorado", orderId);
+        }
 
         // RabbitMQ — notificação (sem PII: worker busca email pelo CustomerId)
         _ = notifications.PublishAsync(

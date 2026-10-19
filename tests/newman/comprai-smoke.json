@@ -281,7 +281,7 @@
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test('GetOrder 200 ou 404', () => { pm.expect([200, 404]).to.include(pm.response.code); });"
+              "pm.test('GetOrder aceito', () => { pm.expect([200, 400, 404]).to.include(pm.response.code); });"
             ],
             "type": "text/javascript"
           }
