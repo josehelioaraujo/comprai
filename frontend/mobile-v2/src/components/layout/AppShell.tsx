@@ -48,12 +48,46 @@ function ThemeToggle() {
 
 export default function AppShell({ children, cartCount = 0, hideNav = false }: Props) {
   return (
-    <div className="relative flex flex-col min-h-screen w-full max-w-[430px] mx-auto bg-[var(--bg-card)] shadow-2xl shadow-black/20">
-      <ThemeToggle />
-      <main className={['flex-1 overflow-y-auto', hideNav ? '' : 'pb-nav'].join(' ')}>
-        {children}
-      </main>
-      {!hideNav && <BottomNav cartCount={cartCount} />}
+    /* Page background: bg-card on mobile (seamless), bg-phone on desktop (shows behind frame) */
+    <div className="min-h-screen bg-[var(--bg-card)] sm:bg-[var(--bg-phone)] sm:flex sm:items-start sm:justify-center sm:py-10 sm:px-6">
+
+      {/* ── Phone frame (sm+) ──────────────────────────────────────── */}
+      <div className="relative w-full max-w-[430px] mx-auto
+                      sm:rounded-[3.25rem]
+                      sm:border-[10px] sm:border-gray-900
+                      sm:shadow-[0_40px_100px_rgba(0,0,0,0.65),inset_0_0_0_1px_rgba(255,255,255,0.07)]">
+
+        {/* Notch / Dynamic Island */}
+        <div className="hidden sm:block absolute top-0 left-1/2 -translate-x-1/2
+                        w-28 h-7 bg-gray-900 rounded-b-3xl z-50 pointer-events-none" />
+
+        {/* Volume buttons (left) */}
+        <div className="hidden sm:block absolute -left-[13px] top-28 w-[6px] h-8 bg-gray-800 rounded-l-full" />
+        <div className="hidden sm:block absolute -left-[13px] top-40 w-[6px] h-8 bg-gray-800 rounded-l-full" />
+
+        {/* Power button (right) */}
+        <div className="hidden sm:block absolute -right-[13px] top-36 w-[6px] h-12 bg-gray-800 rounded-r-full" />
+
+        {/* ── Screen ─────────────────────────────────────────────── */}
+        <div className="relative flex flex-col min-h-screen sm:h-[812px] overflow-hidden
+                        sm:rounded-[2.75rem] bg-[var(--bg-card)]">
+
+          <ThemeToggle />
+
+          {/* Status-bar spacer below notch (desktop only) */}
+          <div className="hidden sm:block h-7 shrink-0" />
+
+          <main className={['flex-1 overflow-y-auto', hideNav ? '' : 'pb-nav'].join(' ')}>
+            {children}
+          </main>
+
+          {!hideNav && <BottomNav cartCount={cartCount} />}
+        </div>
+        {/* ── /Screen ────────────────────────────────────────────── */}
+
+      </div>
+      {/* ── /Phone frame ───────────────────────────────────────────── */}
+
     </div>
   )
 }
