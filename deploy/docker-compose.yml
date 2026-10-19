@@ -37,7 +37,7 @@ services:
       Resend__From: ${Resend__FromEmail:-noreply@comprai.app}
       Brevo__ApiKey: ${BREVO_SMTP_KEY:-}
       Brevo__Login: ${BREVO_SMTP_LOGIN:-}
-      Brevo__From: ${BREVO_FROM_EMAIL:-helioaraujoandrade@outlook.com}
+      Brevo__From: ${BREVO_FROM_EMAIL:-helioandrade@hotmail.com}
       Jwt__ExpirationMinutes: ${JWT_EXPIRATION_MINUTES:-1440}
       App__AdminUrl: ${ADMIN_APP_URL:-http://2.25.122.11:3004}
       App__WebUrl: ${WEB_APP_URL:-http://2.25.122.11:3000}
