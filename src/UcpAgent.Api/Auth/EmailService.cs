@@ -160,7 +160,7 @@ public sealed class BrevoEmailService(IConfiguration config, ILogger<BrevoEmailS
 
     private readonly string _login  = config["Brevo:Login"]  ?? string.Empty;
     private readonly string _apiKey = config["Brevo:ApiKey"] ?? string.Empty;
-    private readonly string _from   = config["Brevo:From"]   ?? "helioaraujoandrade@outlook.com";
+    private readonly string _from   = config["Brevo:From"]   ?? "helioandrade@hotmail.com";
 
     private async Task SendAsync(string toEmail, string subject, string html, CancellationToken ct)
     {
