@@ -72,7 +72,7 @@ export default function HomeChat({ onAddToCart }: Props) {
       <div className="px-4 pt-12 pb-4 bg-white border-b border-border">
         <div className="flex items-baseline gap-2">
           <h1 className="text-xl font-bold text-ink">Comprai</h1>
-          <span className="text-[10px] font-medium text-brand bg-brand/10 rounded-full px-2 py-0.5">v1.0.22</span>
+          <span className="text-[10px] font-medium text-brand bg-brand/10 rounded-full px-2 py-0.5">v{process.env.NEXT_PUBLIC_APP_VERSION ?? 'dev'} · {process.env.NEXT_PUBLIC_COMMIT_SHA ?? 'local'}</span>
         </div>
         <p className="text-xs text-muted mt-0.5">Assistente de Compras com IA</p>
       </div>

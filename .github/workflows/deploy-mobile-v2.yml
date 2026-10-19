@@ -83,6 +83,8 @@ jobs:
             ${{ env.IMAGE }}:${{ steps.version.outputs.version }}
           build-args: |
             NEXT_PUBLIC_API_URL=${{ env.API_URL }}
+            NEXT_PUBLIC_APP_VERSION=${{ steps.version.outputs.version }}
+            NEXT_PUBLIC_COMMIT_SHA=${{ steps.version.outputs.sha }}
           cache-from: type=gha
           cache-to:   type=gha,mode=max
 
