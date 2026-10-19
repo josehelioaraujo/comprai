@@ -73,7 +73,7 @@ export default function BottomNav({ cartCount = 0 }: Props) {
   ]
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-border pb-safe">
+    <nav className="shrink-0 z-50 bg-white border-t border-border pb-safe">
       <div className="flex items-center justify-around h-nav max-w-lg mx-auto px-2">
         {items.map(({ href, label, icon, badge }) => {
           const active = href === '/' ? pathname === '/' : pathname.startsWith(href)

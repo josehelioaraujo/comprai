@@ -70,7 +70,10 @@ export default function HomeChat({ onAddToCart }: Props) {
     <div className="flex flex-col h-full">
       {/* header */}
       <div className="px-4 pt-12 pb-4 bg-white border-b border-border">
-        <h1 className="text-xl font-bold text-ink">Comprai</h1>
+        <div className="flex items-baseline gap-2">
+          <h1 className="text-xl font-bold text-ink">Comprai</h1>
+          <span className="text-[10px] font-medium text-brand bg-brand/10 rounded-full px-2 py-0.5">v1.0.18</span>
+        </div>
         <p className="text-xs text-muted mt-0.5">Assistente de Compras com IA</p>
       </div>
 

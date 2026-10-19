@@ -77,7 +77,7 @@ export default function AppShell({ children, cartCount = 0, hideNav = false }: P
           {/* Status-bar spacer below notch (desktop only) */}
           <div className="hidden sm:block h-7 shrink-0" />
 
-          <main className={['flex-1 overflow-y-auto', hideNav ? '' : 'pb-nav'].join(' ')}>
+          <main className="flex-1 overflow-y-auto">
             {children}
           </main>
 
