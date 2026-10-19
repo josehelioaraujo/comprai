@@ -30,7 +30,7 @@ services:
       Jwt__ExpirationMinutes: '480'
       Brevo__ApiKey: ${BREVO_SMTP_KEY:-}
       Brevo__Login: ${BREVO_SMTP_LOGIN:-}
-      Brevo__From: ${BREVO_FROM_EMAIL:-helioaraujoandrade@outlook.com}
+      Brevo__From: ${BREVO_FROM_EMAIL:-helioandrade@hotmail.com}
     depends_on:
       - redis
       - comprai-postgres
