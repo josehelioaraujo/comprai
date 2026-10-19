@@ -49,7 +49,7 @@ export default function VerifyEmailForm() {
   }
 
   function handleDigitChange(index: number, value: string) {
-    const clean = value.replace(/\D/g, '').slice(0, 1)
+    const clean = value.replace(/[^A-Z0-9]/gi, '').toUpperCase().slice(0, 1)
     const next  = [...digits]
     next[index] = clean
     setDigits(next)
@@ -99,8 +99,9 @@ export default function VerifyEmailForm() {
             key={i}
             ref={el => { inputRefs.current[i] = el }}
             type="text"
-            inputMode="numeric"
+            inputMode="text"
             maxLength={1}
+            autoCapitalize="characters"
             value={d}
             onChange={e => handleDigitChange(i, e.target.value)}
             onKeyDown={e => handleKeyDown(i, e)}
