@@ -17,7 +17,17 @@ export default function VerifyEmailForm() {
   const [info,   setInfo]       = useState('')
   const [sending,  setSending]  = useState(false)
   const [verifying, setVerifying] = useState(false)
-  const inputRefs = useRef<(HTMLInputElement | null)[]>([])
+  const inputRefs   = useRef<(HTMLInputElement | null)[]>([])
+  const autoSentRef = useRef(false)
+
+  // Auto-envia o código assim que a sessão estiver disponível (uma vez por mount)
+  useEffect(() => {
+    if (!autoSentRef.current && session?.user?.apiToken) {
+      autoSentRef.current = true
+      handleSend()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.apiToken])
 
   useEffect(() => {
     inputRefs.current[0]?.focus()
@@ -118,7 +128,7 @@ export default function VerifyEmailForm() {
           disabled={sending}
           className="text-xs text-brand font-semibold disabled:opacity-50"
         >
-          {sending ? 'Enviando…' : 'Não recebeu? Reenviar código'}
+          {sending ? 'Enviando código…' : 'Não recebeu? Reenviar código'}
         </button>
       </div>
     </div>

@@ -186,10 +186,14 @@ public static class AuthEndpoints
         // ── V060-F1: Email Verification ──────────────────────────────────────
 
         // POST /api/auth/send-verification
-        // Gera OTP de 6 chars, persiste e envia via Resend (ou loga se NullEmailService)
+        // Gera OTP de 6 chars, persiste e envia via IEmailService (Brevo > Resend > Null).
+        // Falhas SMTP são logadas mas não propagadas — sempre retorna 200 para evitar vazamento
+        // de informação e permitir que o usuário tente novamente.
         group.MapPost("/send-verification", async (
-            HttpContext ctx, IAuthPort auth, IEmailService email) =>
+            HttpContext ctx, IAuthPort auth, IEmailService email, ILoggerFactory lf) =>
         {
+            var log = lf.CreateLogger("Auth.SendVerification");
+
             var customerId = JwtService.GetCustomerId(ctx.User);
             if (customerId is null) return Results.Unauthorized();
 
@@ -201,7 +205,17 @@ public static class AuthEndpoints
 
             var code = GenerateOtp();
             await auth.SaveVerificationCodeAsync(customerId, code, DateTime.UtcNow.Add(VerificationCodeTtl));
-            await email.SendVerificationEmailAsync(customer.Email, customer.Name, code);
+
+            try
+            {
+                await email.SendVerificationEmailAsync(customer.Email, customer.Name, code);
+            }
+            catch (Exception ex)
+            {
+                log.LogError(ex, "[SendVerification] Falha ao enviar e-mail para {Email}", customer.Email);
+                // Retorna 200 mesmo assim: o código foi salvo no Redis e o usuário pode tentar reenviar.
+                return Results.Ok(new { message = "Código de verificação enviado." });
+            }
 
             return Results.Ok(new { message = "Código de verificação enviado." });
         }).RequireAuthorization().RequireRateLimiting(RateLimitExtensions.AuthPolicy);
