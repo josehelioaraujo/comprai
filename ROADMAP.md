@@ -1,22 +1,46 @@
 # 🗺️ Roadmap — Comprai
 
-## 🔜 V072 — Web UI Redesign + Fix Valor PIX (próxima)
+## 🔜 V073 — Teste Fluxo Completo + Fix Smoke Tests (próxima)
 
-### 🐛 Fix prioritário — Valor zerado no pedido PIX
+### 🧪 Teste E2E Manual — Fluxo Completo (P0)
+- [ ] Cadastro de novo usuário → recebe email com OTP alfanumérico (Brevo) → verifica email
+- [ ] Login → obter JWT
+- [ ] Busca de produto → adicionar ao carrinho
+- [ ] Checkout → pagamento (mock ou EfiPay PIX)
+- [ ] Confirmar total > 0 na tela de pedido (`/orders/[id]`)
+- [ ] Rastreio do pedido via `/api/orders/{id}`
+
+### 🔥 Fix Smoke Tests (P1)
+- [ ] Testar `curl http://2.25.122.11:5020/health/live` localmente para confirmar se a porta está acessível externamente
+  - Se sim → problema é IP dos runners GitHub Actions após migração ubuntu-latest → Ubuntu 26 (19 out/2026)
+  - Se não → abrir porta 5020 no painel Hostinger (Firewall → Add rule → TCP 5020)
+- [ ] Opção paliativa: adicionar `continue-on-error: true` no job `smoke-tests` para não bloquear o deploy
+
+### 🐛 Fix Valor PIX zerado (P2)
 - [ ] Investigar por que `Total` aparece R$ 0,00 na tela `/orders/[id]` após pagamento PIX
-  - API recebe o valor correto no checkout (`MockCheckoutPort` já lê `TotalAmount` do carrinho)
-  - Suspeita: `OrderStatusDto.Total` não está sendo persistido/recuperado corretamente no `IOrderPort.SaveAsync` → `GetAsync`
-  - Verificar `RedisOrderRepository` (ou equivalente) — campo `Total` pode estar sendo serializado/desserializado com default 0
-- [ ] Cobrir com teste end-to-end: busca → carrinho → checkout PIX → confirmar total correto na tela de pedido
-- [ ] Smoke tests Newman devem incluir asserção de `total > 0` no response de `/orders/{id}`
+  - Suspeita: `OrderStatusDto.Total` não persistido/recuperado corretamente no `IOrderPort.SaveAsync` → `GetAsync`
+  - Verificar `RedisOrderRepository` — campo `Total` pode estar sendo descartado na serialização
+- [ ] Cobrir com teste E2E Playwright: `total > 0` na tela de confirmação do pedido
+- [ ] Smoke tests Newman: adicionar asserção `total > 0` no response de `/orders/{id}`
 
-### 🎨 Web UI Redesign
+### 🎨 Web UI Redesign (P6 — após fixes)
 - [ ] Redesign completo da interface web (`frontend/web/`) — referência visual: Nixtio Marketplace Web UI
 - [ ] Consistência visual com o mobile-v2 (paleta #7C3AED, tipografia preta, fundo branco)
 - [ ] Layout desktop responsivo com sidebar de categorias
-- [ ] Tela de produto detalhada com galeria de imagens
 - [ ] Header com busca global e mini-carrinho
 - [ ] Deploy independente na porta 3002
+
+---
+
+## ✅ V072 — Fix Email + OTP Alfanumérico (out/2026)
+- [x] `deploy/docker-compose.yml`: `Brevo__From` corrigido para `helioandrade@hotmail.com` (era freemail Outlook sem DMARC)
+- [x] `docker-compose.yml` raiz + `EmailService.cs`: remetente padronizado com fallback `helioandrade@hotmail.com`
+- [x] `appsettings.json`: seção `Brevo.From` adicionada — lida por `EmailService.cs` via `config["Brevo:From"]`
+- [x] OTP alfanumérico garantido: `GenerateOtp()` garante mínimo 2 dígitos + 4 letras + shuffle (CSPRNG)
+- [x] Charset OTP: exclui 0, 1, I, O para evitar ambiguidade visual
+- [x] CI/CD: `ufw allow ${{ env.API_PORT }}/tcp || true` adicionado no script de deploy
+- [x] Email de verificação confirmado funcionando ✅ (código recebido com letras + dígitos)
+- [x] Commits: `b66280f` · `cab4562` · `bd9bb99` · `7afb383` · `887ed1a`
 
 ---
 

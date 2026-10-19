@@ -1,5 +1,25 @@
 # Changelog
 
+## [V072] — 2026-10-19
+
+### Fixed — Email, OTP e Configuração
+
+| Fix | Detalhe |
+|-----|---------|
+| Remetente Brevo corrigido | `deploy/docker-compose.yml`: `Brevo__From: ${BREVO_FROM_EMAIL:-helioandrade@hotmail.com}` (era `helioaraujoandrade@outlook.com` — freemail sem DMARC) |
+| Remetente Brevo (raiz) | `docker-compose.yml` e `src/UcpAgent.Api/Auth/EmailService.cs` atualizados com fallback `helioandrade@hotmail.com` |
+| OTP alfanumérico garantido | `GenerateOtp()` refatorado: mínimo 2 dígitos + 4 letras com `RandomNumberGenerator.Shuffle` — elimina chance de código todo-letras (era ~18% de probabilidade) |
+| `appsettings.json` — `Brevo.From` | Seção `Brevo` adicionada ao `appsettings.json`; `EmailService.cs` lê `config["Brevo:From"]` em vez de hardcode |
+| CI/CD — porta 5020 | `ufw allow ${{ env.API_PORT }}/tcp || true` adicionado no script de deploy |
+
+### Known Issues — V073
+
+- **Smoke tests falhando**: porta `5020` inacessível a partir dos runners do GitHub Actions após migração `ubuntu-latest → Ubuntu 26` (19 out/2026); `ufw allow` não resolve porque o Docker contorna o `ufw` via `iptables` diretamente. Investigar na V073: testar `curl http://2.25.122.11:5020/health/live` localmente para distinguir bloqueio de firewall vs. mudança de IP de runner.
+
+**Commits:** `b66280f` · `cab4562` · `bd9bb99` · `7afb383` · `887ed1a`
+
+---
+
 ## [V071.1] — 2026-10-17
 
 ### Fixed — mobile-v2: estabilização pós-deploy
