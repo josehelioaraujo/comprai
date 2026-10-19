@@ -21,6 +21,7 @@ services:
       Admin__RestartPassword: ${ADMIN_RESTART_PASSWORD:-}
       Logging__LogLevel__Default: Information
       Logging__LogLevel__Microsoft.AspNetCore: Warning
+      Logging__LogLevel__Microsoft.AspNetCore.Authentication: Debug
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_ENDPOINT:-http://comprai-otel-collector:4318}
       OTEL_SERVICE_NAME: "comprai-api"
       DOTNET_SYSTEM_NET_HTTP_SOCKETSHTTPHANDLER_HTTP2UNENCRYPTEDSUPORT: "1"
