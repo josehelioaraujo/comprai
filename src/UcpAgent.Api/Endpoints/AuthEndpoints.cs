@@ -15,7 +15,8 @@ public static class AuthEndpoints
     private static readonly TimeSpan PasswordResetTokenTtl = TimeSpan.FromHours(1);
 
     // Caracteres sem ambiguidade visual (sem 0/1/I/O)
-    private const string OtpChars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    private const string OtpLetters = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    private const string OtpDigits  = "23456789";
 
     public static void MapAuthEndpoints(this WebApplication app)
     {
@@ -496,14 +497,18 @@ public static class AuthEndpoints
         catch { /* best-effort */ }
     }
 
-    /// <summary>Gera OTP de 6 caracteres usando RandomNumberGenerator (thread-safe, CSPRNG).</summary>
+    /// <summary>Gera OTP alfanumérico de 6 chars com mínimo 2 dígitos (CSPRNG, thread-safe).</summary>
     private static string GenerateOtp()
     {
-        return string.Create(6, OtpChars, static (span, chars) =>
-        {
-            for (var i = 0; i < span.Length; i++)
-                span[i] = chars[RandomNumberGenerator.GetInt32(chars.Length)];
-        });
+        Span<char> span = stackalloc char[6];
+        // garante pelo menos 2 dígitos para sempre ser alfanumérico
+        span[0] = OtpDigits[RandomNumberGenerator.GetInt32(OtpDigits.Length)];
+        span[1] = OtpDigits[RandomNumberGenerator.GetInt32(OtpDigits.Length)];
+        for (var i = 2; i < 6; i++)
+            span[i] = OtpLetters[RandomNumberGenerator.GetInt32(OtpLetters.Length)];
+        // embaralha para não ter posição fixa dos dígitos
+        RandomNumberGenerator.Shuffle(span);
+        return new string(span);
     }
 
     public record LoginRequest(string Email, string Password);
