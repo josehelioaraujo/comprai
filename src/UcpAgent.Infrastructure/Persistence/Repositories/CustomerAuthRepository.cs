@@ -83,6 +83,18 @@ public sealed class CustomerAuthRepository(IDbConnectionFactory db, IEncryptionS
         return ToDto(row, addresses);
     }
 
+    public async Task<AuthCustomerDto?> GetByEmailAsync(string email, CancellationToken ct = default)
+    {
+        using var conn = await db.CreateAsync(ct);
+        var row = await conn.QuerySingleOrDefaultAsync<CustomerRow>(
+            """
+            SELECT id, name, email, provider, avatar_url, email_verified, phone, document, totp_enabled, role
+            FROM customer WHERE email = @Email
+            """,
+            new { Email = email });
+        return row is null ? null : ToDto(row, []);
+    }
+
     public async Task<AuthCustomerDto?> UpdateProfileAsync(UpdateProfileRequest req, CancellationToken ct = default)
     {
         using var conn = await db.CreateAsync(ct);

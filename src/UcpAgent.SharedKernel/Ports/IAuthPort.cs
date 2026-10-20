@@ -65,6 +65,9 @@ public interface IAuthPort
     /// <summary>Retorna customer com endereços para GET /api/auth/me.</summary>
     Task<AuthCustomerDto?> GetByIdAsync(string customerId, CancellationToken ct = default);
 
+    /// <summary>Retorna customer pelo email (sem verificação de senha).</summary>
+    Task<AuthCustomerDto?> GetByEmailAsync(string email, CancellationToken ct = default);
+
     /// <summary>Atualiza nome, telefone e documento do customer.</summary>
     Task<AuthCustomerDto?> UpdateProfileAsync(UpdateProfileRequest request, CancellationToken ct = default);
 

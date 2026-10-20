@@ -39,7 +39,7 @@ export default function VerifyEmailForm() {
     setError('')
     setInfo('')
     try {
-      await apiSendVerification(session.user.apiToken)
+      await apiSendVerification(session.user.apiToken, session.user.email ?? undefined)
       setInfo('Código de verificação enviado para o seu e-mail.')
     } catch {
       setError('Falha ao enviar o código. Tente novamente.')

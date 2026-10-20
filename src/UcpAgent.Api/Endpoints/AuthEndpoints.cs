@@ -188,6 +188,7 @@ public static class AuthEndpoints
 
         // POST /api/auth/send-verification
         // Gera OTP de 6 chars, persiste e envia via IEmailService (Brevo > Resend > Null).
+        // Aceita JWT (token válido) OU { email } no body (token expirado / pré-auth).
         // Falhas SMTP são logadas mas não propagadas — sempre retorna 200 para evitar vazamento
         // de informação e permitir que o usuário tente novamente.
         group.MapPost("/send-verification", async (
@@ -195,21 +196,44 @@ public static class AuthEndpoints
         {
             var log = lf.CreateLogger("Auth.SendVerification");
 
+            CustomerDto? customer = null;
+
+            // Tenta resolver pelo JWT primeiro
             var customerId = JwtService.GetCustomerId(ctx.User);
-            if (customerId is null)
+            if (customerId is not null)
             {
-                log.LogWarning("[SendVerification] JWT sem claim 'sub' — 401");
-                return Results.Unauthorized();
+                customer = await auth.GetByIdAsync(customerId);
+            }
+
+            // Fallback: email no body (token expirado ou fluxo pré-auth)
+            if (customer is null)
+            {
+                string? bodyEmail = null;
+                try
+                {
+                    var body = await System.Text.Json.JsonDocument.ParseAsync(ctx.Request.Body);
+                    body.RootElement.TryGetProperty("email", out var emailProp);
+                    bodyEmail = emailProp.GetString();
+                }
+                catch { /* body vazio ou não-JSON — ignora */ }
+
+                if (string.IsNullOrWhiteSpace(bodyEmail))
+                {
+                    log.LogWarning("[SendVerification] Sem JWT válido e sem email no body — 401");
+                    return Results.Unauthorized();
+                }
+
+                customer = await auth.GetByEmailAsync(bodyEmail);
+                if (customer is null)
+                {
+                    // Anti-enumeração: retorna 200 mesmo sem encontrar o email
+                    log.LogWarning("[SendVerification] Email não encontrado (anti-enum) | email={Email}", bodyEmail);
+                    return Results.Ok(new { message = "Código de verificação enviado." });
+                }
+                customerId = customer.Id.ToString();
             }
 
             log.LogInformation("[SendVerification] Iniciando para customerId={CustomerId}", customerId);
-
-            var customer = await auth.GetByIdAsync(customerId);
-            if (customer is null)
-            {
-                log.LogWarning("[SendVerification] Cliente não encontrado | customerId={CustomerId}", customerId);
-                return Results.NotFound();
-            }
 
             if (customer.EmailVerified)
             {
@@ -238,7 +262,7 @@ public static class AuthEndpoints
             }
 
             return Results.Ok(new { message = "Código de verificação enviado." });
-        }).RequireAuthorization().RequireRateLimiting(RateLimitExtensions.AuthPolicy);
+        }).AllowAnonymous().RequireRateLimiting(RateLimitExtensions.AuthPolicy);
 
         // POST /api/auth/verify-email  body: { "code": "JQCYMX" }
         group.MapPost("/verify-email", async (
