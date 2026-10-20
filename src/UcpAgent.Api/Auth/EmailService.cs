@@ -184,6 +184,7 @@ public sealed class BrevoEmailService(IConfiguration config, ILogger<BrevoEmailS
                 EnableSsl   = true,
             };
             using var msg = new MailMessage(_from, toEmail, subject, html) { IsBodyHtml = true };
+            msg.Headers.Add("X-Mailin-Track-Click", "off"); // desabilita click tracking do Brevo
             await client.SendMailAsync(msg, ct);
             logger.LogInformation("[Brevo] E-mail enviado com sucesso | To={To}", toEmail);
         }
