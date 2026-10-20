@@ -1,14 +1,10 @@
 using MediatR;
-using Microsoft.Extensions.Logging;
 using UcpAgent.SharedKernel;
 using UcpAgent.SharedKernel.Ports;
 
 namespace UcpAgent.Application.Checkout;
 
-public sealed class CheckoutHandler(
-    ICheckoutPort checkout,
-    UcpMetrics metrics,
-    ILogger<CheckoutHandler> logger)
+public sealed class CheckoutHandler(ICheckoutPort checkout, UcpMetrics metrics)
     : IRequestHandler<CheckoutCommand, Result<CheckoutResultDto>>
 {
     public async Task<Result<CheckoutResultDto>> Handle(CheckoutCommand request, CancellationToken cancellationToken)
@@ -27,15 +23,12 @@ public sealed class CheckoutHandler(
             else
             {
                 metrics.CheckoutFailureTotal.Add(1);
-                logger.LogWarning("[Checkout] Falha esperada: sessão={SessionId} erro={Error}",
-                    request.SessionId, result.Error);
             }
 
             return Result<CheckoutResultDto>.Ok(result);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "[Checkout] Exceção não tratada: sessão={SessionId}", request.SessionId);
             metrics.CheckoutFailureTotal.Add(1);
             return Result<CheckoutResultDto>.Fail(ex.Message);
         }
