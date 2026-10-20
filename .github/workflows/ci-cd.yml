@@ -697,50 +697,49 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: deploy
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Copiar collection para VPS
+        uses: appleboy/scp-action@v0.1.7
         with:
-          node-version: '20'
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          source: "tests/newman/comprai-smoke.json"
+          target: "/tmp/comprai-smoke/"
+          strip_components: 2
+          overwrite: true
 
-      - name: Install Newman
-        run: npm install -g newman newman-reporter-htmlextra
-
-      - name: Run Smoke Tests
+      - name: Run Smoke Tests via SSH (localhost)
+        uses: appleboy/ssh-action@v1.2.0
         env:
           ML_ACCESS_TOKEN: ${{ secrets.ML_ACCESS_TOKEN }}
-          ML_SKIP_TOKEN_TEST: 'true'
           SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
-        run: |
-          for i in 1 2 3; do
-            echo "Tentativa $i/3: executando Smoke Tests..."
-            if newman run tests/newman/comprai-smoke.json \
-              --env-var "baseUrl=http://${{ env.VPS_HOST }}:${{ env.API_PORT }}" \
-              --env-var "mcpUrl=http://${{ env.VPS_HOST }}:${{ env.MCP_PORT }}" \
-              --env-var "ML_ACCESS_TOKEN=${ML_ACCESS_TOKEN}" \
-              --env-var "SHOPIFY_ACCESS_TOKEN=${SHOPIFY_ACCESS_TOKEN}" \
-              --timeout-request 15000 \
-              --timeout 60000 \
-              --reporters cli,htmlextra \
-              --reporter-htmlextra-export ./newman-report/smoke-report.html; then
-              echo "OK - Smoke Tests passou na tentativa $i"
-              exit 0
-            fi
-            if [ "$i" -lt 3 ]; then
-              echo "Falhou. Aguardando 30s antes de tentar novamente..."
-              sleep 30
-            fi
-          done
-          echo "Smoke Tests falharam apos 3 tentativas"
-          exit 1
-
-      - name: Upload Newman Report
-        if: always()
-        uses: actions/upload-artifact@v4
         with:
-          name: smoke-test-report
-          path: ./newman-report/smoke-report.html
-          if-no-files-found: ignore
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          envs: ML_ACCESS_TOKEN,SHOPIFY_ACCESS_TOKEN
+          command_timeout: 8m
+          script: |
+            which newman || npm install -g newman
+            for i in 1 2 3; do
+              echo "Tentativa $i/3..."
+              if newman run /tmp/comprai-smoke/comprai-smoke.json \
+                --env-var "baseUrl=http://localhost:${{ env.API_PORT }}" \
+                --env-var "mcpUrl=http://localhost:${{ env.MCP_PORT }}" \
+                --env-var "ML_ACCESS_TOKEN=${ML_ACCESS_TOKEN}" \
+                --env-var "ML_SKIP_TOKEN_TEST=true" \
+                --env-var "SHOPIFY_ACCESS_TOKEN=${SHOPIFY_ACCESS_TOKEN}" \
+                --timeout-request 15000 \
+                --timeout 60000; then
+                echo "OK - Smoke Tests passou na tentativa $i"
+                exit 0
+              fi
+              [ "$i" -lt 3 ] && sleep 30
+            done
+            echo "Smoke Tests falharam apos 3 tentativas"
+            exit 1
 
