@@ -196,7 +196,7 @@ public static class AuthEndpoints
         {
             var log = lf.CreateLogger("Auth.SendVerification");
 
-            CustomerDto? customer = null;
+            AuthCustomerDto? customer = null;
 
             // Tenta resolver pelo JWT primeiro
             var customerId = JwtService.GetCustomerId(ctx.User);
@@ -232,6 +232,9 @@ public static class AuthEndpoints
                 }
                 customerId = customer.Id.ToString();
             }
+
+            // customerId é garantidamente não-nulo aqui (JWT path ou fallback email path)
+            customerId ??= customer!.Id.ToString();
 
             log.LogInformation("[SendVerification] Iniciando para customerId={CustomerId}", customerId);
 
