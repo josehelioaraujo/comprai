@@ -64,6 +64,21 @@ export default function VerifyEmailForm() {
     }
   }
 
+  function handlePaste(e: React.ClipboardEvent, startIndex: number) {
+    e.preventDefault()
+    const pasted = e.clipboardData.getData('text').replace(/[^A-Z0-9]/gi, '').toUpperCase()
+    if (!pasted) return
+    const next = [...digits]
+    let lastFilled = startIndex
+    for (let i = 0; i < pasted.length && startIndex + i < CODE_LENGTH; i++) {
+      next[startIndex + i] = pasted[i]
+      lastFilled = startIndex + i
+    }
+    setDigits(next)
+    const focusIndex = lastFilled < CODE_LENGTH - 1 ? lastFilled + 1 : lastFilled
+    inputRefs.current[focusIndex]?.focus()
+  }
+
   async function handleVerify() {
     if (!session?.user?.apiToken) return
     const code = digits.join('')
@@ -105,6 +120,7 @@ export default function VerifyEmailForm() {
             value={d}
             onChange={e => handleDigitChange(i, e.target.value)}
             onKeyDown={e => handleKeyDown(i, e)}
+            onPaste={e => handlePaste(e, i)}
             className={[
               'w-11 h-14 rounded-xl border text-center text-xl font-bold text-ink',
               'focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand',
