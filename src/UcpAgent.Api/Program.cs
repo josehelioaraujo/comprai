@@ -447,6 +447,23 @@ if (!usarPostgres)
 
 var app = builder.Build();
 
+// Handler global de exceções — garante resposta estruturada (RFC 7807) em vez de 500 sem corpo
+app.UseExceptionHandler(errApp => errApp.Run(async ctx =>
+{
+    var ex = ctx.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()?.Error;
+    var log = ctx.RequestServices.GetRequiredService<ILogger<Program>>();
+    log.LogError(ex, "[GlobalHandler] Exceção não tratada: {Method} {Path}", ctx.Request.Method, ctx.Request.Path);
+    ctx.Response.StatusCode = 500;
+    ctx.Response.ContentType = "application/problem+json";
+    await ctx.Response.WriteAsJsonAsync(new
+    {
+        type   = "https://tools.ietf.org/html/rfc7807",
+        title  = "Internal Server Error",
+        status = 500,
+        detail = ex?.Message ?? "Erro inesperado"
+    });
+}));
+
 // F7: Idempotência via PostgreSQL
 if (usarPostgres)
     app.UseMiddleware<UcpAgent.Api.Middleware.IdempotencyMiddleware>();

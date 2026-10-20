@@ -86,9 +86,17 @@ public sealed class RedisCheckoutAdapter(
             orderId, "Pending", total, customer,
             JsonSerializer.Serialize(items), DateTime.UtcNow);
 
-        await orders.SaveAsync(redisOrder);
-        await orders.SaveSessionOrderAsync(sessionId, orderId, ct);
-        await cart.ClearAsync(sessionId, ct);
+        try
+        {
+            await orders.SaveAsync(redisOrder);
+            await orders.SaveSessionOrderAsync(sessionId, orderId, ct);
+            await cart.ClearAsync(sessionId, ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[Checkout] Falha ao persistir no Redis — pedido {OrderId} sessão {SessionId}", orderId, sessionId);
+            return new CheckoutResultDto(string.Empty, false, $"Erro ao finalizar pedido: {ex.Message}");
+        }
 
         // Kafka — evento de domínio (fire-and-log: falha não aborta o checkout)
         try

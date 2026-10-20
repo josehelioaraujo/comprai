@@ -743,3 +743,16 @@ jobs:
             echo "Smoke Tests falharam apos 3 tentativas"
             exit 1
 
+      - name: 🪵 Dump API logs (diagnóstico checkout/payment)
+        if: always()
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          command_timeout: 2m
+          script: |
+            echo "=== últimas 150 linhas de comprai-api ==="
+            docker logs comprai-api --tail 150 2>&1 | grep -iE "error|exception|checkout|payment|500|fail|warn" || true
+            echo "=== fim dos logs ==="
+
