@@ -475,11 +475,28 @@ app.UseCors("AllowConfigured");
 app.UseAuthentication();
 app.UseAuthorization();
 
-// ── DbUp migrations na startup ───────────────────────────────────────────────
+// ── DbUp migrations após o servidor HTTP iniciar ────────────────────────────
+// IMPORTANTE: roda DEPOIS de app.Run() inicializar o listener, via ApplicationStarted.
+// Isso garante que /health/live responde imediatamente no deploy, mesmo durante migrations.
 if (app.Configuration.GetValue<bool>("Features:UsarPostgres"))
 {
-    var initializer = app.Services.GetRequiredService<UcpAgent.Infrastructure.Persistence.CompraiDbInitializer>();
-    initializer.Initialize();
+    app.Lifetime.ApplicationStarted.Register(() =>
+    {
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                using var scope = app.Services.CreateScope();
+                var initializer = scope.ServiceProvider.GetRequiredService<UcpAgent.Infrastructure.Persistence.CompraiDbInitializer>();
+                initializer.Initialize();
+            }
+            catch (Exception ex)
+            {
+                var logger = app.Services.GetRequiredService<ILogger<Program>>();
+                logger.LogCritical(ex, "[DB] ❌ Falha crítica nas migrations. A API está rodando mas o banco pode estar desatualizado.");
+            }
+        });
+    });
 }
 
 

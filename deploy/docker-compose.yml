@@ -40,7 +40,7 @@ services:
       Brevo__From: ${BREVO_FROM_EMAIL:-helioandrade@hotmail.com}
       Jwt__ExpirationMinutes: ${JWT_EXPIRATION_MINUTES:-1440}
       App__AdminUrl: ${ADMIN_APP_URL:-http://2.25.122.11:3004}
-      App__WebUrl: ${WEB_APP_URL:-http://2.25.122.11:3000}
+      App__WebUrl: ${WEB_APP_URL:-http://2.25.122.11:3005}
     extra_hosts:
       - "host-gateway:host-gateway"
     depends_on:
