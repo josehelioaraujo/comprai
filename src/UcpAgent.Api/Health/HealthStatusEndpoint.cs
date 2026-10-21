@@ -46,7 +46,8 @@ public static class HealthStatusEndpoint
             // Filtra apenas dependências críticas para o processo funcionar
             var report = await healthCheckService.CheckHealthAsync(
                 hc => hc.Tags.Contains("infra"), ct);
-            return report.Status == HealthStatus.Healthy
+            // Degraded ainda está operacional — só bloqueia se Unhealthy
+            return report.Status != HealthStatus.Unhealthy
                 ? Results.Ok(new { status = "ready" })
                 : Results.StatusCode(503);
         })

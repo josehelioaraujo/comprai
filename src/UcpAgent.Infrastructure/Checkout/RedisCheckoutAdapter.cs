@@ -92,12 +92,14 @@ public sealed class RedisCheckoutAdapter(
         }
 
         // ── Redis: source of truth operacional ──────────────────────────────
-        var redisOrder = new OrderStatusDto(
-            orderId, "Pending", total, customer,
-            JsonSerializer.Serialize(items), DateTime.UtcNow);
-
         try
         {
+            // JsonSerializer.Serialize fica dentro do try para capturar
+            // qualquer SerializationException que quebraria o fluxo
+            var redisOrder = new OrderStatusDto(
+                orderId, "Pending", total, customer,
+                JsonSerializer.Serialize(items), DateTime.UtcNow);
+
             await orders.SaveAsync(redisOrder);
             await orders.SaveSessionOrderAsync(sessionId, orderId, ct);
             await cart.ClearAsync(sessionId, ct);
@@ -122,18 +124,26 @@ public sealed class RedisCheckoutAdapter(
         }
 
         // RabbitMQ — notificação com dados completos para e-mail de confirmação
-        _ = notifications.PublishAsync(
-            NotificationQueues.OrderConfirmation,
-            new OrderConfirmationNotification(
-                orderId, sessionId,
-                CustomerId:    resolvedCustomerId?.ToString() ?? string.Empty,
-                Total:         total,
-                ItemCount:     items.Count,
-                CreatedAt:     DateTime.UtcNow,
-                CustomerEmail: customer.Email ?? string.Empty,
-                CustomerName:  customer.Name  ?? string.Empty,
-                ItemsJson:     JsonSerializer.Serialize(items)),
-            ct);
+        // Fire-and-forget: falha não aborta o checkout
+        try
+        {
+            _ = notifications.PublishAsync(
+                NotificationQueues.OrderConfirmation,
+                new OrderConfirmationNotification(
+                    orderId, sessionId,
+                    CustomerId:    resolvedCustomerId?.ToString() ?? string.Empty,
+                    Total:         total,
+                    ItemCount:     items.Count,
+                    CreatedAt:     DateTime.UtcNow,
+                    CustomerEmail: customer.Email ?? string.Empty,
+                    CustomerName:  customer.Name  ?? string.Empty,
+                    ItemsJson:     JsonSerializer.Serialize(items)),
+                ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "[Checkout] Falha ao enfileirar notificação RabbitMQ — pedido {OrderId} já salvo, notificação ignorada", orderId);
+        }
 
         // Enqueue fulfillment simulation (se ativo)
         fulfillmentSimulator?.Enqueue(orderId);
