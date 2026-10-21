@@ -34,27 +34,42 @@ jobs:
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
-          echo "## 🔍 Diagnóstico" >> $GITHUB_STEP_SUMMARY
-          echo "- Node: $(node --version)" >> $GITHUB_STEP_SUMMARY
-          echo "- npm: $(npm --version)" >> $GITHUB_STEP_SUMMARY
+          echo "=== DIAGNOSTICS ==="
+          echo "Node: $(node --version)"
+          echo "npm: $(npm --version)"
           KEY_LEN=${#LINEAR_API_KEY}
-          echo "- LINEAR_API_KEY length: ${KEY_LEN}" >> $GITHUB_STEP_SUMMARY
+          echo "LINEAR_API_KEY length: ${KEY_LEN}"
           if [ $KEY_LEN -gt 0 ]; then
-            echo "- API key prefix: ${LINEAR_API_KEY:0:8}..." >> $GITHUB_STEP_SUMMARY
+            echo "API key prefix: ${LINEAR_API_KEY:0:8}..."
           else
-            echo "- ❌ LINEAR_API_KEY está VAZIO" >> $GITHUB_STEP_SUMMARY
+            echo "ERROR: LINEAR_API_KEY is EMPTY"
+            exit 1
           fi
-          HTTP=$(curl -s -o /dev/null -w "%{http_code}" \
+          HTTP=$(curl -s -o /tmp/linear_response.json -w "%{http_code}" \
             -H "Authorization: ${LINEAR_API_KEY}" \
             -H "Content-Type: application/json" \
             -d '{"query":"{ viewer { id name } }"}' \
             https://api.linear.app/graphql)
-          echo "- Linear API /graphql HTTP status: ${HTTP}" >> $GITHUB_STEP_SUMMARY
+          echo "Linear API HTTP status: ${HTTP}"
+          echo "Linear API response: $(cat /tmp/linear_response.json)"
 
       - name: Run backfill
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
-        run: npx tsx scripts/linear-populate.ts backfill
+        run: |
+          set +e
+          npx tsx scripts/linear-populate.ts backfill 2>&1 | tee /tmp/backfill.log
+          EXIT_CODE=${PIPESTATUS[0]}
+          echo "=== BACKFILL EXIT CODE: ${EXIT_CODE} ==="
+          exit $EXIT_CODE
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backfill-logs
+          path: /tmp/backfill.log
+          retention-days: 3
 
       - name: Summary
         if: success()

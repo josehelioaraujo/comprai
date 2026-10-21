@@ -381,26 +381,35 @@ async function getOrCreateCycle(
   teamId: string,
   versionId: string,
   date: string
-): Promise<string> {
-  const cycles = await client.cycles({ filter: { team: { id: { eq: teamId } } } });
-  const existing = cycles.nodes.find((c) => c.name === versionId);
-  if (existing) {
-    console.log(`  ↳ cycle "${versionId}" já existe`);
-    return existing.id;
+): Promise<string | undefined> {
+  try {
+    const cycles = await client.cycles({ filter: { team: { id: { eq: teamId } } } });
+    const existing = cycles.nodes.find((c) => c.name === versionId);
+    if (existing) {
+      console.log(`  ↳ cycle "${versionId}" já existe`);
+      return existing.id;
+    }
+    // Give each version a 1-hour window offset by version number to avoid overlapping
+    const startsAt = new Date(date + "T00:00:00Z");
+    const endsAt = new Date(date + "T23:59:59Z");
+    const payload = await client.createCycle({
+      teamId,
+      name: versionId,
+      startsAt,
+      endsAt,
+    });
+    if (!payload.success || !payload.cycle) {
+      console.warn(`  ⚠️  cycle "${versionId}" não criado — continuando sem cycle`);
+      return undefined;
+    }
+    const cycle = await payload.cycle;
+    console.log(`  ✅ cycle "${versionId}" criado`);
+    return cycle!.id;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.warn(`  ⚠️  cycle "${versionId}" falhou (${msg}) — continuando sem cycle`);
+    return undefined;
   }
-  const startsAt = new Date(date);
-  const endsAt = new Date(date);
-  endsAt.setDate(endsAt.getDate() + 1);
-  const payload = await client.createCycle({
-    teamId,
-    name: versionId,
-    startsAt,
-    endsAt,
-  });
-  if (!payload.success || !payload.cycle) throw new Error(`Failed to create cycle ${versionId}`);
-  const cycle = await payload.cycle;
-  console.log(`  ✅ cycle "${versionId}" criado`);
-  return cycle!.id;
 }
 
 async function findStateId(
@@ -492,7 +501,7 @@ async function backfill() {
         projectId,
         labelIds: [labelId],
         stateId,
-        cycleId,
+        ...(cycleId ? { cycleId } : {}),
         description: `**Versão:** ${version.id}\n**Data:** ${version.date}\n**Tipo:** ${version.type}\n\n${version.items.map((i) => `- **${i.title}**: ${i.detail}`).join("\n")}`,
       });
       if (!epicPayload.success || !epicPayload.issue) {
@@ -516,7 +525,7 @@ async function backfill() {
         projectId,
         labelIds: [labelId],
         stateId,
-        cycleId,
+        ...(cycleId ? { cycleId } : {}),
         parentId: epicId,
         description: item.detail,
       });
@@ -619,7 +628,7 @@ async function syncVersion(versionId: string) {
       projectId,
       labelIds: [labelId],
       stateId,
-      cycleId,
+      ...(cycleId ? { cycleId } : {}),
       description: `**Versão:** ${version.id}\n**Data:** ${version.date}\n**Tipo:** ${version.type}\n\n${version.items.map((i) => `- **${i.title}**: ${i.detail}`).join("\n")}`,
     });
     if (!epicPayload.success || !epicPayload.issue) throw new Error("Falha ao criar épico");
@@ -636,7 +645,7 @@ async function syncVersion(versionId: string) {
         projectId,
         labelIds: [labelId],
         stateId,
-        cycleId,
+        ...(cycleId ? { cycleId } : {}),
         parentId: epicId,
         description: item.detail,
       });
