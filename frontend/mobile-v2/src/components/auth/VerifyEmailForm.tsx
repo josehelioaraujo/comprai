@@ -41,7 +41,15 @@ export default function VerifyEmailForm() {
     setInfo('')
     try {
       // Passa apiToken se disponível; backend aceita email no body como fallback
-      await apiSendVerification(session?.user?.apiToken ?? '', userEmail)
+      const res = await apiSendVerification(session?.user?.apiToken ?? '', userEmail)
+      // Backend retorna "Email já verificado." quando DB já está marcado —
+      // sincroniza a sessão e redireciona sem pedir código.
+      if (res?.message?.toLowerCase().includes('verificado')) {
+        await update({ isEmailVerified: true })
+        router.push('/account')
+        router.refresh()
+        return
+      }
       setInfo('Código de verificação enviado para o seu e-mail.')
     } catch {
       setError('Falha ao enviar o código. Tente novamente.')

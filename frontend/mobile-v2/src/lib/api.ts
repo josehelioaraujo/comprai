@@ -52,8 +52,8 @@ export async function apiLogin(email: string, password: string): Promise<AuthRes
   })
 }
 
-export async function apiSendVerification(token: string, email?: string): Promise<void> {
-  return request<void>('/api/auth/send-verification', {
+export async function apiSendVerification(token: string, email?: string): Promise<{ message: string }> {
+  return request<{ message: string }>('/api/auth/send-verification', {
     method: 'POST',
     body: email ? JSON.stringify({ email }) : undefined,
   }, token)
