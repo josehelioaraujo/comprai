@@ -1740,18 +1740,33 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
     if (chev) chev.style.transform = open ? 'rotate(0deg)' : 'rotate(90deg)';
   }
 
-  // Remove ANSI escape codes (ex: [32m [39m [2m) produzidos pelo Playwright
+  // Remove ANSI escape codes produzidos pelo Playwright (ex: \x1b[32m, [39m)
   function _e2eStripAnsi(str) {
     return (str || '').replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').replace(/\[\d+m/g, '');
   }
 
+  // Extrai só a mensagem de assertion — remove linhas de código e stack trace
+  // que o Playwright embute dentro de e.message
+  function _e2eCleanMsg(msg) {
+    var lines = _e2eStripAnsi(msg || '').split('\n').filter(function(l) {
+      var t = l.replace(/^\s+/, '');
+      if (/^>?\s*\d+\s*\|/.test(t)) return false; // linha de código: "313 |" ou "> 313 |"
+      if (/^\s*(\|)?\s*\^+\s*$/.test(l)) return false; // ponteiro: "  ^" ou "  |  ^"
+      if (/^\s+at\s+\S/.test(l))    return false; // stack trace:      "    at /path..."
+      return true;
+    });
+    return lines.join('\n').trim();
+  }
+
   function _e2eSpecInlineDetails(spec) {
     var html = '';
-    // ── Errors (sem snippet de código, sem ANSI)
+    // ── Errors (sem snippet, sem ANSI, sem duplicatas de retry)
     if (spec.errors && spec.errors.length > 0) {
+      var seen = {};
       html += spec.errors.map(function(e) {
-        var msg = _e2eStripAnsi(e.message || '').trim();
-        if (!msg) return '';
+        var msg = _e2eCleanMsg(e.message || '');
+        if (!msg || seen[msg]) return '';
+        seen[msg] = true;
         return '<div style="font-size:11px;color:#ef4444;margin-bottom:4px;white-space:pre-wrap;word-break:break-word;background:rgba(239,68,68,.08);border-left:2px solid #ef4444;padding:6px 8px;border-radius:0 4px 4px 0">'
           + _e2eEsc(msg) + '</div>';
       }).join('');
