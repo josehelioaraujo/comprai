@@ -22,24 +22,26 @@ export default function VerifyEmailForm() {
 
   // Auto-envia o código assim que a sessão estiver disponível (uma vez por mount)
   useEffect(() => {
-    if (!autoSentRef.current && session?.user?.apiToken) {
+    if (!autoSentRef.current && session?.user?.email) {
       autoSentRef.current = true
       handleSend()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.user?.apiToken])
+  }, [session?.user?.email])
 
   useEffect(() => {
     inputRefs.current[0]?.focus()
   }, [])
 
   async function handleSend() {
-    if (!session?.user?.apiToken) return
+    const userEmail = session?.user?.email
+    if (!userEmail) return
     setSending(true)
     setError('')
     setInfo('')
     try {
-      await apiSendVerification(session.user.apiToken, session.user.email ?? undefined)
+      // Passa apiToken se disponível; backend aceita email no body como fallback
+      await apiSendVerification(session?.user?.apiToken ?? '', userEmail)
       setInfo('Código de verificação enviado para o seu e-mail.')
     } catch {
       setError('Falha ao enviar o código. Tente novamente.')

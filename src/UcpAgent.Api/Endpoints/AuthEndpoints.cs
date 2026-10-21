@@ -260,8 +260,7 @@ public static class AuthEndpoints
             {
                 log.LogError(ex, "[SendVerification] Falha ao enviar e-mail | customerId={CustomerId} | Email={Email} | Provider={Provider}",
                     customerId, customer.Email, email.GetType().Name);
-                // Retorna 200 mesmo assim: o código foi salvo no Redis e o usuário pode tentar reenviar.
-                return Results.Ok(new { message = "Código de verificação enviado." });
+                return Results.Problem("Falha ao enviar e-mail de verificação. Tente novamente.", statusCode: 500);
             }
 
             return Results.Ok(new { message = "Código de verificação enviado." });
