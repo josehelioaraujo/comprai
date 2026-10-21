@@ -1092,10 +1092,7 @@ async function loadAll(silent) {
 
     var files = idx.files || (idx.tests ? idx.tests.map(function(t) { return t.file; }) : []);
     if (!files.length) {
-      var lm = document.getElementById('loadingMsg');
-      lm.innerHTML = '<div style="font-size:32px;margin-bottom:10px">&#8987;</div>'
-        + '<div style="font-size:14px;font-weight:600;color:#e2e8f0;margin-bottom:6px">Nenhum resultado de teste disponível</div>'
-        + '<div style="font-size:12px;color:#64748b">Execute o workflow de <strong>Stress Test</strong> no GitHub Actions para gerar os dados.</div>';
+      document.getElementById('loadingMsg').style.display = 'none';
       return;
     }
 

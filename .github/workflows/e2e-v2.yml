@@ -58,15 +58,13 @@ jobs:
       - name: Executar E2E v2 (full-flow-v2.spec.ts)
         working-directory: tests/e2e
         env:
-          E2E_API_URL:               ${{ env.E2E_API_URL }}
-          E2E_USER_EMAIL:            ${{ secrets.E2E_USER_EMAIL }}
-          E2E_USER_PASSWORD:         ${{ secrets.E2E_USER_PASSWORD }}
-          # JSON reporter escreve o arquivo (não diretório)
-          PLAYWRIGHT_JSON_OUTPUT_NAME: playwright-results.json
+          E2E_API_URL:       ${{ env.E2E_API_URL }}
+          E2E_USER_EMAIL:    ${{ secrets.E2E_USER_EMAIL }}
+          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
           CI: 'true'
         run: |
           npx playwright test full-flow-v2.spec.ts \
-            --reporter=json \
+            --config=playwright.config.v2.ts \
             --output=test-artifacts \
             --project=chromium
         continue-on-error: true
