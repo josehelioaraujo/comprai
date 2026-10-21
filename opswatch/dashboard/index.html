@@ -2180,7 +2180,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
         suitesHTML = '<div style="margin-bottom:16px">'
           + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
           + '<div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">Specs por Suite</div>'
-          + '<button id="e2e-v2-toggle-all-btn" onclick="e2eV2ToggleAllSuites()" style="font-size:10px;color:#94a3b8;background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:2px 9px;cursor:pointer;line-height:1.6">&#9650; Recolher tudo</button>'
+          + '<button id="e2e-v2-toggle-all-btn" onclick="e2eV2ToggleAllSuites()" style="font-size:10px;color:#94a3b8;background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:2px 9px;cursor:pointer;line-height:1.6">&#9660; Expandir tudo</button>'
           + '</div>'
           + '<div style="display:flex;flex-direction:column;gap:8px">';
         suites.forEach(function(suite, si) {
@@ -2200,12 +2200,12 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
             + (sf > 0 ? '<span style="font-size:11px;color:#ef4444">&#10060; ' + sf + '</span>' : '')
             + '<span style="font-size:11px;color:var(--muted)">/ ' + sc + '</span>'
             + '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;background:' + sColor + '22;color:' + sColor + '">' + sLabel + '</span>'
-            + '<span class="e2e-v2-suite-chev" style="font-size:13px;color:var(--muted);transform:rotate(90deg);transition:transform .2s;display:inline-block">&#8250;</span>'
+            + '<span class="e2e-v2-suite-chev" style="font-size:13px;color:var(--muted);transform:rotate(0deg);transition:transform .2s;display:inline-block">&#8250;</span>'
             + '</div>'
             + '</div>';
           var specs = suite.specs || [];
           if (specs.length > 0) {
-            suitesHTML += '<div id="' + specsDivId + '" style="border-top:1px solid var(--border);padding:8px 14px;display:flex;flex-direction:column;gap:4px">';
+            suitesHTML += '<div id="' + specsDivId + '" style="border-top:1px solid var(--border);padding:8px 14px;display:none;flex-direction:column;gap:4px">';
             specs.forEach(function(spec) {
               var idx  = globalIdx++;
               var ic   = spec.status === 'passed' ? '&#9989;' : spec.status === 'failed' ? '&#10060;' : '&#9940;';
@@ -2422,8 +2422,8 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
     var el   = document.getElementById(specsDivId);
     var chev = header ? header.querySelector('.e2e-v2-suite-chev') : null;
     if (!el) return;
-    var open = el.style.display !== 'none';
-    el.style.display = open ? 'none' : '';
+    var open = el.style.display === 'flex';
+    el.style.display = open ? 'none' : 'flex';
     if (chev) chev.style.transform = open ? 'rotate(0deg)' : 'rotate(90deg)';
   }
 
@@ -2431,8 +2431,8 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
     var divs  = document.querySelectorAll('[id^="e2e-v2-suite-specs-"]');
     var chevs = document.querySelectorAll('.e2e-v2-suite-chev');
     var anyOpen = false;
-    divs.forEach(function(d) { if (d.style.display !== 'none') anyOpen = true; });
-    divs.forEach(function(d)  { d.style.display = anyOpen ? 'none' : ''; });
+    divs.forEach(function(d) { if (d.style.display === 'flex') anyOpen = true; });
+    divs.forEach(function(d)  { d.style.display = anyOpen ? 'none' : 'flex'; });
     chevs.forEach(function(c) { c.style.transform = anyOpen ? 'rotate(0deg)' : 'rotate(90deg)'; });
     var btn = document.getElementById('e2e-v2-toggle-all-btn');
     if (btn) btn.innerHTML = anyOpen ? '&#9660; Expandir tudo' : '&#9650; Recolher tudo';
