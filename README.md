@@ -1148,7 +1148,7 @@ Redesign completo da interface mobile com visual clean (fundo branco, acento rox
 http://<VPS>:3005   # Mobile v2
 ```
 
-> ⚠️ **Pendência (V073):** valor do pedido aparece R$ 0,00 na confirmação após pagamento PIX. Investigação e fix programados para V073.
+> ⚠️ **Pendência (V074):** valor do pedido aparece R$ 0,00 na confirmação após pagamento PIX. Investigação e fix programados para V074.
 
 
 ## 🗺️ Roadmap
@@ -1220,8 +1220,9 @@ http://<VPS>:3005   # Mobile v2
 | **~~V069v2 — Fix 401 Configurações~~** | ~~Proxy limpa cookies JWT expirado + `fetchProxy<T>()` redireciona para /login automaticamente~~ ✅ V069v2 | — |
 | **~~V069v4 — Fix Reset de Senha~~** | ~~Vars Brevo, sender verificado, middleware `/reset-password`, proxy 200 vs 204, CI desacoplado do Sonar~~ ✅ V069v4 | — |
 | **~~V069v3 — Fix HTTP 500 Admin Orders~~** | ~~Causa dupla: conflito tipo Npgsql + `product_id` é VARCHAR(200), não UUID; fix: `string? productId` + `::text` uniforme~~ ✅ V069v3 | — |
+| **~~V073 — Linear Backfill V052–V072~~** | ~~Backfill retroativo Linear; scripts idempotentes; cleanup de duplicatas~~ ✅ V073 | — |
 | **~~V072 — Fix Email + OTP~~** | ~~`Brevo__From` corrigido em 3 arquivos; OTP alfanumérico garantido (mín. 2 dígitos); `appsettings.json` Brevo.From~~ ✅ V072 | — |
-| **V073 — Teste Fluxo Completo + Smoke Tests** | Testar fluxo cadastro→checkout→rastreio; fix smoke tests (porta 5020); fix total PIX zerado | V073 |
+| **V074 — Fix Smoke Tests + Total PIX + E2E** | Fix smoke tests (porta 5020); fix total PIX zerado; link OTP no email; testes E2E fluxo completo | V074 |
 | **OMS + WMS + Carrier (plugins)** | Plugins hexagonais extensíveis: `Oms.Simulated/Vtex`, `Wms.Simulated/Totvs`, `Carrier.Simulated/Correios` | Futuro |
 | **LLM Diagnóstico** | `/api/ai/analyze` → Ollama + fallback Claude; botão "Analisar" no OpsWatch | Futuro |
 | **GROQ_MODEL_SELECTOR** | Seletor de modelo no `workflow_dispatch` do code-review | Futuro |

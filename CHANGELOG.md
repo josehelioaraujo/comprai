@@ -1,5 +1,58 @@
 # Changelog
 
+## [V073] — 2026-10-21
+
+### Added — Linear: Backfill Retroativo V052–V072 + Scripts Idempotentes
+
+**Objetivo**
+Popular retroativamente o workspace Linear (`helioandrade`, projeto `Comprai Platform`) com todas as versões concluídas (V052–V072) — épicos, sub-issues e cycles — mantendo o script seguro para re-execuções.
+
+#### Scripts (`scripts/linear-populate.ts`)
+
+| Comando | Descrição |
+|---------|-----------|
+| `backfill` | Cria épico + sub-issues + cycle para todas as versões com `status === "done"` (V052–V072) |
+| `sync` | Sincroniza uma versão específica (V073+) — usado pelo `linear-sync.yml` |
+| `cleanup <version>` | Remove issues duplicadas de uma versão, mantendo a mais antiga |
+
+**Correção raiz — `cycleCreate` falhando com overlap**
+
+A API do Linear rejeita cycles com janelas de data sobrepostas. Como V052–V056 compartilham a mesma data (`2026-10-06`), a mutação `cycleCreate` retornava erro GraphQL. Solução: `getOrCreateCycle()` agora captura qualquer erro e retorna `undefined`; `createIssue()` usa spread condicional `...(cycleId ? { cycleId } : {})` para omitir o campo quando indefinido.
+
+**Sub-issues idempotentes**
+
+Adicionado `issueExists()` antes de cada criação de sub-issue — evita duplicatas em re-execuções.
+
+**Escopo restrito a versões `done`**
+
+`backfill()` filtra `VERSIONS.filter(v => v.status === "done")` — V073+ (in_progress) não são tocados.
+
+#### Workflows adicionados
+
+| Workflow | Trigger | Descrição |
+|----------|---------|-----------|
+| `linear-backfill.yml` | `workflow_dispatch` (confirmar `"sim"`) | Popula V052–V072 no Linear (operação única) |
+| `linear-cleanup.yml` | `workflow_dispatch` (input: versão) | Remove duplicatas de uma versão específica |
+
+#### Resultado
+
+- **Run `39536384671`**: backfill V052–V072 concluído com sucesso ✅
+- **Run `39537574444`**: cleanup de duplicatas V073 concluído com sucesso ✅
+- Workspace Linear: V052–V072 como **Done**, cycles criados (onde não há overlap), épicos + sub-issues populados
+
+### Infra / Considerações futuras
+
+- **Dependabot**: ainda não configurado; avaliar `.github/dependabot.yml` quando a esteira CI/CD estiver estável — cobre npm (scripts), NuGet (.NET) e GitHub Actions
+
+### Known Issues — V074
+
+- **Smoke tests falhando**: porta `5020` inacessível a partir dos runners do GitHub Actions após migração `ubuntu-latest → Ubuntu 26` (19 out/2026); Docker contorna `ufw` via `iptables`. Investigar na V074.
+- **Total PIX zerado**: `/orders/[id]` exibe R$ 0,00 — investigar `OrderStatusDto.Total` no `IOrderPort`
+
+**Commits:** `374f281` · `a9cc9d3`
+
+---
+
 ## [V072] — 2026-10-19
 
 ### Fixed — Email, OTP e Configuração

@@ -1,14 +1,6 @@
 # 🗺️ Roadmap — Comprai
 
-## 🔜 V073 — Teste Fluxo Completo + Fix Smoke Tests (próxima)
-
-### 🧪 Teste E2E Manual — Fluxo Completo (P0)
-- [ ] Cadastro de novo usuário → recebe email com OTP alfanumérico (Brevo) → verifica email
-- [ ] Login → obter JWT
-- [ ] Busca de produto → adicionar ao carrinho
-- [ ] Checkout → pagamento (mock ou EfiPay PIX)
-- [ ] Confirmar total > 0 na tela de pedido (`/orders/[id]`)
-- [ ] Rastreio do pedido via `/api/orders/{id}`
+## 🔜 V074 — Fix Smoke Tests + Total PIX + E2E (próxima)
 
 ### 🔥 Fix Smoke Tests (P1)
 - [ ] Testar `curl http://2.25.122.11:5020/health/live` localmente para confirmar se a porta está acessível externamente
@@ -23,12 +15,40 @@
 - [ ] Cobrir com teste E2E Playwright: `total > 0` na tela de confirmação do pedido
 - [ ] Smoke tests Newman: adicionar asserção `total > 0` no response de `/orders/{id}`
 
-### 🎨 Web UI Redesign (P6 — após fixes)
+### 🔗 Link direto no email OTP (P3)
+- [ ] Email de verificação deve incluir link direto `/auth/verify?email=<email>` para pré-preencher o campo na tela
+
+### 🧪 E2E Fluxo Completo (P4)
+- [ ] Cadastro de novo usuário → recebe email com OTP alfanumérico (Brevo) → verifica email
+- [ ] Login → obter JWT
+- [ ] Busca de produto → adicionar ao carrinho
+- [ ] Checkout → pagamento (mock ou EfiPay PIX)
+- [ ] Confirmar total > 0 na tela de pedido (`/orders/[id]`)
+- [ ] Rastreio do pedido via `/api/orders/{id}`
+
+### 🎨 Web UI Redesign (P5 — após fixes)
 - [ ] Redesign completo da interface web (`frontend/web/`) — referência visual: Nixtio Marketplace Web UI
 - [ ] Consistência visual com o mobile-v2 (paleta #7C3AED, tipografia preta, fundo branco)
 - [ ] Layout desktop responsivo com sidebar de categorias
 - [ ] Header com busca global e mini-carrinho
 - [ ] Deploy independente na porta 3002
+
+### 🤖 CI/CD — Dependabot (P6 — quando esteira estável)
+- [ ] Configurar `.github/dependabot.yml` com três ecossistemas: npm (raiz), nuget (`src/`), github-actions
+
+---
+
+## ✅ V073 — Linear Backfill V052–V072 + Scripts Idempotentes (out/2026)
+- [x] `scripts/linear-populate.ts`: suporte a 3 comandos — `backfill`, `sync`, `cleanup`
+- [x] `getOrCreateCycle()`: retorna `string | undefined`, captura erros de overlap de datas no Linear
+- [x] Sub-issues idempotentes: `issueExists()` evita duplicatas em re-execuções
+- [x] Backfill restrito a `status === "done"` (V052–V072) — V073+ ignorados
+- [x] `linear-backfill.yml`: workflow com confirmação + upload de logs em falha
+- [x] `linear-cleanup.yml`: novo workflow para remover duplicatas por versão
+- [x] `package.json`: pinado `@linear/sdk@7.0.0`, `tsx@4.19.1`, `typescript@5.5.4`
+- [x] Run `39536384671`: backfill V052–V072 concluído ✅
+- [x] Run `39537574444`: cleanup de duplicatas V073 concluído ✅
+- [x] Commits: `374f281` · `a9cc9d3`
 
 ---
 
