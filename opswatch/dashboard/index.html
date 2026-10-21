@@ -1603,7 +1603,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
               var sc2  = spec.status === 'passed' ? '#22c55e' : spec.status === 'failed' ? '#ef4444' : '#f59e0b';
               var hasErr = (spec.errors || []).length > 0;
               var catColor = hasErr && spec.errors[0] && spec.errors[0].color ? spec.errors[0].color : '#ef4444';
-              var borderCol = hasErr ? catColor : 'transparent';
+              var borderCol = hasErr ? catColor : spec.status === 'failed' ? '#ef4444' : 'transparent';
               var catBadge = '';
               if (spec.error_category) {
                 var err0 = spec.errors && spec.errors[0] ? spec.errors[0] : {};
@@ -1740,20 +1740,25 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
     if (chev) chev.style.transform = open ? 'rotate(0deg)' : 'rotate(90deg)';
   }
 
+  // Remove ANSI escape codes (ex: [32m [39m [2m) produzidos pelo Playwright
+  function _e2eStripAnsi(str) {
+    return (str || '').replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').replace(/\[\d+m/g, '');
+  }
+
   function _e2eSpecInlineDetails(spec) {
     var html = '';
-    // ── Errors
+    // ── Errors (sem snippet de código, sem ANSI)
     if (spec.errors && spec.errors.length > 0) {
       html += spec.errors.map(function(e) {
-        var catStyle = e.color ? 'color:' + e.color : 'color:#ef4444';
-        return (e.message ? '<div style="font-size:11px;' + catStyle + ';margin-bottom:4px;white-space:pre-wrap;word-break:break-word">' + _e2eEsc(e.message) + '</div>' : '')
-          + (e.snippet ? '<pre style="font-size:10px;color:#94a3b8;background:var(--surface2);padding:6px 8px;border-radius:4px;overflow:auto;max-height:110px;margin:0 0 4px">' + _e2eEsc(e.snippet) + '</pre>' : '');
+        var msg = _e2eStripAnsi(e.message || '').trim();
+        if (!msg) return '';
+        return '<div style="font-size:11px;color:#ef4444;margin-bottom:4px;white-space:pre-wrap;word-break:break-word;background:rgba(239,68,68,.08);border-left:2px solid #ef4444;padding:6px 8px;border-radius:0 4px 4px 0">'
+          + _e2eEsc(msg) + '</div>';
       }).join('');
-    } else {
-      var icon = spec.status === 'skipped' ? '&#9940;' : spec.status === 'passed' ? '&#9989;' : '&#10060;';
-      var msg  = spec.status === 'skipped' ? 'Ignorado' : spec.status === 'passed' ? 'Passou sem erros' : 'Sem detalhes de erro';
-      html += '<div style="font-size:11px;color:var(--muted);margin-bottom:4px">' + icon + ' ' + msg + '</div>';
+    } else if (spec.status === 'skipped') {
+      html += '<div style="font-size:11px;color:var(--muted);margin-bottom:4px">&#9940; Ignorado</div>';
     }
+    // passed sem erros → não exibe nada (o ✅ já é suficiente)
     // ── HTTP Requests
     var reqs = spec.requests || [];
     if (reqs.length > 0) {
@@ -1783,8 +1788,8 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
         }
         html += '</details>';
       });
-    } else {
-      html += '<div style="font-size:10px;color:#475569;margin-top:4px">&#128295; Nenhuma requisição HTTP capturada.</div>';
+    } else if (spec.status === 'failed') {
+      html += '<div style="font-size:10px;color:#ef4444;margin-top:4px">&#128295; Nenhuma requisição HTTP capturada.</div>';
     }
     return html;
   }
@@ -2212,7 +2217,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
               var sc2  = spec.status === 'passed' ? '#22c55e' : spec.status === 'failed' ? '#ef4444' : '#f59e0b';
               var hasErr = (spec.errors || []).length > 0;
               var catColor = hasErr && spec.errors[0] && spec.errors[0].color ? spec.errors[0].color : '#ef4444';
-              var borderCol = hasErr ? catColor : 'transparent';
+              var borderCol = hasErr ? catColor : spec.status === 'failed' ? '#ef4444' : 'transparent';
               var catBadge = '';
               if (spec.error_category) {
                 var err0 = spec.errors && spec.errors[0] ? spec.errors[0] : {};
