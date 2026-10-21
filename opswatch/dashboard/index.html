@@ -1742,7 +1742,10 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
 
   // Remove ANSI escape codes produzidos pelo Playwright (ex: \x1b[32m, [39m)
   function _e2eStripAnsi(str) {
-    return (str || '').replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').replace(/\[\d+m/g, '');
+    return (str || '')
+      .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')          // ESC[...m  (padrão)
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // demais chars de controle (incl ESC solto)
+      .replace(/\[[0-9;]+[mJKHfABCDsu]/g, '');          // sequências CSI sem ESC que sobram
   }
 
   // Extrai só a mensagem de assertion — remove linhas de código e stack trace
@@ -1904,8 +1907,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       var catLabel = err.icon ? (err.icon + ' ' + (err.category || 'ERRO')) : (err.category || 'ERRO');
       return '<div style="margin-top:8px;border-radius:6px;overflow:hidden;border:1px solid ' + catColor + '44">'
         + '<div style="background:' + catColor + '18;padding:5px 10px;font-size:10px;font-weight:700;color:' + catColor + ';letter-spacing:.06em">' + _e2eEsc(catLabel) + '</div>'
-        + (err.message ? '<div style="padding:10px 12px;font-size:11px;color:#fca5a5;font-family:monospace;white-space:pre-wrap;word-break:break-word;line-height:1.55;background:#0f172a">' + _e2eEsc(err.message) + '</div>' : '')
-        + (err.snippet ? '<div style="padding:10px 12px;font-size:10px;color:#7dd3fc;font-family:monospace;white-space:pre;overflow-x:auto;line-height:1.5;background:#020617;border-top:1px solid rgba(255,255,255,.06)">' + _e2eEsc(err.snippet) + '</div>' : '')
+        + (err.message ? '<div style="padding:10px 12px;font-size:11px;color:#fca5a5;font-family:monospace;white-space:pre-wrap;word-break:break-word;line-height:1.55;background:#0f172a">' + _e2eEsc(_e2eCleanMsg(err.message)) + '</div>' : '')
         + '</div>';
     }).join('');
   }
