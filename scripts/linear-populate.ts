@@ -648,6 +648,15 @@ async function syncVersion(versionId: string) {
   if (existingEpicId) {
     console.log(`↳ Épico "${epicTitle}" já existe — atualizando estado...`);
     await client.updateIssue(existingEpicId, { stateId });
+    // Atualiza sub-issues existentes para o mesmo estado
+    const subIssues = await client.issues({
+      filter: { team: { id: { eq: team.id } }, parent: { id: { eq: existingEpicId } } },
+    });
+    for (const sub of subIssues.nodes) {
+      await client.updateIssue(sub.id, { stateId });
+      console.log(`  ✅ ${version.id} marcado como ${version.status === "done" ? "Done" : "In Progress"}: "${sub.title}"`);
+      await sleep(200);
+    }
   } else {
     const epicPayload = await client.createIssue({
       title: epicTitle,
