@@ -110,14 +110,24 @@ jobs:
               -e AUTH_TRUST_HOST=true \
               -e "NEXTAUTH_URL=${{ secrets.NEXTAUTH_URL_MOBILE_V2 }}" \
               -e "NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}" \
+              -e "AUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}" \
               -e "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" \
               -e "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" \
               -e "NEXT_PUBLIC_API_URL=${{ env.API_URL }}" \
               -e "API_URL=${{ env.API_URL }}" \
               ${{ env.IMAGE }}:latest
-            sleep 8
-            curl -sf http://localhost:${{ env.PORT }}/api/healthz && echo "✅ OK" \
-              || { docker logs comprai-mobile-v2 --tail 30; exit 1; }
+            echo "⏳ Aguardando Next.js inicializar..."
+            for i in $(seq 1 15); do
+              sleep 4
+              if curl -sf http://localhost:${{ env.PORT }}/api/healthz; then
+                echo "✅ OK (tentativa $i)"
+                exit 0
+              fi
+              echo "  tentativa $i/15 – ainda iniciando..."
+            done
+            echo "❌ Healthcheck falhou após 60s"
+            docker logs comprai-mobile-v2 --tail 50
+            exit 1
 
       - name: Summary
         run: |
