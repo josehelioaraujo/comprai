@@ -422,8 +422,7 @@ async function findStateId(
   return state.id;
 }
 
-async function epicExists(teamId: string, title: string): Promise<string | null> {
-  // Check if an issue with this title already exists in the team
+async function issueExists(teamId: string, title: string): Promise<string | null> {
   const issues = await client.issues({
     filter: {
       team: { id: { eq: teamId } },
@@ -431,6 +430,25 @@ async function epicExists(teamId: string, title: string): Promise<string | null>
     },
   });
   return issues.nodes[0]?.id ?? null;
+}
+
+// Kept for backward compat (alias)
+const epicExists = issueExists;
+
+async function deleteDuplicates(teamId: string, title: string): Promise<void> {
+  const issues = await client.issues({
+    filter: {
+      team: { id: { eq: teamId } },
+      title: { eq: title },
+    },
+  });
+  // Keep only the first (oldest), delete the rest
+  const dupes = issues.nodes.slice(1);
+  for (const dupe of dupes) {
+    await client.deleteIssue(dupe.id);
+    console.log(`  🗑️  Duplicata removida: "${title}" (${dupe.id})`);
+    await sleep(200);
+  }
 }
 
 // ─── Main functions ───────────────────────────────────────────────────────────
@@ -475,8 +493,11 @@ async function backfill() {
   const inProgressStateId = await findStateId(team.id, "started");
   console.log(`📊 States: Done=${doneStateId}, InProgress=${inProgressStateId}\n`);
 
-  // 5. Process each version
-  for (const version of VERSIONS) {
+  // 5. Process only "done" versions (in_progress = current sprint, handled by sync)
+  const doneVersions = VERSIONS.filter((v) => v.status === "done");
+  console.log(`📋 Versões a popular: ${doneVersions.map((v) => v.id).join(", ")}\n`);
+
+  for (const version of doneVersions) {
     console.log(`\n─── ${version.id} — ${version.sectionTitle} ───`);
 
     // Create cycle
@@ -514,10 +535,16 @@ async function backfill() {
       await sleep(400);
     }
 
-    // Create sub-issues
+    // Create sub-issues (idempotent: skip if already exists)
     for (const item of version.items) {
       const subTitle = `${version.id} — ${item.title}`;
       await sleep(300);
+
+      const existingSubId = await issueExists(team.id, subTitle);
+      if (existingSubId) {
+        console.log(`    ↳ sub-issue já existe: "${subTitle}"`);
+        continue;
+      }
 
       const subPayload = await client.createIssue({
         title: subTitle,
@@ -679,11 +706,54 @@ function handleError(e: unknown): never {
   process.exit(1);
 }
 
+async function cleanupVersion(versionId: string) {
+  console.log(`🧹 Limpando duplicatas de ${versionId}...\n`);
+  const teams = await client.teams();
+  const team = teams.nodes[0];
+  console.log(`👥 Team: ${team.name} (${team.id})`);
+
+  // Find all issues with this version prefix
+  const issues = await client.issues({
+    filter: {
+      team: { id: { eq: team.id } },
+      title: { startsWith: `${versionId} —` },
+    },
+  });
+
+  console.log(`  Encontradas ${issues.nodes.length} issues com prefixo "${versionId} —"`);
+
+  // Group by title, keep oldest (lowest createdAt), delete the rest
+  const byTitle = new Map<string, typeof issues.nodes>();
+  for (const issue of issues.nodes) {
+    const list = byTitle.get(issue.title) ?? [];
+    list.push(issue);
+    byTitle.set(issue.title, list);
+  }
+
+  let deleted = 0;
+  for (const [title, dupes] of byTitle.entries()) {
+    if (dupes.length <= 1) continue;
+    // Sort by createdAt ascending, keep first, delete rest
+    dupes.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    for (const dupe of dupes.slice(1)) {
+      await client.deleteIssue(dupe.id);
+      console.log(`  🗑️  Removida duplicata: "${title}" (${dupe.identifier})`);
+      deleted++;
+      await sleep(200);
+    }
+  }
+
+  console.log(`\n✅ Limpeza concluída — ${deleted} duplicata(s) removida(s).`);
+}
+
 if (command === "backfill") {
   backfill().catch(handleError);
 } else if (command === "sync") {
   syncVersion(arg ?? "").catch(handleError);
+} else if (command === "cleanup") {
+  if (!arg) { console.error("Usage: cleanup <version>  ex: cleanup V073"); process.exit(1); }
+  cleanupVersion(arg).catch(handleError);
 } else {
-  console.error("Usage: npx tsx scripts/linear-populate.ts <backfill|sync> [version]");
+  console.error("Usage: npx tsx scripts/linear-populate.ts <backfill|sync|cleanup> [version]");
   process.exit(1);
 }

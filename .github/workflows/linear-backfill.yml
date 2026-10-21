@@ -1,4 +1,4 @@
-name: Linear — Backfill Retroativo (V052–V073)
+name: Linear — Backfill Retroativo (V052–V072)
 
 on:
   workflow_dispatch:
@@ -79,8 +79,8 @@ jobs:
           echo "Criados no workspace **Helioandrade**:" >> $GITHUB_STEP_SUMMARY
           echo "- 📁 Projeto: **Comprai Platform**" >> $GITHUB_STEP_SUMMARY
           echo "- 🏷️ Labels: fix · feat · chore · infra · test · security · e2e" >> $GITHUB_STEP_SUMMARY
-          echo "- 🔄 Cycles: V052 → V073" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔄 Cycles: V052 → V072" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ V052–V072: **Done**" >> $GITHUB_STEP_SUMMARY
-          echo "- 🚧 V073: **In Progress**" >> $GITHUB_STEP_SUMMARY
+          echo "- ℹ️ V073 (in_progress): usar linear-sync" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "🔗 [Abrir Linear](https://linear.app/helioandrade/project/comprai-platform)" >> $GITHUB_STEP_SUMMARY
