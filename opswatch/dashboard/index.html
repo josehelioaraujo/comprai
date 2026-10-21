@@ -2126,6 +2126,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
   }
 
   // ===== E2E v2 — Fluxo Completo T01-T31 =====
+  var _e2eV2Specs    = [];   // flat list, all specs com suite name
   var _e2eV2LastData = null;
   var _e2eV2RunId    = null;
   var _e2eV2PollTmr  = null;
@@ -2151,66 +2152,128 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       var status   = d.status || 'unknown';
       var statusColor = status === 'passed' ? '#22c55e' : status === 'failed' ? '#ef4444' : '#f59e0b';
       var statusLabel = status === 'passed' ? 'PASSOU' : status === 'failed' ? 'FALHOU' : status === 'no_results' ? 'SEM DADOS' : 'ERRO';
-      var passRate = total > 0 ? Math.round((passed / total) * 100) : 0;
+
+      // Flatten specs
+      _e2eV2Specs = [];
+      (d.suites || []).forEach(function(suite) {
+        (suite.specs || []).forEach(function(spec) {
+          _e2eV2Specs.push(Object.assign({}, spec, { _suite: suite.file || '' }));
+        });
+      });
 
       var runInfo = '';
       if (d.run) runInfo = 'Run #' + d.run + (d.sha ? ' &nbsp;·&nbsp; SHA ' + d.sha : '') + (d.timestamp ? ' &nbsp;·&nbsp; ' + new Date(d.timestamp).toLocaleString('pt-BR') : '');
 
-      // KPI Cards
+      // KPI Cards (clicáveis)
+      var passRate = total > 0 ? Math.round((passed / total) * 100) : 0;
       var kpiHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:20px">'
-        + _e2eV2Kpi('Total',    total,    '#94a3b8', '&#127379;')
-        + _e2eV2Kpi('Passou',   passed,   '#22c55e', '&#9989;')
-        + _e2eV2Kpi('Falhou',   failed,   failed > 0 ? '#ef4444' : '#22c55e', '&#10060;')
-        + _e2eV2Kpi('Ignorado', skipped,  '#f59e0b', '&#9940;')
-        + _e2eV2Kpi('Duracao',  duration + 's', '#38bdf8', '&#9201;')
-        + _e2eV2Kpi('Taxa OK',  passRate + '%', passRate === 100 ? '#22c55e' : passRate >= 80 ? '#f59e0b' : '#ef4444', '&#128200;')
+        + _e2eV2Kpi('Total',    total,    '#94a3b8', '&#127379;', 'all')
+        + _e2eV2Kpi('Passou',   passed,   '#22c55e', '&#9989;', 'passed')
+        + _e2eV2Kpi('Falhou',   failed,   failed > 0 ? '#ef4444' : '#22c55e', '&#10060;', 'failed')
+        + _e2eV2Kpi('Ignorado', skipped,  '#f59e0b', '&#9940;', 'skipped')
+        + _e2eV2Kpi('Duracao',  duration + 's', '#38bdf8', '&#9201;', 'all')
+        + _e2eV2Kpi('Taxa OK',  passRate + '%', passRate === 100 ? '#22c55e' : passRate >= 80 ? '#f59e0b' : '#ef4444', '&#128200;', passRate === 100 ? 'passed' : 'all')
         + '</div>';
 
-      // Suites
+      // Suites com chevrons e specs interativos
       var suites = d.suites || [];
       var suitesHTML = '';
+      var globalIdx = 0;
       if (suites.length > 0) {
-        suitesHTML = '<div style="display:flex;flex-direction:column;gap:8px">';
-        suites.forEach(function(suite) {
-          var sf = suite.failed || 0;
-          var sp = suite.passed || 0;
-          var sc = (suite.specs || []).length;
+        suitesHTML = '<div style="margin-bottom:16px">'
+          + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
+          + '<div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">Specs por Suite</div>'
+          + '<button id="e2e-v2-toggle-all-btn" onclick="e2eV2ToggleAllSuites()" style="font-size:10px;color:#94a3b8;background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:2px 9px;cursor:pointer;line-height:1.6">&#9650; Recolher tudo</button>'
+          + '</div>'
+          + '<div style="display:flex;flex-direction:column;gap:8px">';
+        suites.forEach(function(suite, si) {
+          var file   = suite.file || 'unknown';
+          var sf     = suite.failed  || 0;
+          var sp     = suite.passed  || 0;
+          var sc     = (suite.specs || []).length;
           var sColor = sf > 0 ? '#ef4444' : '#22c55e';
-          suitesHTML += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;overflow:hidden">';
-          suitesHTML += '<div style="display:flex;align-items:center;gap:8px;padding:12px 14px">'
+          var sLabel = sf > 0 ? 'FALHOU' : 'PASSOU';
+          var specsDivId = 'e2e-v2-suite-specs-' + si;
+          suitesHTML += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;overflow:hidden">'
+            + '<div onclick="e2eV2ToggleSuite(\'' + specsDivId + '\',this)" style="display:flex;align-items:center;gap:8px;padding:12px 14px;cursor:pointer;user-select:none">'
             + '<span style="font-size:14px">&#128196;</span>'
-            + '<span style="flex:1;font-size:13px;font-weight:600;color:#e2e8f0">' + (suite.file || 'unknown') + '</span>'
+            + '<span style="flex:1;font-size:13px;font-weight:600;color:#e2e8f0">' + _e2eEsc(file) + '</span>'
+            + '<div style="display:flex;align-items:center;gap:10px">'
             + '<span style="font-size:11px;color:#22c55e">&#9989; ' + sp + '</span>'
             + (sf > 0 ? '<span style="font-size:11px;color:#ef4444">&#10060; ' + sf + '</span>' : '')
             + '<span style="font-size:11px;color:var(--muted)">/ ' + sc + '</span>'
-            + '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;background:' + sColor + '22;color:' + sColor + '">' + (sf > 0 ? 'FALHOU' : 'PASSOU') + '</span>'
+            + '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;background:' + sColor + '22;color:' + sColor + '">' + sLabel + '</span>'
+            + '<span class="e2e-v2-suite-chev" style="font-size:13px;color:var(--muted);transform:rotate(90deg);transition:transform .2s;display:inline-block">&#8250;</span>'
+            + '</div>'
             + '</div>';
-          if ((suite.specs || []).length > 0) {
-            suitesHTML += '<div style="border-top:1px solid var(--border);padding:8px 14px;display:flex;flex-direction:column;gap:4px">';
-            (suite.specs || []).forEach(function(spec) {
-              var ic  = spec.status === 'passed' ? '&#9989;' : spec.status === 'failed' ? '&#10060;' : '&#9940;';
-              var sc2 = spec.status === 'passed' ? '#22c55e' : spec.status === 'failed' ? '#ef4444' : '#f59e0b';
-              suitesHTML += '<div style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:5px;background:var(--bg)">'
-                + '<span>' + ic + '</span>'
-                + '<span style="flex:1;font-size:12px;color:#cbd5e1">' + (spec.title || '') + '</span>'
-                + '<span style="font-size:11px;color:var(--muted);font-family:monospace">' + (spec.duration || 0) + 's</span>'
-                + '</div>';
-              if (spec.errors && spec.errors.length > 0) {
-                suitesHTML += '<div style="padding:4px 8px 6px 30px">'
-                  + '<div style="font-size:11px;color:#ef4444;background:#ef444411;border-radius:4px;padding:4px 8px;font-family:monospace;white-space:pre-wrap;word-break:break-all">'
-                  + spec.errors[0].message.slice(0, 200) + '</div></div>';
+          var specs = suite.specs || [];
+          if (specs.length > 0) {
+            suitesHTML += '<div id="' + specsDivId + '" style="border-top:1px solid var(--border);padding:8px 14px;display:flex;flex-direction:column;gap:4px">';
+            specs.forEach(function(spec) {
+              var idx  = globalIdx++;
+              var ic   = spec.status === 'passed' ? '&#9989;' : spec.status === 'failed' ? '&#10060;' : '&#9940;';
+              var sc2  = spec.status === 'passed' ? '#22c55e' : spec.status === 'failed' ? '#ef4444' : '#f59e0b';
+              var hasErr = (spec.errors || []).length > 0;
+              var catColor = hasErr && spec.errors[0] && spec.errors[0].color ? spec.errors[0].color : '#ef4444';
+              var borderCol = hasErr ? catColor : 'transparent';
+              var catBadge = '';
+              if (spec.error_category) {
+                var err0 = spec.errors && spec.errors[0] ? spec.errors[0] : {};
+                catBadge = '<span style="font-size:10px;padding:1px 6px;border-radius:8px;background:' + catColor + '22;color:' + catColor + ';white-space:nowrap">' + _e2eEsc((err0.icon || '') + ' ' + spec.error_category) + '</span>';
               }
+              var specDetailId = 'e2e-v2-spec-d-' + idx;
+              var copyBtn = '<button onclick="event.stopPropagation();e2eV2CopySpec(' + idx + ',this)" title="Copiar detalhes do teste (JSON)" style="padding:3px 5px;background:transparent;border:1px solid transparent;border-radius:4px;color:#475569;cursor:pointer;line-height:0;transition:all .15s;flex-shrink:0" onmouseover="this.style.borderColor=\'#475569\';this.style.color=\'#94a3b8\'" onmouseout="this.style.borderColor=\'transparent\';this.style.color=\'#475569\'">'
+                + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
+                + '</button>';
+              var postmanBtn = '<button onclick="event.stopPropagation();e2eV2DownloadSpecPostman(' + idx + ')" title="Baixar Collection Postman deste teste" style="padding:3px 5px;background:transparent;border:1px solid transparent;border-radius:4px;color:#475569;cursor:pointer;line-height:0;transition:all .15s;flex-shrink:0" onmouseover="this.style.borderColor=\'#ff6c37\';this.style.color=\'#ff8c5a\'" onmouseout="this.style.borderColor=\'transparent\';this.style.color=\'#475569\'">'
+                + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'
+                + '</button>';
+              suitesHTML += '<div onclick="e2eV2ToggleSpec(\'' + specDetailId + '\',this)" title="Clique para expandir" style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;background:var(--bg);cursor:pointer;border-left:2px solid ' + borderCol + ';transition:background .15s" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'var(--bg)\'">'
+                + '<span>' + ic + '</span>'
+                + '<span style="flex:1;font-size:12px;color:#cbd5e1">' + _e2eEsc(spec.title || '') + '</span>'
+                + catBadge
+                + '<span style="font-size:11px;color:var(--muted);font-family:monospace">' + (spec.duration || 0) + 's</span>'
+                + copyBtn + postmanBtn
+                + '<span class="v2-spec-chev" style="font-size:15px;color:' + (hasErr ? '#ef4444' : '#475569') + ';display:inline-block;transition:transform .2s;transform:rotate(0deg);line-height:1">&#8250;</span>'
+                + '</div>'
+                + '<div id="' + specDetailId + '" style="display:none;padding:4px 8px 8px 30px">'
+                + _e2eSpecInlineDetails(spec)
+                + '</div>';
             });
             suitesHTML += '</div>';
           }
           suitesHTML += '</div>';
         });
-        suitesHTML += '</div>';
+        suitesHTML += '</div></div>';
       } else {
-        suitesHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">Nenhuma suite encontrada.</div>';
+        suitesHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">Nenhuma suite encontrada nos resultados.</div>';
       }
 
-      var linkHTML = '<div style="margin-top:16px;text-align:center"><a href="https://github.com/josehelioaraujo/comprai/actions/workflows/e2e-v2.yml" target="_blank" style="color:#38bdf8;font-size:12px;text-decoration:none">&#128279; Ver histórico no GitHub Actions</a></div>';
+      var linkHTML = d.report_url
+        ? '<div style="margin-top:16px;text-align:center"><a href="' + d.report_url + '" target="_blank" style="color:#38bdf8;font-size:12px;text-decoration:none">&#128279; Ver run completo no GitHub Actions</a></div>'
+        : '<div style="margin-top:16px;text-align:center"><a href="https://github.com/josehelioaraujo/comprai/actions/workflows/e2e-v2.yml" target="_blank" style="color:#38bdf8;font-size:12px;text-decoration:none">&#128279; Ver histórico no GitHub Actions</a></div>';
+
+      var downloadsHTML = '';
+      if (d.report_zip || d.videos_zip) {
+        downloadsHTML = '<div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap">';
+        if (d.report_zip) {
+          downloadsHTML += '<a href="' + d.report_zip + '" download="playwright-report-v2.zip"'
+            + ' style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:#94a3b8;font-size:12px;font-weight:600;text-decoration:none;transition:all .15s;cursor:pointer"'
+            + ' onmouseover="this.style.borderColor=\'#7c3aed\';this.style.color=\'#a78bfa\'"'
+            + ' onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'">'
+            + '&#128196; Baixar Relatório</a>';
+        }
+        if (d.videos_zip) {
+          downloadsHTML += '<a href="' + d.videos_zip + '" download="videos-e2e-v2.zip"'
+            + ' style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:#94a3b8;font-size:12px;font-weight:600;text-decoration:none;transition:all .15s;cursor:pointer"'
+            + ' onmouseover="this.style.borderColor=\'#a855f7\';this.style.color=\'#c084fc\'"'
+            + ' onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'">'
+            + '&#127916; Baixar Vídeos</a>';
+        }
+        downloadsHTML += '<button onclick="e2eV2DownloadTodos()" style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:#94a3b8;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor=\'#22c55e\';this.style.color=\'#4ade80\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'">&#11123; Baixar Todos os Testes</button>';
+        downloadsHTML += '<button onclick="e2eV2DownloadPostmanAll()" style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:#94a3b8;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor=\'#ff6c37\';this.style.color=\'#ff8c5a\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="flex-shrink:0"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Baixar Collection Postman</button>';
+        downloadsHTML += '</div>';
+      }
 
       area.innerHTML = '<div style="font-size:11px;color:var(--muted);margin-bottom:16px">' + runInfo + '</div>'
         + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">'
@@ -2219,15 +2282,19 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
         + '<div style="font-size:14px;font-weight:700;color:#e2e8f0">E2E v2 — Fluxo Completo (T01–T31)</div>'
         + '<div style="font-size:12px;color:' + statusColor + ';font-weight:600;margin-top:2px">' + statusLabel + '</div>'
         + '</div></div>'
-        + kpiHTML + suitesHTML + linkHTML;
+        + kpiHTML + downloadsHTML + suitesHTML + linkHTML;
 
     } catch(e) {
-      area.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:24px 0">Execute o workflow E2E v2 para gerar os dados.</div>';
+      area.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:24px 0">Execute o workflow E2E v2 para gerar os dados.</div>'
+        + '<div style="margin-top:8px"><a href="https://github.com/josehelioaraujo/comprai/actions/workflows/e2e-v2.yml" target="_blank" style="color:#38bdf8;font-size:12px;text-decoration:none">&#128279; Abrir workflow no GitHub Actions</a></div>';
     }
   }
 
-  function _e2eV2Kpi(label, value, color, icon) {
-    return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;text-align:center">'
+  function _e2eV2Kpi(label, value, color, icon, filter) {
+    var extra = filter
+      ? ' onclick="e2eV2ShowModal(\'' + filter + '\')" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;text-align:center;cursor:pointer;transition:border-color .15s" onmouseover="this.style.borderColor=\'#7c3aed\'" onmouseout="this.style.borderColor=\'var(--border)\'" title="Clique para ver detalhes"'
+      : ' style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;text-align:center"';
+    return '<div' + extra + '>'
       + '<div style="font-size:18px;margin-bottom:4px">' + icon + '</div>'
       + '<div style="font-size:20px;font-weight:700;color:' + color + '">' + value + '</div>'
       + '<div style="font-size:11px;color:var(--muted);margin-top:2px">' + label + '</div>'
@@ -2341,6 +2408,94 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
     var btn = document.getElementById('e2e-v2-run-btn');
     if (btn) { btn.disabled = false; btn.innerHTML = '&#9654; Executar v2'; }
     clearInterval(_e2eV2Elapsed);
+  }
+
+  // ===== E2E v2 — Interatividade (espelha E2E/Evidências) =====
+  function e2eV2ShowModal(filter) {
+    var specs = _e2eV2Specs || [];
+    var filtered = filter === 'all' ? specs : specs.filter(function(s) { return s.status === filter; });
+    var labelMap = { all: 'Todos os Specs', passed: 'Specs — Passou', failed: 'Specs — Falhou', skipped: 'Specs — Ignorado' };
+    var colorMap = { all: '#94a3b8', passed: '#22c55e', failed: '#ef4444', skipped: '#f59e0b' };
+    var title = (labelMap[filter] || 'Specs') + ' <span style="font-size:12px;font-weight:400;color:var(--muted)">(' + filtered.length + ')</span>';
+    var color = colorMap[filter] || '#94a3b8';
+    e2eRenderModal('<span style="color:' + color + '">' + title + '</span>', _e2eSpecListHTML(filtered));
+  }
+
+  function e2eV2ToggleSuite(specsDivId, header) {
+    var el   = document.getElementById(specsDivId);
+    var chev = header ? header.querySelector('.e2e-v2-suite-chev') : null;
+    if (!el) return;
+    var open = el.style.display !== 'none';
+    el.style.display = open ? 'none' : '';
+    if (chev) chev.style.transform = open ? 'rotate(0deg)' : 'rotate(90deg)';
+  }
+
+  function e2eV2ToggleAllSuites() {
+    var divs  = document.querySelectorAll('[id^="e2e-v2-suite-specs-"]');
+    var chevs = document.querySelectorAll('.e2e-v2-suite-chev');
+    var anyOpen = false;
+    divs.forEach(function(d) { if (d.style.display !== 'none') anyOpen = true; });
+    divs.forEach(function(d)  { d.style.display = anyOpen ? 'none' : ''; });
+    chevs.forEach(function(c) { c.style.transform = anyOpen ? 'rotate(0deg)' : 'rotate(90deg)'; });
+    var btn = document.getElementById('e2e-v2-toggle-all-btn');
+    if (btn) btn.innerHTML = anyOpen ? '&#9660; Expandir tudo' : '&#9650; Recolher tudo';
+  }
+
+  function e2eV2ToggleSpec(detailId, row) {
+    var el   = document.getElementById(detailId);
+    var chev = row ? row.querySelector('.v2-spec-chev') : null;
+    if (!el) return;
+    var open = el.style.display !== 'none';
+    el.style.display = open ? 'none' : '';
+    if (chev) chev.style.transform = open ? 'rotate(0deg)' : 'rotate(90deg)';
+  }
+
+  function e2eV2CopySpec(idx, btn) {
+    var s = (_e2eV2Specs || [])[idx];
+    if (!s) return;
+    navigator.clipboard.writeText(JSON.stringify(s, null, 2)).then(function() {
+      var svg = btn.querySelector('svg');
+      if (svg) { svg.style.stroke = '#22c55e'; setTimeout(function(){ svg.style.stroke = ''; }, 1200); }
+    }).catch(function(){});
+  }
+
+  function e2eV2DownloadSpecPostman(idx) {
+    var s = (_e2eV2Specs || [])[idx];
+    if (!s) return;
+    var col = _e2eToPostmanCollection([s], s.title || 'spec');
+    var b = new Blob([JSON.stringify(col, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(b);
+    a.download = 'postman_v2_' + (s.title || '').replace(/[^a-z0-9]/gi, '_').slice(0, 50) + '.json';
+    a.click();
+  }
+
+  function e2eV2DownloadTodos() {
+    var specs = _e2eV2Specs || [];
+    if (!specs.length) return;
+    var payload = {
+      run: (_e2eV2LastData || {}).run,
+      timestamp: (_e2eV2LastData || {}).timestamp,
+      summary: (_e2eV2LastData || {}).summary,
+      specs: specs
+    };
+    var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'e2e_v2_todos_testes_run' + (payload.run || '0') + '.json';
+    a.click();
+  }
+
+  function e2eV2DownloadPostmanAll() {
+    var specs = _e2eV2Specs || [];
+    if (!specs.length) return;
+    var run = (_e2eV2LastData || {}).run || '0';
+    var col = _e2eToPostmanCollection(specs, 'Comprai E2E v2 — Run #' + run);
+    var b = new Blob([JSON.stringify(col, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(b);
+    a.download = 'comprai_e2e_v2_postman_run' + run + '.json';
+    a.click();
   }
 
   // Renderiza jobs com steps drill-down no painel de execução live
