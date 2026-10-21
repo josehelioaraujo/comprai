@@ -667,7 +667,7 @@ jobs:
           sed -i "s/__OPSWATCH_VERSION__/${VERSION}/" opswatch/dashboard/index.html
 
       - name: Migrar diretório k6→opswatch na VPS (idempotente)
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ env.VPS_HOST }}
           username: ${{ env.VPS_USER }}
