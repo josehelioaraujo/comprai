@@ -113,7 +113,7 @@ let verInfo = {};
 let _rnTotal = 1, _rnCurrent = 0, _rnStop = false, _rnOnDone = null;
 
 // IDs das secoes navegaveis (exceto detalhes que e fixo)
-const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','codeMetricsBlock','mutacaoBlock','sonarBlock','owaspBlock','pciBlock','depBlock','secScanBlock','pentestBlock','evolucaoBlock','integrationBlock','e2eBlock','obsMetricasBlock','obsLogsBlock','obsAcessoBlock','obsTracesBlock','obsErrosBlock','obsContainersBlock','healthMapBlock','newRelicBlock','qualityScoreBlock','correlacaoBlock'];
+const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','codeMetricsBlock','mutacaoBlock','sonarBlock','owaspBlock','pciBlock','depBlock','secScanBlock','pentestBlock','evolucaoBlock','integrationBlock','e2eBlock','e2eV2Block','obsMetricasBlock','obsLogsBlock','obsAcessoBlock','obsTracesBlock','obsErrosBlock','obsContainersBlock','healthMapBlock','newRelicBlock','qualityScoreBlock','correlacaoBlock'];
 let activeSection = null; // null = nenhuma extra visivel
 
 const TYPE_ORDER = ['smoke','load','stress','spike','soak'];
@@ -1503,7 +1503,8 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
   window.showSection = function(id, el) {
     if (typeof _origShowSection === 'function') _origShowSection(id, el);
     if (id === 'mutacaoBlock') loadMutationData();
-    if (id === 'e2eBlock') loadE2eData();
+    if (id === 'e2eBlock')   loadE2eData();
+    if (id === 'e2eV2Block') loadE2eV2Data();
   };
 
   // ===== E2E EVIDENCE RECORDER =====
@@ -2116,6 +2117,198 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
     var btn = document.getElementById('e2e-run-btn');
     if (btn) { btn.disabled = false; btn.innerHTML = '&#9654; Executar'; }
     clearInterval(_e2eElapsed);
+  }
+
+  // ===== E2E v2 — Fluxo Completo T01-T31 =====
+  var _e2eV2LastData = null;
+  var _e2eV2RunId    = null;
+  var _e2eV2PollTmr  = null;
+  var _e2eV2Elapsed  = null;
+  var _e2eV2ElapsedN = 0;
+
+  async function loadE2eV2Data() {
+    var area = document.getElementById('e2e-v2-content');
+    if (!area) return;
+    area.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:24px 0">Carregando dados E2E v2...</div>';
+    try {
+      var res = await fetch('/opswatch/results/e2e-v2/latest.json?t=' + Date.now());
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var d = await res.json();
+      _e2eV2LastData = d;
+
+      var summary  = d.summary  || {};
+      var total    = summary.total   || 0;
+      var passed   = summary.passed  || 0;
+      var failed   = summary.failed  || 0;
+      var skipped  = summary.skipped || 0;
+      var duration = summary.duration || 0;
+      var status   = d.status || 'unknown';
+      var statusColor = status === 'passed' ? '#22c55e' : status === 'failed' ? '#ef4444' : '#f59e0b';
+      var statusLabel = status === 'passed' ? 'PASSOU' : status === 'failed' ? 'FALHOU' : status === 'no_results' ? 'SEM DADOS' : 'ERRO';
+      var passRate = total > 0 ? Math.round((passed / total) * 100) : 0;
+
+      var runInfo = '';
+      if (d.run) runInfo = 'Run #' + d.run + (d.sha ? ' &nbsp;·&nbsp; SHA ' + d.sha : '') + (d.timestamp ? ' &nbsp;·&nbsp; ' + new Date(d.timestamp).toLocaleString('pt-BR') : '');
+
+      // KPI Cards
+      var kpiHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:20px">'
+        + _e2eV2Kpi('Total',    total,    '#94a3b8', '&#127379;')
+        + _e2eV2Kpi('Passou',   passed,   '#22c55e', '&#9989;')
+        + _e2eV2Kpi('Falhou',   failed,   failed > 0 ? '#ef4444' : '#22c55e', '&#10060;')
+        + _e2eV2Kpi('Ignorado', skipped,  '#f59e0b', '&#9940;')
+        + _e2eV2Kpi('Duracao',  duration + 's', '#38bdf8', '&#9201;')
+        + _e2eV2Kpi('Taxa OK',  passRate + '%', passRate === 100 ? '#22c55e' : passRate >= 80 ? '#f59e0b' : '#ef4444', '&#128200;')
+        + '</div>';
+
+      // Suites
+      var suites = d.suites || [];
+      var suitesHTML = '';
+      if (suites.length > 0) {
+        suitesHTML = '<div style="display:flex;flex-direction:column;gap:8px">';
+        suites.forEach(function(suite) {
+          var sf = suite.failed || 0;
+          var sp = suite.passed || 0;
+          var sc = (suite.specs || []).length;
+          var sColor = sf > 0 ? '#ef4444' : '#22c55e';
+          suitesHTML += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;overflow:hidden">';
+          suitesHTML += '<div style="display:flex;align-items:center;gap:8px;padding:12px 14px">'
+            + '<span style="font-size:14px">&#128196;</span>'
+            + '<span style="flex:1;font-size:13px;font-weight:600;color:#e2e8f0">' + (suite.file || 'unknown') + '</span>'
+            + '<span style="font-size:11px;color:#22c55e">&#9989; ' + sp + '</span>'
+            + (sf > 0 ? '<span style="font-size:11px;color:#ef4444">&#10060; ' + sf + '</span>' : '')
+            + '<span style="font-size:11px;color:var(--muted)">/ ' + sc + '</span>'
+            + '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;background:' + sColor + '22;color:' + sColor + '">' + (sf > 0 ? 'FALHOU' : 'PASSOU') + '</span>'
+            + '</div>';
+          if ((suite.specs || []).length > 0) {
+            suitesHTML += '<div style="border-top:1px solid var(--border);padding:8px 14px;display:flex;flex-direction:column;gap:4px">';
+            (suite.specs || []).forEach(function(spec) {
+              var ic  = spec.status === 'passed' ? '&#9989;' : spec.status === 'failed' ? '&#10060;' : '&#9940;';
+              var sc2 = spec.status === 'passed' ? '#22c55e' : spec.status === 'failed' ? '#ef4444' : '#f59e0b';
+              suitesHTML += '<div style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:5px;background:var(--bg)">'
+                + '<span>' + ic + '</span>'
+                + '<span style="flex:1;font-size:12px;color:#cbd5e1">' + (spec.title || '') + '</span>'
+                + '<span style="font-size:11px;color:var(--muted);font-family:monospace">' + (spec.duration || 0) + 's</span>'
+                + '</div>';
+              if (spec.errors && spec.errors.length > 0) {
+                suitesHTML += '<div style="padding:4px 8px 6px 30px">'
+                  + '<div style="font-size:11px;color:#ef4444;background:#ef444411;border-radius:4px;padding:4px 8px;font-family:monospace;white-space:pre-wrap;word-break:break-all">'
+                  + spec.errors[0].message.slice(0, 200) + '</div></div>';
+              }
+            });
+            suitesHTML += '</div>';
+          }
+          suitesHTML += '</div>';
+        });
+        suitesHTML += '</div>';
+      } else {
+        suitesHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">Nenhuma suite encontrada.</div>';
+      }
+
+      var linkHTML = '<div style="margin-top:16px;text-align:center"><a href="https://github.com/josehelioaraujo/comprai/actions/workflows/e2e-v2.yml" target="_blank" style="color:#38bdf8;font-size:12px;text-decoration:none">&#128279; Ver histórico no GitHub Actions</a></div>';
+
+      area.innerHTML = '<div style="font-size:11px;color:var(--muted);margin-bottom:16px">' + runInfo + '</div>'
+        + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">'
+        + '<span style="font-size:24px">&#127381;</span>'
+        + '<div>'
+        + '<div style="font-size:14px;font-weight:700;color:#e2e8f0">E2E v2 — Fluxo Completo (T01–T31)</div>'
+        + '<div style="font-size:12px;color:' + statusColor + ';font-weight:600;margin-top:2px">' + statusLabel + '</div>'
+        + '</div></div>'
+        + kpiHTML + suitesHTML + linkHTML;
+
+    } catch(e) {
+      area.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:24px 0">Execute o workflow E2E v2 para gerar os dados.</div>'
+        + '<div style="margin-top:8px"><a href="https://github.com/josehelioaraujo/comprai/actions/workflows/e2e-v2.yml" target="_blank" style="color:#38bdf8;font-size:12px;text-decoration:none">&#128279; Abrir workflow no GitHub Actions</a></div>';
+    }
+  }
+
+  function _e2eV2Kpi(label, value, color, icon) {
+    return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;text-align:center">'
+      + '<div style="font-size:18px;margin-bottom:4px">' + icon + '</div>'
+      + '<div style="font-size:20px;font-weight:700;color:' + color + '">' + value + '</div>'
+      + '<div style="font-size:11px;color:var(--muted);margin-top:2px">' + label + '</div>'
+      + '</div>';
+  }
+
+  async function e2eV2RunWorkflow() {
+    var btn = document.getElementById('e2e-v2-run-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span> Executando...'; }
+    var panel = document.getElementById('e2e-v2-exec-panel');
+    if (panel) panel.style.display = '';
+    _e2eV2ElapsedN = 0;
+    clearInterval(_e2eV2Elapsed);
+    _e2eV2Elapsed = setInterval(function() {
+      _e2eV2ElapsedN++;
+      var el = document.getElementById('e2e-v2-exec-elapsed');
+      if (el) el.textContent = _e2eV2ElapsedN + 's';
+    }, 1000);
+    document.getElementById('e2e-v2-exec-icon').innerHTML   = '&#9203;';
+    document.getElementById('e2e-v2-exec-status').textContent = 'Disparando workflow...';
+    document.getElementById('e2e-v2-exec-bar').style.width  = '10%';
+    try {
+      var res = await fetch('/api/github/dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ repo: 'josehelioaraujo/comprai', workflow: 'e2e-v2.yml', ref: 'main' })
+      });
+      if (!res.ok) { var er = await res.json().catch(function(){return{};}); throw new Error(er.detail || 'Dispatch falhou: ' + res.status); }
+      var data = await res.json();
+      document.getElementById('e2e-v2-exec-status').textContent = 'Aguardando execução...';
+      document.getElementById('e2e-v2-exec-bar').style.width = '30%';
+      if (data.runId) {
+        _e2eV2RunId = data.runId;
+        var lnk = document.getElementById('e2e-v2-exec-link');
+        if (lnk && data.url) { lnk.href = data.url; lnk.style.display = ''; }
+        e2eV2PollStatus();
+      } else {
+        _e2eV2PollTmr = setTimeout(e2eV2PollForRun, 6000);
+      }
+    } catch(err) {
+      document.getElementById('e2e-v2-exec-icon').innerHTML   = '&#10060;';
+      document.getElementById('e2e-v2-exec-status').textContent = 'Erro: ' + err.message;
+      _e2eV2ResetBtn();
+    }
+  }
+
+  async function e2eV2PollForRun() {
+    try {
+      var res = await fetch('/api/github/run/latest?workflow=e2e-v2.yml&repo=josehelioaraujo/comprai');
+      if (!res.ok) { _e2eV2PollTmr = setTimeout(e2eV2PollForRun, 5000); return; }
+      var data = await res.json();
+      if (!data.runId) { _e2eV2PollTmr = setTimeout(e2eV2PollForRun, 5000); return; }
+      _e2eV2RunId = data.runId;
+      var lnk = document.getElementById('e2e-v2-exec-link');
+      if (lnk && data.url) { lnk.href = data.url; lnk.style.display = ''; }
+      e2eV2PollStatus();
+    } catch(e) { _e2eV2PollTmr = setTimeout(e2eV2PollForRun, 6000); }
+  }
+
+  async function e2eV2PollStatus() {
+    clearTimeout(_e2eV2PollTmr);
+    if (!_e2eV2RunId) return;
+    try {
+      var rRes = await fetch('/api/github/run/' + _e2eV2RunId + '/status');
+      if (!rRes.ok) throw new Error('status ' + rRes.status);
+      var data = await rRes.json();
+      if (data.status === 'completed') {
+        clearInterval(_e2eV2Elapsed);
+        var ok = data.conclusion === 'success';
+        document.getElementById('e2e-v2-exec-icon').innerHTML    = ok ? '&#9989;' : '&#10060;';
+        document.getElementById('e2e-v2-exec-status').textContent = ok ? 'Todos os testes passaram!' : 'Falhou — ' + data.conclusion;
+        document.getElementById('e2e-v2-exec-bar').style.width   = '100%';
+        _e2eV2ResetBtn();
+        setTimeout(loadE2eV2Data, 2000);
+      } else {
+        document.getElementById('e2e-v2-exec-bar').style.width = '60%';
+        document.getElementById('e2e-v2-exec-status').textContent = 'Executando testes T01–T31...';
+        _e2eV2PollTmr = setTimeout(e2eV2PollStatus, 8000);
+      }
+    } catch(e) { _e2eV2PollTmr = setTimeout(e2eV2PollStatus, 10000); }
+  }
+
+  function _e2eV2ResetBtn() {
+    var btn = document.getElementById('e2e-v2-run-btn');
+    if (btn) { btn.disabled = false; btn.innerHTML = '&#9654; Executar v2'; }
+    clearInterval(_e2eV2Elapsed);
   }
 
   // Renderiza jobs com steps drill-down no painel de execução live
@@ -8591,6 +8784,9 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <div class="nav-item" id="nav-e2e" onclick="showSection('e2eBlock', this); loadE2eData();" title="E2E Evidence Recorder — Playwright">
           <span class="nav-icon">&#127916;</span><span class="nav-text">E2E / Evidencias</span>
         </div>
+        <div class="nav-item" id="nav-e2e-v2" onclick="showSection('e2eV2Block', this); loadE2eV2Data();" title="E2E v2 — Fluxo Completo T01-T31">
+          <span class="nav-icon">&#127381;</span><span class="nav-text">E2E v2 / Full Flow</span>
+        </div>
 
       </div>
     </div>
@@ -11168,6 +11364,56 @@ tr:hover td { background: rgba(255,255,255,.02); }
       <div id="e2e-content" style="min-height:120px">
         <div style="color:var(--muted);font-size:13px;text-align:center;padding:40px 0">
           Clique em <strong>Atualizar</strong> ou navegue para esta secao para carregar os dados.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== E2E v2 — FLUXO COMPLETO T01-T31 ===== -->
+  <div id="e2eV2Block" class="content-section" style="display:none">
+    <div class="section-header">
+      <h2 class="section-title">&#127381; E2E v2 / Fluxo Completo (T01–T31)</h2>
+      <div style="display:flex;align-items:center;gap:8px">
+        <a href="https://github.com/josehelioaraujo/comprai/actions/workflows/e2e-v2.yml"
+           target="_blank"
+           style="font-size:12px;color:#38bdf8;text-decoration:none;display:flex;align-items:center;gap:4px">
+          &#128279; GitHub Actions
+        </a>
+        <button onclick="loadE2eV2Data()"
+          style="font-size:12px;padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer">
+          &#8635; Atualizar
+        </button>
+        <button id="e2e-v2-run-btn" onclick="e2eV2RunWorkflow()"
+          style="font-size:12px;padding:5px 14px;border-radius:6px;border:none;background:#7c3aed;color:#fff;cursor:pointer;display:flex;align-items:center;gap:5px;font-weight:600">
+          &#9654; Executar v2
+        </button>
+      </div>
+    </div>
+    <div class="section-body">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6">
+        Cobertura completa <strong style="color:#e2e8f0">T01–T31</strong> via API direta
+        (<code style="color:#a78bfa">http://2.25.122.11:5020</code>).
+        Testa: Health · Auth (register, login, refresh) · Search · Cart · Checkout · Payment · Orders.
+      </div>
+      <!-- Painel de execução live v2 -->
+      <div id="e2e-v2-exec-panel" style="display:none;background:var(--surface2);border:1px solid #7c3aed;border-radius:10px;padding:14px 16px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span id="e2e-v2-exec-icon" style="font-size:16px">&#9203;</span>
+            <span id="e2e-v2-exec-status" style="font-size:13px;font-weight:600;color:#e2e8f0">Disparando workflow...</span>
+          </div>
+          <span id="e2e-v2-exec-elapsed" style="font-size:11px;color:var(--muted);font-family:monospace"></span>
+        </div>
+        <div style="background:var(--bg);border-radius:4px;height:5px;overflow:hidden;margin-bottom:10px">
+          <div id="e2e-v2-exec-bar" style="height:100%;background:#7c3aed;width:0%;transition:width .5s ease;border-radius:4px"></div>
+        </div>
+        <div style="margin-bottom:8px">
+          <a id="e2e-v2-exec-link" href="#" target="_blank" style="display:none;font-size:11px;color:#38bdf8;text-decoration:none">&#128279; Ver no GitHub Actions</a>
+        </div>
+      </div>
+      <div id="e2e-v2-content" style="min-height:120px">
+        <div style="color:var(--muted);font-size:13px;text-align:center;padding:40px 0">
+          Clique em <strong>Atualizar</strong> ou <strong>Executar v2</strong> para carregar os dados.
         </div>
       </div>
     </div>
