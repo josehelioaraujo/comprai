@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using StackExchange.Redis;
 using System.Net.Sockets;
+using Npgsql;
 
 namespace UcpAgent.Api.Health;
 
@@ -17,6 +18,7 @@ public static class HealthCheckExtensions
 
         var hc = services.AddHealthChecks()
             .AddCheck<RedisHealthCheck> ("redis",        tags: ["infra"])
+            .AddCheck("postgres", PostgresCheck(config), tags: ["infra"])
             .AddCheck<OllamaHealthCheck>("ollama",       tags: ["ai"])
             .AddCheck("datadog-otel", DatadogCheck(),   tags: ["observability"])
             .AddCheck("prometheus",   PrometheusCheck(), tags: ["observability"])
@@ -33,19 +35,38 @@ public static class HealthCheckExtensions
         return services;
     }
 
-    // ── Redis: resolve via IServiceProvider (opcional — sem exception sem Redis) ─
+    // ── Redis: PingAsync real — IsConnected pode ser false no startup mesmo funcionando ─
     public class RedisHealthCheck(IServiceProvider sp) : IHealthCheck
     {
-        public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken ct = default)
+        public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken ct = default)
         {
             var mux = sp.GetService<IConnectionMultiplexer>();
             if (mux is null)
-                return Task.FromResult(HealthCheckResult.Degraded("Redis não configurado"));
-            return Task.FromResult(mux.IsConnected
-                ? HealthCheckResult.Healthy()
-                : HealthCheckResult.Unhealthy("Not connected"));
+                return HealthCheckResult.Degraded("Redis não configurado");
+            try
+            {
+                await mux.GetDatabase().PingAsync();
+                return HealthCheckResult.Healthy();
+            }
+            catch (Exception ex)
+            {
+                return HealthCheckResult.Unhealthy($"Redis ping falhou: {ex.Message}");
+            }
         }
     }
+
+    // ── Postgres: TCP check na porta 5432 ────────────────────────────────────
+    [ExcludeFromCodeCoverage(Justification = "Requer Postgres em execução")]
+    private static Func<HealthCheckResult> PostgresCheck(IConfiguration config) => () =>
+    {
+        var host = config["ConnectionStrings:DefaultConnection"]
+            ?.Split(';', StringSplitOptions.RemoveEmptyEntries)
+            .Select(p => p.Trim())
+            .FirstOrDefault(p => p.StartsWith("Host=", StringComparison.OrdinalIgnoreCase))
+            ?.Split('=').ElementAtOrDefault(1)
+            ?? "comprai-postgres";
+        return TcpCheck(host, 5432, "PostgreSQL");
+    };
 
     // ── Ollama: async real, timeout 2s ────────────────────────────────────────
     [ExcludeFromCodeCoverage(Justification = "Requer Ollama em execução")]

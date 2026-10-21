@@ -249,7 +249,7 @@ function fmt(v, dec) {
 // ── Load gh-config.json ──────────────────────────────────────
 async function loadGhConfig() {
   try {
-    var r = await fetch(API_BASE + '/k6/results/gh-config.json?t=' + Date.now());
+    var r = await fetch(API_BASE + '/opswatch/results/gh-config.json?t=' + Date.now());
     if (!r.ok) return;
     var cfg = await r.json();
     if (cfg && cfg.repo) {
@@ -340,7 +340,7 @@ function loadComplexity(){
   var el=document.getElementById('cmComplexityContent');if(!el)return;
   var C={ok:'#22c55e',warn:'#fbbf24',err:'#ef4444'};
   window._cmHotspots={};
-  fetch('/k6/results/metrics/complexity.json?_='+Date.now())
+  fetch('/opswatch/results/metrics/complexity.json?_='+Date.now())
   .then(function(r){return r.ok?r.json():null;})
   .then(function(d){
     if(!d||!d.projects||!Object.keys(d.projects).length){
@@ -408,7 +408,7 @@ function cmCxToggleDet(id){
 
 function loadCoupling(){
   var el=document.getElementById('cmCouplingContent');if(!el)return;
-  fetch('/k6/results/metrics/coupling.json?_='+Date.now())
+  fetch('/opswatch/results/metrics/coupling.json?_='+Date.now())
   .then(function(r){return r.ok?r.json():null;})
   .then(function(d){
     if(!d||!d.projects||!Object.keys(d.projects).length){
@@ -470,7 +470,7 @@ function loadCoupling(){
 function cmShowRefactor(level){
   // Se dados ainda nao carregados, carrega primeiro e reabre
   if(!window._cmHotspots||!Object.keys(window._cmHotspots).length){
-    fetch('/k6/results/metrics/complexity.json?_='+Date.now())
+    fetch('/opswatch/results/metrics/complexity.json?_='+Date.now())
     .then(function(r){return r.ok?r.json():null;})
     .then(function(d){
       if(!d||!d.projects){
@@ -1083,7 +1083,7 @@ async function loadAll(silent) {
     document.getElementById('dashContent').style.display = 'none';
   }
   try {
-    var idxResp = await fetch(API_BASE + '/k6/results/index.json?t=' + Date.now());
+    var idxResp = await fetch(API_BASE + '/opswatch/results/index.json?t=' + Date.now());
     if (!idxResp.ok) throw new Error('index.json nao encontrado');
     var idx = await idxResp.json();
     verInfo = { run: idx.run, sha: idx.sha, timestamp: idx.timestamp, conclusion: idx.conclusion, threshold_failures: idx.threshold_failures || [] };
@@ -1094,7 +1094,7 @@ async function loadAll(silent) {
     if (!files.length) { document.getElementById('loadingMsg').textContent = 'Nenhum resultado encontrado.'; return; }
 
     var settled = await Promise.allSettled(files.map(function(f) {
-      return fetch(API_BASE + '/k6/results/' + f + '?t=' + Date.now()).then(function(r) { return r.ok ? r.json() : null; }).catch(function() { return null; });
+      return fetch(API_BASE + '/opswatch/results/' + f + '?t=' + Date.now()).then(function(r) { return r.ok ? r.json() : null; }).catch(function() { return null; });
     }));
     allData = settled.map(function(r, i) { return (r.status === 'fulfilled' && r.value) ? Object.assign({}, r.value, { _file: files[i] }) : null; }).filter(Boolean);
     allData.sort(function(a, b) {
@@ -1110,7 +1110,7 @@ async function loadAll(silent) {
   // Fallback: popular verInfo com sonar/latest.json se K6 nao carregou
   if (!verInfo.run) {
     try {
-      var sr = await fetch(API_BASE + '/k6/results/sonar/latest.json?t=' + Date.now());
+      var sr = await fetch(API_BASE + '/opswatch/results/sonar/latest.json?t=' + Date.now());
       if (sr.ok) {
         var sd = await sr.json();
         if (sd.run) verInfo = { run: sd.run, sha: sd.sha, timestamp: sd.timestamp, source: 'sonar' };
@@ -1454,7 +1454,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
   async function loadMutationData() {
     var empty = document.getElementById('mut-empty');
     try {
-      var res = await fetch('/k6/results/mutation/latest.json?t=' + Date.now());
+      var res = await fetch('/opswatch/results/mutation/latest.json?t=' + Date.now());
       if (!res.ok) throw new Error('HTTP ' + res.status);
       var d = await res.json();
 
@@ -1520,7 +1520,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
     if (!area) return;
     area.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:24px 0">Carregando dados E2E...</div>';
     try {
-      var res = await fetch('/k6/results/e2e/latest.json?t=' + Date.now());
+      var res = await fetch('/opswatch/results/e2e/latest.json?t=' + Date.now());
       if (!res.ok) throw new Error('HTTP ' + res.status);
       var d = await res.json();
       _e2eLastData = d;
@@ -2363,7 +2363,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
   async function loadSonarData() {
     var empty = document.getElementById('sonar-empty');
     try {
-      var res = await fetch('/k6/results/sonar/latest.json?t=' + Date.now());
+      var res = await fetch('/opswatch/results/sonar/latest.json?t=' + Date.now());
       if (!res.ok) throw new Error('HTTP ' + res.status);
       var d = await res.json();
 
@@ -3826,7 +3826,7 @@ const PT_RISK_COLORS = {
 
 function loadSecScanData() {
   const BASE_URL = 'https://comprai.2.25.122.11.nip.io';
-  fetch(BASE_URL + '/k6/results/security/latest.json?_t=' + Date.now())
+  fetch(BASE_URL + '/opswatch/results/security/latest.json?_t=' + Date.now())
     .then(r => {
       if (!r.ok) {
         // 404 = ainda não há varredura; não propagar como erro no console
@@ -4377,7 +4377,7 @@ function loadPentestData() {
   if (ac)   ac.style.display   = 'none';
   if (err)  err.style.display  = 'none';
 
-  fetch('/k6/results/pentest/latest.json?_=' + Date.now())
+  fetch('/opswatch/results/pentest/latest.json?_=' + Date.now())
     .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
     .then(function(d) { ptRender(d); })
     .catch(function() {
@@ -4527,7 +4527,7 @@ function ptPollResult(attempt) {
     return;
   }
   ptPollTimer = setTimeout(function() {
-    fetch('/k6/results/pentest/latest.json?t=' + Date.now())
+    fetch('/opswatch/results/pentest/latest.json?t=' + Date.now())
       .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
       .then(function(d) {
         ptRender(d);
@@ -5301,7 +5301,7 @@ function depPollResult(attempt) {
   clearTimeout(depPollTimer);
   depPollTimer = setTimeout(async function() {
     try {
-      var res = await fetch('/k6/results/vulnerabilities/latest.json?t=' + Date.now());
+      var res = await fetch('/opswatch/results/vulnerabilities/latest.json?t=' + Date.now());
       if (!res.ok) throw new Error('not ready');
       var d = await res.json();
       // Checar se é um resultado novo (run recente)
@@ -5335,7 +5335,7 @@ async function loadDepData() {
   if (tableWrap) tableWrap.style.display = 'none';
 
   try {
-    var res = await fetch('/k6/results/vulnerabilities/latest.json?t=' + Date.now());
+    var res = await fetch('/opswatch/results/vulnerabilities/latest.json?t=' + Date.now());
     if (!res.ok) throw new Error('HTTP ' + res.status);
     var d = await res.json();
 
@@ -5447,7 +5447,7 @@ async function loadEvolucaoData() {
   var scoreEl   = document.getElementById('evol-score');
 
   try {
-    var res = await fetch('/k6/results/history.json?t=' + Date.now());
+    var res = await fetch('/opswatch/results/history.json?t=' + Date.now());
     if (!res.ok) throw new Error('HTTP ' + res.status);
     var data = await res.json();
     if (!data || data.length === 0) throw new Error('vazio');
@@ -5873,8 +5873,8 @@ window.loadCorrelacao = async function() {
 
   try {
     var [resK6, resMut] = await Promise.all([
-      fetch('/k6/results/index.json?t=' + Date.now()),
-      fetch('/k6/results/mutation/latest.json?t=' + Date.now())
+      fetch('/opswatch/results/index.json?t=' + Date.now()),
+      fetch('/opswatch/results/mutation/latest.json?t=' + Date.now())
     ]);
 
     // ── Mutation por arquivo/handler ────────────────────────────
@@ -9557,9 +9557,9 @@ tr:hover td { background: rgba(255,255,255,.02); }
         try {
           // Buscar dados em paralelo
           var [resMut, resSonar, resK6] = await Promise.all([
-            fetch('/k6/results/mutation/latest.json?t=' + Date.now()),
-            fetch('/k6/results/sonar/latest.json?t=' + Date.now()),
-            fetch('/k6/results/index.json?t=' + Date.now())
+            fetch('/opswatch/results/mutation/latest.json?t=' + Date.now()),
+            fetch('/opswatch/results/sonar/latest.json?t=' + Date.now()),
+            fetch('/opswatch/results/index.json?t=' + Date.now())
           ]);
 
           // --- Mutation ---

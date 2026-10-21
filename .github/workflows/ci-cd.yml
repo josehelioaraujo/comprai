@@ -741,6 +741,13 @@ jobs:
           command_timeout: 8m
           script: |
             which newman || npm install -g newman
+            echo "Aguardando API pronta (health/ready = 200)..."
+            for i in $(seq 1 60); do
+              status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:${{ env.API_PORT }}/health/ready)
+              if [ "$status" = "200" ]; then echo "API pronta! (tentativa $i)"; break; fi
+              echo "Aguardando ($i/60)... status=$status"
+              sleep 2
+            done
             for i in 1 2 3; do
               echo "Tentativa $i/3..."
               if newman run /tmp/comprai-smoke/comprai-smoke.json \

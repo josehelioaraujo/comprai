@@ -29,7 +29,17 @@ public sealed class RedisCheckoutAdapter(
         Guid? authenticatedCustomerId = null,
         CancellationToken ct = default)
     {
-        var items = await cart.GetItemsAsync(sessionId, ct);
+        IReadOnlyList<CartItemDto> items;
+        try
+        {
+            items = await cart.GetItemsAsync(sessionId, ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[Checkout] Falha ao ler carrinho do Redis — sessão {SessionId}", sessionId);
+            return new CheckoutResultDto(string.Empty, false, $"Erro ao acessar carrinho: {ex.Message}");
+        }
+
         if (items.Count == 0)
             return new CheckoutResultDto(string.Empty, false, "Carrinho vazio");
 
