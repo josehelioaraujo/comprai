@@ -11,7 +11,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: 'http://+:5020'
       Features__UsarMockDados: 'false'
-      Features__UsarRedis:     'false'
+      Features__UsarRedis:     'true'
       Features__UsarKafka:     'true'
       Features__UsarRabbitMQ:  'true'
       Features__UsarPostgres:  'true'

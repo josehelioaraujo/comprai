@@ -331,6 +331,14 @@ const VERSIONS: Version[] = [
       { title: "Integração Linear (este script)", detail: "Workflows linear-backfill.yml e linear-sync.yml; population retroativa V052–V073" },
     ],
   },
+  {
+    id: "V074", date: "2026-10-21", type: "fix",
+    sectionTitle: "Smoke Tests + Qualidade",
+    status: "in_progress",
+    items: [
+      { title: "Fix smoke tests — Features__UsarRedis", detail: "docker-compose.yml: Features__UsarRedis 'false' → 'true'; produção estava usando MockCheckoutPort/MockOrderPort em vez de RedisCheckoutAdapter/RedisOrderAdapter" },
+    ],
+  },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

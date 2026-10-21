@@ -1,5 +1,12 @@
 # Changelog
 
+## [V074] — 2026-10-21
+
+### Fixed
+- **Smoke tests**: Corrigido `Features__UsarRedis: 'true'` no `docker-compose.yml` — produção estava usando `MockCheckoutPort`/`MockOrderPort` em vez de `RedisCheckoutAdapter`/`RedisOrderAdapter` porque `UsarMockDados=false` + `UsarRedis=false` cai no branch de mocks do `Program.cs`
+
+---
+
 ## [V073] — 2026-10-21
 
 ### Added — Linear: Backfill Retroativo V052–V072 + Scripts Idempotentes
