@@ -69,6 +69,75 @@ jobs:
             --project=chromium
         continue-on-error: true
 
+      - name: Exibir resultados E2E v2
+        if: always()
+        run: |
+          python3 - <<'PYEOF'
+          import json, os, sys
+
+          path = 'tests/e2e/playwright-results.json'
+          if not os.path.isfile(path):
+            print("::warning::playwright-results.json NAO ENCONTRADO")
+            sys.exit(0)
+
+          with open(path) as f:
+            raw = json.load(f)
+
+          stats   = raw.get('stats', {})
+          total   = stats.get('expected', 0) + stats.get('unexpected', 0) + stats.get('skipped', 0)
+          passed  = stats.get('expected', 0)
+          failed  = stats.get('unexpected', 0)
+          skipped = stats.get('skipped', 0)
+          dur_ms  = stats.get('duration', 0)
+
+          print(f"\n{'='*60}")
+          print(f"  PLAYWRIGHT E2E v2 — RESULTADOS")
+          print(f"{'='*60}")
+          print(f"  Total : {total}  |  ✅ {passed}  |  ❌ {failed}  |  ⏭ {skipped}")
+          print(f"  Duração: {round(dur_ms/1000)}s")
+          print(f"{'='*60}\n")
+
+          for suite in raw.get('suites', []):
+            suite_title = suite.get('title', '')
+            print(f"  📁 {suite_title}")
+            for spec in suite.get('specs', []):
+              title = spec.get('title', '')
+              ok    = True
+              for result in spec.get('tests', []):
+                for attempt in result.get('results', []):
+                  st = attempt.get('status', '')
+                  if st in ('failed', 'timedOut'):
+                    ok = False
+                    icon = '❌'
+                    dur  = round(attempt.get('duration', 0) / 1000)
+                    print(f"    {icon} [{dur}s] {title}")
+                    for err in attempt.get('errors', []):
+                      msg = err.get('message', '').split('\n')
+                      for line in msg[:6]:
+                        print(f"         {line}")
+                      snip = err.get('snippet', '')
+                      if snip:
+                        for line in snip.split('\n')[:4]:
+                          print(f"         {line}")
+                  elif st == 'skipped':
+                    icon = '⏭'
+                    print(f"    {icon} [skip] {title}")
+                    ok = None
+              if ok is True:
+                dur = 0
+                for result in spec.get('tests', []):
+                  for attempt in result.get('results', []):
+                    dur = round(attempt.get('duration', 0) / 1000)
+                print(f"    ✅ [{dur}s] {title}")
+
+          print(f"\n{'='*60}")
+          if failed > 0:
+            print(f"  ⛔ {failed} TESTE(S) FALHARAM")
+          else:
+            print(f"  ✅ TODOS OS TESTES PASSARAM")
+          print(f"{'='*60}\n")
+          PYEOF
+
       - name: Gerar latest.json para OpsWatch
         if: always()
         env:
