@@ -9,7 +9,7 @@ import { apiSendVerification, apiVerifyEmail } from '@/lib/api'
 const CODE_LENGTH = 6
 
 export default function VerifyEmailForm() {
-  const { data: session } = useSession()
+  const { data: session, update } = useSession()
   const router = useRouter()
 
   const [digits, setDigits]     = useState<string[]>(Array(CODE_LENGTH).fill(''))
@@ -90,6 +90,8 @@ export default function VerifyEmailForm() {
     setVerifying(true)
     try {
       await apiVerifyEmail(code, session.user.apiToken)
+      // Atualiza a sessão NextAuth para refletir emailVerified=true
+      await update({ emailVerified: true })
       router.push('/account')
       router.refresh()
     } catch {

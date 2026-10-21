@@ -26,12 +26,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           try {
             const c = JSON.parse(credentials.customer as string) as AuthResponse['customer']
             return {
-              id:           c.id,
-              name:         c.name,
-              email:        c.email,
-              image:        c.avatarUrl ?? null,
-              apiToken:     credentials.token as string,
-              customerId:   c.id,
+              id:            c.id,
+              name:          c.name,
+              email:         c.email,
+              image:         c.avatarUrl ?? null,
+              apiToken:      credentials.token as string,
+              customerId:    c.id,
+              emailVerified: c.emailVerified ?? false,
             }
           } catch { return null }
         }
@@ -46,12 +47,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           if (!res.ok) return null
           const data = await res.json() as AuthResponse
           return {
-            id:         data.customer.id,
-            name:       data.customer.name,
-            email:      data.customer.email,
-            image:      data.customer.avatarUrl ?? null,
-            apiToken:   data.token,
-            customerId: data.customer.id,
+            id:            data.customer.id,
+            name:          data.customer.name,
+            email:         data.customer.email,
+            image:         data.customer.avatarUrl ?? null,
+            apiToken:      data.token,
+            customerId:    data.customer.id,
+            emailVerified: data.customer.emailVerified ?? false,
           }
         } catch { return null }
       },
@@ -83,18 +85,24 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return true
     },
 
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session: updateData }) {
       if (user) {
-        token.apiToken   = user.apiToken
-        token.customerId = user.customerId ?? user.id
+        token.apiToken      = user.apiToken
+        token.customerId    = user.customerId ?? user.id
+        token.emailVerified = (user as { emailVerified?: boolean }).emailVerified ?? false
+      }
+      // Atualização explícita após verificação de e-mail
+      if (trigger === 'update' && updateData?.emailVerified === true) {
+        token.emailVerified = true
       }
       return token
     },
 
     async session({ session, token }) {
       if (session.user) {
-        session.user.id       = token.customerId as string
-        session.user.apiToken = token.apiToken   as string
+        session.user.id            = token.customerId    as string
+        session.user.apiToken      = token.apiToken      as string
+        session.user.emailVerified = token.emailVerified as boolean ?? false
       }
       return session
     },
