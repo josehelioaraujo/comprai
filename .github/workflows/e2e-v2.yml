@@ -58,14 +58,16 @@ jobs:
       - name: Executar E2E v2 (full-flow-v2.spec.ts)
         working-directory: tests/e2e
         env:
-          E2E_API_URL:       ${{ env.E2E_API_URL }}
-          E2E_USER_EMAIL:    ${{ secrets.E2E_USER_EMAIL }}
-          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+          E2E_API_URL:               ${{ env.E2E_API_URL }}
+          E2E_USER_EMAIL:            ${{ secrets.E2E_USER_EMAIL }}
+          E2E_USER_PASSWORD:         ${{ secrets.E2E_USER_PASSWORD }}
+          # JSON reporter escreve o arquivo (não diretório)
+          PLAYWRIGHT_JSON_OUTPUT_NAME: playwright-results.json
           CI: 'true'
         run: |
-          npx playwright test tests/full-flow-v2.spec.ts \
+          npx playwright test full-flow-v2.spec.ts \
             --reporter=json \
-            --output=playwright-results.json \
+            --output=test-artifacts \
             --project=chromium
         continue-on-error: true
 
@@ -81,10 +83,10 @@ jobs:
           run_num = os.environ.get('GH_RUN', '?')
           sha     = os.environ.get('GH_SHA', '')[:7]
 
-          # Le playwright-results.json
+          # Le playwright-results.json (garante que eh arquivo, nao diretorio)
           raw_path = 'tests/e2e/playwright-results.json'
           raw = {}
-          if os.path.exists(raw_path):
+          if os.path.isfile(raw_path):
             with open(raw_path) as f:
               raw = json.load(f)
 
