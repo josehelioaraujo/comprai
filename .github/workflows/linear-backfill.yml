@@ -30,6 +30,27 @@ jobs:
             tsx@4.19.1 \
             typescript@5.5.4
 
+      - name: Diagnostics
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          echo "## 🔍 Diagnóstico" >> $GITHUB_STEP_SUMMARY
+          echo "- Node: $(node --version)" >> $GITHUB_STEP_SUMMARY
+          echo "- npm: $(npm --version)" >> $GITHUB_STEP_SUMMARY
+          KEY_LEN=${#LINEAR_API_KEY}
+          echo "- LINEAR_API_KEY length: ${KEY_LEN}" >> $GITHUB_STEP_SUMMARY
+          if [ $KEY_LEN -gt 0 ]; then
+            echo "- API key prefix: ${LINEAR_API_KEY:0:8}..." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ❌ LINEAR_API_KEY está VAZIO" >> $GITHUB_STEP_SUMMARY
+          fi
+          HTTP=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: ${LINEAR_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d '{"query":"{ viewer { id name } }"}' \
+            https://api.linear.app/graphql)
+          echo "- Linear API /graphql HTTP status: ${HTTP}" >> $GITHUB_STEP_SUMMARY
+
       - name: Run backfill
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
