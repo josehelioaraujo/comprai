@@ -25,9 +25,10 @@ jobs:
 
       - name: Install dependencies
         run: |
-          npm init -y
-          npm install --save-dev @linear/sdk@7.0.0 tsx@4.19.1 typescript@5.5.4
-          echo "📦 @linear/sdk version: $(node -e \"console.log(require('./node_modules/@linear/sdk/package.json').version)\")"
+          npm install --save-dev \
+            @linear/sdk@7.0.0 \
+            tsx@4.19.1 \
+            typescript@5.5.4
 
       - name: Run backfill
         env:
