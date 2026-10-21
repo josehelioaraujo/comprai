@@ -1,0 +1,72 @@
+name: Linear — Sync de Sessão
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Versão a sincronizar (ex: V074). Vazio = lê do topo do CHANGELOG.md'
+        required: false
+        default: ''
+      status:
+        description: 'Status da versão no Linear'
+        required: true
+        default: 'in_progress'
+        type: choice
+        options:
+          - in_progress
+          - done
+
+jobs:
+  sync:
+    name: Sync versão → Linear
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          npm install --save-dev \
+            @linear/sdk@7.0.0 \
+            tsx@4.19.1 \
+            typescript@5.5.4
+
+      - name: Detect version from CHANGELOG
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+            echo "🔖 Versão informada: ${{ github.event.inputs.version }}"
+          else
+            VERSION=$(grep -m1 '^## \[' CHANGELOG.md | sed 's/## \[\(.*\)\].*/\1/')
+            echo "version=${VERSION}" >> $GITHUB_OUTPUT
+            echo "🔖 Versão detectada no CHANGELOG: ${VERSION}"
+          fi
+
+      - name: Run sync
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          npx tsx scripts/linear-populate.ts sync "${{ steps.version.outputs.version }}"
+
+      - name: Summary
+        if: success()
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          STATUS="${{ github.event.inputs.status }}"
+          echo "## ✅ Linear Sync — ${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Campo | Valor |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Versão | **${VERSION}** |" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | **${STATUS}** |" >> $GITHUB_STEP_SUMMARY
+          echo "| Executado por | @${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Data | $(date -u '+%Y-%m-%d %H:%M UTC') |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔗 [Abrir Linear](https://linear.app/helioandrade/project/comprai-platform)" >> $GITHUB_STEP_SUMMARY

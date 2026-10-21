@@ -1,0 +1,50 @@
+name: Linear — Backfill Retroativo (V052–V073)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Digite "sim" para confirmar a execução (operação única)'
+        required: true
+        default: ''
+
+jobs:
+  backfill:
+    name: Populate Linear workspace
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.confirm == 'sim' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          npm install --save-dev \
+            @linear/sdk@7.0.0 \
+            tsx@4.19.1 \
+            typescript@5.5.4
+
+      - name: Run backfill
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: npx tsx scripts/linear-populate.ts backfill
+
+      - name: Summary
+        if: success()
+        run: |
+          echo "## ✅ Linear Backfill concluído" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Criados no workspace **Helioandrade**:" >> $GITHUB_STEP_SUMMARY
+          echo "- 📁 Projeto: **Comprai Platform**" >> $GITHUB_STEP_SUMMARY
+          echo "- 🏷️ Labels: fix · feat · chore · infra · test · security · e2e" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔄 Cycles: V052 → V073" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ V052–V072: **Done**" >> $GITHUB_STEP_SUMMARY
+          echo "- 🚧 V073: **In Progress**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔗 [Abrir Linear](https://linear.app/helioandrade/project/comprai-platform)" >> $GITHUB_STEP_SUMMARY
