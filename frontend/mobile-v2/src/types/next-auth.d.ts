@@ -8,11 +8,11 @@ declare module 'next-auth' {
   }
 
   interface Session {
-    user: {
+    user: Omit<DefaultSession['user'], 'emailVerified'> & {
       id:            string
       apiToken:      string
       emailVerified: boolean
-    } & DefaultSession['user']
+    }
   }
 }
 

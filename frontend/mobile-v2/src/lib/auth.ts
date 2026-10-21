@@ -102,7 +102,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (session.user) {
         session.user.id            = token.customerId    as string
         session.user.apiToken      = token.apiToken      as string
-        session.user.emailVerified = token.emailVerified as boolean ?? false
+        session.user.emailVerified = Boolean(token.emailVerified)
       }
       return session
     },
