@@ -1,0 +1,36 @@
+name: Linear — Cleanup de Duplicatas
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Versão a limpar (ex: V073)'
+        required: true
+        default: 'V073'
+
+jobs:
+  cleanup:
+    name: Remove duplicate issues
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          npm install --save-dev \
+            @linear/sdk@7.0.0 \
+            tsx@4.19.1 \
+            typescript@5.5.4
+
+      - name: Run cleanup
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          npx tsx scripts/linear-populate.ts cleanup "${{ github.event.inputs.version }}"
