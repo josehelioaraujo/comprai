@@ -719,15 +719,14 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Copiar collection para VPS
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ env.VPS_HOST }}
-          username: ${{ env.VPS_USER }}
-          key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
-          source: "tests/newman/comprai-smoke.json"
-          target: "/tmp/comprai-smoke/"
-          strip_components: 2
-          overwrite: true
+        run: |
+          echo "${{ secrets.VPS_HOSTINGER_SSH_KEY }}" | install -m 600 /dev/stdin /tmp/vps_key
+          ssh -i /tmp/vps_key -o StrictHostKeyChecking=no -o ConnectTimeout=15 \
+            ${{ env.VPS_USER }}@${{ env.VPS_HOST }} "mkdir -p /tmp/comprai-smoke"
+          scp -i /tmp/vps_key -o StrictHostKeyChecking=no \
+            tests/newman/comprai-smoke.json \
+            ${{ env.VPS_USER }}@${{ env.VPS_HOST }}:/tmp/comprai-smoke/comprai-smoke.json
+          rm -f /tmp/vps_key
 
       - name: Run Smoke Tests via SSH (localhost)
         uses: appleboy/ssh-action@v1.2.0
