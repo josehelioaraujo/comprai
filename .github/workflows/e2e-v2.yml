@@ -149,7 +149,7 @@ jobs:
           GH_SHA: ${{ github.sha }}
         run: |
           python3 - <<'PYEOF'
-          import json, os, glob, datetime
+          import json, os, glob, datetime, re
 
           run_num = os.environ.get('GH_RUN', '?')
           sha     = os.environ.get('GH_SHA', '')[:7]
@@ -183,6 +183,39 @@ jobs:
               result.extend(collect_specs(sub))
             return result
 
+          def parse_requests_from_stdout(stdout_entries, spec_title):
+            """Extrai requests do stdout Playwright para popular spec.requests no OpsWatch."""
+            requests = []
+            # Extrai method e URL do titulo (ex: "T01 — GET /health/live")
+            tm = re.search(r'\b(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+(/\S+)', spec_title)
+            main_method = tm.group(1) if tm else 'HTTP'
+            main_url    = tm.group(2) if tm else spec_title
+            for entry in stdout_entries:
+              text = entry.get('text', '') if isinstance(entry, dict) else str(entry)
+              for line in text.splitlines():
+                line = line.strip()
+                if not line:
+                  continue
+                # Padrao principal: "[T01] /health/live → 200 ✅"  ou "[T18] Checkout → 500 | orderId: -"
+                m = re.match(r'^\[T\d+\]\s+(.+?)\s*[→:]\s*(\d{3})', line)
+                if m:
+                  label  = m.group(1).strip()
+                  status = int(m.group(2))
+                  detail = re.search(r'\|\s*(.+)$', line)
+                  res    = detail.group(1).strip() if detail else ''
+                  url    = label if label.startswith('/') else main_url
+                  requests.append({'method': main_method, 'url': url, 'status': status, 'res_body': res})
+                  continue
+                # Padrao sub-step: "  Search: 200 | 3 produto(s)"  ou "  AddToCart: 200"
+                m2 = re.match(r'^([A-Z][A-Za-z\s]+?)\s*:\s*(\d{3})', line)
+                if m2:
+                  name   = m2.group(1).strip()
+                  status = int(m2.group(2))
+                  detail = re.search(r'\|\s*(.+)$', line)
+                  res    = detail.group(1).strip() if detail else ''
+                  requests.append({'method': 'HTTP', 'url': f'{main_url} ({name})', 'status': status, 'res_body': res})
+            return requests
+
           for suite in raw.get('suites', []):
             file_name = suite.get('title', 'unknown')
             specs = []
@@ -190,9 +223,11 @@ jobs:
               s_status  = 'passed'
               s_dur     = 0
               s_errors  = []
+              s_stdout  = []
               for result in spec.get('tests', []):
                 for attempt in result.get('results', []):
                   s_dur = round(attempt.get('duration', 0) / 1000)
+                  s_stdout.extend(attempt.get('stdout', []))
                   if attempt.get('status', '') in ('failed', 'timedOut'):
                     s_status = 'failed'
                     for err in attempt.get('errors', []):
@@ -207,11 +242,13 @@ jobs:
                   elif attempt.get('status', '') == 'skipped':
                     if s_status != 'failed':
                       s_status = 'skipped'
+              s_requests = parse_requests_from_stdout(s_stdout, spec.get('title', ''))
               specs.append({
                 'title':    spec.get('title', ''),
                 'status':   s_status,
                 'duration': s_dur,
                 'errors':   s_errors,
+                'requests': s_requests,
               })
             sp = sum(1 for s in specs if s['status'] == 'passed')
             sf = sum(1 for s in specs if s['status'] == 'failed')
