@@ -97,38 +97,42 @@ jobs:
           print(f"  Duração: {round(dur_ms/1000)}s")
           print(f"{'='*60}\n")
 
-          for suite in raw.get('suites', []):
-            suite_title = suite.get('title', '')
-            print(f"  📁 {suite_title}")
+          def print_specs(suite, pad='  '):
+            title = suite.get('title', '')
+            if title:
+              print(f"{pad}📁 {title}")
             for spec in suite.get('specs', []):
-              title = spec.get('title', '')
-              ok    = True
+              stitle = spec.get('title', '')
+              ok     = True
               for result in spec.get('tests', []):
                 for attempt in result.get('results', []):
                   st = attempt.get('status', '')
                   if st in ('failed', 'timedOut'):
-                    ok = False
-                    icon = '❌'
-                    dur  = round(attempt.get('duration', 0) / 1000)
-                    print(f"    {icon} [{dur}s] {title}")
+                    ok  = False
+                    dur = round(attempt.get('duration', 0) / 1000)
+                    print(f"{pad}  ❌ [{dur}s] {stitle}")
                     for err in attempt.get('errors', []):
                       msg = err.get('message', '').split('\n')
                       for line in msg[:6]:
-                        print(f"         {line}")
+                        print(f"{pad}     {line}")
                       snip = err.get('snippet', '')
                       if snip:
                         for line in snip.split('\n')[:4]:
-                          print(f"         {line}")
+                          print(f"{pad}     {line}")
                   elif st == 'skipped':
-                    icon = '⏭'
-                    print(f"    {icon} [skip] {title}")
+                    print(f"{pad}  ⏭ [skip] {stitle}")
                     ok = None
               if ok is True:
                 dur = 0
                 for result in spec.get('tests', []):
                   for attempt in result.get('results', []):
                     dur = round(attempt.get('duration', 0) / 1000)
-                print(f"    ✅ [{dur}s] {title}")
+                print(f"{pad}  ✅ [{dur}s] {stitle}")
+            for sub in suite.get('suites', []):
+              print_specs(sub, pad + '  ')
+
+          for suite in raw.get('suites', []):
+            print_specs(suite)
 
           print(f"\n{'='*60}")
           if failed > 0:
@@ -171,10 +175,18 @@ jobs:
 
           # Suites
           suites = []
+          def collect_specs(node):
+            result = []
+            for spec in node.get('specs', []):
+              result.append(spec)
+            for sub in node.get('suites', []):
+              result.extend(collect_specs(sub))
+            return result
+
           for suite in raw.get('suites', []):
             file_name = suite.get('title', 'unknown')
             specs = []
-            for spec in suite.get('specs', []):
+            for spec in collect_specs(suite):
               s_status  = 'passed'
               s_dur     = 0
               s_errors  = []
