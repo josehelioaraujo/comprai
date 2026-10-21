@@ -323,7 +323,7 @@ const VERSIONS: Version[] = [
   {
     id: "V073", date: "2026-10-21", type: "fix",
     sectionTitle: "CI/CD Deploy Fix + Linear Integration",
-    status: "in_progress",
+    status: "done",
     items: [
       { title: "Fix CompraiDbInitializer bloqueava HTTP server", detail: "Movido de pré-app.Run() para ApplicationStarted + Task.Run background; /health/live responde imediatamente" },
       { title: "Fix App__WebUrl porta 3000 → 3005", detail: "deploy/docker-compose.yml: WEB_APP_URL default corrigido para porta 3005" },
