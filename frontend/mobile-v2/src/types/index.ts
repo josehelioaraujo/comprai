@@ -92,21 +92,4 @@ export interface ChatMessage {
 }
 
 // ── Session ───────────────────────────────────────────────────────────────────
-
-declare module 'next-auth' {
-  interface User {
-    apiToken?:     string
-    refreshToken?: string
-    customerId?:   string
-  }
-  interface Session {
-    user: {
-      id:             string
-      name?:          string | null
-      email?:         string | null
-      image?:         string | null
-      emailVerified?: boolean | null
-      apiToken?:      string
-    }
-  }
-}
+// NextAuth type augmentations live in src/types/next-auth.d.ts

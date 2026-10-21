@@ -35,7 +35,7 @@ export default function ProfileCard({ session }: Props) {
       </div>
 
       {/* email verification banner */}
-      {!user?.emailVerified && (
+      {!user?.isEmailVerified && (
         <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4">
           <svg width="20" height="20" fill="none" stroke="#D97706" strokeWidth="2" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round"

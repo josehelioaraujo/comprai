@@ -93,7 +93,7 @@ export default function VerifyEmailForm() {
     try {
       await apiVerifyEmail(code, session.user.apiToken)
       // Atualiza a sessão NextAuth para refletir emailVerified=true
-      await update({ emailVerified: true })
+      await update({ isEmailVerified: true })
       router.push('/account')
       router.refresh()
     } catch {
