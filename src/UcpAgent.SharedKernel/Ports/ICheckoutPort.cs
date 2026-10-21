@@ -13,7 +13,7 @@ public record CustomerDto(
     string  Name,
     string  Email,
     string  Phone,
-    string  Address,      // campo legado — mantido para compatibilidade
+    string  Address = "",  // campo legado — mantido para compatibilidade (default vazio evita erro de binding)
     string? Cep           = null,
     string? Street        = null,
     string? Number        = null,
