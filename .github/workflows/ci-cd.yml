@@ -685,6 +685,7 @@ jobs:
 
       - name: Migrar diretório k6→opswatch na VPS (idempotente)
         uses: appleboy/ssh-action@v1.2.0
+        continue-on-error: true
         with:
           host: ${{ env.VPS_HOST }}
           username: ${{ env.VPS_USER }}
@@ -693,9 +694,8 @@ jobs:
             if [ -d /var/www/html/k6 ] && [ ! -d /var/www/html/opswatch ]; then
               echo "Migrando /var/www/html/k6 → /var/www/html/opswatch"
               mv /var/www/html/k6 /var/www/html/opswatch
-            else
-              mkdir -p /var/www/html/opswatch/dashboard
             fi
+            mkdir -p /var/www/html/opswatch/dashboard
 
       - name: Copiar dashboard para VPS
         uses: appleboy/scp-action@v0.1.7
