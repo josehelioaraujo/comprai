@@ -115,8 +115,14 @@ jobs:
                   if attempt.get('status', '') in ('failed', 'timedOut'):
                     s_status = 'failed'
                     for err in attempt.get('errors', []):
-                      msg = err.get('message', '')
-                      s_errors.append({ 'message': msg[:200] })
+                      msg   = err.get('message', '')
+                      snip  = err.get('snippet', '')
+                      value = err.get('value', '')
+                      s_errors.append({
+                        'message': msg[:2000],
+                        'snippet': snip[:500] if snip else '',
+                        'value':   value[:500] if value else '',
+                      })
                   elif attempt.get('status', '') == 'skipped':
                     if s_status != 'failed':
                       s_status = 'skipped'
@@ -156,7 +162,20 @@ jobs:
           with open('e2e-v2-output/latest.json', 'w') as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
 
-          print(f"latest.json: status={status} total={total} passed={passed} failed={failed}")
+          print(f"latest.json: status={status} total={total} passed={passed} failed={failed} skipped={skipped}")
+
+          # ── Debug: imprimir specs com falha no log do CI
+          if failed > 0:
+            print("\n── FALHAS DETALHADAS ──────────────────────────────────")
+            for suite in suites:
+              for spec in suite['specs']:
+                if spec['status'] == 'failed':
+                  print(f"\n  ❌ {spec['title']}")
+                  for i, err in enumerate(spec['errors'], 1):
+                    print(f"     [erro {i}] {err['message'][:400]}")
+                    if err.get('snippet'):
+                      print(f"     [snippet] {err['snippet'][:200]}")
+            print("────────────────────────────────────────────────────────")
           PYEOF
 
       - name: Upload artefato Playwright
