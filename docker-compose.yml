@@ -31,6 +31,8 @@ services:
       Brevo__ApiKey: ${BREVO_SMTP_KEY:-}
       Brevo__Login: ${BREVO_SMTP_LOGIN:-}
       Brevo__From: ${BREVO_FROM_EMAIL:-helioandrade@hotmail.com}
+      App__WebUrl:   ${APP_WEB_URL:-http://2.25.122.11:3005}
+      App__AdminUrl: ${APP_ADMIN_URL:-http://2.25.122.11:3004}
     depends_on:
       - redis
       - comprai-postgres
