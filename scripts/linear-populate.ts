@@ -20,6 +20,9 @@ if (!LINEAR_API_KEY) {
   process.exit(1);
 }
 
+// Diagnostic: print partial key so we can confirm the secret is set
+console.log(`🔑 API key: ${LINEAR_API_KEY.slice(0, 8)}...${LINEAR_API_KEY.slice(-4)} (length: ${LINEAR_API_KEY.length})`);
+
 const client = new LinearClient({ apiKey: LINEAR_API_KEY });
 
 // ─── Colours for labels ──────────────────────────────────────────────────────
@@ -427,7 +430,19 @@ async function backfill() {
   console.log("🚀 Linear backfill — V052 → V073\n");
 
   // 1. Discover team
-  const teams = await client.teams();
+  console.log("📡 Conectando à Linear API...");
+  let teams;
+  try {
+    teams = await client.teams();
+  } catch (e) {
+    const err = e as Record<string, unknown>;
+    console.error("❌ Falha ao buscar teams:");
+    if (err["message"]) console.error(" message:", err["message"]);
+    if (err["status"]) console.error(" status:", err["status"]);
+    if (err["type"]) console.error(" type:", err["type"]);
+    if (err["errors"]) console.error(" errors:", JSON.stringify(err["errors"]));
+    throw e;
+  }
   if (teams.nodes.length === 0) throw new Error("No Linear teams found");
   const team = teams.nodes[0];
   console.log(`👥 Team: ${team.name} (${team.id})\n`);
@@ -639,10 +654,26 @@ async function syncVersion(versionId: string) {
 // ─── Entry point ──────────────────────────────────────────────────────────────
 const [, , command, arg] = process.argv;
 
+function handleError(e: unknown): never {
+  if (e instanceof Error) {
+    console.error("❌ ERROR:", e.message);
+    if (e.stack) console.error("Stack:", e.stack);
+    // Linear SDK errors have extra fields
+    const le = e as Record<string, unknown>;
+    if (le["type"]) console.error("Type:", le["type"]);
+    if (le["status"]) console.error("HTTP Status:", le["status"]);
+    if (le["errors"]) console.error("GraphQL errors:", JSON.stringify(le["errors"], null, 2));
+    if (le["raw"]) console.error("Raw:", le["raw"]);
+  } else {
+    console.error("❌ UNKNOWN ERROR:", JSON.stringify(e, null, 2));
+  }
+  process.exit(1);
+}
+
 if (command === "backfill") {
-  backfill().catch((e) => { console.error(e); process.exit(1); });
+  backfill().catch(handleError);
 } else if (command === "sync") {
-  syncVersion(arg ?? "").catch((e) => { console.error(e); process.exit(1); });
+  syncVersion(arg ?? "").catch(handleError);
 } else {
   console.error("Usage: npx tsx scripts/linear-populate.ts <backfill|sync> [version]");
   process.exit(1);
