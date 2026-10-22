@@ -347,12 +347,14 @@ jobs:
 
           rows_html = ''
           for i, (suite_name, spec) in enumerate(all_specs):
-            s_status = 'passed'
-            s_dur    = 0
-            s_errors = []
+            s_status  = 'passed'
+            s_dur     = 0
+            s_errors  = []
+            s_stdout  = []
             for result in spec.get('tests', []):
               for attempt in result.get('results', []):
                 s_dur = round(attempt.get('duration', 0) / 1000)
+                s_stdout.extend(attempt.get('stdout', []))
                 st = attempt.get('status', '')
                 if st in ('failed', 'timedOut'):
                   s_status = 'failed'
@@ -361,28 +363,53 @@ jobs:
                 elif st == 'skipped' and s_status != 'failed':
                   s_status = 'skipped'
 
+            s_requests = parse_requests_from_stdout(s_stdout, spec.get('title', ''))
+            req_html = ''
+            if s_requests:
+              req_html = '<table style="margin-top:10px;border-collapse:collapse;width:100%"><thead><tr style="border-bottom:1px solid #334155">'
+              req_html += '<th style="padding:4px 10px;font-size:10px;color:#475569;text-align:left">MÉTODO</th>'
+              req_html += '<th style="padding:4px 10px;font-size:10px;color:#475569;text-align:left">URL / AÇÃO</th>'
+              req_html += '<th style="padding:4px 10px;font-size:10px;color:#475569;text-align:center">HTTP</th>'
+              req_html += '<th style="padding:4px 10px;font-size:10px;color:#475569;text-align:left">RETORNO</th>'
+              req_html += '</tr></thead><tbody>'
+              for req in s_requests:
+                sc     = req['status']
+                sc_col = '#22c55e' if sc < 300 else '#f59e0b' if sc < 400 else '#ef4444'
+                rb     = esc(req['res_body'][:100]) if req.get('res_body') else '&mdash;'
+                req_html += (
+                  f'<tr style="border-bottom:1px solid #0f172a">'
+                  f'<td style="padding:3px 10px;font-size:11px;font-family:monospace;color:#7dd3fc">{esc(req["method"])}</td>'
+                  f'<td style="padding:3px 10px;font-size:11px;font-family:monospace;color:#e2e8f0;word-break:break-all">{esc(req["url"])}</td>'
+                  f'<td style="padding:3px 10px;font-size:12px;font-family:monospace;color:{sc_col};text-align:center;font-weight:700">{sc}</td>'
+                  f'<td style="padding:3px 10px;font-size:11px;color:#94a3b8">{rb}</td>'
+                  f'</tr>'
+                )
+              req_html += '</tbody></table>'
+
             if s_status == 'passed':
-              badge  = '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;background:#22c55e22;color:#22c55e">PASSOU</span>'
-              detail = '<div style="color:#22c55e;font-size:12px">&#9989; Nenhum erro registrado.</div>'
+              badge       = '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;background:#22c55e22;color:#22c55e">PASSOU</span>'
+              status_note = '<div style="color:#22c55e;font-size:12px;margin-bottom:6px">&#9989; Passou sem erros.</div>'
             elif s_status == 'failed':
-              badge  = '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;background:#ef444422;color:#ef4444">FALHOU</span>'
-              err_parts = ''.join(
-                f'<pre style="color:#fca5a5;font-size:11px;white-space:pre-wrap;margin-top:4px;max-height:120px;overflow:auto">{esc(e)}</pre>'
+              badge       = '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;background:#ef444422;color:#ef4444">FALHOU</span>'
+              err_parts   = ''.join(
+                f'<pre style="color:#fca5a5;font-size:11px;white-space:pre-wrap;margin-top:4px;max-height:120px;overflow:auto;background:#1e293b;padding:8px;border-radius:4px">{esc(e)}</pre>'
                 for e in s_errors[:2]
               )
-              detail = f'<div style="color:#ef4444;font-size:12px">&#10060; Falha detectada.{err_parts}</div>'
+              status_note = f'<div style="color:#ef4444;font-size:12px;margin-bottom:6px">&#10060; Falha detectada.{err_parts}</div>'
             else:
-              badge  = '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;background:#f59e0b22;color:#f59e0b">IGNORADO</span>'
-              detail = '<div style="color:#f59e0b;font-size:12px">&#9940; Ignorado.</div>'
+              badge       = '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;background:#f59e0b22;color:#f59e0b">IGNORADO</span>'
+              status_note = '<div style="color:#f59e0b;font-size:12px;margin-bottom:6px">&#9940; Ignorado.</div>'
+
+            detail = status_note + req_html
 
             rows_html += (
-              f'<tr class="sr" onclick="tg({i})" style="cursor:pointer">'
+              f'<tr class="sr" data-status="{s_status}" data-i="{i}" onclick="tg({i})" style="cursor:pointer">'
               f'<td style="color:#475569;font-size:11px;text-align:center">{str(i+1).zfill(3)}</td>'
               f'<td style="color:#475569;font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{esc(suite_name)}</td>'
               f'<td style="color:#e2e8f0">{esc(spec.get("title",""))}</td>'
               f'<td>{badge}</td>'
               f'<td style="color:#64748b;font-size:11px;text-align:right;font-family:monospace">{s_dur}s</td>'
-              f'<td style="color:#334155;font-size:14px;text-align:center">&#8250;</td>'
+              f'<td id="chv{i}" style="color:#334155;font-size:14px;text-align:center">&#8250;</td>'
               f'</tr>'
               f'<tr id="d{i}" style="display:none;background:#020617">'
               f'<td colspan="6" style="padding:12px 24px">{detail}</td>'
@@ -402,7 +429,9 @@ jobs:
             'h1{font-size:18px;font-weight:700;margin-bottom:4px}'
             '.sub{font-size:12px;color:#64748b;margin-bottom:24px}'
             '.sum{display:flex;gap:14px;margin-bottom:28px;flex-wrap:wrap}'
-            '.kpi{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 18px;text-align:center;min-width:90px}'
+            '.kpi{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 18px;text-align:center;min-width:90px;cursor:pointer;transition:border-color .15s,box-shadow .15s}'
+            '.kpi:hover{border-color:#38bdf8;box-shadow:0 0 0 1px #38bdf822}'
+            '.kpi.active{border-color:#38bdf8;box-shadow:0 0 0 2px #38bdf833}'
             '.kv{font-size:22px;font-weight:700}'
             '.kl{font-size:11px;color:#64748b;margin-top:2px}'
             'table{width:100%;border-collapse:collapse}'
@@ -415,16 +444,39 @@ jobs:
             f'<div class="sub">Run #{run_num} &middot; SHA {sha} &middot; {ts} &middot; '
             f'<span style="color:{status_color};font-weight:700">{status_label}</span></div>'
             '<div class="sum">'
-            f'<div class="kpi"><div class="kv" style="color:#94a3b8">{total}</div><div class="kl">Total</div></div>'
-            f'<div class="kpi"><div class="kv" style="color:#22c55e">{passed}</div><div class="kl">Passou</div></div>'
-            f'<div class="kpi"><div class="kv" style="color:{fail_color}">{failed}</div><div class="kl">Falhou</div></div>'
-            f'<div class="kpi"><div class="kv" style="color:#f59e0b">{skipped}</div><div class="kl">Ignorado</div></div>'
-            f'<div class="kpi"><div class="kv" style="color:#38bdf8">{duration}s</div><div class="kl">Dura&ccedil;&atilde;o</div></div>'
-            f'<div class="kpi"><div class="kv" style="color:{ok_color}">{pass_rate}%</div><div class="kl">Taxa OK</div></div>'
+            f'<div class="kpi" data-filter="all" onclick="flt(\'all\')" title="Exibir todos"><div class="kv" style="color:#94a3b8">{total}</div><div class="kl">Total</div></div>'
+            f'<div class="kpi" data-filter="passed" onclick="flt(\'passed\')" title="Filtrar aprovados"><div class="kv" style="color:#22c55e">{passed}</div><div class="kl">Passou</div></div>'
+            f'<div class="kpi" data-filter="failed" onclick="flt(\'failed\')" title="Filtrar falhos"><div class="kv" style="color:{fail_color}">{failed}</div><div class="kl">Falhou</div></div>'
+            f'<div class="kpi" data-filter="skipped" onclick="flt(\'skipped\')" title="Filtrar ignorados"><div class="kv" style="color:#f59e0b">{skipped}</div><div class="kl">Ignorado</div></div>'
+            f'<div class="kpi" title="Duração total da suite"><div class="kv" style="color:#38bdf8">{duration}s</div><div class="kl">Dura&ccedil;&atilde;o</div></div>'
+            f'<div class="kpi" title="Taxa de sucesso"><div class="kv" style="color:{ok_color}">{pass_rate}%</div><div class="kl">Taxa OK</div></div>'
             '</div>'
             '<table><thead><tr><th>#</th><th>Arquivo</th><th>Teste</th><th>Status</th><th>Dur.</th><th></th></tr></thead>'
             f'<tbody>{rows_html}</tbody></table>'
-            '<script>function tg(i){var d=document.getElementById("d"+i);if(d)d.style.display=d.style.display==="none"?"table-row":"none";}</script>'
+            '<script>'
+            'function tg(i){'
+            'var d=document.getElementById("d"+i);'
+            'var c=document.getElementById("chv"+i);'
+            'if(!d)return;'
+            'var open=d.style.display==="none";'
+            'd.style.display=open?"table-row":"none";'
+            'if(c)c.innerHTML=open?"&#8964;":"&#8250;";'
+            '}'
+            'function flt(st){'
+            'document.querySelectorAll("tr.sr").forEach(function(tr){'
+            'var match=st==="all"||tr.getAttribute("data-status")===st;'
+            'tr.style.display=match?"":"none";'
+            'if(!match){'
+            'var di=tr.getAttribute("data-i");'
+            'var det=document.getElementById("d"+di);if(det)det.style.display="none";'
+            'var chv=document.getElementById("chv"+di);if(chv)chv.innerHTML="&#8250;";'
+            '}'
+            '});'
+            'document.querySelectorAll(".kpi[data-filter]").forEach(function(k){'
+            'k.classList.toggle("active",k.getAttribute("data-filter")===st);'
+            '});'
+            '}'
+            '</script>'
             '</body></html>'
           )
 
