@@ -1654,7 +1654,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
             + '&#128196; Baixar Relatório</a>';
         }
         if (d.videos_zip) {
-          downloadsHTML += '<a href="' + d.videos_zip + '" download="videos-e2e.zip"'
+          downloadsHTML += '<a href="' + d.videos_zip + '" target="_blank" download="videos-e2e.zip"'
             + ' style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:#94a3b8;font-size:12px;font-weight:600;text-decoration:none;transition:all .15s;cursor:pointer"'
             + ' onmouseover="this.style.borderColor=\'#a855f7\';this.style.color=\'#c084fc\'"'
             + ' onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'">'
@@ -2326,7 +2326,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       }
       // 4 & 5. Vídeo (Baixar ZIP + Abrir Player)
       if (d.videos_zip) {
-        downloadsHTML += '<a href="' + d.videos_zip + '" download="e2e-videos-run' + (d.run || '') + '.zip"'
+        downloadsHTML += '<a href="' + d.videos_zip + '" target="_blank" download="e2e-videos-run' + (d.run || '') + '.zip"'
           + ' style="' + _btnBase + '"'
           + ' onmouseover="this.style.borderColor=\'#a855f7\';this.style.color=\'#c084fc\'"'
           + ' onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'">&#11123; Baixar Vídeo</a>';

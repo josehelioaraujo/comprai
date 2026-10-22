@@ -742,7 +742,7 @@ jobs:
           host: ${{ env.VPS_HOST }}
           username: ${{ env.VPS_USER }}
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
-          source: "e2e-v2-output/downloads/"
+          source: "e2e-v2-output/downloads"
           target: "/var/www/html/opswatch/results/e2e-v2/"
           strip_components: 1
           overwrite: true
