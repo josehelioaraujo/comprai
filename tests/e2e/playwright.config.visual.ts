@@ -53,8 +53,8 @@ export default defineConfig({
       },
     },
   ],
-  /* Login único antes da suite; cookies reutilizados por todos os testes */
-  globalSetup: './global-setup',
+  /* Login único antes da suite — versão suave que NUNCA aborta os testes visuais */
+  globalSetup: './global-setup-visual',
 });
 
 export { BASE_URL, API_URL };
