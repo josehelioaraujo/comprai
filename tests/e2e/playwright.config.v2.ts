@@ -19,6 +19,7 @@ export default defineConfig({
   reporter: [
     ['list'],
     ['json', { outputFile: 'playwright-results.json' }],
+    ['html', { outputFolder: 'playwright-report', open: 'never' }],
   ],
   use: {
     actionTimeout: 15_000,
