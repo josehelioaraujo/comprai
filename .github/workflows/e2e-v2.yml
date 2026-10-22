@@ -515,6 +515,177 @@ jobs:
           print(f"report.html gerado: {len(all_specs)} specs, status={status}")
           PYEOF
 
+      # ── Testes Visuais — gera vídeos de demonstração para o OpsWatch ─────────
+
+      - name: Verificar Frontend disponivel (port 3002)
+        id: check-frontend
+        if: always()
+        run: |
+          status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "http://$VPS_HOST:3002" 2>/dev/null || echo "000")
+          if [ "$status" != "000" ] && [ "$status" != "502" ] && [ "$status" != "503" ]; then
+            echo "FRONTEND_UP=true" >> $GITHUB_OUTPUT
+            echo "Frontend disponivel — status $status"
+          else
+            echo "FRONTEND_UP=false" >> $GITHUB_OUTPUT
+            echo "::warning::Frontend (port 3002) nao respondeu (status $status) — testes visuais ignorados"
+          fi
+        continue-on-error: true
+
+      - name: Executar testes visuais (full-flow-visual.spec.ts)
+        if: always() && steps.check-frontend.outputs.FRONTEND_UP == 'true'
+        working-directory: tests/e2e
+        env:
+          E2E_BASE_URL:      http://${{ env.VPS_HOST }}:3002
+          E2E_API_URL:       ${{ env.E2E_API_URL }}
+          E2E_USER_EMAIL:    ${{ secrets.E2E_USER_EMAIL }}
+          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+          CI: 'true'
+        run: |
+          npx playwright test full-flow-visual.spec.ts \
+            --config=playwright.config.visual.ts \
+            --project=chromium
+        continue-on-error: true
+
+      - name: Gerar player HTML e ZIP de videos
+        if: always()
+        env:
+          VPS_HOST: ${{ env.VPS_HOST }}
+          GH_RUN:   ${{ github.run_number }}
+        run: |
+          python3 - <<'PYEOF'
+          import os, json, glob, re, shutil, zipfile
+          from datetime import datetime
+
+          vps_host = os.environ.get('VPS_HOST', '2.25.122.11')
+          ts_str   = datetime.utcnow().strftime('%d%m%Y_%H%M%S')
+          folder   = f'videos_{ts_str}'
+          base_url = f'http://{vps_host}/opswatch/results/e2e-v2/downloads/'
+
+          webm_files = sorted(glob.glob('tests/e2e/test-results-visual/**/video.webm', recursive=True))
+
+          os.makedirs('e2e-v2-output', exist_ok=True)
+
+          if not webm_files:
+            print("Nenhum video encontrado — testes visuais nao rodaram ou frontend estava fora.")
+            with open('e2e-v2-output/videos_info.json', 'w') as f:
+              json.dump({}, f)
+            exit(0)
+
+          player_dir = f'e2e-v2-output/downloads/{folder}'
+          os.makedirs(f'{player_dir}/videos', exist_ok=True)
+
+          playlist = []
+          for i, webm_path in enumerate(webm_files, 1):
+            parent = os.path.basename(os.path.dirname(webm_path))
+            name = re.sub(r'-[0-9a-f]{5,}(-\d+)?$', '', parent)
+            name = re.sub(r'-chromium$', '', name)
+            name = name.replace('-', ' ').strip()
+            if not name:
+              name = f'Cena {i:02d}'
+            out_name = f'{i:03d}.webm'
+            shutil.copy2(webm_path, f'{player_dir}/videos/{out_name}')
+            playlist.append({'src': f'videos/{out_name}', 'name': name})
+            print(f'  [{i:03d}] {name}')
+
+          n = len(playlist)
+          items_html = ''
+          for i, item in enumerate(playlist):
+            items_html += (
+              f'<div class="pi" onclick="play({i})" id="pi{i}">'
+              f'<span class="idx">{i+1:03d}</span> {item["name"]}</div>\n'
+            )
+
+          V_json = json.dumps(playlist, ensure_ascii=False)
+
+          player_html = (
+            '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">'
+            f'<title>E2E Videos {ts_str}</title>'
+            '<style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0f172a;color:#e2e8f0;font-family:-apple-system,sans-serif;display:flex;height:100vh;overflow:hidden}'
+            '#player{flex:1;display:flex;flex-direction:column;padding:14px;gap:8px;overflow:hidden;min-width:0}'
+            '#lbl{font-size:13px;color:#94a3b8;padding:6px 0;border-bottom:1px solid #1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}'
+            '#lbl b{color:#f1f5f9}#lbl em{color:#475569;font-style:normal;font-size:11px;margin-left:10px}'
+            '#vid{width:100%;border-radius:8px;background:#000;flex:1;object-fit:contain;min-height:0}'
+            '#playlist{width:270px;background:#1e293b;overflow-y:auto;border-left:1px solid #334155;flex-shrink:0}'
+            '.ph{padding:11px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#475569;border-bottom:1px solid #0f172a;position:sticky;top:0;background:#1e293b}'
+            '.pi{padding:9px 14px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px;color:#94a3b8;transition:background .12s;line-height:1.45}'
+            '.pi:hover{background:#334155;color:#e2e8f0}.pi.active{background:#1d4ed8;color:#fff}'
+            '.idx{font-size:10px;opacity:.45;margin-right:5px}'
+            '</style></head><body>'
+            '<div id="player"><div id="lbl">&#9654; <b id="ln">...</b><em id="prog"></em></div><video id="vid" controls></video></div>'
+            f'<div id="playlist"><div class="ph">&#9654; {n} testes</div>\n'
+            + items_html +
+            '</div>'
+            f'<script>var V={V_json},idx=0,vid=document.getElementById("vid");'
+            'function play(i){if(i<0||i>=V.length)return;idx=i;vid.src=V[i].src;vid.play().catch(function(){});'
+            'document.getElementById("ln").textContent=V[i].name;'
+            'document.getElementById("prog").textContent=(i+1)+" / "+V.length;'
+            'document.querySelectorAll(".pi").forEach(function(e,j){e.classList.toggle("active",j===i);});'
+            'var a=document.getElementById("pi"+i);if(a)a.scrollIntoView({block:"nearest"});}'
+            'vid.onended=function(){play(idx+1);};play(0);</script></body></html>'
+          )
+
+          with open(f'{player_dir}/index.html', 'w', encoding='utf-8') as f:
+            f.write(player_html)
+          print(f'index.html gerado com {n} cenas')
+
+          zip_name = f'{folder}.zip'
+          zip_path = f'e2e-v2-output/downloads/{zip_name}'
+          with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for root, dirs, files in os.walk(player_dir):
+              for file in files:
+                fp  = os.path.join(root, file)
+                arc = os.path.relpath(fp, f'e2e-v2-output/downloads')
+                zf.write(fp, arc)
+          print(f'ZIP criado: {zip_name}')
+
+          info = {
+            'videos_zip':    base_url + zip_name,
+            'videos_player': base_url + folder + '/index.html',
+            'videos_folder': folder,
+            'videos_count':  n,
+          }
+          with open('e2e-v2-output/videos_info.json', 'w') as f:
+            json.dump(info, f)
+          print(f'videos_info.json gravado: {info["videos_player"]}')
+          PYEOF
+        continue-on-error: true
+
+      - name: Patch latest.json com URLs de video
+        if: always()
+        run: |
+          python3 - <<'PYEOF'
+          import json, os
+
+          info_path   = 'e2e-v2-output/videos_info.json'
+          latest_path = 'e2e-v2-output/latest.json'
+
+          if not os.path.isfile(info_path) or not os.path.isfile(latest_path):
+            print("videos_info.json ou latest.json nao encontrado — patch ignorado")
+            exit(0)
+
+          with open(info_path) as f:
+            info = json.load(f)
+
+          if not info:
+            print("Sem videos — latest.json nao alterado")
+            exit(0)
+
+          with open(latest_path) as f:
+            latest = json.load(f)
+
+          latest['videos_zip']    = info.get('videos_zip')
+          latest['videos_player'] = info.get('videos_player')
+          latest['videos_count']  = info.get('videos_count', 0)
+
+          with open(latest_path, 'w') as f:
+            json.dump(latest, f, ensure_ascii=False, indent=2)
+
+          print(f"latest.json patchado: videos_player={latest['videos_player']}")
+          PYEOF
+        continue-on-error: true
+
+      # ── Artefatos e publicação na VPS ─────────────────────────────────────
+
       - name: Upload artefato Playwright
         uses: actions/upload-artifact@v4
         if: always()
@@ -523,6 +694,7 @@ jobs:
           path: |
             tests/e2e/playwright-results.json
             tests/e2e/test-results/
+            tests/e2e/test-results-visual/
           retention-days: 30
 
       - name: Criar diretorios na VPS
@@ -534,6 +706,7 @@ jobs:
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
           script: |
             mkdir -p /var/www/html/opswatch/results/e2e-v2
+            mkdir -p /var/www/html/opswatch/results/e2e-v2/downloads
         continue-on-error: true
 
       - name: Publicar latest.json na VPS
@@ -557,6 +730,19 @@ jobs:
           username: ${{ env.VPS_USER }}
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
           source: "e2e-v2-output/report.html"
+          target: "/var/www/html/opswatch/results/e2e-v2/"
+          strip_components: 1
+          overwrite: true
+        continue-on-error: true
+
+      - name: Publicar player de video e ZIP na VPS
+        uses: appleboy/scp-action@v0.1.7
+        if: always()
+        with:
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          source: "e2e-v2-output/downloads/"
           target: "/var/www/html/opswatch/results/e2e-v2/"
           strip_components: 1
           overwrite: true

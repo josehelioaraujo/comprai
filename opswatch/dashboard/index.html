@@ -1644,7 +1644,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
         : '';
 
       var downloadsHTML = '';
-      if (d.report_zip || d.videos_zip) {
+      if (d.report_zip || d.videos_zip || d.videos_player) {
         downloadsHTML = '<div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap">';
         if (d.report_zip) {
           downloadsHTML += '<a href="' + d.report_zip + '" download="playwright-report.zip"'
@@ -1659,6 +1659,13 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
             + ' onmouseover="this.style.borderColor=\'#a855f7\';this.style.color=\'#c084fc\'"'
             + ' onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'">'
             + '&#127916; Baixar Vídeos</a>';
+        }
+        if (d.videos_player) {
+          downloadsHTML += '<a href="' + d.videos_player + '" target="_blank"'
+            + ' style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:#94a3b8;font-size:12px;font-weight:600;text-decoration:none;transition:all .15s;cursor:pointer"'
+            + ' onmouseover="this.style.borderColor=\'#a855f7\';this.style.color=\'#c084fc\'"'
+            + ' onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'">'
+            + '&#9654; Ver Vídeos</a>';
         }
         downloadsHTML += '<button onclick="e2eDownloadTodos()" style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:#94a3b8;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor=\'#22c55e\';this.style.color=\'#4ade80\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'">&#11123; Baixar Todos os Testes</button>';
         downloadsHTML += '<button onclick="e2eDownloadPostmanAll()" style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:#94a3b8;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor=\'#ff6c37\';this.style.color=\'#ff8c5a\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="flex-shrink:0"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Baixar Collection Postman</button>';
@@ -2317,18 +2324,21 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
           + ' onmouseover="this.style.borderColor=\'#22c55e\';this.style.color=\'#4ade80\'"'
           + ' onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'">&#11123; Baixar JSON</a>';
       }
-      // 4 & 5. Vídeo (condicional — aparece habilitado se d.videos_zip existir)
+      // 4 & 5. Vídeo (Baixar ZIP + Abrir Player)
       if (d.videos_zip) {
         downloadsHTML += '<a href="' + d.videos_zip + '" download="e2e-videos-run' + (d.run || '') + '.zip"'
           + ' style="' + _btnBase + '"'
           + ' onmouseover="this.style.borderColor=\'#a855f7\';this.style.color=\'#c084fc\'"'
           + ' onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'">&#11123; Baixar Vídeo</a>';
-        downloadsHTML += '<a href="' + d.videos_zip + '" target="_blank"'
+      } else {
+        downloadsHTML += '<span style="' + _btnDis + '" title="Nenhum vídeo disponível">&#11123; Baixar Vídeo</span>';
+      }
+      if (d.videos_player) {
+        downloadsHTML += '<a href="' + d.videos_player + '" target="_blank"'
           + ' style="' + _btnBase + '"'
           + ' onmouseover="this.style.borderColor=\'#a855f7\';this.style.color=\'#c084fc\'"'
           + ' onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'">&#9654; Ver Vídeo</a>';
       } else {
-        downloadsHTML += '<span style="' + _btnDis + '" title="Nenhum vídeo disponível">&#11123; Baixar Vídeo</span>';
         downloadsHTML += '<span style="' + _btnDis + '" title="Nenhum vídeo disponível">&#9654; Ver Vídeo</span>';
       }
       // 6. Baixar Collection Postman
