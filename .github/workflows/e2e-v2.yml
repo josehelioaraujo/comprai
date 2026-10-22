@@ -269,7 +269,6 @@ jobs:
             'workflow':        'e2e-v2.yml',
             'run_id':          run_id,
             'report_url':      f'https://github.com/josehelioaraujo/comprai/actions/runs/{run_id}',
-            'has_html_report': True,
             'summary': {
               'total':    total,
               'passed':   passed,
@@ -319,8 +318,6 @@ jobs:
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
           script: |
             mkdir -p /var/www/html/opswatch/results/e2e-v2
-            rm -rf /var/www/html/opswatch/results/e2e-v2/report
-            mkdir -p /var/www/html/opswatch/results/e2e-v2/report
         continue-on-error: true
 
       - name: Publicar latest.json na VPS
@@ -336,15 +333,3 @@ jobs:
           overwrite: true
         continue-on-error: true
 
-      - name: Publicar Playwright HTML Report na VPS
-        uses: appleboy/scp-action@v0.1.7
-        if: always()
-        with:
-          host: ${{ env.VPS_HOST }}
-          username: ${{ env.VPS_USER }}
-          key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
-          source: "tests/e2e/playwright-report/*"
-          target: "/var/www/html/opswatch/results/e2e-v2/report/"
-          strip_components: 3
-          overwrite: true
-        continue-on-error: true

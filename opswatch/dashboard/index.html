@@ -2292,37 +2292,23 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
         : '<div style="margin-top:16px;text-align:center"><a href="https://github.com/josehelioaraujo/comprai/actions/workflows/e2e-v2.yml" target="_blank" style="color:#38bdf8;font-size:12px;text-decoration:none">&#128279; Ver histórico no GitHub Actions</a></div>';
 
       var downloadsHTML = '<div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap">';
-      if (d.report_zip) {
-        downloadsHTML += '<a href="' + d.report_zip + '" download="playwright-report-v2.zip"'
-          + ' style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:#94a3b8;font-size:12px;font-weight:600;text-decoration:none;transition:all .15s;cursor:pointer"'
-          + ' onmouseover="this.style.borderColor=\'#7c3aed\';this.style.color=\'#a78bfa\'"'
-          + ' onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'">'
-          + '&#128196; Baixar Relatório</a>';
-      }
-      if (d.videos_zip) {
-        downloadsHTML += '<a href="' + d.videos_zip + '" download="videos-e2e-v2.zip"'
-          + ' style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:#94a3b8;font-size:12px;font-weight:600;text-decoration:none;transition:all .15s;cursor:pointer"'
-          + ' onmouseover="this.style.borderColor=\'#a855f7\';this.style.color=\'#c084fc\'"'
-          + ' onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'">'
-          + '&#127916; Baixar Vídeos</a>';
-      } else {
-        downloadsHTML += '<button onclick="e2eV2ToggleReport()"'
-          + ' style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:#94a3b8;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s"'
-          + ' onmouseover="this.style.borderColor=\'#38bdf8\';this.style.color=\'#7dd3fc\'"'
-          + ' onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'">'
-          + '&#128202; Ver Relatório Playwright</button>';
-      }
+      downloadsHTML += '<button onclick="e2eV2ToggleReport()"'
+        + ' style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:#94a3b8;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s"'
+        + ' onmouseover="this.style.borderColor=\'#38bdf8\';this.style.color=\'#7dd3fc\'"'
+        + ' onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'">'
+        + '&#128202; Ver Relatório</button>';
       downloadsHTML += '<button onclick="e2eV2DownloadTodos()" style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:#94a3b8;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor=\'#22c55e\';this.style.color=\'#4ade80\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'">&#11123; Baixar Resultados</button>';
       downloadsHTML += '<button onclick="e2eV2DownloadPostmanAll()" style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:#94a3b8;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor=\'#ff6c37\';this.style.color=\'#ff8c5a\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="flex-shrink:0"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Baixar Collection Postman</button>';
       downloadsHTML += '</div>';
 
       var reportPanelHTML = '<div id="e2e-v2-report-panel" style="display:none;margin-bottom:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden">'
-        + '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--surface2);border-bottom:1px solid var(--border)">'
-        + '<span style="font-size:12px;font-weight:600;color:#e2e8f0">&#127760; Playwright HTML Report — Run #' + (d.run || '?') + ' &nbsp;<span style="font-weight:400;color:var(--muted)">' + sha + '</span></span>'
+        + '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface2);border-bottom:1px solid var(--border)">'
+        + '<span style="font-size:13px;font-weight:600;color:#e2e8f0">&#128202; Relatório E2E v2 — Run #' + (d.run || '?') + ' &nbsp;<span style="font-weight:400;color:var(--muted);font-family:monospace">' + sha + '</span></span>'
         + '<button onclick="e2eV2ToggleReport()" title="Fechar" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:18px;line-height:1;padding:0 4px">&#215;</button>'
         + '</div>'
-        + '<iframe id="e2e-v2-report-iframe" src="" data-src="/opswatch/results/e2e-v2/report/index.html"'
-        + ' style="width:100%;height:640px;border:none;display:block" frameborder="0" loading="lazy"></iframe>'
+        + '<div style="padding:16px;max-height:620px;overflow-y:auto">'
+        + _e2eV2BuildFullReport(d)
+        + '</div>'
         + '</div>';
 
       area.innerHTML = '<div style="font-size:11px;color:var(--muted);margin-bottom:16px">' + runInfo + '</div>'
@@ -2521,15 +2507,80 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
   }
 
   function e2eV2ToggleReport() {
-    var panel  = document.getElementById('e2e-v2-report-panel');
+    var panel = document.getElementById('e2e-v2-report-panel');
     if (!panel) return;
-    var open = panel.style.display !== 'none';
-    panel.style.display = open ? 'none' : 'block';
-    // Lazy load: só seta o src do iframe na primeira abertura
-    if (!open) {
-      var iframe = document.getElementById('e2e-v2-report-iframe');
-      if (iframe && iframe.getAttribute('src') === '') iframe.src = iframe.getAttribute('data-src');
+    panel.style.display = panel.style.display !== 'none' ? 'none' : 'block';
+  }
+
+  // Constrói relatório HTML completo a partir do JSON já carregado
+  function _e2eV2BuildFullReport(d) {
+    var stats    = d.summary || {};
+    var total    = stats.total    || 0;
+    var passed   = stats.passed   || 0;
+    var failed   = stats.failed   || 0;
+    var skipped  = stats.skipped  || 0;
+    var dur      = stats.duration || 0;
+    var passRate = total > 0 ? Math.round(passed / total * 100) : 0;
+
+    // ── KPI summary ──────────────────────────────────────
+    var html = '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:16px">';
+    function rptKpi(label, value, color, icon) {
+      return '<div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 6px;text-align:center">'
+        + '<div style="font-size:13px;margin-bottom:2px">' + icon + '</div>'
+        + '<div style="font-size:15px;font-weight:700;color:' + color + '">' + value + '</div>'
+        + '<div style="font-size:10px;color:var(--muted);margin-top:1px">' + label + '</div>'
+        + '</div>';
     }
+    html += rptKpi('Total',    total,          '#94a3b8', '&#127379;');
+    html += rptKpi('Passou',   passed,         '#22c55e', '&#9989;');
+    html += rptKpi('Falhou',   failed,         failed > 0 ? '#ef4444' : '#22c55e', '&#10060;');
+    html += rptKpi('Ignorado', skipped,        '#f59e0b', '&#9940;');
+    html += rptKpi('Duração',  dur + 's',      '#38bdf8', '&#9201;');
+    html += rptKpi('Taxa OK',  passRate + '%', passRate === 100 ? '#22c55e' : passRate >= 80 ? '#f59e0b' : '#ef4444', '&#128200;');
+    html += '</div>';
+
+    // ── Suites ───────────────────────────────────────────
+    var suites = d.suites || [];
+    suites.forEach(function(suite, si) {
+      var sf = suite.failed || 0;
+      var sp = suite.passed || 0;
+      html += '<div style="margin-bottom:10px;border:1px solid var(--border);border-radius:8px;overflow:hidden">';
+      // Suite header (toggle)
+      var suiteBodyId = 'e2e-v2-rpt-suite-' + si;
+      html += '<div onclick="var b=document.getElementById(\'' + suiteBodyId + '\');b.style.display=b.style.display===\'none\'?\'block\':\'none\'"'
+            + ' style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;background:var(--surface2);cursor:pointer;user-select:none">';
+      html += '<span style="font-size:12px;font-weight:700;color:#e2e8f0">&#128196; ' + _e2eEsc(suite.file || 'suite') + '</span>';
+      html += '<div style="display:flex;align-items:center;gap:10px">';
+      html += '<span style="font-size:11px;color:#22c55e">&#9989; ' + sp + '</span>';
+      if (sf > 0) html += '<span style="font-size:11px;color:#ef4444">&#10060; ' + sf + '</span>';
+      html += '<span style="font-size:14px;color:#475569">&#8250;</span>';
+      html += '</div></div>';
+      // Suite body
+      html += '<div id="' + suiteBodyId + '" style="padding:8px">';
+      (suite.specs || []).forEach(function(spec, spi) {
+        var ic  = spec.status === 'passed' ? '&#9989;' : spec.status === 'failed' ? '&#10060;' : '&#9940;';
+        var brd = spec.status === 'failed' ? '#ef4444' : 'transparent';
+        var autoOpen = spec.status === 'failed' ? 'block' : 'none';
+        var detId = 'e2e-v2-rpt-det-' + si + '-' + spi;
+        html += '<div style="margin-bottom:3px;border-left:2px solid ' + brd + ';border-radius:0 6px 6px 0">';
+        html += '<div onclick="var d=document.getElementById(\'' + detId + '\');d.style.display=d.style.display===\'none\'?\'block\':\'none\'"'
+              + ' style="display:flex;align-items:center;gap:6px;padding:6px 10px;cursor:pointer;background:var(--bg);border-radius:6px;transition:background .15s"'
+              + ' onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'var(--bg)\'">';
+        html += '<span>' + ic + '</span>';
+        html += '<span style="flex:1;font-size:12px;color:#cbd5e1">' + _e2eEsc(spec.title || '') + '</span>';
+        html += '<span style="font-size:11px;color:var(--muted);font-family:monospace">' + (spec.duration || 0) + 's</span>';
+        html += '<span style="font-size:14px;color:#475569">&#8250;</span>';
+        html += '</div>';
+        html += '<div id="' + detId + '" style="display:' + autoOpen + ';padding:4px 10px 8px 28px">';
+        html += _e2eSpecInlineDetails(spec);
+        html += '</div>';
+        html += '</div>';
+      });
+      html += '</div></div>';
+    });
+
+    if (!suites.length) html += '<div style="color:var(--muted);font-size:13px;text-align:center;padding:24px">Nenhuma suite encontrada nos resultados.</div>';
+    return html;
   }
 
   function e2eV2ToggleSuite(specsDivId, header) {
