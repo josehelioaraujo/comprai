@@ -269,7 +269,7 @@ jobs:
             'workflow':        'e2e-v2.yml',
             'run_id':          run_id,
             'report_url':      f'https://github.com/josehelioaraujo/comprai/actions/runs/{run_id}',
-            'report_html':     'http://2.25.122.11/opswatch/results/e2e-v2/report.html',
+            'report_html':     '/opswatch/results/e2e-v2/report.html',
             'summary': {
               'total':    total,
               'passed':   passed,
