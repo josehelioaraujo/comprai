@@ -1,4 +1,4 @@
-name: E2E v2 — Fluxo Completo (T01-T31)
+name: E2E — Fluxo Completo (T01-T31)
 
 on:
   workflow_dispatch:
@@ -17,10 +17,10 @@ env:
 jobs:
 
   # ─────────────────────────────────────────────
-  # E2E v2 — API flow T01-T31
+  # E2E — API flow T01-T31
   # ─────────────────────────────────────────────
   e2e-v2:
-    name: 🎭 Playwright E2E v2 (T01–T31)
+    name: 🎭 Playwright E2E (T01–T31)
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -69,7 +69,7 @@ jobs:
             --project=chromium
         continue-on-error: true
 
-      - name: Exibir resultados E2E v2
+      - name: Exibir resultados E2E
         if: always()
         run: |
           python3 - <<'PYEOF'
@@ -91,7 +91,7 @@ jobs:
           dur_ms  = stats.get('duration', 0)
 
           print(f"\n{'='*60}")
-          print(f"  PLAYWRIGHT E2E v2 — RESULTADOS")
+          print(f"  PLAYWRIGHT E2E — RESULTADOS")
           print(f"{'='*60}")
           print(f"  Total : {total}  |  ✅ {passed}  |  ❌ {failed}  |  ⏭ {skipped}")
           print(f"  Duração: {round(dur_ms/1000)}s")

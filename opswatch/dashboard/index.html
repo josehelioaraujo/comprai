@@ -2296,24 +2296,28 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       var _btnBase  = 'display:inline-flex;align-items:center;gap:6px;padding:7px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;font-size:12px;font-weight:600;transition:all .15s;text-decoration:none;color:#94a3b8;cursor:pointer';
       var _btnDis   = 'display:inline-flex;align-items:center;gap:6px;padding:7px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;font-size:12px;font-weight:600;text-decoration:none;color:#475569;cursor:not-allowed;opacity:0.45';
       var downloadsHTML = '<div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap">';
-      // 1. Baixar Relatório HTML
+      // 1. Ver Relatório (nova aba)
       if (reportUrl) {
-        downloadsHTML += '<a href="' + reportUrl + '" download="e2e-v2-report-run' + (d.run || '') + '.html"'
+        downloadsHTML += '<a href="' + reportUrl + '" target="_blank"'
+          + ' style="' + _btnBase + '"'
+          + ' onmouseover="this.style.borderColor=\'#38bdf8\';this.style.color=\'#7dd3fc\'"'
+          + ' onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'">&#128196; Ver Relatório</a>';
+      }
+      // 2. Baixar Relatório HTML
+      if (reportUrl) {
+        downloadsHTML += '<a href="' + reportUrl + '" download="e2e-report-run' + (d.run || '') + '.html"'
           + ' style="' + _btnBase + '"'
           + ' onmouseover="this.style.borderColor=\'#22c55e\';this.style.color=\'#4ade80\'"'
           + ' onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'">&#11123; Baixar Relatório</a>';
       }
-      // 2. Baixar JSON de Resultados
+      // 3. Baixar JSON de Resultados
       if (jsonUrl) {
-        downloadsHTML += '<a href="' + jsonUrl + '" download="e2e-v2-latest-run' + (d.run || '') + '.json"'
+        downloadsHTML += '<a href="' + jsonUrl + '" download="e2e-latest-run' + (d.run || '') + '.json"'
           + ' style="' + _btnBase + '"'
           + ' onmouseover="this.style.borderColor=\'#22c55e\';this.style.color=\'#4ade80\'"'
           + ' onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'">&#11123; Baixar JSON</a>';
       }
-      // 3 & 4. Vídeo — E2E é API-only, sem gravação de vídeo
-      downloadsHTML += '<span style="' + _btnDis + '" title="E2E não grava vídeo (API-only)">&#11123; Baixar Vídeo</span>';
-      downloadsHTML += '<span style="' + _btnDis + '" title="E2E não grava vídeo (API-only)">&#9654; Ver Vídeo</span>';
-      // 5. Baixar Collection Postman
+      // 4. Baixar Collection Postman
       downloadsHTML += '<button onclick="e2eV2DownloadPostmanAll()" style="' + _btnBase + '" onmouseover="this.style.borderColor=\'#ff6c37\';this.style.color=\'#ff8c5a\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="flex-shrink:0"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Baixar Postman</button>';
       downloadsHTML += '</div>';
 
