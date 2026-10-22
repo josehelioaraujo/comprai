@@ -269,6 +269,7 @@ jobs:
             'workflow':        'e2e-v2.yml',
             'run_id':          run_id,
             'report_url':      f'https://github.com/josehelioaraujo/comprai/actions/runs/{run_id}',
+            'report_html':     'http://2.25.122.11/opswatch/results/e2e-v2/report.html',
             'summary': {
               'total':    total,
               'passed':   passed,
@@ -297,6 +298,140 @@ jobs:
                     if err.get('snippet'):
                       print(f"     [snippet] {err['snippet'][:200]}")
             print("────────────────────────────────────────────────────────")
+          PYEOF
+
+      - name: Gerar report.html para OpsWatch
+        if: always()
+        env:
+          GH_RUN: ${{ github.run_number }}
+          GH_SHA: ${{ github.sha }}
+        run: |
+          python3 - <<'PYEOF'
+          import json, os, datetime
+          import html as _html
+
+          def esc(s):
+            return _html.escape(str(s or ''))
+
+          run_num = os.environ.get('GH_RUN', '?')
+          sha     = os.environ.get('GH_SHA', '')[:7]
+
+          raw_path = 'tests/e2e/playwright-results.json'
+          raw = {}
+          if os.path.isfile(raw_path):
+            with open(raw_path) as f:
+              raw = json.load(f)
+
+          stats    = raw.get('stats', {})
+          total    = stats.get('expected',   0) + stats.get('unexpected', 0) + stats.get('skipped', 0)
+          passed   = stats.get('expected',   0)
+          failed   = stats.get('unexpected', 0)
+          skipped  = stats.get('skipped',    0)
+          duration = round(stats.get('duration', 0) / 1000)
+          pass_rate = round(passed / total * 100) if total > 0 else 0
+          status   = 'passed' if failed == 0 and total > 0 else 'failed' if failed > 0 else 'no_results'
+          status_label = 'PASSOU' if status == 'passed' else 'FALHOU' if status == 'failed' else 'SEM DADOS'
+          status_color = '#22c55e' if status == 'passed' else '#ef4444' if status == 'failed' else '#94a3b8'
+          ts = datetime.datetime.utcnow().strftime('%d/%m/%Y %H:%M:%S UTC')
+
+          # Flat list: (suite_name, spec)
+          all_specs = []
+          def collect(node, suite_name=''):
+            name = suite_name or node.get('title', 'unknown')
+            for spec in node.get('specs', []):
+              all_specs.append((name, spec))
+            for sub in node.get('suites', []):
+              collect(sub, name)
+          for suite in raw.get('suites', []):
+            collect(suite)
+
+          rows_html = ''
+          for i, (suite_name, spec) in enumerate(all_specs):
+            s_status = 'passed'
+            s_dur    = 0
+            s_errors = []
+            for result in spec.get('tests', []):
+              for attempt in result.get('results', []):
+                s_dur = round(attempt.get('duration', 0) / 1000)
+                st = attempt.get('status', '')
+                if st in ('failed', 'timedOut'):
+                  s_status = 'failed'
+                  for err in attempt.get('errors', []):
+                    s_errors.append(err.get('message', '')[:400])
+                elif st == 'skipped' and s_status != 'failed':
+                  s_status = 'skipped'
+
+            if s_status == 'passed':
+              badge  = '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;background:#22c55e22;color:#22c55e">PASSOU</span>'
+              detail = '<div style="color:#22c55e;font-size:12px">&#9989; Nenhum erro registrado.</div>'
+            elif s_status == 'failed':
+              badge  = '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;background:#ef444422;color:#ef4444">FALHOU</span>'
+              err_parts = ''.join(
+                f'<pre style="color:#fca5a5;font-size:11px;white-space:pre-wrap;margin-top:4px;max-height:120px;overflow:auto">{esc(e)}</pre>'
+                for e in s_errors[:2]
+              )
+              detail = f'<div style="color:#ef4444;font-size:12px">&#10060; Falha detectada.{err_parts}</div>'
+            else:
+              badge  = '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;background:#f59e0b22;color:#f59e0b">IGNORADO</span>'
+              detail = '<div style="color:#f59e0b;font-size:12px">&#9940; Ignorado.</div>'
+
+            rows_html += (
+              f'<tr class="sr" onclick="tg({i})" style="cursor:pointer">'
+              f'<td style="color:#475569;font-size:11px;text-align:center">{str(i+1).zfill(3)}</td>'
+              f'<td style="color:#475569;font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{esc(suite_name)}</td>'
+              f'<td style="color:#e2e8f0">{esc(spec.get("title",""))}</td>'
+              f'<td>{badge}</td>'
+              f'<td style="color:#64748b;font-size:11px;text-align:right;font-family:monospace">{s_dur}s</td>'
+              f'<td style="color:#334155;font-size:14px;text-align:center">&#8250;</td>'
+              f'</tr>'
+              f'<tr id="d{i}" style="display:none;background:#020617">'
+              f'<td colspan="6" style="padding:12px 24px">{detail}</td>'
+              f'</tr>'
+            )
+
+          fail_color = '#ef4444' if failed > 0 else '#22c55e'
+          ok_color   = '#22c55e' if pass_rate == 100 else '#f59e0b' if pass_rate >= 80 else '#ef4444'
+
+          report = (
+            '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">'
+            '<meta name="viewport" content="width=device-width,initial-scale=1">'
+            f'<title>E2E v2 / Evidencias &mdash; Run #{run_num}</title>'
+            '<style>'
+            '*{box-sizing:border-box;margin:0;padding:0}'
+            'body{background:#0f172a;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,sans-serif;padding:28px 24px}'
+            'h1{font-size:18px;font-weight:700;margin-bottom:4px}'
+            '.sub{font-size:12px;color:#64748b;margin-bottom:24px}'
+            '.sum{display:flex;gap:14px;margin-bottom:28px;flex-wrap:wrap}'
+            '.kpi{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 18px;text-align:center;min-width:90px}'
+            '.kv{font-size:22px;font-weight:700}'
+            '.kl{font-size:11px;color:#64748b;margin-top:2px}'
+            'table{width:100%;border-collapse:collapse}'
+            'thead tr{background:#1e293b}'
+            'th{padding:9px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#475569;text-align:left;border-bottom:1px solid #334155}'
+            'tr.sr:hover{background:#1e293b}'
+            'td{padding:9px 12px;border-bottom:1px solid #1e293b;font-size:13px;vertical-align:middle}'
+            '</style></head><body>'
+            '<h1>&#127381; E2E v2 / Evidencias &mdash; Playwright</h1>'
+            f'<div class="sub">Run #{run_num} &middot; SHA {sha} &middot; {ts} &middot; '
+            f'<span style="color:{status_color};font-weight:700">{status_label}</span></div>'
+            '<div class="sum">'
+            f'<div class="kpi"><div class="kv" style="color:#94a3b8">{total}</div><div class="kl">Total</div></div>'
+            f'<div class="kpi"><div class="kv" style="color:#22c55e">{passed}</div><div class="kl">Passou</div></div>'
+            f'<div class="kpi"><div class="kv" style="color:{fail_color}">{failed}</div><div class="kl">Falhou</div></div>'
+            f'<div class="kpi"><div class="kv" style="color:#f59e0b">{skipped}</div><div class="kl">Ignorado</div></div>'
+            f'<div class="kpi"><div class="kv" style="color:#38bdf8">{duration}s</div><div class="kl">Dura&ccedil;&atilde;o</div></div>'
+            f'<div class="kpi"><div class="kv" style="color:{ok_color}">{pass_rate}%</div><div class="kl">Taxa OK</div></div>'
+            '</div>'
+            '<table><thead><tr><th>#</th><th>Arquivo</th><th>Teste</th><th>Status</th><th>Dur.</th><th></th></tr></thead>'
+            f'<tbody>{rows_html}</tbody></table>'
+            '<script>function tg(i){var d=document.getElementById("d"+i);if(d)d.style.display=d.style.display==="none"?"table-row":"none";}</script>'
+            '</body></html>'
+          )
+
+          os.makedirs('e2e-v2-output', exist_ok=True)
+          with open('e2e-v2-output/report.html', 'w', encoding='utf-8') as f:
+            f.write(report)
+          print(f"report.html gerado: {len(all_specs)} specs, status={status}")
           PYEOF
 
       - name: Upload artefato Playwright
@@ -328,6 +463,19 @@ jobs:
           username: ${{ env.VPS_USER }}
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
           source: "e2e-v2-output/latest.json"
+          target: "/var/www/html/opswatch/results/e2e-v2/"
+          strip_components: 1
+          overwrite: true
+        continue-on-error: true
+
+      - name: Publicar report.html na VPS
+        uses: appleboy/scp-action@v0.1.7
+        if: always()
+        with:
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          source: "e2e-v2-output/report.html"
           target: "/var/www/html/opswatch/results/e2e-v2/"
           strip_components: 1
           overwrite: true
