@@ -2311,7 +2311,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       var reportSrc = d.report_html || '';
       var reportPanelHTML = '<div id="e2e-v2-report-panel" style="display:none;margin-bottom:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden">'
         + '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface2);border-bottom:1px solid var(--border)">'
-        + '<span style="font-size:13px;font-weight:600;color:#e2e8f0">&#128202; Relatório E2E v2 — Run #' + (d.run || '?') + ' &nbsp;<span style="font-weight:400;color:var(--muted);font-family:monospace">' + sha + '</span></span>'
+        + '<span style="font-size:13px;font-weight:600;color:#e2e8f0">&#128202; Relatório E2E v2 — Run #' + (d.run || '?') + ' &nbsp;<span style="font-weight:400;color:var(--muted);font-family:monospace">' + (d.sha || '') + '</span></span>'
         + '<button onclick="e2eV2ToggleReport()" title="Fechar" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:18px;line-height:1;padding:0 4px">&#215;</button>'
         + '</div>'
         + '<iframe id="e2e-v2-report-iframe" src="" data-src="' + reportSrc + '"'
