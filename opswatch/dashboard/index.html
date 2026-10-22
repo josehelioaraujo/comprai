@@ -1581,7 +1581,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
           var sLabel = sf > 0 ? 'FALHOU' : 'PASSOU';
           var specsDivId = 'e2e-suite-specs-' + si;
           // Suite header clicável
-          suitesHTML += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;overflow:hidden">'
+          suitesHTML += '<div id="e2e-suite-card-' + si + '" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;overflow:hidden">'
             + '<div onclick="e2eToggleSuite(\'' + specsDivId + '\',this)" style="display:flex;align-items:center;gap:8px;padding:12px 14px;cursor:pointer;user-select:none">'
             + '<span style="font-size:14px">&#128196;</span>'
             + '<span style="flex:1;font-size:13px;font-weight:600;color:#e2e8f0">' + _e2eEsc(file) + '</span>'
@@ -1616,7 +1616,8 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
               var postmanBtn = '<button onclick="event.stopPropagation();e2eDownloadSpecPostman(' + idx + ')" title="Baixar Collection Postman deste teste" style="padding:3px 5px;background:transparent;border:1px solid transparent;border-radius:4px;color:#475569;cursor:pointer;line-height:0;transition:all .15s;flex-shrink:0" onmouseover="this.style.borderColor=\'#ff6c37\';this.style.color=\'#ff8c5a\'" onmouseout="this.style.borderColor=\'transparent\';this.style.color=\'#475569\'">'
                 + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'
                 + '</button>';
-              suitesHTML += '<div onclick="e2eToggleSpec(\'' + specDetailId + '\',this)" title="Clique para expandir" style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;background:var(--bg);cursor:pointer;border-left:2px solid ' + borderCol + ';transition:background .15s" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'var(--bg)\'">'
+              suitesHTML += '<div class="e2e-spec-row" data-e2e-ns="v1" data-e2e-st="' + (spec.status || '') + '">'
+                + '<div onclick="e2eToggleSpec(\'' + specDetailId + '\',this)" title="Clique para expandir" style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;background:var(--bg);cursor:pointer;border-left:2px solid ' + borderCol + ';transition:background .15s" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'var(--bg)\'">'
                 + '<span>' + ic + '</span>'
                 + '<span style="flex:1;font-size:12px;color:#cbd5e1">' + _e2eEsc(spec.title || '') + '</span>'
                 + catBadge
@@ -1626,6 +1627,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
                 + '</div>'
                 + '<div id="' + specDetailId + '" style="display:none;padding:4px 8px 8px 30px">'
                 + _e2eSpecInlineDetails(spec)
+                + '</div>'
                 + '</div>';
             });
             suitesHTML += '</div>';
@@ -1679,8 +1681,9 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
   }
 
   function _e2eKpi(label, value, color, icon, filter) {
+    var idAttr = filter ? ' id="e2e-kpi-v1-' + filter + '"' : '';
     var extra = filter
-      ? ' onclick="e2eShowModal(\'' + filter + '\')" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;text-align:center;cursor:pointer;transition:border-color .15s" onmouseover="this.style.borderColor=\'#3b82f6\'" onmouseout="this.style.borderColor=\'var(--border)\'" title="Clique para ver detalhes"'
+      ? idAttr + ' onclick="e2eFilterSpecs(\'v1\',\'' + filter + '\',this)" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;text-align:center;cursor:pointer;transition:border-color .15s,outline .15s" onmouseover="this.style.borderColor=\'#3b82f6\'" onmouseout="this.style.borderColor=\'var(--border)\'" title="Clique para filtrar"'
       : ' style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;text-align:center"';
     return '<div' + extra + '>'
       + '<div style="font-size:18px;margin-bottom:4px">' + icon + '</div>'
@@ -1817,7 +1820,26 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
     return specs.map(function(spec) {
       var ic = spec.status === 'passed' ? '&#9989;' : spec.status === 'failed' ? '&#10060;' : '&#9940;';
       var sc = spec.status === 'passed' ? '#22c55e' : spec.status === 'failed' ? '#ef4444' : '#f59e0b';
-      var errHTML = _e2eErrBlock(spec.errors || []);
+      var extraHTML = '';
+      // Para specs com falha: mostra erros (deduplicados)
+      if (spec.status !== 'passed') {
+        extraHTML += _e2eErrBlock(spec.errors || []);
+      }
+      // Para todos: mostra requests HTTP se disponíveis
+      var reqs = spec.requests || [];
+      if (reqs.length > 0) {
+        extraHTML += '<div style="margin-top:8px;font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">&#127760; Requisi&ccedil;&otilde;es HTTP (' + reqs.length + ')</div>';
+        extraHTML += '<div style="display:flex;flex-wrap:wrap;gap:4px">';
+        reqs.forEach(function(r) {
+          var rc = (String(r.status||0).charAt(0)==='4'||String(r.status||0).charAt(0)==='5') ? '#ef4444' : '#22c55e';
+          extraHTML += '<div style="display:inline-flex;align-items:center;gap:5px;padding:3px 8px;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:10px;font-family:monospace">'
+            + '<span style="font-weight:700;color:' + rc + '">' + _e2eEsc(String(r.status||'?')) + '</span>'
+            + '<span style="color:#60a5fa">' + _e2eEsc(r.method||'') + '</span>'
+            + '<span style="color:#94a3b8;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _e2eEsc((r.url||'').replace(/https?:\/\/[^/]+/,'')) + '</span>'
+            + '</div>';
+        });
+        extraHTML += '</div>';
+      }
       return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:8px">'
         + '<div style="display:flex;align-items:flex-start;gap:8px">'
         + '<span style="margin-top:1px">' + ic + '</span>'
@@ -1827,7 +1849,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
         + '</div>'
         + '<span style="font-size:10px;font-weight:700;color:' + sc + ';white-space:nowrap;margin-top:2px">' + (spec.status || '').toUpperCase() + '</span>'
         + '</div>'
-        + errHTML
+        + extraHTML
         + '</div>';
     }).join('');
   }
@@ -1901,13 +1923,17 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
   }
 
   function _e2eErrBlock(errors) {
-    if (!errors || !errors.length) return '<div style="font-size:12px;color:#22c55e;padding:8px 0">&#9989; Nenhum erro registrado.</div>';
-    return errors.map(function(err, i) {
+    if (!errors || !errors.length) return '';
+    var seen = {};
+    return errors.map(function(err) {
+      var msg = _e2eCleanMsg(err.message || '');
+      if (!msg || seen[msg]) return '';
+      seen[msg] = true;
       var catColor = err.color || '#ef4444';
       var catLabel = err.icon ? (err.icon + ' ' + (err.category || 'ERRO')) : (err.category || 'ERRO');
       return '<div style="margin-top:8px;border-radius:6px;overflow:hidden;border:1px solid ' + catColor + '44">'
         + '<div style="background:' + catColor + '18;padding:5px 10px;font-size:10px;font-weight:700;color:' + catColor + ';letter-spacing:.06em">' + _e2eEsc(catLabel) + '</div>'
-        + (err.message ? '<div style="padding:10px 12px;font-size:11px;color:#fca5a5;font-family:monospace;white-space:pre-wrap;word-break:break-word;line-height:1.55;background:#0f172a">' + _e2eEsc(_e2eCleanMsg(err.message)) + '</div>' : '')
+        + '<div style="padding:10px 12px;font-size:11px;color:#fca5a5;font-family:monospace;white-space:pre-wrap;word-break:break-word;line-height:1.55;background:#0f172a">' + _e2eEsc(msg) + '</div>'
         + '</div>';
     }).join('');
   }
@@ -2213,7 +2239,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
           var sColor = sf > 0 ? '#ef4444' : '#22c55e';
           var sLabel = sf > 0 ? 'FALHOU' : 'PASSOU';
           var specsDivId = 'e2e-v2-suite-specs-' + si;
-          suitesHTML += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;overflow:hidden">'
+          suitesHTML += '<div id="e2e-v2-suite-card-' + si + '" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;overflow:hidden">'
             + '<div onclick="e2eV2ToggleSuite(\'' + specsDivId + '\',this)" style="display:flex;align-items:center;gap:8px;padding:12px 14px;cursor:pointer;user-select:none">'
             + '<span style="font-size:14px">&#128196;</span>'
             + '<span style="flex:1;font-size:13px;font-weight:600;color:#e2e8f0">' + _e2eEsc(file) + '</span>'
@@ -2247,7 +2273,8 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
               var postmanBtn = '<button onclick="event.stopPropagation();e2eV2DownloadSpecPostman(' + idx + ')" title="Baixar Collection Postman deste teste" style="padding:3px 5px;background:transparent;border:1px solid transparent;border-radius:4px;color:#475569;cursor:pointer;line-height:0;transition:all .15s;flex-shrink:0" onmouseover="this.style.borderColor=\'#ff6c37\';this.style.color=\'#ff8c5a\'" onmouseout="this.style.borderColor=\'transparent\';this.style.color=\'#475569\'">'
                 + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'
                 + '</button>';
-              suitesHTML += '<div onclick="e2eV2ToggleSpec(\'' + specDetailId + '\',this)" title="Clique para expandir" style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;background:var(--bg);cursor:pointer;border-left:2px solid ' + borderCol + ';transition:background .15s" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'var(--bg)\'">'
+              suitesHTML += '<div class="e2e-spec-row" data-e2e-ns="v2" data-e2e-st="' + (spec.status || '') + '">'
+                + '<div onclick="e2eV2ToggleSpec(\'' + specDetailId + '\',this)" title="Clique para expandir" style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;background:var(--bg);cursor:pointer;border-left:2px solid ' + borderCol + ';transition:background .15s" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'var(--bg)\'">'
                 + '<span>' + ic + '</span>'
                 + '<span style="flex:1;font-size:12px;color:#cbd5e1">' + _e2eEsc(spec.title || '') + '</span>'
                 + catBadge
@@ -2257,6 +2284,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
                 + '</div>'
                 + '<div id="' + specDetailId + '" style="display:none;padding:4px 8px 8px 30px">'
                 + _e2eSpecInlineDetails(spec)
+                + '</div>'
                 + '</div>';
             });
             suitesHTML += '</div>';
@@ -2314,14 +2342,64 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
   }
 
   function _e2eV2Kpi(label, value, color, icon, filter) {
+    var idAttr = filter ? ' id="e2e-kpi-v2-' + filter + '"' : '';
     var extra = filter
-      ? ' onclick="e2eV2ShowModal(\'' + filter + '\')" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;text-align:center;cursor:pointer;transition:border-color .15s" onmouseover="this.style.borderColor=\'#7c3aed\'" onmouseout="this.style.borderColor=\'var(--border)\'" title="Clique para ver detalhes"'
+      ? idAttr + ' onclick="e2eFilterSpecs(\'v2\',\'' + filter + '\',this)" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;text-align:center;cursor:pointer;transition:border-color .15s,outline .15s" onmouseover="this.style.borderColor=\'#7c3aed\'" onmouseout="this.style.borderColor=\'var(--border)\'" title="Clique para filtrar"'
       : ' style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;text-align:center"';
     return '<div' + extra + '>'
       + '<div style="font-size:18px;margin-bottom:4px">' + icon + '</div>'
       + '<div style="font-size:20px;font-weight:700;color:' + color + '">' + value + '</div>'
       + '<div style="font-size:11px;color:var(--muted);margin-top:2px">' + label + '</div>'
       + '</div>';
+  }
+
+  // Filtro inline: mostra/oculta spec rows por status sem abrir modal
+  var _e2eActiveFlt = {};
+  function e2eFilterSpecs(ns, filter, el) {
+    // Toggle: clicar no mesmo filtro volta para 'all'
+    if (_e2eActiveFlt[ns] === filter) filter = 'all';
+    _e2eActiveFlt[ns] = filter;
+    // Realça o card KPI ativo
+    ['passed','failed','skipped'].forEach(function(f) {
+      var c = document.getElementById('e2e-kpi-' + ns + '-' + f);
+      if (!c) return;
+      c.style.outline = (f === filter) ? '2px solid #3b82f6' : '';
+      c.style.outlineOffset = '2px';
+    });
+    // Mostra/oculta spec rows
+    var rows = document.querySelectorAll('.e2e-spec-row[data-e2e-ns="' + ns + '"]');
+    rows.forEach(function(row) {
+      var st = row.getAttribute('data-e2e-st');
+      var show = filter === 'all' || st === filter;
+      row.style.display = show ? '' : 'none';
+      // Fecha o detalhe expandido se a row for ocultada
+      if (!show) {
+        var det = row.querySelector('[id]');
+        if (det && det.id) det.style.display = 'none';
+      }
+    });
+    // Mostra/oculta suite cards (oculta se todos os specs estão filtrados)
+    var prefix = ns === 'v2' ? 'e2e-v2-suite-card-' : 'e2e-suite-card-';
+    for (var i = 0; ; i++) {
+      var card = document.getElementById(prefix + i);
+      if (!card) break;
+      if (filter === 'all') { card.style.display = ''; continue; }
+      var allRows = card.querySelectorAll('.e2e-spec-row[data-e2e-ns="' + ns + '"]');
+      var visible = 0;
+      allRows.forEach(function(r) { if (r.style.display !== 'none') visible++; });
+      card.style.display = visible === 0 ? 'none' : '';
+    }
+    // Scroll até primeira suite visível
+    if (filter !== 'all') {
+      for (var j = 0; ; j++) {
+        var c2 = document.getElementById(prefix + j);
+        if (!c2) break;
+        if (c2.style.display !== 'none') {
+          setTimeout(function(el) { return function() { el.scrollIntoView({behavior:'smooth', block:'nearest'}); }; }(c2), 80);
+          break;
+        }
+      }
+    }
   }
 
   async function e2eV2RunWorkflow() {
