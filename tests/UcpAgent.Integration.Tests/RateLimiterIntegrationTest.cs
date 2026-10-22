@@ -1,6 +1,7 @@
 using System.Net;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 using Xunit;
 
 namespace UcpAgent.Integration.Tests;
@@ -61,12 +62,14 @@ public sealed class RateLimiterIntegrationTest
 /// Factory que sobrepõe PermitLimit=2 para que o teste possa
 /// forçar um HTTP 429 com apenas 3 requisições consecutivas.
 ///
-/// IMPORTANTE: usa UseSetting em vez de ConfigureAppConfiguration.
+/// IMPORTANTE: usa ConfigureAppConfiguration + AddInMemoryCollection.
 /// No .NET 10 minimal API, AddCatalogRateLimiter lê a configuração via
-/// builder.Configuration durante o registro de serviços. ConfigureAppConfiguration
-/// pode ser executado depois desse ponto, tornando o override tardio.
-/// UseSetting injeta os valores no WebHostBuilder antes de Build() / Services,
-/// garantindo que o rate limiter leia PermitLimit=2 ao ser configurado.
+/// builder.Configuration durante o registro de serviços. O AddInMemoryCollection
+/// adicionado por último tem a maior prioridade entre os providers e é resolvido
+/// antes de Build() completar, garantindo que o rate limiter leia PermitLimit=2.
+///
+/// UsarMockDados=true evita chamadas HTTP reais a catálogos externos
+/// (MercadoLivre, Vtex…), que causavam timeout de ~2 min e mascaravam o 429.
 /// </summary>
 internal sealed class RateLimitTestFactory : WebApplicationFactory<Program>
 {
@@ -74,15 +77,21 @@ internal sealed class RateLimitTestFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment("IntegrationTest");
 
-        // UseSetting define os valores ANTES do registro dos serviços
-        builder.UseSetting("RateLimit:FixedWindow:PermitLimit",   "2");
-        builder.UseSetting("RateLimit:FixedWindow:WindowSeconds", "60");
-        builder.UseSetting("RateLimit:FixedWindow:QueueLimit",    "0");
+        builder.ConfigureAppConfiguration((_, cfg) =>
+            cfg.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                // Rate limiter — PermitLimit=2 força o bloqueio na 3ª requisição
+                ["RateLimit:FixedWindow:PermitLimit"]   = "2",
+                ["RateLimit:FixedWindow:WindowSeconds"] = "60",
+                ["RateLimit:FixedWindow:QueueLimit"]    = "0",
 
-        // Infra mínima necessária para a inicialização não falhar
-        builder.UseSetting("Features:UsarRedis",     "false");
-        builder.UseSetting("Features:UsarKafka",     "false");
-        builder.UseSetting("Features:UsarRabbitMQ",  "false");
-        builder.UseSetting("Features:UsarMockDados", "false");
+                // Infra mínima: desliga brokers externos e usa dados mock rápidos
+                // (sem UsarMockDados=true o handler chamaria APIs externas reais,
+                //  levando ~2 min de timeout antes de retornar — e o assert falharia)
+                ["Features:UsarRedis"]     = "false",
+                ["Features:UsarKafka"]     = "false",
+                ["Features:UsarRabbitMQ"]  = "false",
+                ["Features:UsarMockDados"] = "true",
+            }));
     }
 }
