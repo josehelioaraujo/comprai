@@ -750,16 +750,47 @@ jobs:
           overwrite: true
         continue-on-error: true
 
-      - name: Publicar player de video e ZIP na VPS
+      - name: Empacotar player e ZIP de videos
+        if: always()
+        run: |
+          if [ -d "e2e-v2-output/downloads" ] && [ -n "$(ls e2e-v2-output/downloads 2>/dev/null)" ]; then
+            tar -czf e2e-v2-output/videos-bundle.tar.gz -C e2e-v2-output downloads
+            echo "Bundle criado: $(du -sh e2e-v2-output/videos-bundle.tar.gz | cut -f1)"
+          else
+            echo "Sem arquivos em downloads/ — nenhum bundle criado"
+          fi
+        continue-on-error: true
+
+      - name: Publicar bundle de videos na VPS
         uses: appleboy/scp-action@v0.1.7
         if: always()
         with:
           host: ${{ env.VPS_HOST }}
           username: ${{ env.VPS_USER }}
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
-          source: "e2e-v2-output/downloads"
+          source: "e2e-v2-output/videos-bundle.tar.gz"
           target: "/var/www/html/opswatch/results/e2e-v2/"
           strip_components: 1
           overwrite: true
+        continue-on-error: true
+
+      - name: Extrair bundle de videos na VPS
+        uses: appleboy/ssh-action@v1.2.0
+        if: always()
+        with:
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          script: |
+            BUNDLE="/var/www/html/opswatch/results/e2e-v2/videos-bundle.tar.gz"
+            TARGET="/var/www/html/opswatch/results/e2e-v2"
+            if [ -f "$BUNDLE" ]; then
+              tar -xzf "$BUNDLE" -C "$TARGET"
+              rm "$BUNDLE"
+              echo "Bundle extraido com sucesso:"
+              ls -lh "$TARGET/downloads/" 2>/dev/null || echo "(downloads vazio)"
+            else
+              echo "Bundle nao encontrado — testes visuais nao geraram videos"
+            fi
         continue-on-error: true
 
