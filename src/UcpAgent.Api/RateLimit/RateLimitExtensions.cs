@@ -16,12 +16,17 @@ public static class RateLimitExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        var opts = configuration
-            .GetSection("RateLimit")
-            .Get<RateLimitOptions>() ?? new RateLimitOptions();
-
         services.AddRateLimiter(rl =>
         {
+            // Lê a configuração AQUI (dentro do lambda) e não antes do AddRateLimiter.
+            // O lambda é armazenado como IConfigureOptions<RateLimiterOptions> e executa
+            // LAZILY quando IOptions<RateLimiterOptions>.Value é acessado na 1ª request —
+            // após todos os ConfigureAppConfiguration callbacks (inclusive do test factory)
+            // já terem sido processados, garantindo que overrides como PermitLimit=2 sejam lidos.
+            var opts = configuration
+                .GetSection("RateLimit")
+                .Get<RateLimitOptions>() ?? new RateLimitOptions();
+
             // ── Catálogo (Fixed Window) ────────────────────────────────────
             rl.AddFixedWindowLimiter(CatalogPolicy, o =>
             {
