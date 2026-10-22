@@ -791,3 +791,26 @@ jobs:
             fi
         continue-on-error: true
 
+      - name: Debug — verificar latest.json e URLs na VPS
+        uses: appleboy/ssh-action@v1.2.0
+        if: always()
+        with:
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          script: |
+            echo "=== latest.json ==="
+            cat /var/www/html/opswatch/results/e2e-v2/latest.json | python3 -c "import sys,json; d=json.load(sys.stdin); print('videos_zip:',d.get('videos_zip')); print('videos_player:',d.get('videos_player'))" 2>/dev/null || cat /var/www/html/opswatch/results/e2e-v2/latest.json | head -5
+            echo "=== downloads/ ==="
+            ls -lh /var/www/html/opswatch/results/e2e-v2/downloads/ 2>/dev/null | tail -5
+            echo "=== curl teste ZIP ==="
+            ZIP_URL=$(cat /var/www/html/opswatch/results/e2e-v2/latest.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('videos_zip',''))" 2>/dev/null)
+            if [ -n "$ZIP_URL" ]; then
+              curl -sI "$ZIP_URL" | head -3
+            else
+              echo "videos_zip nao encontrado no latest.json"
+            fi
+            echo "=== nginx config ==="
+            nginx -T 2>/dev/null | grep -A5 "location.*opswatch\|root\s" | head -20 || grep -r "root\|location" /etc/nginx/sites-enabled/ 2>/dev/null | head -20
+        continue-on-error: true
+
