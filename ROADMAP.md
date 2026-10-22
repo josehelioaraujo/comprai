@@ -1,6 +1,44 @@
 # 🗺️ Roadmap — Comprai
 
-## 🔜 V074 — Fix Smoke Tests + Total PIX + E2E (próxima)
+## 🔜 V076 — Fix Deploy SSH + E2E Checkout + Total PIX (próxima)
+
+### 🔥 Fix Deploy VPS SSH (P0)
+- [ ] Acessar Hostinger hPanel → VPS → Firewall → verificar se porta 22 está liberada para `0.0.0.0/0`
+- [ ] Se bloqueada: adicionar regra `Allow TCP 22 from anywhere`
+- [ ] Re-trigger deploy após liberar o firewall
+- [ ] UFW inativo, fail2ban não instalado — o bloqueio é 100% no firewall da Hostinger
+
+### 🐛 Fix E2E Checkout 500 (P1)
+- [ ] T18: `POST /api/checkout/{sessionId}` retornando HTTP 500 — investigar `CheckoutEndpoint` e `ICheckoutPort`
+- [ ] T19, T30 e outros falhando — provavelmente cascata do checkout 500
+- [ ] `E2E_USER_EMAIL` e `E2E_USER_PASSWORD` devem vir de GitHub Secrets — nunca hardcoded
+
+### 🐛 Fix Valor PIX zerado (P2)
+- [ ] Investigar por que `Total` aparece R$ 0,00 na tela `/orders/[id]` após pagamento PIX
+- [ ] Verificar `RedisOrderRepository` — campo `Total` pode estar sendo descartado na serialização
+
+### 🔗 Link direto no email OTP (P3)
+- [ ] Email de verificação deve incluir link direto `/auth/verify?email=<email>` para pré-preencher o campo
+
+### 🎨 Web UI Redesign (P4 — após fixes)
+- [ ] Redesign completo da interface web (`frontend/web/`) — referência visual: Nixtio Marketplace Web UI
+
+### 📦 Dependabot (P5 — futura)
+- [ ] `.github/dependabot.yml` cobrindo npm, nuget e github-actions quando esteira estiver estável
+
+---
+
+## ✅ V075 — Fix Rate Limiter Integration Tests (concluído)
+
+### Fixed
+- [x] `Search_AoExcederPermitLimit_Retorna429` — agora passa ✅
+- [x] `Search_QuandoRejeitado_DeveRetornarHeaderRetryAfter` — agora passa ✅
+- [x] Config lida lazily DENTRO do lambda `AddRateLimiter` em `RateLimitExtensions.cs`
+- [x] Diagnóstico deploy SSH: VPS vivo, UFW inativo, bloqueio é no firewall Hostinger
+
+---
+
+## ✅ V074 — Fix Smoke Tests + Total PIX + E2E (próxima)
 
 ### 🔥 Fix Smoke Tests (P1)
 - [ ] Testar `curl http://2.25.122.11:5020/health/live` localmente para confirmar se a porta está acessível externamente

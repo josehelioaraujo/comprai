@@ -1,5 +1,29 @@
 # Changelog
 
+## [V075] — 2026-10-22
+
+### Fixed
+- **Rate Limiter — Testes de Integração**: Corrigido `Search_AoExcederPermitLimit_Retorna429` e `Search_QuandoRejeitado_DeveRetornarHeaderRetryAfter` que retornavam HTTP 200 em vez de 429
+  - **Causa raiz**: `var opts = configuration.GetSection("RateLimit").Get<RateLimitOptions>()` estava FORA do lambda do `AddRateLimiter` — lia a config eagerly no momento do registro, antes dos `ConfigureAppConfiguration` callbacks do `WebApplicationFactory` serem processados, obtendo `PermitLimit=100` (padrão) em vez de `PermitLimit=2` do override de teste
+  - **Fix**: Movida a leitura de config para DENTRO do lambda — o lambda é armazenado como `IConfigureOptions<RateLimiterOptions>` e executa lazily na primeira request, quando todos os overrides já estão disponíveis
+  - Arquivo: `src/UcpAgent.Api/RateLimit/RateLimitExtensions.cs`
+
+### Diagnosed (pendente)
+- **Deploy VPS SSH timeout**: `dial tcp 2.25.122.11:22: i/o timeout` nos runners do GitHub Actions
+  - UFW inativo no VPS, fail2ban não instalado — VPS está vivo e porta 22 responde localmente
+  - Causa provável: firewall de rede da Hostinger (painel web) bloqueando IPs externos dos runners GitHub Actions
+  - Ação necessária: verificar Hostinger hPanel → VPS → Firewall → liberar porta 22 para `0.0.0.0/0`
+
+### Known Issues — V076
+- **Deploy VPS**: SSH i/o timeout desde runners GitHub Actions — firewall Hostinger bloqueia IPs dos runners
+- **E2E 5 falhando**: T18 (`POST /api/checkout/{sessionId}` → 500), T19, T30 e outros — fluxo de checkout quebrado
+- **Total PIX zerado**: `/orders/[id]` exibe R$ 0,00 — `OrderStatusDto.Total` não persistido/recuperado corretamente
+- **E2E_USER_EMAIL / E2E_USER_PASSWORD**: devem vir de GitHub Secrets — nunca hardcoded
+
+**Commits:** `72130e1` · `9fb61ae`
+
+---
+
 ## [V074] — 2026-10-21
 
 ### Fixed

@@ -1222,7 +1222,9 @@ http://<VPS>:3005   # Mobile v2
 | **~~V069v3 — Fix HTTP 500 Admin Orders~~** | ~~Causa dupla: conflito tipo Npgsql + `product_id` é VARCHAR(200), não UUID; fix: `string? productId` + `::text` uniforme~~ ✅ V069v3 | — |
 | **~~V073 — Linear Backfill V052–V072~~** | ~~Backfill retroativo Linear; scripts idempotentes; cleanup de duplicatas~~ ✅ V073 | — |
 | **~~V072 — Fix Email + OTP~~** | ~~`Brevo__From` corrigido em 3 arquivos; OTP alfanumérico garantido (mín. 2 dígitos); `appsettings.json` Brevo.From~~ ✅ V072 | — |
-| **V074 — Fix Smoke Tests + Total PIX + E2E** | Fix smoke tests (porta 5020); fix total PIX zerado; link OTP no email; testes E2E fluxo completo | V074 |
+| **V076 — Fix Deploy SSH + E2E Checkout + Total PIX** | Fix firewall Hostinger bloqueando SSH dos runners; fix checkout 500 nos E2E; fix total PIX zerado | V076 |
+| **V075 — Fix Rate Limiter Integration Tests** ✅ | Config lida lazily dentro do lambda `AddRateLimiter`; testes `Search_429` e `RetryAfter` passando | V075 |
+| **V074 — Fix Smoke Tests + Total PIX + E2E** ✅ | Fix smoke tests (porta 5020); fix total PIX zerado; link OTP no email; testes E2E fluxo completo | V074 |
 | **OMS + WMS + Carrier (plugins)** | Plugins hexagonais extensíveis: `Oms.Simulated/Vtex`, `Wms.Simulated/Totvs`, `Carrier.Simulated/Correios` | Futuro |
 | **LLM Diagnóstico** | `/api/ai/analyze` → Ollama + fallback Claude; botão "Analisar" no OpsWatch | Futuro |
 | **GROQ_MODEL_SELECTOR** | Seletor de modelo no `workflow_dispatch` do code-review | Futuro |
