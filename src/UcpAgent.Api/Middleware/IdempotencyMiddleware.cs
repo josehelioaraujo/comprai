@@ -37,6 +37,9 @@ public sealed class IdempotencyMiddleware(
             return;
         }
 
+        // Rastreia se o endpoint já foi executado para evitar double-execution no catch
+        var endpointExecuted = false;
+
         try
         {
             await using var conn = await factory.CreateAsync(ctx.RequestAborted);
@@ -60,8 +63,10 @@ public sealed class IdempotencyMiddleware(
             using var buffer = new MemoryStream();
             ctx.Response.Body = buffer;
 
+            endpointExecuted = true;
             await next(ctx);
 
+            // Restaura body ANTES de qualquer operação de BD que possa falhar
             buffer.Seek(0, SeekOrigin.Begin);
             var responseBody = await new StreamReader(buffer).ReadToEndAsync();
             buffer.Seek(0, SeekOrigin.Begin);
@@ -70,18 +75,34 @@ public sealed class IdempotencyMiddleware(
 
             if (ctx.Response.StatusCode is >= 200 and < 300)
             {
-                await conn.ExecuteAsync("""
-                    INSERT INTO idempotency_key (key, path, method, status_code, response_body, expires_at)
-                    VALUES (@key, @path, @method, @statusCode, @responseBody, NOW() + INTERVAL '24 hours')
-                    ON CONFLICT (key, path) DO NOTHING
-                    """,
-                    new { key, path, method, statusCode = ctx.Response.StatusCode, responseBody });
+                // INSERT em try separado: falha aqui não deve re-executar o endpoint
+                try
+                {
+                    await conn.ExecuteAsync("""
+                        INSERT INTO idempotency_key (key, path, method, status_code, response_body, expires_at)
+                        VALUES (@key, @path, @method, @statusCode, @responseBody, NOW() + INTERVAL '24 hours')
+                        ON CONFLICT (key, path) DO NOTHING
+                        """,
+                        new { key, path, method, statusCode = ctx.Response.StatusCode, responseBody });
+                }
+                catch (Exception insertEx)
+                {
+                    // Resposta já enviada ao cliente — apenas loga, não re-executa
+                    logger.LogWarning(insertEx, "[Idempotency] Falha ao gravar cache — key {Key} já respondida ao cliente", key);
+                }
             }
+        }
+        catch (Exception ex) when (!endpointExecuted)
+        {
+            // Falha antes do endpoint executar (SELECT, CreateAsync) — fallback seguro
+            logger.LogWarning(ex, "[Idempotency] Falha no BD antes do endpoint — passando sem idempotência");
+            await next(ctx);
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "[Idempotency] Falha no BD — passando sem idempotência");
-            await next(ctx);
+            // Falha durante/após next(ctx) — resposta pode estar em estado indeterminado
+            // Não re-executa o endpoint para evitar double-execution
+            logger.LogWarning(ex, "[Idempotency] Falha após execução do endpoint — {Key}", key);
         }
     }
 
