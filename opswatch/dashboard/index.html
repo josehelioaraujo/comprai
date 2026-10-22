@@ -1766,17 +1766,8 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
 
   function _e2eSpecInlineDetails(spec) {
     var html = '';
-    // ── Errors (sem snippet, sem ANSI, sem duplicatas de retry)
-    if (spec.errors && spec.errors.length > 0) {
-      var seen = {};
-      html += spec.errors.map(function(e) {
-        var msg = _e2eCleanMsg(e.message || '');
-        if (!msg || seen[msg]) return '';
-        seen[msg] = true;
-        return '<div style="font-size:11px;color:#ef4444;margin-bottom:4px;white-space:pre-wrap;word-break:break-word;background:rgba(239,68,68,.08);border-left:2px solid #ef4444;padding:6px 8px;border-radius:0 4px 4px 0">'
-          + _e2eEsc(msg) + '</div>';
-      }).join('');
-    } else if (spec.status === 'skipped') {
+    // ── Erros: exibe apenas resposta HTTP (sem texto de assertion do Playwright)
+    if (spec.status === 'skipped') {
       html += '<div style="font-size:11px;color:var(--muted);margin-bottom:4px">&#9940; Ignorado</div>';
     }
     // passed sem erros → não exibe nada (o ✅ já é suficiente)
@@ -2315,8 +2306,10 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
           + ' onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'">'
           + '&#127916; Baixar Vídeos</a>';
       } else {
-        var artifactsUrl = (d.report_url || 'https://github.com/josehelioaraujo/comprai/actions/workflows/e2e-v2.yml');
-        downloadsHTML += '<a href="' + artifactsUrl + '" target="_blank"'
+        var runUrl = d.run_id
+          ? 'https://github.com/josehelioaraujo/comprai/actions/runs/' + d.run_id
+          : (d.report_url || 'https://github.com/josehelioaraujo/comprai/actions/workflows/e2e-v2.yml');
+        downloadsHTML += '<a href="' + runUrl + '" target="_blank"'
           + ' style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:#94a3b8;font-size:12px;font-weight:600;text-decoration:none;transition:all .15s;cursor:pointer"'
           + ' onmouseover="this.style.borderColor=\'#a855f7\';this.style.color=\'#c084fc\'"'
           + ' onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'">'
@@ -2331,7 +2324,6 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
         + '<span style="font-size:24px">&#127381;</span>'
         + '<div>'
         + '<div style="font-size:14px;font-weight:700;color:#e2e8f0">E2E v2 — Fluxo Completo (T01–T31)</div>'
-        + '<div style="font-size:12px;color:' + statusColor + ';font-weight:600;margin-top:2px">' + statusLabel + '</div>'
         + '</div></div>'
         + kpiHTML + downloadsHTML + suitesHTML + linkHTML;
 

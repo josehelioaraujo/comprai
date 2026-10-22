@@ -146,12 +146,14 @@ jobs:
         if: always()
         env:
           GH_RUN: ${{ github.run_number }}
+          GH_RUN_ID: ${{ github.run_id }}
           GH_SHA: ${{ github.sha }}
         run: |
           python3 - <<'PYEOF'
           import json, os, glob, datetime, re
 
           run_num = os.environ.get('GH_RUN', '?')
+          run_id  = os.environ.get('GH_RUN_ID', '')
           sha     = os.environ.get('GH_SHA', '')[:7]
 
           # Le playwright-results.json (garante que eh arquivo, nao diretorio)
@@ -265,7 +267,8 @@ jobs:
             'sha':        sha,
             'timestamp':  datetime.datetime.utcnow().isoformat() + 'Z',
             'workflow':   'e2e-v2.yml',
-            'report_url': f'https://github.com/josehelioaraujo/comprai/actions/runs/',
+            'run_id':     run_id,
+            'report_url': f'https://github.com/josehelioaraujo/comprai/actions/runs/{run_id}',
             'summary': {
               'total':    total,
               'passed':   passed,
