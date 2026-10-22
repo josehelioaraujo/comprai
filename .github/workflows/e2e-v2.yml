@@ -52,10 +52,7 @@ jobs:
         if: steps.pw-cache.outputs.cache-hit != 'true'
         run: npx playwright install chromium --with-deps
 
-      - name: Install Playwright system deps (cache hit)
-        working-directory: tests/e2e
-        if: steps.pw-cache.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium
+      # Deps do sistema já estão no runner Ubuntu — sem necessidade de instalar no cache hit
 
       - name: Aguardar API saudavel
         run: |
