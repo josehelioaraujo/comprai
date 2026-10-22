@@ -2172,7 +2172,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
   async function loadE2eV2Data() {
     var area = document.getElementById('e2e-v2-content');
     if (!area) return;
-    area.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:24px 0">Carregando dados E2E v2...</div>';
+    area.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:24px 0">Carregando dados E2E...</div>';
     try {
       var res = await fetch('/opswatch/results/e2e-v2/latest.json?t=' + Date.now());
       if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -2310,9 +2310,9 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
           + ' onmouseover="this.style.borderColor=\'#22c55e\';this.style.color=\'#4ade80\'"'
           + ' onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'">&#11123; Baixar JSON</a>';
       }
-      // 3 & 4. Vídeo — E2E v2 é API-only, sem gravação de vídeo
-      downloadsHTML += '<span style="' + _btnDis + '" title="E2E v2 não grava vídeo (API-only)">&#11123; Baixar Vídeo</span>';
-      downloadsHTML += '<span style="' + _btnDis + '" title="E2E v2 não grava vídeo (API-only)">&#9654; Ver Vídeo</span>';
+      // 3 & 4. Vídeo — E2E é API-only, sem gravação de vídeo
+      downloadsHTML += '<span style="' + _btnDis + '" title="E2E não grava vídeo (API-only)">&#11123; Baixar Vídeo</span>';
+      downloadsHTML += '<span style="' + _btnDis + '" title="E2E não grava vídeo (API-only)">&#9654; Ver Vídeo</span>';
       // 5. Baixar Collection Postman
       downloadsHTML += '<button onclick="e2eV2DownloadPostmanAll()" style="' + _btnBase + '" onmouseover="this.style.borderColor=\'#ff6c37\';this.style.color=\'#ff8c5a\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="flex-shrink:0"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Baixar Postman</button>';
       downloadsHTML += '</div>';
@@ -2323,12 +2323,12 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
         + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">'
         + '<span style="font-size:24px">&#127381;</span>'
         + '<div>'
-        + '<div style="font-size:14px;font-weight:700;color:#e2e8f0">E2E v2 — Fluxo Completo (T01–T31)</div>'
+        + '<div style="font-size:14px;font-weight:700;color:#e2e8f0">E2E — Fluxo Completo (T01–T31)</div>'
         + '</div></div>'
         + kpiHTML + downloadsHTML + reportPanelHTML + suitesHTML + linkHTML;
 
     } catch(e) {
-      area.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:24px 0">Execute o workflow E2E v2 para gerar os dados.</div>'
+      area.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:24px 0">Execute o workflow E2E para gerar os dados.</div>'
         + '<div style="margin-top:8px"><a href="https://github.com/josehelioaraujo/comprai/actions/workflows/e2e-v2.yml" target="_blank" style="color:#38bdf8;font-size:12px;text-decoration:none">&#128279; Abrir workflow no GitHub Actions</a></div>';
     }
   }
@@ -2499,7 +2499,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
 
   function _e2eV2ResetBtn() {
     var btn = document.getElementById('e2e-v2-run-btn');
-    if (btn) { btn.disabled = false; btn.innerHTML = '&#9654; Executar v2'; }
+    if (btn) { btn.disabled = false; btn.innerHTML = '&#9654; Executar'; }
     clearInterval(_e2eV2Elapsed);
   }
 
@@ -2597,7 +2597,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
     var specs = _e2eV2Specs || [];
     if (!specs.length) return;
     var run = (_e2eV2LastData || {}).run || '0';
-    var col = _e2eToPostmanCollection(specs, 'Comprai E2E v2 — Run #' + run);
+    var col = _e2eToPostmanCollection(specs, 'Comprai E2E — Run #' + run);
     var b = new Blob([JSON.stringify(col, null, 2)], { type: 'application/json' });
     var a = document.createElement('a');
     a.href = URL.createObjectURL(b);
@@ -9078,8 +9078,8 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <div class="nav-item" id="nav-e2e" onclick="showSection('e2eBlock', this); loadE2eData();" title="E2E Evidence Recorder — Playwright">
           <span class="nav-icon">&#127916;</span><span class="nav-text">E2E / Evidencias</span>
         </div>
-        <div class="nav-item" id="nav-e2e-v2" onclick="showSection('e2eV2Block', this); loadE2eV2Data();" title="E2E v2 — Fluxo Completo T01-T31">
-          <span class="nav-icon">&#127381;</span><span class="nav-text">E2E v2 / Full Flow</span>
+        <div class="nav-item" id="nav-e2e-v2" onclick="showSection('e2eV2Block', this); loadE2eV2Data();" title="E2E — Fluxo Completo T01-T31">
+          <span class="nav-icon">&#127381;</span><span class="nav-text">E2E / Full Flow</span>
         </div>
 
       </div>
@@ -11666,7 +11666,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
   <!-- ===== E2E v2 — FLUXO COMPLETO T01-T31 ===== -->
   <div id="e2eV2Block" class="content-section" style="display:none">
     <div class="section-header">
-      <h2 class="section-title">&#127381; E2E v2 / Fluxo Completo (T01–T31)</h2>
+      <h2 class="section-title">&#127381; E2E / Fluxo Completo (T01–T31)</h2>
       <div style="display:flex;align-items:center;gap:8px">
         <a href="https://github.com/josehelioaraujo/comprai/actions/workflows/e2e-v2.yml"
            target="_blank"
@@ -11679,7 +11679,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
         </button>
         <button id="e2e-v2-run-btn" onclick="e2eV2RunWorkflow()"
           style="font-size:12px;padding:5px 14px;border-radius:6px;border:none;background:#7c3aed;color:#fff;cursor:pointer;display:flex;align-items:center;gap:5px;font-weight:600">
-          &#9654; Executar v2
+          &#9654; Executar
         </button>
       </div>
     </div>
@@ -11709,7 +11709,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       </div>
       <div id="e2e-v2-content" style="min-height:120px">
         <div style="color:var(--muted);font-size:13px;text-align:center;padding:40px 0">
-          Clique em <strong>Atualizar</strong> ou <strong>Executar v2</strong> para carregar os dados.
+          Clique em <strong>Atualizar</strong> ou <strong>Executar</strong> para carregar os dados.
         </div>
       </div>
     </div>

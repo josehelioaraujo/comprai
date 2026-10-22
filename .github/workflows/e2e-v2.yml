@@ -307,11 +307,40 @@ jobs:
           GH_SHA: ${{ github.sha }}
         run: |
           python3 - <<'PYEOF'
-          import json, os, datetime
+          import json, os, re, datetime
           import html as _html
 
           def esc(s):
             return _html.escape(str(s or ''))
+
+          def parse_requests_from_stdout(stdout_entries, spec_title):
+            requests = []
+            tm = re.search(r'\b(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+(/\S+)', spec_title)
+            main_method = tm.group(1) if tm else 'HTTP'
+            main_url    = tm.group(2) if tm else spec_title
+            for entry in stdout_entries:
+              text = entry.get('text', '') if isinstance(entry, dict) else str(entry)
+              for line in text.splitlines():
+                line = line.strip()
+                if not line:
+                  continue
+                m = re.match(r'^\[T\d+\]\s+(.+?)\s*[→:]\s*(\d{3})', line)
+                if m:
+                  label  = m.group(1).strip()
+                  status = int(m.group(2))
+                  detail = re.search(r'\|\s*(.+)$', line)
+                  res    = detail.group(1).strip() if detail else ''
+                  url    = label if label.startswith('/') else main_url
+                  requests.append({'method': main_method, 'url': url, 'status': status, 'res_body': res})
+                  continue
+                m2 = re.match(r'^([A-Z][A-Za-z\s]+?)\s*:\s*(\d{3})', line)
+                if m2:
+                  name   = m2.group(1).strip()
+                  status = int(m2.group(2))
+                  detail = re.search(r'\|\s*(.+)$', line)
+                  res    = detail.group(1).strip() if detail else ''
+                  requests.append({'method': 'HTTP', 'url': f'{main_url} ({name})', 'status': status, 'res_body': res})
+            return requests
 
           run_num = os.environ.get('GH_RUN', '?')
           sha     = os.environ.get('GH_SHA', '')[:7]
