@@ -735,7 +735,18 @@ jobs:
           overwrite: true
         continue-on-error: true
 
-      # report.html fica apenas no artefato do GitHub Actions
+      - name: Publicar report.html na VPS
+        uses: appleboy/scp-action@v0.1.7
+        if: always()
+        with:
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          source: "e2e-v2-output/report.html"
+          target: "/var/www/html/opswatch/results/e2e-v2/"
+          strip_components: 1
+          overwrite: true
+        continue-on-error: true
 
-      # (sem steps de vídeo na VPS — vídeos ficam no GitHub artifact)
+      # Vídeos ficam apenas no artefato do GitHub Actions
 
