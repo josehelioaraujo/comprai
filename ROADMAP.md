@@ -1,12 +1,20 @@
 # 🗺️ Roadmap — Comprai
 
-## 🔜 V076 — Fix Deploy SSH + E2E Checkout + Total PIX (próxima)
+## 🔜 V076 — Fix Deploy SSH + E2E Checkout + Total PIX + Dashboard Botões (próxima)
 
 ### 🔥 Fix Deploy VPS SSH (P0)
 - [ ] Acessar Hostinger hPanel → VPS → Firewall → verificar se porta 22 está liberada para `0.0.0.0/0`
 - [ ] Se bloqueada: adicionar regra `Allow TCP 22 from anywhere`
 - [ ] Re-trigger deploy após liberar o firewall
 - [ ] UFW inativo, fail2ban não instalado — o bloqueio é 100% no firewall da Hostinger
+
+### 🎬 Fix Dashboard OpsWatch — Restaurar 4 botões (P0)
+- [ ] Restaurar botão "Ver Relatório HTML" → link para artefato GitHub Actions (report.html dentro do artefato)
+- [ ] Restaurar botão "Baixar Relatório" → download direto do artefato
+- [ ] Restaurar botão "Ver Vídeo" → link para artefato GitHub Actions (vídeos .webm dentro do artefato)
+- [ ] Restaurar botão "Baixar Vídeo" → download do artefato de vídeo
+- [ ] Causa: remoção de `report_html` e `videos_zip` do `latest.json` tornou os botões condicionais invisíveis
+- [ ] Estratégia: usar `report_url` (já presente) para todos os 4 botões — GitHub Actions run tem acesso a todos artefatos
 
 ### 🐛 Fix E2E Checkout 500 (P1)
 - [ ] T18: `POST /api/checkout/{sessionId}` retornando HTTP 500 — investigar `CheckoutEndpoint` e `ICheckoutPort`

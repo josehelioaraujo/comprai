@@ -19,8 +19,9 @@
 - **E2E 5 falhando**: T18 (`POST /api/checkout/{sessionId}` → 500), T19, T30 e outros — fluxo de checkout quebrado
 - **Total PIX zerado**: `/orders/[id]` exibe R$ 0,00 — `OrderStatusDto.Total` não persistido/recuperado corretamente
 - **E2E_USER_EMAIL / E2E_USER_PASSWORD**: devem vir de GitHub Secrets — nunca hardcoded
+- **Dashboard OpsWatch — 4 botões sumiram**: "Ver Relatório HTML", "Baixar Relatório", "Ver Vídeo" e "Baixar Vídeo" desapareceram porque eram condicionais a `report_html` (removido do `latest.json`) e `videos_zip` (removido). Restou só "Ver Artefatos (vídeos)". Próxima sessão: restaurar os 4 botões apontando para artefato GitHub Actions
 
-**Commits:** `72130e1` · `9fb61ae`
+**Commits:** `72130e1` · `9fb61ae` · `8267a80`
 
 ---
 
