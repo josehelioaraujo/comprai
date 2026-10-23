@@ -324,6 +324,10 @@ jobs:
           def esc(s):
             return _html.escape(str(s or ''))
 
+          _ANSI_RE = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]|\x1b[^[]')
+          def strip_ansi(s):
+            return _ANSI_RE.sub('', str(s or ''))
+
           def parse_requests_from_stdout(stdout_entries, spec_title):
             requests = []
             tm = re.search(r'\b(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+(/\S+)', spec_title)
@@ -399,7 +403,7 @@ jobs:
                 if st in ('failed', 'timedOut'):
                   s_status = 'failed'
                   for err in attempt.get('errors', []):
-                    s_errors.append(err.get('message', '')[:400])
+                    s_errors.append(strip_ansi(err.get('message', ''))[:400])
                 elif st == 'skipped' and s_status != 'failed':
                   s_status = 'skipped'
 
@@ -449,7 +453,7 @@ jobs:
               f'<td style="color:#e2e8f0">{esc(spec.get("title",""))}</td>'
               f'<td>{badge}</td>'
               f'<td style="color:#64748b;font-size:11px;text-align:right;font-family:monospace">{s_dur}s</td>'
-              f'<td id="chv{i}" style="color:#334155;font-size:14px;text-align:center">&#8250;</td>'
+              f'<td style="text-align:center"><span id="chv{i}" class="chv">&#9654;</span></td>'
               f'</tr>'
               f'<tr id="d{i}" style="display:none;background:#020617">'
               f'<td colspan="6" style="padding:12px 24px">{detail}</td>'
@@ -479,10 +483,13 @@ jobs:
             'th{padding:9px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#475569;text-align:left;border-bottom:1px solid #334155}'
             'tr.sr:hover{background:#1e293b}'
             'td{padding:9px 12px;border-bottom:1px solid #1e293b;font-size:13px;vertical-align:middle}'
+            '.chv{display:inline-block;font-size:11px;transition:transform .2s;color:#475569;line-height:1}'
+            '.chv.open{transform:rotate(90deg)}'
             '</style></head><body>'
             '<h1>&#127381; E2E v2 / Evidencias &mdash; Playwright</h1>'
             f'<div class="sub">Run #{run_num} &middot; SHA {sha} &middot; {ts} &middot; '
             f'<span style="color:{status_color};font-weight:700">{status_label}</span></div>'
+            f'<button onclick="dlEv()" style="margin-bottom:20px;display:inline-flex;align-items:center;gap:6px;padding:7px 16px;background:#1e293b;border:1px solid #334155;border-radius:7px;font-size:12px;font-weight:600;color:#94a3b8;cursor:pointer" onmouseover="this.style.borderColor=\'#22c55e\';this.style.color=\'#4ade80\'" onmouseout="this.style.borderColor=\'#334155\';this.style.color=\'#94a3b8\'">&#11123; Baixar Evid&ecirc;ncias (HTML)</button>'
             '<div class="sum">'
             f'<div class="kpi" data-filter="all" onclick="flt(\'all\')" title="Exibir todos"><div class="kv" style="color:#94a3b8">{total}</div><div class="kl">Total</div></div>'
             f'<div class="kpi" data-filter="passed" onclick="flt(\'passed\')" title="Filtrar aprovados"><div class="kv" style="color:#22c55e">{passed}</div><div class="kl">Passou</div></div>'
@@ -500,8 +507,9 @@ jobs:
             'if(!d)return;'
             'var open=d.style.display==="none";'
             'd.style.display=open?"table-row":"none";'
-            'if(c)c.innerHTML=open?"&#8964;":"&#8250;";'
+            'if(c)c.classList.toggle("open",open);'
             '}'
+            f'function dlEv(){{var b=new Blob([document.documentElement.outerHTML],{{type:"text/html"}});var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="evidencias-run-{run_num}.html";a.click();}}'
             'function flt(st){'
             'document.querySelectorAll("tr.sr").forEach(function(tr){'
             'var match=st==="all"||tr.getAttribute("data-status")===st;'
@@ -509,7 +517,7 @@ jobs:
             'if(!match){'
             'var di=tr.getAttribute("data-i");'
             'var det=document.getElementById("d"+di);if(det)det.style.display="none";'
-            'var chv=document.getElementById("chv"+di);if(chv)chv.innerHTML="&#8250;";'
+            'var chv=document.getElementById("chv"+di);if(chv)chv.classList.remove("open");'
             '}'
             '});'
             'document.querySelectorAll(".kpi[data-filter]").forEach(function(k){'

@@ -2308,19 +2308,27 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
         + ' style="' + _btnBase + '"'
         + ' onmouseover="this.style.borderColor=\'#22c55e\';this.style.color=\'#4ade80\'"'
         + ' onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'">&#11123; Baixar Resultado</a>';
-      // 3. Ver Vídeos — vídeos ficam no GitHub Actions (não na VPS)
-      if (_actUrl) {
-        downloadsHTML += '<a href="' + _actUrl + '" target="_blank"'
+      // 3. Ver Vídeos — player na VPS (se gerado); fallback: link GitHub Actions
+      var _videosPlayer = d.videos_player || '';
+      var _videosZip    = d.videos_zip    || '';
+      if (_videosPlayer) {
+        downloadsHTML += '<a href="' + _videosPlayer + '" target="_blank"'
           + ' style="' + _btnBase + '"'
           + ' onmouseover="this.style.borderColor=\'#a855f7\';this.style.color=\'#c084fc\'"'
           + ' onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'">&#127916; Ver Vídeos</a>';
+      } else if (_actUrl) {
+        downloadsHTML += '<a href="' + _actUrl + '#artifacts" target="_blank"'
+          + ' style="' + _btnDis + '" title="Abra a run no GitHub e baixe o artifact de vídeos">&#127916; Ver Vídeos</a>';
       }
-      // 4. Baixar Vídeos — vídeos ficam no GitHub Actions (não na VPS)
-      if (_actUrl) {
-        downloadsHTML += '<a href="' + _actUrl + '" target="_blank"'
+      // 4. Baixar Vídeos — ZIP na VPS (se gerado); fallback: link GitHub Actions
+      if (_videosZip) {
+        downloadsHTML += '<a href="' + _videosZip + '" download'
           + ' style="' + _btnBase + '"'
           + ' onmouseover="this.style.borderColor=\'#f59e0b\';this.style.color=\'#fbbf24\'"'
           + ' onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'">&#11123; Baixar Vídeos</a>';
+      } else if (_actUrl) {
+        downloadsHTML += '<a href="' + _actUrl + '#artifacts" target="_blank"'
+          + ' style="' + _btnDis + '" title="Abra a run no GitHub e baixe o artifact de vídeos">&#11123; Baixar Vídeos</a>';
       }
       // 5. Baixar Collection Postman
       downloadsHTML += '<button onclick="e2eV2DownloadPostmanAll()" style="' + _btnBase + '" onmouseover="this.style.borderColor=\'#ff6c37\';this.style.color=\'#ff8c5a\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'#94a3b8\'"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="flex-shrink:0"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Baixar Postman</button>';
