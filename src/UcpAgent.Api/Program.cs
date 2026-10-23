@@ -268,7 +268,8 @@ if (usarPostgres && paymentProvider != "efipay")
             sp.GetRequiredService<UcpAgent.Infrastructure.Persistence.Repositories.PostgresFulfillmentRepository>(),
             sp.GetRequiredService<IConfiguration>(),
             sp.GetRequiredService<ILogger<UcpAgent.Infrastructure.Payment.PersistingPaymentAdapter>>(),
-            sp.GetService<UcpAgent.Infrastructure.Fulfillment.FulfillmentSimulator>()));
+            sp.GetService<UcpAgent.Infrastructure.Fulfillment.FulfillmentSimulator>(),
+            sp.GetService<UcpAgent.Infrastructure.Orders.RedisOrderAdapter>()));
 }
 else if (paymentProvider != "efipay")
 {

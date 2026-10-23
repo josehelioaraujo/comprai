@@ -21,7 +21,7 @@ public sealed class RedisOrderAdapter(IConnectionMultiplexer redis, IConfigurati
 
     private IDatabase Db => redis.GetDatabase();
 
-    public static string Key(string orderId)         => $"order:{orderId}";
+    public static string Key(string orderId)         => $"order-status:{orderId}";
     public static string SessionKey(string sessionId) => $"order:session:{sessionId}";
 
     public async Task<OrderStatusDto?> GetStatusAsync(string orderId, CancellationToken ct = default)

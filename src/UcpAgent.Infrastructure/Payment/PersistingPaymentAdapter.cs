@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using UcpAgent.Domain.Fulfillment;
 using UcpAgent.Infrastructure.Fulfillment;
+using UcpAgent.Infrastructure.Orders;
 using UcpAgent.Infrastructure.Persistence.Repositories;
 using UcpAgent.SharedKernel.Ports;
 using PostgresFulfillmentRepo = UcpAgent.Infrastructure.Persistence.Repositories.PostgresFulfillmentRepository;
@@ -19,7 +20,8 @@ public sealed class PersistingPaymentAdapter(
     PostgresFulfillmentRepo fulfillmentRepo,
     IConfiguration configuration,
     ILogger<PersistingPaymentAdapter> logger,
-    FulfillmentSimulator? fulfillmentSimulator = null) : IPaymentPort
+    FulfillmentSimulator? fulfillmentSimulator = null,
+    RedisOrderAdapter? redisOrders = null) : IPaymentPort
 {
     private readonly bool _usarPostgres =
         string.Equals(configuration["Features:UsarPostgres"], "true",
@@ -58,6 +60,25 @@ public sealed class PersistingPaymentAdapter(
                 Domain.Enums.OrderStatus.Confirmed,
                 cancellationToken);
             logger.LogInformation("[F2] Order {OrderId} status → Confirmed", orderId);
+
+            // Etapa 5b — Sync Redis OrderStatusDto: atualiza status sem perder Total/Items
+            if (redisOrders is not null)
+            {
+                try
+                {
+                    var existing = await redisOrders.GetStatusAsync(orderId, cancellationToken);
+                    if (existing is not null)
+                    {
+                        var confirmed = existing with { Status = "Confirmed" };
+                        await redisOrders.SaveAsync(confirmed, cancellationToken);
+                        logger.LogInformation("[F2] Redis OrderStatusDto {OrderId} status → Confirmed", orderId);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "[F2] Falha ao sincronizar status Redis para {OrderId} — continuando", orderId);
+                }
+            }
 
             // Etapa 6 — Insere fulfillment_event: payment_confirmed
             var agg = await fulfillmentRepo.GetByOrderIdAsync(orderId, cancellationToken);

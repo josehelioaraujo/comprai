@@ -131,7 +131,7 @@ public sealed class OrderRepository
                 new { id = orderId, status = status.ToString().ToLower() });
 
             if (_cache is not null)
-                await _cache.RemoveAsync($"order:{orderId}", token);
+                await _cache.RemoveAsync($"order-pg:{orderId}", token);
         }, ct);
 
     /// <summary>GET com HybridCache (TTL 2min) + fallback BD com retry+CB.</summary>
@@ -140,7 +140,7 @@ public sealed class OrderRepository
         if (_cache is not null)
         {
             return _cache.GetOrCreateAsync(
-                $"order:{orderId}",
+                $"order-pg:{orderId}",
                 async token => await FetchByIdAsync(orderId, token),
                 new HybridCacheEntryOptions
                 {
