@@ -569,8 +569,7 @@ jobs:
           from datetime import datetime
 
           vps_host = os.environ.get('VPS_HOST', '2.25.122.11')
-          ts_str   = datetime.utcnow().strftime('%d%m%Y_%H%M%S')
-          folder   = f'videos_{ts_str}'
+          folder   = 'videos_latest'   # nome fixo — cada run sobrescreve
           base_url = f'http://{vps_host}/opswatch/results/e2e-v2/downloads/'
 
           webm_files = sorted(glob.glob('tests/e2e/test-results-visual/**/video.webm', recursive=True))
@@ -611,7 +610,7 @@ jobs:
 
           player_html = (
             '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">'
-            f'<title>E2E Videos {ts_str}</title>'
+            '<title>E2E Videos</title>'
             '<style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0f172a;color:#e2e8f0;font-family:-apple-system,sans-serif;display:flex;height:100vh;overflow:hidden}'
             '#player{flex:1;display:flex;flex-direction:column;padding:14px;gap:8px;overflow:hidden;min-width:0}'
             '#lbl{font-size:13px;color:#94a3b8;padding:6px 0;border-bottom:1px solid #1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}'
@@ -640,7 +639,7 @@ jobs:
             f.write(player_html)
           print(f'index.html gerado com {n} cenas')
 
-          zip_name = f'{folder}.zip'
+          zip_name = 'videos_latest.zip'
           zip_path = f'e2e-v2-output/downloads/{zip_name}'
           with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
             for root, dirs, files in os.walk(player_dir):
@@ -791,7 +790,7 @@ jobs:
             fi
         continue-on-error: true
 
-      - name: Debug — verificar latest.json e URLs na VPS
+      - name: Limpar videos antigos e verificar URLs na VPS
         uses: appleboy/ssh-action@v1.2.0
         if: always()
         with:
@@ -799,18 +798,14 @@ jobs:
           username: ${{ env.VPS_USER }}
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
           script: |
-            echo "=== latest.json ==="
-            cat /var/www/html/opswatch/results/e2e-v2/latest.json | python3 -c "import sys,json; d=json.load(sys.stdin); print('videos_zip:',d.get('videos_zip')); print('videos_player:',d.get('videos_player'))" 2>/dev/null || cat /var/www/html/opswatch/results/e2e-v2/latest.json | head -5
-            echo "=== downloads/ ==="
-            ls -lh /var/www/html/opswatch/results/e2e-v2/downloads/ 2>/dev/null | tail -5
-            echo "=== curl teste ZIP ==="
-            ZIP_URL=$(cat /var/www/html/opswatch/results/e2e-v2/latest.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('videos_zip',''))" 2>/dev/null)
-            if [ -n "$ZIP_URL" ]; then
-              curl -sI "$ZIP_URL" | head -3
-            else
-              echo "videos_zip nao encontrado no latest.json"
-            fi
-            echo "=== nginx config ==="
-            nginx -T 2>/dev/null | grep -A5 "location.*opswatch\|root\s" | head -20 || grep -r "root\|location" /etc/nginx/sites-enabled/ 2>/dev/null | head -20
+            DL="/var/www/html/opswatch/results/e2e-v2/downloads"
+            # Remove tudo menos videos_latest/ e videos_latest.zip
+            find "$DL" -mindepth 1 -maxdepth 1 \
+              ! -name 'videos_latest' ! -name 'videos_latest.zip' \
+              -exec rm -rf {} + 2>/dev/null || true
+            echo "=== downloads/ apos limpeza ==="
+            ls -lh "$DL/" 2>/dev/null || echo "(vazio)"
+            echo "=== latest.json videos_zip ==="
+            python3 -c "import json; d=json.load(open('/var/www/html/opswatch/results/e2e-v2/latest.json')); print(d.get('videos_zip','n/a'))" 2>/dev/null || echo "erro ao ler latest.json"
         continue-on-error: true
 
