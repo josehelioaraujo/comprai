@@ -10,6 +10,12 @@ namespace UcpAgent.Infrastructure.Security;
 /// Chave: env var PII_ENCRYPTION_KEY (base64, 32 bytes).
 /// Formato armazenado: "enc:&lt;base64(nonce[12] + ciphertext + tag[16])&gt;"
 /// Dados legado (sem prefixo "enc:") são retornados sem alteração no Decrypt.
+///
+/// NOTA: a validação da chave é lazy (ocorre na primeira chamada a Encrypt/Decrypt).
+/// Isso garante que o DI container consiga construir o serviço mesmo quando
+/// PII_ENCRYPTION_KEY não está configurada; nesse caso o erro é lançado durante
+/// a operação e capturado pelo try/catch do F1 em RedisCheckoutAdapter,
+/// fazendo o checkout prosseguir via Redis sem afetar o usuário final.
 /// </summary>
 public sealed class AesGcmEncryptionService : IEncryptionService
 {
@@ -17,23 +23,38 @@ public sealed class AesGcmEncryptionService : IEncryptionService
     private const int    NonceSize = 12; // AES-GCM recomendado
     private const int    TagSize   = 16; // 128 bits
 
-    private readonly byte[] _key;
+    // Chave resolvida lazy e thread-safe na primeira chamada a Encrypt/Decrypt.
+    private readonly Lazy<byte[]> _key;
 
     public AesGcmEncryptionService(IConfiguration configuration)
     {
-        var keyBase64 = configuration["PII_ENCRYPTION_KEY"]
-            ?? throw new InvalidOperationException(
+        // Apenas captura o valor bruto — validação ocorre na primeira operação.
+        // Usar Lazy garante inicialização thread-safe para o Singleton.
+        var raw = configuration["PII_ENCRYPTION_KEY"];
+        _key = new Lazy<byte[]>(() => ResolveKey(raw));
+    }
+
+    /// <summary>
+    /// Resolve e valida a chave AES-256. Chamado lazy na primeira criptografia.
+    /// Lança InvalidOperationException se PII_ENCRYPTION_KEY estiver ausente ou inválida.
+    /// </summary>
+    private static byte[] ResolveKey(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            throw new InvalidOperationException(
                 "Variável PII_ENCRYPTION_KEY não configurada. " +
                 "Gere com: openssl rand -base64 32 | tr '+/' '-_' | tr -d '='");
 
         // Suporta base64 padrão e URL-safe (sem padding)
-        var normalized = keyBase64.Replace('-', '+').Replace('_', '/');
+        var normalized = raw.Replace('-', '+').Replace('_', '/');
         var padded     = normalized.PadRight(normalized.Length + (4 - normalized.Length % 4) % 4, '=');
-        _key = Convert.FromBase64String(padded);
+        var key        = Convert.FromBase64String(padded);
 
-        if (_key.Length != 32)
+        if (key.Length != 32)
             throw new InvalidOperationException(
-                $"PII_ENCRYPTION_KEY deve ter 32 bytes (AES-256). Tamanho atual: {_key.Length}");
+                $"PII_ENCRYPTION_KEY deve ter 32 bytes (AES-256). Tamanho atual: {key.Length}");
+
+        return key;
     }
 
     public string? Encrypt(string? value)
@@ -48,7 +69,7 @@ public sealed class AesGcmEncryptionService : IEncryptionService
 
         RandomNumberGenerator.Fill(nonce);
 
-        using var aes = new AesGcm(_key, TagSize);
+        using var aes = new AesGcm(_key.Value, TagSize);
         aes.Encrypt(nonce, plaintext, ciphertext, tag);
 
         // Layout: nonce (12) | ciphertext (n) | tag (16)
@@ -73,7 +94,7 @@ public sealed class AesGcmEncryptionService : IEncryptionService
         var ciphertext = combined[NonceSize..^TagSize];
         var plaintext  = new byte[ciphertext.Length];
 
-        using var aes = new AesGcm(_key, TagSize);
+        using var aes = new AesGcm(_key.Value, TagSize);
         aes.Decrypt(nonce, ciphertext, tag, plaintext);
 
         return Encoding.UTF8.GetString(plaintext);

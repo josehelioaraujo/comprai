@@ -625,11 +625,23 @@ app.MapPost("/api/checkout/{sessionId}", async (
     var sub = ctx.User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
     if (Guid.TryParse(sub, out var parsed)) customerId = parsed;
 
-    var result = await mediator.Send(new CheckoutCommand(sessionId, customer, customerId), ct);
-    if (!result.IsSuccess) return Results.Problem(result.Error);
-    return result.Value.Success
-        ? Results.Ok(result.Value)
-        : Results.BadRequest(new { error = result.Value.Error });
+    try
+    {
+        var result = await mediator.Send(new CheckoutCommand(sessionId, customer, customerId), ct);
+        if (!result.IsSuccess) return Results.Problem(result.Error);
+        return result.Value.Success
+            ? Results.Ok(result.Value)
+            : Results.BadRequest(new { error = result.Value.Error });
+    }
+    catch (Exception ex)
+    {
+        // Captura exceções de DI ou infraestrutura que escapem do handler
+        // (ex.: PII_ENCRYPTION_KEY inválida antes da correção lazy)
+        return Results.Problem(
+            detail: ex.Message,
+            title:  "Checkout indisponível — erro interno",
+            statusCode: 500);
+    }
 })
 .WithTags("Checkout").WithName("Checkout");
 
