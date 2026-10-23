@@ -536,17 +536,17 @@ jobs:
 
       # ── Testes Visuais — gera vídeos de demonstração para o OpsWatch ─────────
 
-      - name: Verificar Frontend disponivel (port 3002)
+      - name: Verificar Frontend disponivel (port 3005 — mobile-v2)
         id: check-frontend
         if: always()
         run: |
-          status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "http://$VPS_HOST:3002" 2>/dev/null || echo "000")
+          status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "http://$VPS_HOST:3005" 2>/dev/null || echo "000")
           if [ "$status" != "000" ] && [ "$status" != "502" ] && [ "$status" != "503" ]; then
             echo "FRONTEND_UP=true" >> $GITHUB_OUTPUT
-            echo "Frontend disponivel — status $status"
+            echo "Frontend mobile-v2 disponivel — status $status"
           else
             echo "FRONTEND_UP=false" >> $GITHUB_OUTPUT
-            echo "::warning::Frontend (port 3002) nao respondeu (status $status) — testes visuais ignorados"
+            echo "::warning::Frontend mobile-v2 (port 3005) nao respondeu (status $status) — testes visuais ignorados"
           fi
         continue-on-error: true
 
@@ -554,7 +554,7 @@ jobs:
         if: always() && steps.check-frontend.outputs.FRONTEND_UP == 'true'
         working-directory: tests/e2e
         env:
-          E2E_BASE_URL:      http://${{ env.VPS_HOST }}:3002
+          E2E_BASE_URL:      http://${{ env.VPS_HOST }}:3005
           E2E_API_URL:       ${{ env.E2E_API_URL }}
           E2E_USER_EMAIL:    ${{ secrets.E2E_USER_EMAIL }}
           E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
