@@ -281,7 +281,6 @@ jobs:
             'workflow':        'e2e-v2.yml',
             'run_id':          run_id,
             'report_url':      f'https://github.com/josehelioaraujo/comprai/actions/runs/{run_id}',
-            'report_html':     '/opswatch/results/e2e-v2/report.html',
             'summary': {
               'total':    total,
               'passed':   passed,
@@ -736,18 +735,7 @@ jobs:
           overwrite: true
         continue-on-error: true
 
-      - name: Publicar report.html na VPS
-        uses: appleboy/scp-action@v0.1.7
-        if: always()
-        with:
-          host: ${{ env.VPS_HOST }}
-          username: ${{ env.VPS_USER }}
-          key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
-          source: "e2e-v2-output/report.html"
-          target: "/var/www/html/opswatch/results/e2e-v2/"
-          strip_components: 1
-          overwrite: true
-        continue-on-error: true
+      # report.html fica apenas no artefato do GitHub Actions
 
       # (sem steps de vídeo na VPS — vídeos ficam no GitHub artifact)
 
