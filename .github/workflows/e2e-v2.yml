@@ -406,6 +406,20 @@ jobs:
           for suite in raw.get('suites', []):
             collect(suite)
 
+          def get_category(title):
+            m = re.match(r'[Tt](\d+)', title)
+            if not m:
+              return 'Outros'
+            n = int(m.group(1))
+            if n <= 2:  return 'Saúde'
+            if n <= 9:  return 'Autenticação'
+            if n <= 12: return 'Busca'
+            if n <= 17: return 'Carrinho'
+            if n <= 20: return 'Checkout'
+            if n <= 23: return 'Pagamento'
+            if n <= 27: return 'Pedidos'
+            return 'Fluxo E2E'
+          cat_counts = {}
           rows_html = ''
           for i, (suite_name, spec) in enumerate(all_specs):
             s_status  = 'passed'
@@ -424,6 +438,8 @@ jobs:
                 elif st == 'skipped' and s_status != 'failed':
                   s_status = 'skipped'
 
+            s_cat = get_category(spec.get('title', ''))
+            cat_counts[s_cat] = cat_counts.get(s_cat, 0) + 1
             s_requests = parse_requests_from_stdout(s_stdout, spec.get('title', ''))
             req_html = ''
             if s_requests:
@@ -464,7 +480,7 @@ jobs:
             detail = status_note + req_html
 
             rows_html += (
-              f'<tr class="sr" data-status="{s_status}" data-i="{i}" onclick="tg({i})" style="cursor:pointer">'
+              f'<tr class="sr" data-status="{s_status}" data-cat="{s_cat}" data-i="{i}" onclick="tg({i})" style="cursor:pointer">'
               f'<td style="color:#475569;font-size:11px;text-align:center">{str(i+1).zfill(3)}</td>'
               f'<td style="color:#475569;font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{esc(suite_name)}</td>'
               f'<td style="color:#e2e8f0">{esc(spec.get("title",""))}</td>'
@@ -477,6 +493,20 @@ jobs:
               f'</tr>'
             )
 
+          cat_order  = ['Saúde','Autenticação','Busca','Carrinho','Checkout','Pagamento','Pedidos','Fluxo E2E']
+          cat_colors = {'Saúde':'#38bdf8','Autenticação':'#a78bfa','Busca':'#34d399','Carrinho':'#f59e0b','Checkout':'#fb923c','Pagamento':'#22c55e','Pedidos':'#818cf8','Fluxo E2E':'#f472b6'}
+          cat_cards_html = ''
+          for cat in cat_order:
+            cnt = cat_counts.get(cat, 0)
+            if cnt == 0:
+              continue
+            col = cat_colors.get(cat, '#94a3b8')
+            cat_cards_html += (
+              f'<div class="kpi" data-cat-filter="{cat}" onclick="fltCat(\'{cat}\')" title="Filtrar: {cat}">'
+              f'<div class="kv" style="color:{col}">{cnt}</div>'
+              f'<div class="kl">{cat}</div>'
+              f'</div>'
+            )
           fail_color = '#ef4444' if failed > 0 else '#22c55e'
           ok_color   = '#22c55e' if pass_rate == 100 else '#f59e0b' if pass_rate >= 80 else '#ef4444'
 
@@ -515,6 +545,7 @@ jobs:
             f'<div class="kpi" title="Duração total da suite"><div class="kv" style="color:#38bdf8">{duration}s</div><div class="kl">Dura&ccedil;&atilde;o</div></div>'
             f'<div class="kpi" title="Taxa de sucesso"><div class="kv" style="color:{ok_color}">{pass_rate}%</div><div class="kl">Taxa OK</div></div>'
             '</div>'
+            f'<div class="sum" style="margin-bottom:20px">{cat_cards_html}</div>'
             '<table><thead><tr><th>#</th><th>Arquivo</th><th>Teste</th><th>Status</th><th>Dur.</th><th></th></tr></thead>'
             f'<tbody>{rows_html}</tbody></table>'
             '<script>'
@@ -527,20 +558,26 @@ jobs:
             'if(c)c.classList.toggle("open",open);'
             '}'
             f'function dlEv(){{var b=new Blob([document.documentElement.outerHTML],{{type:"text/html"}});var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="evidencias-run-{run_num}.html";a.click();}}'
-            'function flt(st){'
+            'var _st="all",_cat="all";'
+            'function applyFilters(){'
             'document.querySelectorAll("tr.sr").forEach(function(tr){'
-            'var match=st==="all"||tr.getAttribute("data-status")===st;'
-            'tr.style.display=match?"":"none";'
-            'if(!match){'
+            'var show=(_st==="all"||tr.getAttribute("data-status")===_st)&&(_cat==="all"||tr.getAttribute("data-cat")===_cat);'
+            'tr.style.display=show?"":"none";'
+            'if(!show){'
             'var di=tr.getAttribute("data-i");'
             'var det=document.getElementById("d"+di);if(det)det.style.display="none";'
             'var chv=document.getElementById("chv"+di);if(chv)chv.classList.remove("open");'
             '}'
             '});'
             'document.querySelectorAll(".kpi[data-filter]").forEach(function(k){'
-            'k.classList.toggle("active",k.getAttribute("data-filter")===st);'
+            'k.classList.toggle("active",k.getAttribute("data-filter")===_st);'
+            '});'
+            'document.querySelectorAll(".kpi[data-cat-filter]").forEach(function(k){'
+            'k.classList.toggle("active",k.getAttribute("data-cat-filter")===_cat);'
             '});'
             '}'
+            'function flt(st){_st=st;applyFilters();}'
+            'function fltCat(cat){_cat=cat;applyFilters();}'
             '</script>'
             '</body></html>'
           )
