@@ -335,8 +335,12 @@ jobs:
               # Remove linhas de snippet de código: "  311 |  code", "> 313 |  code", "      |    ^"
               if re.match(r'^\s*>?\s*\d+\s*\|', line): continue
               if re.match(r'^\s*\|\s', line): continue
+              # Remove linhas de stack trace: "    at /home/runner/...:313:31"
+              if re.match(r'^\s+at\s+', line): continue
               kept.append(line)
-            return '\n'.join(kept).strip()[:400]
+            # Remove linhas vazias duplicadas e trailing
+            result = re.sub(r'\n{3,}', '\n\n', '\n'.join(kept)).strip()
+            return result[:400]
 
           def parse_requests_from_stdout(stdout_entries, spec_title):
             requests = []
@@ -596,8 +600,26 @@ jobs:
 
           os.makedirs('e2e-v2-output', exist_ok=True)
 
+          # --- LOG: diagnóstico ---
+          print(f"[VIDEO] Buscando .webm em tests/e2e/test-results-visual/")
+          visual_dir = 'tests/e2e/test-results-visual'
+          if os.path.isdir(visual_dir):
+            all_files = []
+            for root, dirs, files in os.walk(visual_dir):
+              for f in files:
+                all_files.append(os.path.join(root, f))
+            print(f"[VIDEO] Arquivos encontrados em test-results-visual: {len(all_files)}")
+            for f in all_files[:20]:
+              print(f"[VIDEO]   {f}")
+          else:
+            print(f"[VIDEO] AVISO: diretorio {visual_dir} nao existe — testes visuais nao geraram resultados")
+          print(f"[VIDEO] .webm encontrados: {len(webm_files)}")
+          for w in webm_files:
+            print(f"[VIDEO]   {w}")
+          # --- fim LOG ---
+
           if not webm_files:
-            print("Nenhum video encontrado — testes visuais nao rodaram ou frontend estava fora.")
+            print("[VIDEO] Nenhum video encontrado — testes visuais nao rodaram ou frontend estava fora.")
             with open('e2e-v2-output/videos_info.json', 'w') as f:
               json.dump({}, f)
             exit(0)
@@ -690,15 +712,18 @@ jobs:
           info_path   = 'e2e-v2-output/videos_info.json'
           latest_path = 'e2e-v2-output/latest.json'
 
+          print(f"[PATCH] info_path={info_path} exists={os.path.isfile(info_path)}")
+          print(f"[PATCH] latest_path={latest_path} exists={os.path.isfile(latest_path)}")
           if not os.path.isfile(info_path) or not os.path.isfile(latest_path):
-            print("videos_info.json ou latest.json nao encontrado — patch ignorado")
+            print("[PATCH] videos_info.json ou latest.json nao encontrado — patch ignorado")
             exit(0)
 
           with open(info_path) as f:
             info = json.load(f)
+          print(f"[PATCH] videos_info.json conteudo: {info}")
 
           if not info:
-            print("Sem videos — latest.json nao alterado")
+            print("[PATCH] Sem videos — latest.json nao alterado (videos_player/zip nao serao definidos)")
             exit(0)
 
           with open(latest_path) as f:
@@ -764,6 +789,18 @@ jobs:
           target: "/var/www/html/opswatch/results/e2e-v2/"
           strip_components: 1
           overwrite: true
+        continue-on-error: true
+
+      - name: Verificar downloads antes do SCP
+        if: always()
+        run: |
+          echo "[SCP-VIDEO] Verificando e2e-v2-output/downloads/"
+          if [ -d "e2e-v2-output/downloads" ]; then
+            echo "[SCP-VIDEO] Diretorio existe. Conteudo:"
+            find e2e-v2-output/downloads -type f | head -30
+          else
+            echo "[SCP-VIDEO] AVISO: e2e-v2-output/downloads NAO EXISTE — nenhum video foi gerado nesta run."
+          fi
         continue-on-error: true
 
       - name: Publicar videos na VPS
