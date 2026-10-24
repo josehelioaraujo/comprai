@@ -1052,6 +1052,7 @@ O **OpsWatch** é um portal operacional integrado ao pipeline CI/CD que consolid
 | 🛡️ **Segurança** | Dependency Scanner (CVEs NuGet) |
 | 🔥 **Análise K6** | Resultados detalhados por cenário |
 | ⚙️ **Infra** | Status Page · Health Map · Monitor de Containers · Admin Restart |
+| 📋 **E2E v2** | 31 testes de API (T01–T31) com **9 cards de categoria** (filtro AND status+categoria) · Player de vídeos com seção API tests na sidebar · download por cena · placeholder 404 |
 
 
 
@@ -1222,6 +1223,8 @@ http://<VPS>:3005   # Mobile v2
 | **~~V069v3 — Fix HTTP 500 Admin Orders~~** | ~~Causa dupla: conflito tipo Npgsql + `product_id` é VARCHAR(200), não UUID; fix: `string? productId` + `::text` uniforme~~ ✅ V069v3 | — |
 | **~~V073 — Linear Backfill V052–V072~~** | ~~Backfill retroativo Linear; scripts idempotentes; cleanup de duplicatas~~ ✅ V073 | — |
 | **~~V072 — Fix Email + OTP~~** | ~~`Brevo__From` corrigido em 3 arquivos; OTP alfanumérico garantido (mín. 2 dígitos); `appsettings.json` Brevo.From~~ ✅ V072 | — |
+| **V078 — Fix Player VPS + E2E Checkout + Total PIX** | Regenerar player de vídeos na VPS; fix checkout 500; fix total PIX zerado | V078 |
+| **~~V077 — OpsWatch Categorias E2E + Player de Vídeos~~** ✅ | 9 cards de categoria com filtro AND no OpsWatch; player com 31 testes API na sidebar, download por vídeo, 404 placeholder | V077 |
 | **V076 — Fix Deploy SSH + E2E Checkout + Total PIX + Dashboard** | Fix firewall Hostinger SSH; fix checkout 500; fix total PIX; restaurar 4 botões dashboard OpsWatch | V076 |
 | **V075 — Fix Rate Limiter Integration Tests** ✅ | Config lida lazily dentro do lambda `AddRateLimiter`; testes `Search_429` e `RetryAfter` passando | V075 |
 | **V074 — Fix Smoke Tests + Total PIX + E2E** ✅ | Fix smoke tests (porta 5020); fix total PIX zerado; link OTP no email; testes E2E fluxo completo | V074 |

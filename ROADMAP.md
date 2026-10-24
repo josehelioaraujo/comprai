@@ -1,6 +1,54 @@
 # 🗺️ Roadmap — Comprai
 
-## 🔜 V076 — Fix Deploy SSH + E2E Checkout + Total PIX + Dashboard Botões (próxima)
+## 🔜 V078 — Fix Player de Vídeos VPS + E2E Checkout + Total PIX (próxima)
+
+### 🎬 Fix Player de Vídeos VPS (P0)
+- [ ] Forçar nova execução do workflow `e2e-v2.yml` para regenerar `videos_latest/index.html` com as melhorias V077 (seção API tests + download + 404 placeholder)
+- [ ] Confirmar que `playwright-results.json` está disponível em `tests/e2e/playwright-results.json` no momento do step "Gerar player HTML e ZIP de videos"
+- [ ] Verificar se `[VIDEO] API tests carregados: 31` aparece nos logs do step
+- [ ] URL a validar: `comprai.2.25.122.11.nip.io/opswatch/results/e2e-v2/downloads/videos_latest/index.html`
+
+### 🐛 Fix E2E Checkout 500 (P1)
+- [ ] T18: `POST /api/checkout/{sessionId}` retornando HTTP 500 — investigar `CheckoutEndpoint` e `ICheckoutPort`
+- [ ] T19, T30 e outros falhando — provavelmente cascata do checkout 500
+- [ ] `E2E_USER_EMAIL` e `E2E_USER_PASSWORD` devem vir de GitHub Secrets — nunca hardcoded
+
+### 🐛 Fix Valor PIX zerado (P2)
+- [ ] Investigar por que `Total` aparece R$ 0,00 na tela `/orders/[id]` após pagamento PIX
+- [ ] Verificar `RedisOrderRepository` — campo `Total` pode estar sendo descartado na serialização
+
+### 🔥 Fix Deploy VPS SSH (P3)
+- [ ] Acessar Hostinger hPanel → VPS → Firewall → verificar se porta 22 está liberada para `0.0.0.0/0`
+- [ ] Se bloqueada: adicionar regra `Allow TCP 22 from anywhere`
+- [ ] Re-trigger deploy após liberar o firewall
+
+### 🔗 Link direto no email OTP (P4)
+- [ ] Email de verificação deve incluir link direto `/auth/verify?email=<email>` para pré-preencher o campo
+
+### 🎨 Web UI Redesign (P5 — após fixes)
+- [ ] Redesign completo da interface web (`frontend/web/`) — referência visual: Nixtio Marketplace Web UI
+
+### 📦 Dependabot (P6 — futura)
+- [ ] `.github/dependabot.yml` cobrindo npm, nuget e github-actions quando esteira estiver estável
+
+---
+
+## ✅ V077 — OpsWatch Categorias E2E + Player de Vídeos (concluído)
+
+### Added
+- [x] OpsWatch: 9 cards de categoria com filtro AND (status + categoria) para E2E v2
+- [x] OpsWatch: `e2eV2GetCat()`, `e2eV2FilterCat()`, `_e2eApplyV2Filters()` adicionados
+- [x] OpsWatch: `data-e2e-cat` em cada row do v2 para suporte ao filtro combinado
+- [x] Player de vídeos: seção "📋 Testes de API" com todos os 31 testes (T01–T31) na sidebar
+- [x] Player de vídeos: botão de download por cena visual (⬇ `.webm`)
+- [x] Player de vídeos: placeholder `#novid` para vídeos não encontrados (404)
+
+### Known Issue (pendente V078)
+- [ ] Player na VPS ainda mostra versão antiga — regenerar com próxima execução do workflow
+
+---
+
+## ✅ V076 — Fix Deploy SSH + E2E Checkout + Total PIX + Dashboard Botões
 
 ### 🔥 Fix Deploy VPS SSH (P0)
 - [ ] Acessar Hostinger hPanel → VPS → Firewall → verificar se porta 22 está liberada para `0.0.0.0/0`

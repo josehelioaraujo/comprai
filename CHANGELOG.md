@@ -1,5 +1,40 @@
 # Changelog
 
+## [V077] — 2026-10-24
+
+### Added
+
+#### OpsWatch Dashboard — Filtro por Categoria (E2E v2)
+- **9 cards de categoria** com contagem de testes adicionados ao painel E2E v2 do OpsWatch (`opswatch/dashboard/index.html`)
+  - Categorias: Healthcheck, Cadastro, Autenticação, Busca, Carrinho, Checkout, Pagamento, Pedidos, Fluxo E2E
+  - Filtro AND combinado: status **+** categoria — selecionar uma categoria filtra apenas dentro do status ativo
+  - Card ativo recebe borda colorida (mesma cor do card KPI de status)
+  - Clique no card ativo novamente remove o filtro (toggle)
+  - Suites sem testes visíveis (após filtro) são ocultadas automaticamente
+- **`e2eV2GetCat(title)`** — mapeamento T01–T31 → categoria por range numérico
+- **`e2eV2FilterCat(cat)`** — toggle de filtro de categoria; delega para `_e2eApplyV2Filters()`
+- **`_e2eApplyV2Filters()`** — aplica filtro combinado status+categoria nas rows v2
+- **`data-e2e-cat`** adicionado em cada `.e2e-spec-row` do v2
+
+#### Player de Vídeos E2E — Melhorias (`e2e-v2.yml`)
+- **31 testes de API na sidebar**: seção "📋 Testes de API" listando todos os T01–T31 com status (✅/❌/⏭) e agrupados por categoria
+- **Botão de download por vídeo**: `⬇` em cada item da seção "🎬 Cenas Visuais" — download direto do `.webm`
+- **Placeholder 404**: `#novid` exibido quando o arquivo de vídeo não existe (via `vid.onerror`)
+- **Header atualizado**: conta `N API + M visuais` no título do player
+- Sidebar expandida de 270px → 300px para acomodar as duas seções
+- Renomeado `CATEGORY_MAP` → `VISUAL_CAT_MAP` e `get_category()` → `get_visual_cat()` para evitar colisão com `get_api_cat()`
+- Adicionada função `get_api_cat(title)` que replica a lógica JS de mapeamento T01–T31
+
+### Known Issues — V077
+- **Player de vídeos VPS (pendente para V078)**: A URL `comprai.2.25.122.11.nip.io/opswatch/results/e2e-v2/downloads/videos_latest/index.html` ainda mostra a versão antiga com apenas "8 CENAS" sem a seção de API tests — o HTML novo só será gerado na próxima execução do workflow `e2e-v2.yml`
+- **E2E 5 falhando**: T18 (`POST /api/checkout/{sessionId}` → 500), T19, T30 e outros — fluxo de checkout quebrado
+- **Total PIX zerado**: `/orders/[id]` exibe R$ 0,00 — `OrderStatusDto.Total` não persistido/recuperado corretamente
+- **Deploy VPS SSH**: i/o timeout desde runners GitHub Actions — firewall Hostinger bloqueia IPs dos runners
+
+**Commits:** `ef8085f`
+
+---
+
 ## [V075] — 2026-10-22
 
 ### Fixed
