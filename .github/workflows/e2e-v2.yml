@@ -810,9 +810,25 @@ jobs:
           host: ${{ env.VPS_HOST }}
           username: ${{ env.VPS_USER }}
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
-          source: "e2e-v2-output/downloads/"
+          source: "e2e-v2-output/downloads"
           target: "/var/www/html/opswatch/results/e2e-v2/"
           strip_components: 1
           overwrite: true
+        continue-on-error: true
+
+      - name: Verificar videos na VPS apos SCP
+        uses: appleboy/ssh-action@v1.2.0
+        if: always()
+        with:
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          script: |
+            echo "[VPS] Listando /var/www/html/opswatch/results/e2e-v2/downloads/"
+            if [ -d "/var/www/html/opswatch/results/e2e-v2/downloads" ]; then
+              find /var/www/html/opswatch/results/e2e-v2/downloads -type f | head -20
+            else
+              echo "[VPS] AVISO: diretorio downloads nao existe na VPS"
+            fi
         continue-on-error: true
 
