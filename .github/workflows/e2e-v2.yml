@@ -824,10 +824,13 @@ jobs:
           username: ${{ env.VPS_USER }}
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
           script: |
-            echo "[VPS] Corrigindo permissoes em downloads/"
-            find /var/www/html/opswatch/results/e2e-v2/downloads -type d -exec chmod 755 {} \;
-            find /var/www/html/opswatch/results/e2e-v2/downloads -type f -exec chmod 644 {} \;
-            echo "[VPS] Permissoes corrigidas. Arquivos presentes:"
-            find /var/www/html/opswatch/results/e2e-v2/downloads -type f | head -20
+            set -x
+            echo "[VPS] === corrigir permissoes ==="
+            ls -la /var/www/html/opswatch/results/e2e-v2/ 2>&1 | head -10 || true
+            ls -la /var/www/html/opswatch/results/e2e-v2/downloads/ 2>&1 | head -10 || true
+            chmod -R a+rX /var/www/html/opswatch/results/e2e-v2/downloads/ || true
+            find /var/www/html/opswatch/results/e2e-v2/downloads -name "index.html" 2>&1 | head -5 || true
+            echo "[VPS] curl test:"
+            curl -s -o /dev/null -w "HTTP %{http_code}\n" http://localhost/opswatch/results/e2e-v2/downloads/videos_latest/index.html 2>&1 || echo "curl falhou"
         continue-on-error: true
 
