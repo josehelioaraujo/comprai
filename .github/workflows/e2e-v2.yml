@@ -683,28 +683,77 @@ jobs:
             print(f'  [{i:03d}] {name}')
 
           n = len(playlist)
-          CATEGORY_MAP = {
+          # Categorias de cenas visuais (por número da cena)
+          VISUAL_CAT_MAP = {
             '01': 'Autenticação', '02': 'IA / Chat',  '03': 'Busca',
             '04': 'Carrinho',     '05': 'Checkout',    '06': 'Pagamento',
             '07': 'Pedidos',      '08': 'Conta',
           }
-          def get_category(name):
+          def get_visual_cat(name):
             m = re.search(r'\b(0[1-8])\b', name)
-            return CATEGORY_MAP.get(m.group(1), 'Outros') if m else 'Outros'
+            return VISUAL_CAT_MAP.get(m.group(1), 'Outros') if m else 'Outros'
 
+          # Categorias de testes de API (T01-T31) — mesma lógica do report
+          def get_api_cat(title):
+            m2 = re.match(r'[Tt](\d+)', title)
+            if not m2: return 'Outros'
+            n2 = int(m2.group(1))
+            if n2 <= 2:  return 'Healthcheck'
+            if n2 <= 4:  return 'Cadastro'
+            if n2 <= 9:  return 'Autenticação'
+            if n2 <= 12: return 'Busca'
+            if n2 <= 17: return 'Carrinho'
+            if n2 <= 20: return 'Checkout'
+            if n2 <= 23: return 'Pagamento'
+            if n2 <= 27: return 'Pedidos'
+            return 'Fluxo E2E'
+
+          # Carrega resultados dos testes de API
+          api_tests = []
+          try:
+            with open('tests/e2e/playwright-results.json', 'r') as f:
+              pr = json.load(f)
+            for suite in pr.get('suites', []):
+              for spec in suite.get('specs', []):
+                api_tests.append({
+                  'title':  spec.get('title', ''),
+                  'status': spec.get('status', 'unknown'),
+                })
+            print(f'[VIDEO] API tests carregados: {len(api_tests)}')
+          except Exception as e:
+            print(f'[VIDEO] Aviso: playwright-results.json nao disponivel: {e}')
+
+          # Seção 1: Testes de API (informativos, sem vídeo)
           items_html = ''
+          if api_tests:
+            items_html += '<div class="ph">&#128203; Testes de API</div>\n'
+            last_cat = None
+            for t in api_tests:
+              cat = get_api_cat(t['title'])
+              if cat != last_cat:
+                items_html += f'<div class="ph sub">{cat}</div>\n'
+                last_cat = cat
+              st = t['status']
+              ic = '✅' if st == 'passed' else '❌' if st == 'failed' else '⏭'
+              items_html += f'<div class="pt">{ic} {t["title"]}</div>\n'
+
+          # Seção 2: Cenas visuais (clicáveis, com download)
+          items_html += '<div class="ph">&#127916; Cenas Visuais</div>\n'
           last_cat = None
           for i, item in enumerate(playlist):
-            cat = get_category(item['name'])
+            cat = get_visual_cat(item['name'])
             if cat != last_cat:
-              items_html += f'<div class="ph">{cat}</div>\n'
+              items_html += f'<div class="ph sub">{cat}</div>\n'
               last_cat = cat
             items_html += (
               f'<div class="pi" onclick="play({i})" id="pi{i}">'
-              f'<span class="idx">{i+1:03d}</span> {item["name"]}</div>\n'
+              f'<span class="pn"><span class="idx">{i+1:03d}</span> {item["name"]}</span>'
+              f'<a class="dl" href="{item["src"]}" download onclick="event.stopPropagation()">&#11123;</a></div>\n'
             )
 
           V_json = json.dumps(playlist, ensure_ascii=False)
+          api_count = len(api_tests)
+          header_lbl = f'{api_count} API + {n} visuais' if api_tests else f'{n} cenas'
 
           player_html = (
             '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">'
@@ -714,28 +763,41 @@ jobs:
             '#lbl{font-size:13px;color:#94a3b8;padding:6px 0;border-bottom:1px solid #1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}'
             '#lbl b{color:#f1f5f9}#lbl em{color:#475569;font-style:normal;font-size:11px;margin-left:10px}'
             '#vid{width:100%;border-radius:8px;background:#000;flex:1;object-fit:contain;min-height:0}'
-            '#playlist{width:270px;background:#1e293b;overflow-y:auto;border-left:1px solid #334155;flex-shrink:0}'
-            '.ph{padding:11px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#475569;border-bottom:1px solid #0f172a;position:sticky;top:0;background:#1e293b}'
-            '.pi{padding:9px 14px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px;color:#94a3b8;transition:background .12s;line-height:1.45}'
+            '#novid{display:none;flex:1;align-items:center;justify-content:center;flex-direction:column;gap:10px;color:#475569;font-size:14px;border-radius:8px;background:#0f172a;border:1px dashed #334155}'
+            '#playlist{width:300px;background:#1e293b;overflow-y:auto;border-left:1px solid #334155;flex-shrink:0}'
+            '.ph{padding:9px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#475569;border-bottom:1px solid #0f172a;position:sticky;top:0;background:#1e293b;z-index:1}'
+            '.ph.sub{padding:5px 14px 5px 22px;font-size:10px;letter-spacing:.04em;color:#334155;background:#1a2540;position:static;border-bottom:none;border-top:1px solid #0f172a}'
+            '.pi{padding:8px 14px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px;color:#94a3b8;transition:background .12s;display:flex;align-items:center;gap:4px}'
             '.pi:hover{background:#334155;color:#e2e8f0}.pi.active{background:#1d4ed8;color:#fff}'
-            '.idx{font-size:10px;opacity:.45;margin-right:5px}'
+            '.pt{padding:5px 14px 5px 22px;border-bottom:1px solid rgba(255,255,255,.03);font-size:11px;color:#64748b;line-height:1.4}'
+            '.pn{flex:1;line-height:1.35}.idx{font-size:10px;opacity:.45;margin-right:4px}'
+            '.dl{padding:2px 7px;border-radius:4px;background:rgba(255,255,255,.06);color:#475569;text-decoration:none;font-size:11px;transition:all .12s;flex-shrink:0;line-height:1.6}'
+            '.dl:hover{background:#334155;color:#94a3b8}'
             '</style></head><body>'
-            '<div id="player"><div id="lbl">&#9654; <b id="ln">...</b><em id="prog"></em></div><video id="vid" controls></video></div>'
-            f'<div id="playlist"><div class="ph">&#9654; {n} testes</div>\n'
+            '<div id="player">'
+            '<div id="lbl">&#9654; <b id="ln">...</b><em id="prog"></em></div>'
+            '<video id="vid" controls></video>'
+            '<div id="novid">&#128248;<span>V&#237;deo n&#227;o dispon&#237;vel</span><span style="font-size:11px;color:#334155">Este teste n&#227;o gerou grava&#231;&#227;o</span></div>'
+            '</div>'
+            f'<div id="playlist"><div class="ph">&#9654; {header_lbl}</div>\n'
             + items_html +
             '</div>'
-            f'<script>var V={V_json},idx=0,vid=document.getElementById("vid");'
-            'function play(i){if(i<0||i>=V.length)return;idx=i;vid.src=V[i].src;vid.play().catch(function(){});'
+            f'<script>var V={V_json},idx=0,vid=document.getElementById("vid"),novid=document.getElementById("novid");'
+            'function play(i){if(i<0||i>=V.length)return;idx=i;'
+            'vid.style.display="";novid.style.display="none";'
+            'vid.src=V[i].src;vid.play().catch(function(){});'
             'document.getElementById("ln").textContent=V[i].name;'
             'document.getElementById("prog").textContent=(i+1)+" / "+V.length;'
             'document.querySelectorAll(".pi").forEach(function(e,j){e.classList.toggle("active",j===i);});'
             'var a=document.getElementById("pi"+i);if(a)a.scrollIntoView({block:"nearest"});}'
+            'vid.onerror=function(){vid.style.display="none";novid.style.display="flex";};'
+            'vid.onloadstart=function(){vid.style.display="";novid.style.display="none";};'
             'vid.onended=function(){play(idx+1);};play(0);</script></body></html>'
           )
 
           with open(f'{player_dir}/index.html', 'w', encoding='utf-8') as f:
             f.write(player_html)
-          print(f'index.html gerado com {n} cenas')
+          print(f'index.html gerado: {api_count} API + {n} cenas visuais')
 
           zip_name = 'videos_latest.zip'
           zip_path = f'e2e-v2-output/downloads/{zip_name}'

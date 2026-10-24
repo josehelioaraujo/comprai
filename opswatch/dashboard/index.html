@@ -2197,6 +2197,13 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
         });
       });
 
+      // Contagem por categoria para os cards de filtro
+      var catCounts = {};
+      _e2eV2Specs.forEach(function(spec) {
+        var cat = e2eV2GetCat(spec.title || '');
+        catCounts[cat] = (catCounts[cat] || 0) + 1;
+      });
+
       var runInfo = '';
       if (d.run) runInfo = 'Run #' + d.run + (d.sha ? ' &nbsp;·&nbsp; SHA ' + d.sha : '') + (d.timestamp ? ' &nbsp;·&nbsp; ' + new Date(d.timestamp).toLocaleString('pt-BR') : '');
 
@@ -2210,6 +2217,21 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
         + _e2eV2Kpi('Duracao',  duration + 's', '#38bdf8', '&#9201;', 'all')
         + _e2eV2Kpi('Taxa OK',  passRate + '%', passRate === 100 ? '#22c55e' : passRate >= 80 ? '#f59e0b' : '#ef4444', '&#128200;', passRate === 100 ? 'passed' : 'all')
         + '</div>';
+
+      // Cards de categoria (filtro combinado)
+      var catOrder  = ['Healthcheck','Cadastro','Autenticação','Busca','Carrinho','Checkout','Pagamento','Pedidos','Fluxo E2E'];
+      var catColors = {'Healthcheck':'#38bdf8','Cadastro':'#06b6d4','Autenticação':'#a78bfa','Busca':'#34d399','Carrinho':'#f59e0b','Checkout':'#fb923c','Pagamento':'#22c55e','Pedidos':'#818cf8','Fluxo E2E':'#f472b6'};
+      var catCardsHTML = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px">';
+      catOrder.forEach(function(cat) {
+        var cnt = catCounts[cat] || 0;
+        if (!cnt) return;
+        var col = catColors[cat] || '#94a3b8';
+        catCardsHTML += '<div id="e2e-v2-cat-kpi-' + cat + '" onclick="e2eV2FilterCat(\'' + cat.replace(/\'/g, "\\'") + '\')" title="Filtrar: ' + cat + '" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;text-align:center;cursor:pointer;transition:border-color .15s,outline .15s;min-width:72px" onmouseover="this.style.borderColor=\'' + col + '\'" onmouseout="this.style.borderColor=\'var(--border)\'">'
+          + '<div style="font-size:17px;font-weight:700;color:' + col + '">' + cnt + '</div>'
+          + '<div style="font-size:10px;color:var(--muted);margin-top:2px">' + cat + '</div>'
+          + '</div>';
+      });
+      catCardsHTML += '</div>';
 
       // Suites com chevrons e specs interativos
       var suites = d.suites || [];
@@ -2264,7 +2286,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
               var postmanBtn = '<button onclick="event.stopPropagation();e2eV2DownloadSpecPostman(' + idx + ')" title="Baixar Collection Postman deste teste" style="padding:3px 5px;background:transparent;border:1px solid transparent;border-radius:4px;color:#475569;cursor:pointer;line-height:0;transition:all .15s;flex-shrink:0" onmouseover="this.style.borderColor=\'#ff6c37\';this.style.color=\'#ff8c5a\'" onmouseout="this.style.borderColor=\'transparent\';this.style.color=\'#475569\'">'
                 + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'
                 + '</button>';
-              suitesHTML += '<div class="e2e-spec-row" data-e2e-ns="v2" data-e2e-st="' + (spec.status || '') + '">'
+              suitesHTML += '<div class="e2e-spec-row" data-e2e-ns="v2" data-e2e-st="' + (spec.status || '') + '" data-e2e-cat="' + e2eV2GetCat(spec.title || '') + '">'
                 + '<div onclick="e2eV2ToggleSpec(\'' + specDetailId + '\',this)" title="Clique para expandir" style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;background:var(--bg);cursor:pointer;border-left:2px solid ' + borderCol + ';transition:background .15s" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'var(--bg)\'">'
                 + '<span>' + ic + '</span>'
                 + '<span style="flex:1;font-size:12px;color:#cbd5e1">' + _e2eEsc(spec.title || '') + '</span>'
@@ -2342,7 +2364,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
         + '<div>'
         + '<div style="font-size:14px;font-weight:700;color:#e2e8f0">E2E — Fluxo Completo (T01–T31)</div>'
         + '</div></div>'
-        + kpiHTML + downloadsHTML + reportPanelHTML + suitesHTML + linkHTML;
+        + kpiHTML + catCardsHTML + downloadsHTML + reportPanelHTML + suitesHTML + linkHTML;
 
     } catch(e) {
       area.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:24px 0">Execute o workflow E2E para gerar os dados.</div>'
@@ -2375,7 +2397,8 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       c.style.outline = (f === filter) ? '2px solid #3b82f6' : '';
       c.style.outlineOffset = '2px';
     });
-    // Mostra/oculta spec rows
+    // Mostra/oculta spec rows (v2 usa filtro combinado status+categoria)
+    if (ns === 'v2') { _e2eApplyV2Filters(); } else {
     var rows = document.querySelectorAll('.e2e-spec-row[data-e2e-ns="' + ns + '"]');
     rows.forEach(function(row) {
       var st = row.getAttribute('data-e2e-st');
@@ -2388,7 +2411,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       }
     });
     // Mostra/oculta suite cards (oculta se todos os specs estão filtrados)
-    var prefix = ns === 'v2' ? 'e2e-v2-suite-card-' : 'e2e-suite-card-';
+    var prefix = 'e2e-suite-card-';
     for (var i = 0; ; i++) {
       var card = document.getElementById(prefix + i);
       if (!card) break;
@@ -2398,10 +2421,79 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
       allRows.forEach(function(r) { if (r.style.display !== 'none') visible++; });
       card.style.display = visible === 0 ? 'none' : '';
     }
+    } // end else (v1)
     // Scroll até primeira suite visível
     if (filter !== 'all') {
       for (var j = 0; ; j++) {
         var c2 = document.getElementById(prefix + j);
+        if (!c2) break;
+        if (c2.style.display !== 'none') {
+          setTimeout(function(el) { return function() { el.scrollIntoView({behavior:'smooth', block:'nearest'}); }; }(c2), 80);
+          break;
+        }
+      }
+    }
+  }
+
+  // Categoria v2 — espelha get_category() Python do workflow
+  function e2eV2GetCat(title) {
+    var m = (title || '').match(/[Tt](\d+)/);
+    if (!m) return 'Outros';
+    var n = parseInt(m[1], 10);
+    if (n <= 2)  return 'Healthcheck';
+    if (n <= 4)  return 'Cadastro';
+    if (n <= 9)  return 'Autenticação';
+    if (n <= 12) return 'Busca';
+    if (n <= 17) return 'Carrinho';
+    if (n <= 20) return 'Checkout';
+    if (n <= 23) return 'Pagamento';
+    if (n <= 27) return 'Pedidos';
+    return 'Fluxo E2E';
+  }
+  var _e2eActiveCatFlt = {};
+  var _CAT_COLORS_V2 = {'Healthcheck':'#38bdf8','Cadastro':'#06b6d4','Autenticação':'#a78bfa','Busca':'#34d399','Carrinho':'#f59e0b','Checkout':'#fb923c','Pagamento':'#22c55e','Pedidos':'#818cf8','Fluxo E2E':'#f472b6'};
+  function e2eV2FilterCat(cat) {
+    if (_e2eActiveCatFlt['v2'] === cat) cat = 'all';
+    _e2eActiveCatFlt['v2'] = cat;
+    // Destaca o card ativo (outline) e reseta os demais
+    ['Healthcheck','Cadastro','Autenticação','Busca','Carrinho','Checkout','Pagamento','Pedidos','Fluxo E2E'].forEach(function(c) {
+      var el = document.getElementById('e2e-v2-cat-kpi-' + c);
+      if (!el) return;
+      var col = _CAT_COLORS_V2[c] || '#94a3b8';
+      el.style.outline      = (c === cat) ? '2px solid ' + col : '';
+      el.style.outlineOffset = (c === cat) ? '2px' : '';
+    });
+    _e2eApplyV2Filters();
+  }
+  // Filtro combinado status+categoria para v2
+  function _e2eApplyV2Filters() {
+    var stFlt  = _e2eActiveFlt['v2']    || 'all';
+    var catFlt = _e2eActiveCatFlt['v2'] || 'all';
+    var rows = document.querySelectorAll('.e2e-spec-row[data-e2e-ns="v2"]');
+    rows.forEach(function(row) {
+      var st  = row.getAttribute('data-e2e-st');
+      var cat = row.getAttribute('data-e2e-cat');
+      var show = (stFlt === 'all' || st === stFlt) && (catFlt === 'all' || cat === catFlt);
+      row.style.display = show ? '' : 'none';
+      if (!show) {
+        var det = row.querySelector('[id]');
+        if (det && det.id) det.style.display = 'none';
+      }
+    });
+    // Oculta suite cards cujos specs foram todos filtrados
+    for (var i = 0; ; i++) {
+      var card = document.getElementById('e2e-v2-suite-card-' + i);
+      if (!card) break;
+      var allRows = card.querySelectorAll('.e2e-spec-row[data-e2e-ns="v2"]');
+      var visible = 0;
+      allRows.forEach(function(r) { if (r.style.display !== 'none') visible++; });
+      card.style.display = visible === 0 ? 'none' : '';
+    }
+    // Scroll até primeira suite visível
+    var pref = 'e2e-v2-suite-card-';
+    if (stFlt !== 'all' || catFlt !== 'all') {
+      for (var j = 0; ; j++) {
+        var c2 = document.getElementById(pref + j);
         if (!c2) break;
         if (c2.style.display !== 'none') {
           setTimeout(function(el) { return function() { el.scrollIntoView({behavior:'smooth', block:'nearest'}); }; }(c2), 80);
