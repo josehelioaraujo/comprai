@@ -11,6 +11,7 @@ on:
 env:
   NODE_VERSION: '20'
   VPS_HOST:    '2.25.122.11'
+  VPS_DOMAIN:  'comprai.2.25.122.11.nip.io'
   VPS_USER:    'root'
   E2E_API_URL: ${{ github.event.inputs.api_url || 'http://2.25.122.11:5020' }}
 
@@ -585,16 +586,17 @@ jobs:
       - name: Gerar player HTML e ZIP de videos
         if: always()
         env:
-          VPS_HOST: ${{ env.VPS_HOST }}
-          GH_RUN:   ${{ github.run_number }}
+          VPS_HOST:   ${{ env.VPS_HOST }}
+          VPS_DOMAIN: ${{ env.VPS_DOMAIN }}
+          GH_RUN:     ${{ github.run_number }}
         run: |
           python3 - <<'PYEOF'
           import os, json, glob, re, shutil, zipfile
           from datetime import datetime
 
-          vps_host = os.environ.get('VPS_HOST', '2.25.122.11')
-          folder   = 'videos_latest'   # nome fixo — cada run sobrescreve
-          base_url = f'http://{vps_host}/opswatch/results/e2e-v2/downloads/'
+          vps_domain = os.environ.get('VPS_DOMAIN', 'comprai.2.25.122.11.nip.io')
+          folder     = 'videos_latest'   # nome fixo — cada run sobrescreve
+          base_url   = f'https://{vps_domain}/opswatch/results/e2e-v2/downloads/'
 
           webm_files = sorted(glob.glob('tests/e2e/test-results-visual/**/video.webm', recursive=True))
 
