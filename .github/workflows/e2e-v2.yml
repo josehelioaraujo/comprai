@@ -56,17 +56,19 @@ jobs:
       # Deps do sistema já estão no runner Ubuntu — sem necessidade de instalar no cache hit
 
       - name: Aguardar API saudavel
+        continue-on-error: true
         run: |
           echo "Aguardando $E2E_API_URL/health/live..."
-          for i in $(seq 1 12); do
-            status=$(curl -s -o /dev/null -w "%{http_code}" "$E2E_API_URL/health/live" 2>/dev/null || echo "000")
+          for i in $(seq 1 6); do
+            status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "$E2E_API_URL/health/live" 2>/dev/null || echo "000")
             if [ "$status" = "200" ]; then
               echo "API OK (tentativa $i)"
-              break
+              exit 0
             fi
-            echo "Tentativa $i — status $status, aguardando 10s..."
-            sleep 10
+            echo "Tentativa $i — status $status, aguardando 5s..."
+            sleep 5
           done
+          echo "API nao respondeu em 30s — continuando mesmo assim"
 
       - name: Executar E2E v2 (full-flow-v2.spec.ts)
         working-directory: tests/e2e
