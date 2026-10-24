@@ -71,7 +71,7 @@ async function addToCartViaAPI(request: APIRequestContext) {
 
 // ── Suite ─────────────────────────────────────────────────────────────────────
 
-test.describe.serial('Jornada do Cliente', () => {
+test.describe('Jornada do Cliente', () => {
 
   test.beforeAll(async ({ request }) => {
     // Garante que o usuário de demonstração existe

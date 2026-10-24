@@ -643,8 +643,22 @@ jobs:
             print(f'  [{i:03d}] {name}')
 
           n = len(playlist)
+          CATEGORY_MAP = {
+            '01': 'Autenticação', '02': 'IA / Chat',  '03': 'Busca',
+            '04': 'Carrinho',     '05': 'Checkout',    '06': 'Pagamento',
+            '07': 'Pedidos',      '08': 'Conta',
+          }
+          def get_category(name):
+            m = re.search(r'\b(0[1-8])\b', name)
+            return CATEGORY_MAP.get(m.group(1), 'Outros') if m else 'Outros'
+
           items_html = ''
+          last_cat = None
           for i, item in enumerate(playlist):
+            cat = get_category(item['name'])
+            if cat != last_cat:
+              items_html += f'<div class="ph">{cat}</div>\n'
+              last_cat = cat
             items_html += (
               f'<div class="pi" onclick="play({i})" id="pi{i}">'
               f'<span class="idx">{i+1:03d}</span> {item["name"]}</div>\n'
