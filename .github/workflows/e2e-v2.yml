@@ -411,7 +411,7 @@ jobs:
             if not m:
               return 'Outros'
             n = int(m.group(1))
-            if n <= 2:  return 'Saúde'
+            if n <= 2:  return 'Healthcheck'
             if n <= 9:  return 'Autenticação'
             if n <= 12: return 'Busca'
             if n <= 17: return 'Carrinho'
@@ -493,8 +493,8 @@ jobs:
               f'</tr>'
             )
 
-          cat_order  = ['Saúde','Autenticação','Busca','Carrinho','Checkout','Pagamento','Pedidos','Fluxo E2E']
-          cat_colors = {'Saúde':'#38bdf8','Autenticação':'#a78bfa','Busca':'#34d399','Carrinho':'#f59e0b','Checkout':'#fb923c','Pagamento':'#22c55e','Pedidos':'#818cf8','Fluxo E2E':'#f472b6'}
+          cat_order  = ['Healthcheck','Autenticação','Busca','Carrinho','Checkout','Pagamento','Pedidos','Fluxo E2E']
+          cat_colors = {'Healthcheck':'#38bdf8','Autenticação':'#a78bfa','Busca':'#34d399','Carrinho':'#f59e0b','Checkout':'#fb923c','Pagamento':'#22c55e','Pedidos':'#818cf8','Fluxo E2E':'#f472b6'}
           cat_cards_html = ''
           for cat in cat_order:
             cnt = cat_counts.get(cat, 0)
