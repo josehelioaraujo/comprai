@@ -710,14 +710,36 @@ jobs:
 
           # Carrega resultados dos testes de API
           api_tests = []
+          def _collect_api_specs(node):
+            """Coleta specs recursivamente (suites aninhadas via test.describe)."""
+            specs = []
+            for spec in node.get('specs', []):
+              specs.append(spec)
+            for sub in node.get('suites', []):
+              specs.extend(_collect_api_specs(sub))
+            return specs
+
+          def _spec_status(spec):
+            """Lê status real do spec a partir de tests[].results[].status."""
+            for result in spec.get('tests', []):
+              for attempt in result.get('results', []):
+                st = attempt.get('status', '')
+                if st in ('failed', 'timedOut'):
+                  return 'failed'
+                if st == 'skipped':
+                  return 'skipped'
+                if st in ('passed', 'expected'):
+                  return 'passed'
+            return 'unknown'
+
           try:
             with open('tests/e2e/playwright-results.json', 'r') as f:
               pr = json.load(f)
             for suite in pr.get('suites', []):
-              for spec in suite.get('specs', []):
+              for spec in _collect_api_specs(suite):
                 api_tests.append({
                   'title':  spec.get('title', ''),
-                  'status': spec.get('status', 'unknown'),
+                  'status': _spec_status(spec),
                 })
             print(f'[VIDEO] API tests carregados: {len(api_tests)}')
           except Exception as e:
