@@ -816,7 +816,7 @@ jobs:
           overwrite: true
         continue-on-error: true
 
-      - name: Verificar videos na VPS apos SCP
+      - name: Corrigir permissoes e verificar videos na VPS
         uses: appleboy/ssh-action@v1.2.0
         if: always()
         with:
@@ -824,11 +824,10 @@ jobs:
           username: ${{ env.VPS_USER }}
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
           script: |
-            echo "[VPS] Listando /var/www/html/opswatch/results/e2e-v2/downloads/"
-            if [ -d "/var/www/html/opswatch/results/e2e-v2/downloads" ]; then
-              find /var/www/html/opswatch/results/e2e-v2/downloads -type f | head -20
-            else
-              echo "[VPS] AVISO: diretorio downloads nao existe na VPS"
-            fi
+            echo "[VPS] Corrigindo permissoes em downloads/"
+            find /var/www/html/opswatch/results/e2e-v2/downloads -type d -exec chmod 755 {} \;
+            find /var/www/html/opswatch/results/e2e-v2/downloads -type f -exec chmod 644 {} \;
+            echo "[VPS] Permissoes corrigidas. Arquivos presentes:"
+            find /var/www/html/opswatch/results/e2e-v2/downloads -type f | head -20
         continue-on-error: true
 
