@@ -327,6 +327,16 @@ jobs:
           _ANSI_RE = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]|\x1b[^[]')
           def strip_ansi(s):
             return _ANSI_RE.sub('', str(s or ''))
+          def clean_err(s):
+            s = strip_ansi(s)
+            lines = s.split('\n')
+            kept = []
+            for line in lines:
+              # Remove linhas de snippet de código: "  311 |  code", "> 313 |  code", "      |    ^"
+              if re.match(r'^\s*>?\s*\d+\s*\|', line): continue
+              if re.match(r'^\s*\|\s', line): continue
+              kept.append(line)
+            return '\n'.join(kept).strip()[:400]
 
           def parse_requests_from_stdout(stdout_entries, spec_title):
             requests = []
@@ -403,7 +413,7 @@ jobs:
                 if st in ('failed', 'timedOut'):
                   s_status = 'failed'
                   for err in attempt.get('errors', []):
-                    s_errors.append(strip_ansi(err.get('message', ''))[:400])
+                    s_errors.append(clean_err(err.get('message', '')))
                 elif st == 'skipped' and s_status != 'failed':
                   s_status = 'skipped'
 
@@ -756,5 +766,16 @@ jobs:
           overwrite: true
         continue-on-error: true
 
-      # Vídeos ficam apenas no artefato do GitHub Actions
+      - name: Publicar videos na VPS
+        uses: appleboy/scp-action@v0.1.7
+        if: always()
+        with:
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
+          source: "e2e-v2-output/downloads/"
+          target: "/var/www/html/opswatch/results/e2e-v2/"
+          strip_components: 1
+          overwrite: true
+        continue-on-error: true
 
