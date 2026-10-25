@@ -34,6 +34,7 @@ Comprai é um ecossistema modular open-source que implementa o **Universal Comme
 - [🧪 Qualidade & Testes](#-qualidade--testes)
 - [📊 OpsWatch](#-dev-quality-hub)
 - [💻 Frontend](#-frontend)
+- [🧠 Knowledge Graph](#-knowledge-graph)
 - [🗺️ Roadmap](#%EF%B8%8F-roadmap)
 - [📄 Licença](#-licença)
 
@@ -1151,6 +1152,37 @@ http://<VPS>:3005   # Mobile v2
 
 > ⚠️ **Pendência (V074):** valor do pedido aparece R$ 0,00 na confirmação após pagamento PIX. Investigação e fix programados para V074.
 
+
+## 🧠 Knowledge Graph
+
+O grafo de conhecimento do projeto é gerado automaticamente pelo [Graphify](https://github.com/graphify-ai/graphify) a cada push na `main` e publicado via GitHub Pages.
+
+[![Knowledge Graph](https://img.shields.io/badge/🧠_Knowledge_Graph-Ver_Grafo_Interativo-4f46e5?style=for-the-badge)](https://josehelioaraujo.github.io/comprai/)
+
+> Clique no botão acima para explorar os **4.322 nós**, **9.062 arestas** e **235 comunidades** do projeto de forma interativa — com zoom, busca por nó e navegação por cluster.
+
+**Principais comunidades detectadas:**
+
+| Comunidade | Descrição |
+|---|---|
+| `UcpAgent.SharedKernel.Ports` | Interfaces de portas hexagonais (IProductCatalogPort, ICartPort, ICheckoutPort...) |
+| `UcpAgent.Api/Program.cs` | Entry point — registro de plugins, middlewares e endpoints |
+| `FulfillmentAggregate` | Domínio de fulfillment e ciclo de vida do pedido |
+| `PriceWatcherService` | Monitoramento de preços em background |
+| `ShopifyIntegrationTest` | Testes de integração dos adaptadores |
+| `otel-collector-config.yaml` | Pipeline de observabilidade (OTel → Datadog + New Relic) |
+| `.MapAuthEndpoints` | Autenticação — JWT, TOTP, OTP, refresh token |
+| `.CreateAsync` | Padrão de criação assíncrona (Dapper + Npgsql) |
+
+**Para gerar localmente:**
+```bash
+pip install graphifyy
+graphify extract . --code-only
+graphify cluster-only .
+# Abre: graphify-out/graph.html
+```
+
+---
 
 ## 🗺️ Roadmap
 

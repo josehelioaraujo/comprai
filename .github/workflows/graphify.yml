@@ -1,0 +1,54 @@
+name: Knowledge Graph
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'frontend/**'
+      - '.github/workflows/graphify.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  generate-graph:
+    name: Generate & Publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install graphify
+        run: pip install graphifyy --quiet
+
+      - name: Generate knowledge graph
+        run: |
+          graphify extract . --code-only
+          graphify cluster-only .
+
+      - name: Prepare Pages output
+        run: |
+          mkdir -p pages-out
+          cp graphify-out/graph.html pages-out/index.html
+          cp graphify-out/graph.json pages-out/graph.json
+          cp graphify-out/GRAPH_REPORT.md pages-out/GRAPH_REPORT.md
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./pages-out
+          publish_branch: gh-pages
+          commit_message: "chore: update knowledge graph [${{ github.sha }}]"
+          force_orphan: true
