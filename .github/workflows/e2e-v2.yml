@@ -943,38 +943,46 @@ jobs:
 
             # scheduleNext: avança para próximo item com delay se API, imediato se vídeo
             'function scheduleNext(){'
+            'console.log("[scheduleNext] autoAdv="+autoAdv+" idx="+idx);'
             'if(!autoAdv)return;'
             'var n=nextVisible(idx);'
-            'if(n<0)return;'
+            'console.log("[scheduleNext] nextVisible="+n);'
+            'if(n<0){console.log("[scheduleNext] fim da lista");return;}'
             'clearTimeout(autoTimer);'
-            'var delay=ALL[idx].hasVideo?0:API_DELAY;'
+            'var delay=!!(ALL[idx]&&ALL[idx].src)?0:API_DELAY;'
+            'console.log("[scheduleNext] delay="+delay+"ms → play("+n+")");'
             'autoTimer=setTimeout(function(){play(n);},delay);}'
 
             # play: exibe item i
             'function play(i){'
-            'if(i<0||i>=ALL.length)return;'
+            'console.log("[play] i="+i+" ALL.length="+ALL.length);'
+            'if(i<0||i>=ALL.length){console.warn("[play] índice fora do range");return;}'
             'clearTimeout(autoTimer);'
             'idx=i;'
             'var item=ALL[i];'
+            'var hasVid=!!(item.src);'  # usa src como fonte da verdade
+            'console.log("[play] name="+item.name+" src="+item.src+" hasVideo="+item.hasVideo+" hasVid="+hasVid+" status="+item.status);'
             # highlight sidebar
             'document.querySelectorAll(".pi").forEach(function(e){e.classList.remove("active");});'
             'var el=document.getElementById("pi"+i);'
-            'if(el){el.classList.add("active");el.scrollIntoView({block:"nearest"});}'
+            'if(el){el.classList.add("active");el.scrollIntoView({block:"nearest"});}else{console.warn("[play] pi"+i+" não encontrado no DOM");}'
             # label topo
             'var vis=ALL.filter(function(x){return !activeCat||x.cat===activeCat;});'
-            'var pos=vis.findIndex(function(x,j){return ALL.indexOf(x)===i;})+1;'
+            'var pos=vis.findIndex(function(x){return ALL.indexOf(x)===i;})+1;'
             'document.getElementById("ln").textContent=item.name;'
             'document.getElementById("prog").textContent=pos+" / "+vis.length;'
             # exibe vídeo ou painel resultado
-            'if(item.hasVideo){'
+            'if(hasVid){'
+            'console.log("[play] modo VÍDEO src="+item.src);'
             'rp.style.display="none";novid.style.display="none";'
-            'vid.style.display="flex";vid.style.flex="1";'
+            'vid.style.cssText="display:block;width:100%;border-radius:8px;background:#000;flex:1;object-fit:contain;min-height:0";'
             'vid.src=item.src;'
-            'vid.play().catch(function(){});'
+            'vid.play().catch(function(e){console.error("[play] vid.play() erro:",e);});'
             '}else{'
+            'console.log("[play] modo RESULTADO status="+item.status);'
             'vid.style.display="none";vid.src="";'
             'novid.style.display="none";'
-            'rp.style.display="flex";'
+            'rp.style.cssText="display:flex;flex:1;align-items:center;justify-content:center;flex-direction:column;gap:14px;border-radius:8px;background:#0c1525;border:1px solid #1e293b;padding:24px";'
             'var ic=item.status==="passed"?"✅":item.status==="failed"?"❌":"⏭";'
             'var col=item.status==="passed"?"#22c55e":item.status==="failed"?"#ef4444":"#f59e0b";'
             'var lbl=item.status==="passed"?"PASSOU":item.status==="failed"?"FALHOU":"IGNORADO";'
@@ -982,7 +990,6 @@ jobs:
             'document.getElementById("rp-title").textContent=item.name;'
             'var rs=document.getElementById("rp-status");'
             'rs.textContent=lbl;rs.style.background=col+"22";rs.style.color=col;'
-            # API test: avança automaticamente após delay
             'scheduleNext();'
             '}}'
 
@@ -1023,7 +1030,9 @@ jobs:
             'vid.onerror=function(){vid.style.display="none";novid.style.display="flex";rp.style.display="none";scheduleNext();};'
 
             # init: seleciona primeiro visual automaticamente
-            'var firstVis=ALL.findIndex(function(x){return x.hasVideo;});'
+            'console.log("[init] ALL.length="+ALL.length+" ALL[0]=",ALL[0]);'
+            'var firstVis=ALL.findIndex(function(x){return !!(x.src);});'
+            'console.log("[init] firstVis="+firstVis);'
             'play(firstVis>=0?firstVis:0);'
             '</script></body></html>'
           )
