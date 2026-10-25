@@ -919,7 +919,7 @@ jobs:
             '</div>'
             f'<script>'
             f'var ALL={ALL_json};'
-            'var idx=-1,autoAdv=false,autoTimer=null;'
+            'var idx=-1,autoAdv=false,autoTimer=null,_scheduling=false;'
             'var API_DELAY=1500;'  # ms entre API tests no modo Todos
             'var vid=document.getElementById("vid");'
             'var rp=document.getElementById("result-panel");'
@@ -941,17 +941,18 @@ jobs:
             'i++;}'
             'return -1;}'
 
-            # scheduleNext: avança para próximo item com delay se API, imediato se vídeo
+            # scheduleNext: avança APENAS para API tests (vídeos avançam via onended)
             'function scheduleNext(){'
-            'console.log("[scheduleNext] autoAdv="+autoAdv+" idx="+idx);'
-            'if(!autoAdv)return;'
+            'console.log("[scheduleNext] autoAdv="+autoAdv+" _scheduling="+_scheduling+" idx="+idx);'
+            'if(!autoAdv||_scheduling)return;'
+            'if(ALL[idx]&&ALL[idx].src){console.log("[scheduleNext] é vídeo — aguarda onended");return;}'
             'var n=nextVisible(idx);'
             'console.log("[scheduleNext] nextVisible="+n);'
             'if(n<0){console.log("[scheduleNext] fim da lista");return;}'
             'clearTimeout(autoTimer);'
-            'var delay=!!(ALL[idx]&&ALL[idx].src)?0:API_DELAY;'
-            'console.log("[scheduleNext] delay="+delay+"ms → play("+n+")");'
-            'autoTimer=setTimeout(function(){play(n);},delay);}'
+            '_scheduling=true;'
+            'console.log("[scheduleNext] delay="+API_DELAY+"ms → play("+n+")");'
+            'autoTimer=setTimeout(function(){_scheduling=false;play(n);},API_DELAY);}'
 
             # play: exibe item i
             'function play(i){'
