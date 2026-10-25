@@ -981,7 +981,8 @@ jobs:
             'vid.play().catch(function(e){console.error("[play] vid.play() erro:",e);});'
             '}else{'
             'console.log("[play] modo RESULTADO status="+item.status);'
-            'vid.style.display="none";vid.src="";'
+            'vid.style.display="none";'
+            'vid.pause();vid.removeAttribute("src");vid.load();'  # evita onerror ao limpar src
             'novid.style.display="none";'
             'rp.style.cssText="display:flex;flex:1;align-items:center;justify-content:center;flex-direction:column;gap:14px;border-radius:8px;background:#0c1525;border:1px solid #1e293b;padding:24px";'
             'var ic=item.status==="passed"?"✅":item.status==="failed"?"❌":"⏭";'
@@ -1034,7 +1035,12 @@ jobs:
             'console.log("[onended] nextVisible="+n);'
             'if(n>=0)play(n);'
             '};'
-            'vid.onerror=function(e){console.error("[onerror] idx="+idx+" src="+vid.src,e);vid.style.display="none";novid.style.display="flex";rp.style.display="none";scheduleNext();};'
+            'vid.onerror=function(e){'
+            'if(!vid.src||vid.src===window.location.href)return;'  # ignora erros de src vazio
+            'console.error("[onerror] idx="+idx+" src="+vid.src,e);'
+            'vid.style.display="none";novid.style.display="flex";rp.style.display="none";'
+            'if(autoAdv){var n=nextVisible(idx);if(n>=0)play(n);}'
+            '};'
             'vid.oncanplay=function(){console.log("[oncanplay] src="+vid.src);};'
             'vid.onstalled=function(){console.warn("[onstalled] src="+vid.src);};'
 
@@ -1132,6 +1138,11 @@ jobs:
           script: |
             mkdir -p /var/www/html/opswatch/results/e2e-v2
             mkdir -p /var/www/html/opswatch/results/e2e-v2/downloads
+            # Garante MIME type correto para .webm (necessário para reprodução no browser)
+            if ! grep -q "video/webm" /etc/nginx/mime.types 2>/dev/null; then
+              sed -i '/video\/mp4/a\    video/webm                            webm;' /etc/nginx/mime.types
+              nginx -t && systemctl reload nginx || true
+            fi
         continue-on-error: true
 
       - name: Publicar latest.json na VPS
