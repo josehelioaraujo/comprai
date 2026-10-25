@@ -956,7 +956,7 @@ jobs:
 
             # play: exibe item i
             'function play(i){'
-            'console.log("[play] i="+i+" ALL.length="+ALL.length);'
+            'console.log("[play] i="+i+" ALL.length="+ALL.length+" caller="+(new Error().stack.split("\\n")[1]||"?").trim());'
             'if(i<0||i>=ALL.length){console.warn("[play] índice fora do range");return;}'
             'clearTimeout(autoTimer);'
             'idx=i;'
@@ -1027,8 +1027,16 @@ jobs:
             'if(first>=0)play(first);}'
 
             # onended: vídeo terminou → avança
-            'vid.onended=function(){scheduleNext();};'
-            'vid.onerror=function(){vid.style.display="none";novid.style.display="flex";rp.style.display="none";scheduleNext();};'
+            'vid.onended=function(){'
+            'console.log("[onended] idx="+idx+" autoAdv="+autoAdv);'
+            'if(!autoAdv)return;'
+            'var n=nextVisible(idx);'
+            'console.log("[onended] nextVisible="+n);'
+            'if(n>=0)play(n);'
+            '};'
+            'vid.onerror=function(e){console.error("[onerror] idx="+idx+" src="+vid.src,e);vid.style.display="none";novid.style.display="flex";rp.style.display="none";scheduleNext();};'
+            'vid.oncanplay=function(){console.log("[oncanplay] src="+vid.src);};'
+            'vid.onstalled=function(){console.warn("[onstalled] src="+vid.src);};'
 
             # init: seleciona primeiro visual automaticamente
             'console.log("[init] ALL.length="+ALL.length+" ALL[0]=",ALL[0]);'
