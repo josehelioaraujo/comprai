@@ -8,6 +8,7 @@ on:
       - 'tests/**'
       - 'frontend/**'
       - '.github/workflows/graphify.yml'
+      - '.github/scripts/generate-architecture.py'
   workflow_dispatch:
 
 permissions:
@@ -45,11 +46,20 @@ jobs:
           graphify cluster-only .
 
       - name: Prepare Pages output
+        run: mkdir -p pages-out
+
+      - name: Copy graph files
         run: |
-          mkdir -p pages-out
           cp graphify-out/graph.html pages-out/index.html
           cp graphify-out/graph.json pages-out/graph.json
           cp graphify-out/GRAPH_REPORT.md pages-out/GRAPH_REPORT.md
+
+      - name: Generate architecture map
+        env:
+          OUTPUT_DIR: pages-out
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+        run: python3 .github/scripts/generate-architecture.py
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
