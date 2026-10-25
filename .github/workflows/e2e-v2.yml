@@ -917,62 +917,115 @@ jobs:
             + items_html +
             '</div>'
             '</div>'
-            f'<script>var ALL={ALL_json},idx=-1,autoAdv=false;'
+            f'<script>'
+            f'var ALL={ALL_json};'
+            'var idx=-1,autoAdv=false,autoTimer=null;'
+            'var API_DELAY=1500;'  # ms entre API tests no modo Todos
             'var vid=document.getElementById("vid");'
             'var rp=document.getElementById("result-panel");'
             'var novid=document.getElementById("novid");'
             'var btnNext=document.getElementById("btnNext");'
             'var activeCat=null;'
+
+            # toggleCat: expande/colapsa categoria na sidebar
             'function toggleCat(el){'
             'el.classList.toggle("collapsed");'
             'var box=document.getElementById(el.getAttribute("data-cat"));'
             'if(box)box.classList.toggle("hidden");}'
+
+            # nextVisible: próximo índice visível (respeitando filtro de categoria)
+            'function nextVisible(from){'
+            'var i=from+1;'
+            'while(i<ALL.length){'
+            'if(!activeCat||ALL[i].cat===activeCat)return i;'
+            'i++;}'
+            'return -1;}'
+
+            # scheduleNext: avança para próximo item com delay se API, imediato se vídeo
+            'function scheduleNext(){'
+            'if(!autoAdv)return;'
+            'var n=nextVisible(idx);'
+            'if(n<0)return;'
+            'clearTimeout(autoTimer);'
+            'var delay=ALL[idx].hasVideo?0:API_DELAY;'
+            'autoTimer=setTimeout(function(){play(n);},delay);}'
+
+            # play: exibe item i
             'function play(i){'
-            'if(i<0||i>=ALL.length)return;idx=i;'
+            'if(i<0||i>=ALL.length)return;'
+            'clearTimeout(autoTimer);'
+            'idx=i;'
             'var item=ALL[i];'
-            # Atualiza highlight
+            # highlight sidebar
             'document.querySelectorAll(".pi").forEach(function(e){e.classList.remove("active");});'
-            'var el=document.getElementById("pi"+i);if(el){el.classList.add("active");el.scrollIntoView({block:"nearest"});}'
-            # Atualiza label
+            'var el=document.getElementById("pi"+i);'
+            'if(el){el.classList.add("active");el.scrollIntoView({block:"nearest"});}'
+            # label topo
+            'var vis=ALL.filter(function(x){return !activeCat||x.cat===activeCat;});'
+            'var pos=vis.findIndex(function(x,j){return ALL.indexOf(x)===i;})+1;'
             'document.getElementById("ln").textContent=item.name;'
-            'document.getElementById("prog").textContent=(i+1)+" / "+ALL.length;'
-            # Decide o que exibir
+            'document.getElementById("prog").textContent=pos+" / "+vis.length;'
+            # exibe vídeo ou painel resultado
             'if(item.hasVideo){'
-            'rp.style.display="none";novid.style.display="none";vid.style.display="";'
-            'vid.src=item.src;vid.play().catch(function(){});'
+            'rp.style.display="none";novid.style.display="none";'
+            'vid.style.display="flex";vid.style.flex="1";'
+            'vid.src=item.src;'
+            'vid.play().catch(function(){});'
             '}else{'
-            'vid.style.display="none";vid.src="";novid.style.display="none";rp.style.display="flex";'
+            'vid.style.display="none";vid.src="";'
+            'novid.style.display="none";'
+            'rp.style.display="flex";'
             'var ic=item.status==="passed"?"✅":item.status==="failed"?"❌":"⏭";'
             'var col=item.status==="passed"?"#22c55e":item.status==="failed"?"#ef4444":"#f59e0b";'
             'var lbl=item.status==="passed"?"PASSOU":item.status==="failed"?"FALHOU":"IGNORADO";'
             'document.getElementById("rp-icon").textContent=ic;'
             'document.getElementById("rp-title").textContent=item.name;'
-            'var rs=document.getElementById("rp-status");rs.textContent=lbl;rs.style.background=col+"22";rs.style.color=col;'
+            'var rs=document.getElementById("rp-status");'
+            'rs.textContent=lbl;rs.style.background=col+"22";rs.style.color=col;'
+            # API test: avança automaticamente após delay
+            'scheduleNext();'
             '}}'
-            'function playNext(){'
-            'var next=idx+1;'
-            'while(next<ALL.length&&activeCat&&ALL[next].cat!==activeCat)next++;'
-            'play(next);}'
+
+            # startAll: reproduz todos em sequência (API com delay, vídeo aguarda onended)
             'function startAll(btn){'
-            'autoAdv=true;btnNext.style.display="none";'
+            'clearTimeout(autoTimer);autoAdv=true;'
+            'btnNext.style.display="none";'
             'document.querySelectorAll(".btn").forEach(function(b){b.classList.remove("on");});'
-            'btn.classList.add("on");play(0);}'
+            'btn.classList.add("on");'
+            'var first=ALL.findIndex(function(x){return !activeCat||x.cat===activeCat;});'
+            'play(first>=0?first:0);}'
+
+            # start1x1: manual, botão Próximo visível
             'function start1x1(btn){'
-            'autoAdv=false;btnNext.style.display="";'
+            'clearTimeout(autoTimer);autoAdv=false;'
+            'btnNext.style.display="inline-flex";'
             'document.querySelectorAll(".btn").forEach(function(b){b.classList.remove("on");});'
-            'btn.classList.add("on");play(0);}'
+            'btn.classList.add("on");'
+            'var first=ALL.findIndex(function(x){return !activeCat||x.cat===activeCat;});'
+            'play(first>=0?first:0);}'
+
+            # filterCat: filtra sidebar por categoria
             'function filterCat(cat,el){'
+            'clearTimeout(autoTimer);autoAdv=false;'
             'activeCat=cat;'
+            'document.querySelectorAll(".btn").forEach(function(b){b.classList.remove("on");});'
             'document.querySelectorAll(".ccard").forEach(function(c){c.classList.remove("active");});'
             'el.classList.add("active");'
             'document.querySelectorAll(".pi").forEach(function(r){'
             'var show=!cat||r.getAttribute("data-cat")===cat;'
-            'r.style.display=show?"":"none";});}'
-            'vid.onerror=function(){vid.style.display="none";novid.style.display="flex";rp.style.display="none";};'
-            'vid.onended=function(){if(autoAdv)playNext();};'
-            # Seleciona primeiro visual automaticamente; fallback para primeiro item
-            'var firstVisual=ALL.findIndex(function(x){return x.hasVideo;});'
-            'play(firstVisual>=0?firstVisual:0);</script></body></html>'
+            'r.style.display=show?"":"none";});'
+            # auto-seleciona primeiro visível da categoria
+            'var first=ALL.findIndex(function(x){return !cat||x.cat===cat;});'
+            'if(first>=0)play(first);}'
+
+            # onended: vídeo terminou → avança
+            'vid.onended=function(){scheduleNext();};'
+            'vid.onerror=function(){vid.style.display="none";novid.style.display="flex";rp.style.display="none";scheduleNext();};'
+
+            # init: seleciona primeiro visual automaticamente
+            'var firstVis=ALL.findIndex(function(x){return x.hasVideo;});'
+            'play(firstVis>=0?firstVis:0);'
+            '</script></body></html>'
           )
 
           with open(f'{player_dir}/index.html', 'w', encoding='utf-8') as f:
