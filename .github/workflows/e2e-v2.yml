@@ -1045,7 +1045,10 @@ jobs:
             'vid.style.display="none";novid.style.display="flex";rp.style.display="none";'
             'if(autoAdv){var n=nextVisible(idx);if(n>=0)play(n);}'
             '};'
-            'vid.oncanplay=function(){console.log("[oncanplay] src="+vid.src);};'
+            'vid.oncanplay=function(){console.log("[oncanplay] src="+vid.src+" dur="+vid.duration+" w="+vid.offsetWidth+" h="+vid.offsetHeight+" paused="+vid.paused);};'
+            'vid.onplay=function(){console.log("[onplay] src="+vid.src+" currentTime="+vid.currentTime);};'
+            'vid.onpause=function(){console.log("[onpause] src="+vid.src+" currentTime="+vid.currentTime+" ended="+vid.ended);};'
+            'vid.ontimeupdate=function(){if(vid.duration&&vid.currentTime>vid.duration-0.5)console.log("[timeupdate] perto do fim: "+vid.currentTime+"/"+vid.duration);};'
             'vid.onstalled=function(){console.warn("[onstalled] src="+vid.src);};'
 
             # init: seleciona primeiro visual automaticamente
