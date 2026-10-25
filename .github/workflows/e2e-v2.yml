@@ -982,7 +982,7 @@ jobs:
             '}else{'
             'console.log("[play] modo RESULTADO status="+item.status);'
             'vid.style.display="none";'
-            'vid.pause();vid.removeAttribute("src");vid.load();'  # evita onerror ao limpar src
+            'vid.pause();vid.removeAttribute("src");'  # NÃO chama vid.load() — interfere com play() seguinte
             'novid.style.display="none";'
             'rp.style.cssText="display:flex;flex:1;align-items:center;justify-content:center;flex-direction:column;gap:14px;border-radius:8px;background:#0c1525;border:1px solid #1e293b;padding:24px";'
             'var ic=item.status==="passed"?"✅":item.status==="failed"?"❌":"⏭";'
@@ -1027,16 +1027,18 @@ jobs:
             'var first=ALL.findIndex(function(x){return !cat||x.cat===cat;});'
             'if(first>=0)play(first);}'
 
-            # onended: vídeo terminou → avança
+            # onended: vídeo terminou → avança para próximo
             'vid.onended=function(){'
-            'console.log("[onended] idx="+idx+" autoAdv="+autoAdv);'
+            'console.log("[onended] idx="+idx+" autoAdv="+autoAdv+" src="+vid.src);'
             'if(!autoAdv)return;'
             'var n=nextVisible(idx);'
             'console.log("[onended] nextVisible="+n);'
-            'if(n>=0)play(n);'
+            'if(n>=0){setTimeout(function(){play(n);},80);}' # pequeno delay para browser estabilizar
             '};'
             'vid.onerror=function(e){'
-            'if(!vid.src||vid.src===window.location.href)return;'  # ignora erros de src vazio
+            # ignora erros quando não há src real (API test, estado limpo)
+            'var s=vid.getAttribute("src");'
+            'if(!s||s===""||vid.src===window.location.href){console.log("[onerror] ignorado — sem src real");return;}'
             'console.error("[onerror] idx="+idx+" src="+vid.src,e);'
             'vid.style.display="none";novid.style.display="flex";rp.style.display="none";'
             'if(autoAdv){var n=nextVisible(idx);if(n>=0)play(n);}'
