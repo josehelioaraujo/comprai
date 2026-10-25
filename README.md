@@ -18,6 +18,11 @@ Comprai é um ecossistema modular open-source que implementa o **Universal Comme
 
 ## 📑 Índice
 
+- [📐 Arquitetura Funcional](#-arquitetura-funcional)
+  - [Dependências entre Projetos](#dependências-entre-projetos)
+  - [Fluxo UCP](#fluxo-ucp)
+  - [Portas Hexagonais](#portas-hexagonais)
+  - [Knowledge Graph Interativo](#knowledge-graph-interativo)
 - [🌐 Universal Commerce Protocol (UCP)](#-universal-commerce-protocol-ucp)
 - [🏗️ Arquitetura do Sistema](#%EF%B8%8F-arquitetura-do-sistema)
 - [🧩 Componentes e Camadas](#-componentes-e-camadas)
@@ -37,6 +42,179 @@ Comprai é um ecossistema modular open-source que implementa o **Universal Comme
 - [🧠 Knowledge Graph](#-knowledge-graph)
 - [🗺️ Roadmap](#%EF%B8%8F-roadmap)
 - [📄 Licença](#-licença)
+
+---
+
+## 📐 Arquitetura Funcional
+
+> Diagramas gerados automaticamente a cada push — sempre sincronizados com o código real.  
+> Artefatos completos em [josehelioaraujo.github.io/comprai](https://josehelioaraujo.github.io/comprai/)
+
+---
+
+### Dependências entre Projetos
+
+```mermaid
+graph TD
+  subgraph api["🌐 Apresentação"]
+    Api["Api"]
+    McpServer["McpServer"]
+  end
+  subgraph app["⚙️ Aplicação (CQRS)"]
+    Application["Application"]
+  end
+  subgraph domain["🧬 Domínio"]
+    Domain["Domain"]
+  end
+  subgraph infra["🔧 Infraestrutura"]
+    Infrastructure["Infrastructure"]
+  end
+  subgraph kernel["🔗 SharedKernel"]
+    SharedKernel["SharedKernel"]
+  end
+  subgraph plugins["🔌 Plugins"]
+    Catalog.MercadoLivre["Catalog.MercadoLivre"]
+    Catalog.MercadoLivreOrders["Catalog.MercadoLivreOrders"]
+    Catalog.Shopify["Catalog.Shopify"]
+    Catalog.VtexCatalog["Catalog.VtexCatalog"]
+    Catalog.VtexSearch["Catalog.VtexSearch"]
+    Catalog.OpenFoodFacts["Catalog.OpenFoodFacts"]
+    Catalog.DummyJSON["Catalog.DummyJSON"]
+    FakeCatalog["FakeCatalog"]
+    PriceWatcher["PriceWatcher"]
+  end
+  subgraph frontend["💻 Frontend"]
+    Web["web (3002)"]
+    Mobile["mobile (3003)"]
+    MobileV2["mobile-v2 (3005)"]
+    Admin["admin"]
+  end
+  Api --> Application
+  Api --> Infrastructure
+  Api --> SharedKernel
+  Api --> Catalog.MercadoLivre
+  Api --> Catalog.MercadoLivreOrders
+  Api --> Catalog.Shopify
+  Api --> Catalog.VtexCatalog
+  Api --> Catalog.VtexSearch
+  Api --> Catalog.OpenFoodFacts
+  Api --> Catalog.DummyJSON
+  Api --> FakeCatalog
+  Api --> PriceWatcher
+  McpServer --> SharedKernel
+  Application --> Domain
+  Application --> SharedKernel
+  Infrastructure --> Domain
+  Infrastructure --> SharedKernel
+  Domain --> SharedKernel
+  Catalog.MercadoLivre --> SharedKernel
+  Catalog.MercadoLivreOrders --> SharedKernel
+  Catalog.Shopify --> SharedKernel
+  Catalog.VtexCatalog --> SharedKernel
+  Catalog.VtexSearch --> SharedKernel
+  Catalog.OpenFoodFacts --> SharedKernel
+  Catalog.DummyJSON --> SharedKernel
+  FakeCatalog --> SharedKernel
+  PriceWatcher --> SharedKernel
+  Web -->|HTTP| Api
+  Mobile -->|HTTP| Api
+  MobileV2 -->|HTTP| Api
+  Admin -->|HTTP| Api
+
+  style Api fill:#4A90E2,color:#fff
+  style McpServer fill:#4A90E2,color:#fff
+  style Application fill:#7B68EE,color:#fff
+  style Domain fill:#50C878,color:#fff
+  style Infrastructure fill:#FF6B6B,color:#fff
+  style SharedKernel fill:#FFD93D,color:#000
+  style Catalog.MercadoLivre fill:#FF9F43,color:#fff
+  style Catalog.MercadoLivreOrders fill:#FF9F43,color:#fff
+  style Catalog.Shopify fill:#FF9F43,color:#fff
+  style Catalog.VtexCatalog fill:#FF9F43,color:#fff
+  style Catalog.VtexSearch fill:#FF9F43,color:#fff
+  style Catalog.OpenFoodFacts fill:#FF9F43,color:#fff
+  style Catalog.DummyJSON fill:#FF9F43,color:#fff
+  style FakeCatalog fill:#FF9F43,color:#fff
+  style PriceWatcher fill:#FF9F43,color:#fff
+  style Web fill:#26de81,color:#fff
+  style Mobile fill:#26de81,color:#fff
+  style MobileV2 fill:#26de81,color:#fff
+  style Admin fill:#26de81,color:#fff
+```
+
+---
+
+### Fluxo UCP
+
+```mermaid
+sequenceDiagram
+  participant U as Usuário / Agente IA
+  participant API as Api (5020)
+  participant MCP as McpServer (5030)
+  participant APP as Application (MediatR)
+  participant PLG as Plugins (fan-out)
+  participant INF as Infrastructure
+  participant DB as PostgreSQL + Redis
+
+  U->>API: POST /api/search?q=produto
+  U->>MCP: tool_call search_products
+  MCP->>API: HTTP forward
+  API->>APP: SearchProductsQuery
+  APP->>PLG: Fan-out paralelo (ML, Shopify, VTEX...)
+  PLG-->>APP: Resultados agregados
+  APP-->>API: SearchResult + cache Redis
+  API-->>U: 200 produtos
+
+  U->>API: POST /api/cart/add
+  API->>APP: AddToCartCommand
+  APP->>INF: ICartPort.AddAsync
+  INF->>DB: Redis SET cart:{sessionId}
+
+  U->>API: POST /api/checkout
+  API->>APP: CheckoutCommand
+  APP->>INF: ICheckoutPort.ProcessAsync
+  INF->>DB: PostgreSQL INSERT order
+  INF-->>APP: OrderId
+  APP-->>API: CheckoutResult
+  API-->>U: 201 order_id
+
+  U->>API: GET /api/orders/{id}
+  API->>APP: GetOrderQuery
+  APP->>INF: IOrderPort.GetByIdAsync
+  INF->>DB: PostgreSQL SELECT
+  INF-->>APP: OrderDto
+  APP-->>API: OrderStatus
+  API-->>U: 200 order
+```
+
+---
+
+### Portas Hexagonais
+
+| Porta | Responsabilidade | Implementações |
+|-------|-----------------|----------------|
+| `IProductCatalogPort` | Busca de produtos | MercadoLivre, Shopify, VTEX, OpenFoodFacts, DummyJSON, FakeCatalog |
+| `ICartPort` | Gerenciamento do carrinho | RedisCartAdapter, InMemoryCartPort |
+| `ICheckoutPort` | Processamento do checkout | RedisCheckoutAdapter, MockCheckoutPort |
+| `IOrderPort` | Consulta e gestão de pedidos | PostgresOrderRepository, MockOrderPort |
+| `IPaymentPort` | Processamento de pagamento | MockPaymentAdapter, StripeAdapter |
+| `IChannelPort` | Canais de atendimento | McpChannelAdapter |
+| `IAuthPort` | Autenticação / JWT | PostgresAuthRepository |
+| `ICartSnapshotPort` | Snapshot do carrinho | PostgresCartSnapshotRepository |
+| `IOrderHistoryPort` | Histórico de pedidos | PostgresOrderHistoryRepository |
+| `ISearchLogPort` | Log de buscas | PostgresSearchLogRepository |
+| `ISessionPort` | Sessões de usuário | PostgresSessionRepository |
+| `IWebhookEventPort` | Eventos de webhook | PostgresWebhookEventRepository |
+
+---
+
+### Knowledge Graph Interativo
+
+[![Knowledge Graph](https://img.shields.io/badge/🧠_Knowledge_Graph-Ver_Grafo_Interativo-4f46e5?style=for-the-badge)](https://josehelioaraujo.github.io/comprai/)
+[![Architecture Map](https://img.shields.io/badge/📐_Architecture_Map-Ver_Diagrama-FF6B6B?style=for-the-badge)](https://josehelioaraujo.github.io/comprai/architecture.md)
+[![Architecture JSON](https://img.shields.io/badge/🤖_Para_Agentes-architecture.json-50C878?style=for-the-badge)](https://josehelioaraujo.github.io/comprai/architecture.json)
+
+> **4.322 nós · 9.062 arestas · 235 comunidades** — atualizado automaticamente a cada push.
 
 ---
 
