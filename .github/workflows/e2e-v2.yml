@@ -754,47 +754,111 @@ jobs:
           except Exception as e:
             print(f'[VIDEO] Aviso: playwright-results.json nao disponivel: {e}')
 
-          # Seção 1: Testes de API — agrupados por categoria colapsável
+          # ── Array unificado ALL[] — API tests (sem vídeo) + visuais (com vídeo) ─────
+          ALL = []  # {name, src|None, status, cat, hasVideo}
+
+          # 1. Testes de API (T01–T31) — sem vídeo
+          for t in api_tests:
+            ALL.append({
+              'name':     t['title'],
+              'src':      None,
+              'status':   t['status'],
+              'cat':      get_api_cat(t['title']),
+              'hasVideo': False,
+            })
+
+          # 2. Cenas visuais — com vídeo
+          for item in playlist:
+            ALL.append({
+              'name':     item['name'],
+              'src':      item['src'],
+              'status':   'visual',
+              'cat':      get_visual_cat(item['name']),
+              'hasVideo': True,
+            })
+
+          ALL_json    = json.dumps(ALL, ensure_ascii=False)
+          api_count   = len(api_tests)
+          total_items = len(ALL)
+          header_lbl  = f'{api_count} API + {n} visuais' if api_tests else f'{n} cenas'
+
+          # ── Cards de categoria no topo (filtro por categoria) ─────────────────────
+          CAT_ORDER  = ['Healthcheck','Cadastro','Autenticação','Busca','Carrinho','Checkout','Pagamento','Pedidos','Fluxo E2E','Autenticação','IA / Chat','Outros']
+          CAT_COLORS = {
+            'Healthcheck':'#38bdf8','Cadastro':'#06b6d4','Autenticação':'#a78bfa',
+            'Busca':'#34d399','Carrinho':'#f59e0b','Checkout':'#fb923c',
+            'Pagamento':'#22c55e','Pedidos':'#818cf8','Fluxo E2E':'#f472b6',
+            'IA / Chat':'#e879f9','Outros':'#94a3b8',
+          }
+          cat_counts = {}
+          for item in ALL:
+            cat_counts[item['cat']] = cat_counts.get(item['cat'], 0) + 1
+
+          cat_cards_html = '<div id="cat-cards" style="display:flex;flex-wrap:wrap;gap:6px;padding:10px 12px;border-bottom:1px solid #0f172a;background:#162032;flex-shrink:0">'
+          # Card "Todos"
+          cat_cards_html += f'<div class="ccard active" onclick="filterCat(null,this)" id="ccard-all" title="Todos" style="--cc:#94a3b8">Todos <span class="cc-cnt">{total_items}</span></div>'
+          seen_cats = []
+          for item in ALL:
+            if item['cat'] not in seen_cats:
+              seen_cats.append(item['cat'])
+          for cat in seen_cats:
+            col   = CAT_COLORS.get(cat, '#94a3b8')
+            cnt   = cat_counts.get(cat, 0)
+            cid   = 'ccard-' + re.sub(r'[^a-z0-9]', '', cat.lower())
+            cat_cards_html += f'<div class="ccard" onclick="filterCat(\'{cat}\',this)" id="{cid}" title="Filtrar: {cat}" style="--cc:{col}">{cat} <span class="cc-cnt">{cnt}</span></div>'
+          cat_cards_html += '</div>'
+
+          # ── Sidebar: itens agrupados por categoria ────────────────────────────────
           items_html = ''
+          # Seção API
           if api_tests:
+            api_by_cat = {}; api_cat_order = []
+            for gi, item in enumerate(ALL):
+              if item['hasVideo']: continue
+              cat = item['cat']
+              if cat not in api_by_cat:
+                api_by_cat[cat] = []; api_cat_order.append(cat)
+              api_by_cat[cat].append((gi, item))
             items_html += '<div class="ph">&#128203; Testes de API</div>\n'
-            api_cats = {}; api_cat_order = []
-            for t in api_tests:
-              cat = get_api_cat(t['title'])
-              if cat not in api_cats:
-                api_cats[cat] = []; api_cat_order.append(cat)
-              api_cats[cat].append(t)
             for ci, cat in enumerate(api_cat_order):
-              items_html += f'<div class="ph-cat" onclick="toggleCat(this)" data-cat="ac{ci}"><span class="ch">&#9660;</span>{cat}</div>\n'
+              col = CAT_COLORS.get(cat, '#94a3b8')
+              items_html += f'<div class="ph-cat" onclick="toggleCat(this)" data-cat="ac{ci}"><span class="ch">&#9660;</span><span style="color:{col}">{cat}</span></div>\n'
               items_html += f'<div class="cat-items" id="ac{ci}">\n'
-              for t in api_cats[cat]:
-                st = t['status']
-                ic = '✅' if st == 'passed' else '❌' if st == 'failed' else '⏭'
-                items_html += f'<div class="pt">{ic} {t["title"]}</div>\n'
+              for gi, item in api_by_cat[cat]:
+                st  = item['status']
+                ic  = '✅' if st == 'passed' else '❌' if st == 'failed' else '⏭'
+                col2 = '#22c55e' if st == 'passed' else '#ef4444' if st == 'failed' else '#f59e0b'
+                items_html += (
+                  f'<div class="pi api-item" data-cat="{item["cat"]}" onclick="play({gi})" id="pi{gi}">'
+                  f'<span style="font-size:11px">{ic}</span>'
+                  f'<span class="pn" style="color:{col2}">{item["name"]}</span>'
+                  f'</div>\n'
+                )
               items_html += '</div>\n'
 
-          # Seção 2: Cenas visuais — colapsáveis e clicáveis para exibir vídeo
-          items_html += '<div class="ph">&#127916; Cenas Visuais</div>\n'
-          vis_cats = {}; vis_cat_order = []
-          for i, item in enumerate(playlist):
-            cat = get_visual_cat(item['name'])
-            if cat not in vis_cats:
-              vis_cats[cat] = []; vis_cat_order.append(cat)
-            vis_cats[cat].append((i, item))
-          for ci, cat in enumerate(vis_cat_order):
-            items_html += f'<div class="ph-cat" onclick="toggleCat(this)" data-cat="vc{ci}"><span class="ch">&#9660;</span>{cat}</div>\n'
-            items_html += f'<div class="cat-items" id="vc{ci}">\n'
-            for i, item in vis_cats[cat]:
-              items_html += (
-                f'<div class="pi" onclick="play({i})" id="pi{i}">'
-                f'<span class="pn"><span class="idx">{i+1:03d}</span> {item["name"]}</span>'
-                f'<a class="dl" href="{item["src"]}" download onclick="event.stopPropagation()">&#11123;</a></div>\n'
-              )
-            items_html += '</div>\n'
-
-          V_json = json.dumps(playlist, ensure_ascii=False)
-          api_count = len(api_tests)
-          header_lbl = f'{api_count} API + {n} visuais' if api_tests else f'{n} cenas'
+          # Seção Visual
+          vis_by_cat = {}; vis_cat_order2 = []
+          for gi, item in enumerate(ALL):
+            if not item['hasVideo']: continue
+            cat = item['cat']
+            if cat not in vis_by_cat:
+              vis_by_cat[cat] = []; vis_cat_order2.append(cat)
+            vis_by_cat[cat].append((gi, item))
+          if vis_by_cat:
+            items_html += '<div class="ph">&#127916; Cenas Visuais</div>\n'
+            for ci, cat in enumerate(vis_cat_order2):
+              col = CAT_COLORS.get(cat, '#94a3b8')
+              items_html += f'<div class="ph-cat" onclick="toggleCat(this)" data-cat="vc{ci}"><span class="ch">&#9660;</span><span style="color:{col}">{cat}</span></div>\n'
+              items_html += f'<div class="cat-items" id="vc{ci}">\n'
+              for gi, item in vis_by_cat[cat]:
+                local_idx = gi - api_count
+                items_html += (
+                  f'<div class="pi" data-cat="{item["cat"]}" onclick="play({gi})" id="pi{gi}">'
+                  f'<span class="pn"><span class="idx">{local_idx+1:03d}</span> {item["name"]}</span>'
+                  f'<a class="dl" href="{item["src"]}" download onclick="event.stopPropagation()">&#11123;</a>'
+                  f'</div>\n'
+                )
+              items_html += '</div>\n'
 
           player_html = (
             '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">'
@@ -807,17 +871,25 @@ jobs:
             '#lbl{font-size:13px;color:#94a3b8;padding:4px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}'
             '#lbl b{color:#f1f5f9}#lbl em{color:#475569;font-style:normal;font-size:11px;margin-left:10px}'
             '#vid{width:100%;border-radius:8px;background:#000;flex:1;object-fit:contain;min-height:0}'
+            '#result-panel{display:none;flex:1;align-items:center;justify-content:center;flex-direction:column;gap:14px;border-radius:8px;background:#0c1525;border:1px solid #1e293b;padding:24px}'
+            '#result-panel .rp-icon{font-size:48px}'
+            '#result-panel .rp-title{font-size:15px;font-weight:700;color:#e2e8f0}'
+            '#result-panel .rp-status{font-size:12px;padding:4px 14px;border-radius:20px;font-weight:600}'
             '#novid{display:none;flex:1;align-items:center;justify-content:center;flex-direction:column;gap:10px;color:#475569;font-size:14px;border-radius:8px;background:#0f172a;border:1px dashed #334155}'
-            '#playlist{width:300px;background:#1e293b;overflow-y:auto;border-left:1px solid #334155;flex-shrink:0}'
+            '#playlist{width:310px;background:#1e293b;overflow-y:auto;border-left:1px solid #334155;flex-shrink:0;display:flex;flex-direction:column}'
+            '.ccard{padding:4px 10px;border-radius:20px;border:1px solid rgba(255,255,255,.1);font-size:10px;font-weight:600;cursor:pointer;color:#94a3b8;transition:all .15s;white-space:nowrap}'
+            '.ccard:hover{border-color:var(--cc);color:var(--cc)}'
+            '.ccard.active{background:var(--cc);border-color:var(--cc);color:#0f172a}'
+            '.cc-cnt{font-size:9px;opacity:.7}'
             '.ph{padding:9px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#475569;border-bottom:1px solid #0f172a;position:sticky;top:0;background:#1e293b;z-index:2}'
             '.ph-cat{padding:6px 12px;font-size:10px;font-weight:600;letter-spacing:.04em;color:#64748b;background:#172033;border-bottom:1px solid #0f172a;cursor:pointer;display:flex;align-items:center;gap:5px;user-select:none;transition:background .12s}'
             '.ph-cat:hover{background:#1e2d44;color:#94a3b8}'
             '.ch{font-size:9px;transition:transform .2s;display:inline-block;width:10px;text-align:center;flex-shrink:0}'
             '.ph-cat.collapsed .ch{transform:rotate(-90deg)}'
             '.cat-items.hidden{display:none}'
-            '.pi{padding:8px 14px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px;color:#94a3b8;transition:background .12s;display:flex;align-items:center;gap:4px}'
-            '.pi:hover{background:#334155;color:#e2e8f0}.pi.active{background:#1d4ed8;color:#fff}'
-            '.pt{padding:5px 14px 5px 22px;border-bottom:1px solid rgba(255,255,255,.03);font-size:11px;color:#64748b;line-height:1.4}'
+            '.pi{padding:8px 14px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px;color:#94a3b8;transition:background .12s;display:flex;align-items:center;gap:6px}'
+            '.pi:hover{background:#334155;color:#e2e8f0}.pi.active{background:#1d4ed8;color:#fff !important}'
+            '.pi.active .pn{color:#fff !important}'
             '.pn{flex:1;line-height:1.35}.idx{font-size:10px;opacity:.45;margin-right:4px}'
             '.dl{padding:2px 7px;border-radius:4px;background:rgba(255,255,255,.06);color:#475569;text-decoration:none;font-size:11px;transition:all .12s;flex-shrink:0;line-height:1.6}'
             '.dl:hover{background:#334155;color:#94a3b8}'
@@ -826,29 +898,61 @@ jobs:
             '<div id="controls">'
             '<button class="btn" id="btnAll" onclick="startAll(this)">&#9654; Todos</button>'
             '<button class="btn" id="btn1x1" onclick="start1x1(this)">&#9654; Um por um</button>'
-            '<button class="btn" id="btnNext" onclick="play(idx+1)" style="display:none">&#9654;&#9654; Pr&#243;ximo</button>'
+            '<button class="btn" id="btnNext" onclick="playNext()" style="display:none">&#9654;&#9654; Pr&#243;ximo</button>'
             '</div>'
-            '<div id="lbl">&#9654; <b id="ln">...</b><em id="prog"></em></div>'
-            '<video id="vid" controls></video>'
-            '<div id="novid">&#128248;<span>V&#237;deo n&#227;o dispon&#237;vel</span><span style="font-size:11px;color:#334155">Este teste n&#227;o gerou grava&#231;&#227;o</span></div>'
+            '<div id="lbl">&#9654; <b id="ln">Selecione um item</b><em id="prog"></em></div>'
+            '<video id="vid" controls style="display:none"></video>'
+            '<div id="result-panel">'
+            '<div class="rp-icon" id="rp-icon">&#9203;</div>'
+            '<div class="rp-title" id="rp-title">Teste de API</div>'
+            '<div class="rp-status" id="rp-status" style="background:#1e293b;color:#94a3b8">-</div>'
+            '<div style="font-size:11px;color:#475569;text-align:center">Este teste executa via HTTP<br>e n&#227;o gera grava&#231;&#227;o de v&#237;deo.</div>'
             '</div>'
-            f'<div id="playlist"><div class="ph">&#9654; {header_lbl}</div>\n'
+            '<div id="novid">&#128248;<span>V&#237;deo n&#227;o dispon&#237;vel</span><span style="font-size:11px;color:#334155">Nenhum item selecionado</span></div>'
+            '</div>'
+            f'<div id="playlist" style="display:flex;flex-direction:column">'
+            f'<div class="ph" style="position:sticky;top:0;z-index:3">&#9654; {header_lbl}</div>\n'
+            + cat_cards_html +
+            '<div id="playlist-items" style="overflow-y:auto;flex:1">'
             + items_html +
             '</div>'
-            f'<script>var V={V_json},idx=0,autoAdv=true;'
-            'var vid=document.getElementById("vid"),novid=document.getElementById("novid"),btnNext=document.getElementById("btnNext");'
+            '</div>'
+            f'<script>var ALL={ALL_json},idx=-1,autoAdv=false;'
+            'var vid=document.getElementById("vid");'
+            'var rp=document.getElementById("result-panel");'
+            'var novid=document.getElementById("novid");'
+            'var btnNext=document.getElementById("btnNext");'
+            'var activeCat=null;'
             'function toggleCat(el){'
             'el.classList.toggle("collapsed");'
             'var box=document.getElementById(el.getAttribute("data-cat"));'
             'if(box)box.classList.toggle("hidden");}'
             'function play(i){'
-            'if(i<0||i>=V.length)return;idx=i;'
-            'vid.style.display="";novid.style.display="none";'
-            'vid.src=V[i].src;vid.play().catch(function(){});'
-            'document.getElementById("ln").textContent=V[i].name;'
-            'document.getElementById("prog").textContent=(i+1)+" / "+V.length;'
-            'document.querySelectorAll(".pi").forEach(function(e,j){e.classList.toggle("active",j===i);});'
-            'var a=document.getElementById("pi"+i);if(a)a.scrollIntoView({block:"nearest"});}'
+            'if(i<0||i>=ALL.length)return;idx=i;'
+            'var item=ALL[i];'
+            # Atualiza highlight
+            'document.querySelectorAll(".pi").forEach(function(e){e.classList.remove("active");});'
+            'var el=document.getElementById("pi"+i);if(el){el.classList.add("active");el.scrollIntoView({block:"nearest"});}'
+            # Atualiza label
+            'document.getElementById("ln").textContent=item.name;'
+            'document.getElementById("prog").textContent=(i+1)+" / "+ALL.length;'
+            # Decide o que exibir
+            'if(item.hasVideo){'
+            'rp.style.display="none";novid.style.display="none";vid.style.display="";'
+            'vid.src=item.src;vid.play().catch(function(){});'
+            '}else{'
+            'vid.style.display="none";vid.src="";novid.style.display="none";rp.style.display="flex";'
+            'var ic=item.status==="passed"?"✅":item.status==="failed"?"❌":"⏭";'
+            'var col=item.status==="passed"?"#22c55e":item.status==="failed"?"#ef4444":"#f59e0b";'
+            'var lbl=item.status==="passed"?"PASSOU":item.status==="failed"?"FALHOU":"IGNORADO";'
+            'document.getElementById("rp-icon").textContent=ic;'
+            'document.getElementById("rp-title").textContent=item.name;'
+            'var rs=document.getElementById("rp-status");rs.textContent=lbl;rs.style.background=col+"22";rs.style.color=col;'
+            '}}'
+            'function playNext(){'
+            'var next=idx+1;'
+            'while(next<ALL.length&&activeCat&&ALL[next].cat!==activeCat)next++;'
+            'play(next);}'
             'function startAll(btn){'
             'autoAdv=true;btnNext.style.display="none";'
             'document.querySelectorAll(".btn").forEach(function(b){b.classList.remove("on");});'
@@ -857,9 +961,17 @@ jobs:
             'autoAdv=false;btnNext.style.display="";'
             'document.querySelectorAll(".btn").forEach(function(b){b.classList.remove("on");});'
             'btn.classList.add("on");play(0);}'
-            'vid.onerror=function(){vid.style.display="none";novid.style.display="flex";};'
-            'vid.onloadstart=function(){vid.style.display="";novid.style.display="none";};'
-            'vid.onended=function(){if(autoAdv)play(idx+1);};play(0);</script></body></html>'
+            'function filterCat(cat,el){'
+            'activeCat=cat;'
+            'document.querySelectorAll(".ccard").forEach(function(c){c.classList.remove("active");});'
+            'el.classList.add("active");'
+            'document.querySelectorAll(".pi").forEach(function(r){'
+            'var show=!cat||r.getAttribute("data-cat")===cat;'
+            'r.style.display=show?"":"none";});}'
+            'vid.onerror=function(){vid.style.display="none";novid.style.display="flex";rp.style.display="none";};'
+            'vid.onended=function(){if(autoAdv)playNext();};'
+            # Seleciona primeiro item automaticamente
+            'if(ALL.length>0)play(0);</script></body></html>'
           )
 
           with open(f'{player_dir}/index.html', 'w', encoding='utf-8') as f:
