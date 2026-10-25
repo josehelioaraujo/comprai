@@ -439,6 +439,15 @@ jobs:
                 elif st == 'skipped' and s_status != 'failed':
                   s_status = 'skipped'
 
+            # Deduplica erros de múltiplas tentativas (retries geram repetição)
+            seen_errs = set()
+            deduped_errs = []
+            for e in s_errors:
+              if e not in seen_errs:
+                seen_errs.add(e)
+                deduped_errs.append(e)
+            s_errors = deduped_errs
+
             s_cat = get_category(spec.get('title', ''))
             cat_counts[s_cat] = cat_counts.get(s_cat, 0) + 1
             s_requests = parse_requests_from_stdout(s_stdout, spec.get('title', ''))
@@ -1006,7 +1015,17 @@ jobs:
             ls -la /var/www/html/opswatch/results/e2e-v2/downloads/ 2>&1 | head -10 || true
             chmod -R a+rX /var/www/html/opswatch/results/e2e-v2/downloads/ || true
             find /var/www/html/opswatch/results/e2e-v2/downloads -name "index.html" 2>&1 | head -5 || true
-            echo "[VPS] curl test:"
+            echo "[VPS] === garantir MIME type video/webm no nginx ==="
+            if ! grep -q 'video/webm' /etc/nginx/mime.types 2>/dev/null; then
+              sed -i '/video\/mp4/a\    video\/webm                           webm;' /etc/nginx/mime.types 2>/dev/null || true
+              nginx -s reload 2>/dev/null || true
+              echo "[VPS] MIME webm adicionado e nginx recarregado"
+            else
+              echo "[VPS] MIME webm ja configurado"
+            fi
+            echo "[VPS] curl test index.html:"
             curl -s -o /dev/null -w "HTTP %{http_code}\n" http://localhost/opswatch/results/e2e-v2/downloads/videos_latest/index.html 2>&1 || echo "curl falhou"
+            echo "[VPS] curl test video sample:"
+            curl -s -o /dev/null -w "HTTP %{http_code} CT:%{content_type}\n" http://localhost/opswatch/results/e2e-v2/downloads/videos_latest/videos/001.webm 2>&1 || echo "video curl falhou"
         continue-on-error: true
 

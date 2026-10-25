@@ -628,7 +628,7 @@ app.MapPost("/api/checkout/{sessionId}", async (
     try
     {
         var result = await mediator.Send(new CheckoutCommand(sessionId, customer, customerId), ct);
-        if (!result.IsSuccess) return Results.Problem(result.Error);
+        if (!result.IsSuccess) return Results.BadRequest(new { error = result.Error });
         return result.Value.Success
             ? Results.Ok(result.Value)
             : Results.BadRequest(new { error = result.Value.Error });
