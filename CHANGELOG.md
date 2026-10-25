@@ -1,5 +1,44 @@
 # Changelog
 
+## [V078] — 2026-10-24
+
+### Fixed
+
+#### Checkout — HTTP 500 → 400 para falhas de negócio (`src/UcpAgent.Api/Program.cs`)
+- `Results.Problem(result.Error)` substituído por `Results.BadRequest(new { error = result.Error })` no endpoint `POST /api/checkout/{sessionId}`
+- Corrige T18, T19, T20, T28, T30 que recebiam HTTP 500 indevido em vez de 400/422
+- Carrinho vazio, dados inválidos e falhas de negócio agora retornam 400
+- Exceções de infraestrutura continuam retornando 500 via `catch` externo com `statusCode: 500` explícito
+
+#### E2E Report — Erros duplicados por retries (`e2e-v2.yml`)
+- Playwright retries acumulavam a mesma mensagem de erro N vezes no `report.html` (2 retries = erro aparecia 3x)
+- Adicionada deduplicação de `s_errors` antes de renderizar: `seen_errs` set garante que cada mensagem única apareça apenas uma vez
+
+#### Player de Vídeos — MIME type `video/webm` no nginx (`e2e-v2.yml`)
+- Step SSH "Corrigir permissoes e verificar videos na VPS" agora adiciona `video/webm webm;` ao `/etc/nginx/mime.types` e recarrega nginx
+- Resolve erros 404/tipo inválido nos arquivos `.webm` servidos pelo player
+- Operação idempotente: só executa `sed` + `nginx -s reload` se o tipo ainda não existir
+- Adicionado `curl` de verificação do sample `videos/001.webm` com `Content-Type` no log
+
+### Added
+
+#### Player de Vídeos — Chevrons e controles de reprodução (`e2e-v2.yml`)
+- Categorias na sidebar agrupadas em `ph-cat` colapsáveis com chevrons (`▶`/`▼`) via `toggleCat()`
+- Botões no topo: **▶ Todos** (`startAll()`) e **▶ Um por um** (`start1x1()`); botão **▶▶ Próximo** aparece no modo um por um
+- Flag `autoAdv` controla avanço automático entre vídeos; classe `on` indica vídeo ativo na sidebar
+
+### Known Issues — V079
+- **Player de vídeos — itens não clicáveis**: itens da sidebar precisam de `onclick` explícito para selecionar e exibir o vídeo ao clicar
+- **Player de vídeos — erros 400**: vídeos de API tests retornam 400 (arquivos não gerados para testes sem gravação visual); exibir resultado do `report.html` nesses casos em vez de tentar carregar vídeo
+- **Player de vídeos — cards de categoria no topo**: adicionar cards de categoria no topo do player (igual ao `report.html`) para filtrar por categoria
+- **Total PIX zerado**: `/orders/[id]` exibe R$ 0,00 — `OrderStatusDto.Total` não persistido/recuperado corretamente
+- **Deploy VPS SSH timeout**: firewall Hostinger pode bloquear IPs dos runners GitHub Actions na porta 22
+- **E2E_USER_EMAIL / E2E_USER_PASSWORD**: devem vir de GitHub Secrets
+
+**Commits:** `96ca9cb` · `5f4652b`
+
+---
+
 ## [V077] — 2026-10-24
 
 ### Added

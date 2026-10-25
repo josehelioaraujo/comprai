@@ -1,17 +1,19 @@
 # 🗺️ Roadmap — Comprai
 
-## 🔜 V078 — Fix Player de Vídeos VPS + E2E Checkout + Total PIX (próxima)
+## 🔜 V079 — Player: cards categoria + itens clicáveis + fix 400 API (próxima)
 
-### 🎬 Fix Player de Vídeos VPS (P0)
-- [ ] Forçar nova execução do workflow `e2e-v2.yml` para regenerar `videos_latest/index.html` com as melhorias V077 (seção API tests + download + 404 placeholder)
-- [ ] Confirmar que `playwright-results.json` está disponível em `tests/e2e/playwright-results.json` no momento do step "Gerar player HTML e ZIP de videos"
-- [ ] Verificar se `[VIDEO] API tests carregados: 31` aparece nos logs do step
-- [ ] URL a validar: `comprai.2.25.122.11.nip.io/opswatch/results/e2e-v2/downloads/videos_latest/index.html`
+### 🎬 Fix Player de Vídeos — Itens clicáveis (P0)
+- [ ] Itens da sidebar devem ter `onclick` explícito para selecionar e exibir o vídeo ao clicar (atualmente só o botão ▶ é clicável)
+- [ ] Highlight do item ativo na sidebar quando o vídeo é selecionado
 
-### 🐛 Fix E2E Checkout 500 (P1)
-- [ ] T18: `POST /api/checkout/{sessionId}` retornando HTTP 500 — investigar `CheckoutEndpoint` e `ICheckoutPort`
-- [ ] T19, T30 e outros falhando — provavelmente cascata do checkout 500
-- [ ] `E2E_USER_EMAIL` e `E2E_USER_PASSWORD` devem vir de GitHub Secrets — nunca hardcoded
+### 🎬 Fix Player de Vídeos — Erros 400 em testes de API (P0)
+- [ ] Testes de API (T01–T31 sem gravação visual) retornam 400 ao tentar carregar `.webm`
+- [ ] Para esses testes: exibir resultado (`status`, `erro`, `duração`) em vez de tentar carregar vídeo
+- [ ] Separar claramente itens "com vídeo" de itens "só resultado" na sidebar
+
+### 🃏 Player de Vídeos — Cards de categoria no topo (P1)
+- [ ] Adicionar cards de categoria no topo do player (igual ao `report.html`) — Healthcheck, Cadastro, Autenticação, Busca, Carrinho, Checkout, Pagamento, Pedidos, Fluxo E2E
+- [ ] Clicar em card de categoria filtra itens da sidebar
 
 ### 🐛 Fix Valor PIX zerado (P2)
 - [ ] Investigar por que `Total` aparece R$ 0,00 na tela `/orders/[id]` após pagamento PIX
@@ -20,7 +22,6 @@
 ### 🔥 Fix Deploy VPS SSH (P3)
 - [ ] Acessar Hostinger hPanel → VPS → Firewall → verificar se porta 22 está liberada para `0.0.0.0/0`
 - [ ] Se bloqueada: adicionar regra `Allow TCP 22 from anywhere`
-- [ ] Re-trigger deploy após liberar o firewall
 
 ### 🔗 Link direto no email OTP (P4)
 - [ ] Email de verificação deve incluir link direto `/auth/verify?email=<email>` para pré-preencher o campo
@@ -30,6 +31,24 @@
 
 ### 📦 Dependabot (P6 — futura)
 - [ ] `.github/dependabot.yml` cobrindo npm, nuget e github-actions quando esteira estiver estável
+
+---
+
+## ✅ V078 — Fix Checkout 500 + Report erros duplicados + MIME webm (concluído)
+
+### Fixed
+- [x] `Results.Problem(result.Error)` → `Results.BadRequest(new { error })` no checkout — T18/T19/T20/T28/T30 agora recebem 400 em vez de 500
+- [x] Deduplicação de `s_errors` no gerador de `report.html` — erros de retries não aparecem mais repetidos
+- [x] MIME type `video/webm` adicionado ao nginx via step SSH — corrige 404/tipo inválido nos `.webm`
+
+### Added
+- [x] Player: categorias na sidebar agrupadas em seções colapsáveis com chevrons (`toggleCat()`)
+- [x] Player: botões **▶ Todos** e **▶ Um por um** no topo; **▶▶ Próximo** no modo sequencial
+- [x] Player: `autoAdv` flag para avanço automático entre vídeos; classe `on` no item ativo
+
+### Commits
+- `96ca9cb` feat: player com chevrons e botões de reprodução
+- `5f4652b` fix: checkout 400, erros deduplicados, MIME webm nginx
 
 ---
 
