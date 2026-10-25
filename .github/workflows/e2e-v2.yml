@@ -886,7 +886,7 @@ jobs:
             '.ph-cat:hover{background:#1e2d44;color:#94a3b8}'
             '.ch{font-size:9px;transition:transform .2s;display:inline-block;width:10px;text-align:center;flex-shrink:0}'
             '.ph-cat.collapsed .ch{transform:rotate(-90deg)}'
-            '.cat-items.hidden{display:none}'
+            '.cat-items{display:block}.cat-items.hidden{display:none}'
             '.pi{padding:8px 14px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px;color:#94a3b8;transition:background .12s;display:flex;align-items:center;gap:6px}'
             '.pi:hover{background:#334155;color:#e2e8f0}.pi.active{background:#1d4ed8;color:#fff !important}'
             '.pi.active .pn{color:#fff !important}'
@@ -901,7 +901,7 @@ jobs:
             '<button class="btn" id="btnNext" onclick="playNext()" style="display:none">&#9654;&#9654; Pr&#243;ximo</button>'
             '</div>'
             '<div id="lbl">&#9654; <b id="ln">Selecione um item</b><em id="prog"></em></div>'
-            '<video id="vid" controls style="display:none"></video>'
+            '<video id="vid" controls style="display:none;width:100%;border-radius:8px;background:#000;flex:1;object-fit:contain;min-height:0"></video>'
             '<div id="result-panel">'
             '<div class="rp-icon" id="rp-icon">&#9203;</div>'
             '<div class="rp-title" id="rp-title">Teste de API</div>'
@@ -970,8 +970,9 @@ jobs:
             'r.style.display=show?"":"none";});}'
             'vid.onerror=function(){vid.style.display="none";novid.style.display="flex";rp.style.display="none";};'
             'vid.onended=function(){if(autoAdv)playNext();};'
-            # Seleciona primeiro item automaticamente
-            'if(ALL.length>0)play(0);</script></body></html>'
+            # Seleciona primeiro visual automaticamente; fallback para primeiro item
+            'var firstVisual=ALL.findIndex(function(x){return x.hasVideo;});'
+            'play(firstVisual>=0?firstVisual:0);</script></body></html>'
           )
 
           with open(f'{player_dir}/index.html', 'w', encoding='utf-8') as f:
