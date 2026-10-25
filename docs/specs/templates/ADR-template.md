@@ -1,0 +1,2 @@
+# ADR Template
+> Em construção.
