@@ -442,3 +442,6 @@ har-evidence/
 *.har
 storageState.json
 playwright-report/
+
+# Graphify knowledge graph (gerado localmente via: graphify extract . --code-only)
+graphify-out/
