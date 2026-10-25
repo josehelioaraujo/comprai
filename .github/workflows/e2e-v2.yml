@@ -1017,17 +1017,17 @@ jobs:
 
             # filterCat: filtra sidebar por categoria
             'function filterCat(cat,el){'
-            'clearTimeout(autoTimer);autoAdv=false;'
             'activeCat=cat;'
-            'document.querySelectorAll(".btn").forEach(function(b){b.classList.remove("on");});'
             'document.querySelectorAll(".ccard").forEach(function(c){c.classList.remove("active");});'
             'el.classList.add("active");'
             'document.querySelectorAll(".pi").forEach(function(r){'
             'var show=!cat||r.getAttribute("data-cat")===cat;'
             'r.style.display=show?"":"none";});'
-            # auto-seleciona primeiro visível da categoria
+            # só interrompe e salta para primeiro se não estiver em modo Todos
+            'if(!autoAdv){'
+            'clearTimeout(autoTimer);'
             'var first=ALL.findIndex(function(x){return !cat||x.cat===cat;});'
-            'if(first>=0)play(first);}'
+            'if(first>=0)play(first);}}'
 
             # onended: vídeo terminou → avança para próximo
             'vid.onended=function(){'
