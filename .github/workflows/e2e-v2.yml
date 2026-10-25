@@ -870,8 +870,8 @@ jobs:
             '.btn:hover{background:#334155;color:#e2e8f0}.btn.on{background:#1d4ed8;border-color:#1d4ed8;color:#fff}'
             '#lbl{font-size:13px;color:#94a3b8;padding:4px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}'
             '#lbl b{color:#f1f5f9}#lbl em{color:#475569;font-style:normal;font-size:11px;margin-left:10px}'
-            '#stage{flex:1;min-height:0;position:relative;display:flex;flex-direction:column}'
-            '#vid{width:100%;height:100%;border-radius:8px;background:#000;object-fit:contain;display:none}'
+            '#stage{flex:1;min-height:0;display:flex;flex-direction:column}'
+            '#vid{flex:1;min-height:0;width:100%;border-radius:8px;background:#000;object-fit:contain;display:none}'
             '#result-panel{display:none;flex:1;align-items:center;justify-content:center;flex-direction:column;gap:14px;border-radius:8px;background:#0c1525;border:1px solid #1e293b;padding:24px}'
             '#result-panel .rp-icon{font-size:48px}'
             '#result-panel .rp-title{font-size:15px;font-weight:700;color:#e2e8f0}'
@@ -1051,8 +1051,7 @@ jobs:
             # init: seleciona primeiro visual automaticamente
             'console.log("[init] ALL.length="+ALL.length+" ALL[0]=",ALL[0]);'
             'var firstVis=ALL.findIndex(function(x){return !!(x.src);});'
-            'console.log("[init] firstVis="+firstVis);'
-            'play(firstVis>=0?firstVis:0);'
+            'console.log("[init] firstVis="+firstVis+" (sem autoplay no init)");'
             '</script></body></html>'
           )
 
