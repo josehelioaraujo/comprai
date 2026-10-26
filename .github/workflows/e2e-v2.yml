@@ -981,7 +981,17 @@ jobs:
             'vid.style.display="block";rp.style.display="none";novid.style.display="none";'
             'console.log("[play] VÍDEO display="+vid.style.display);'
             'vid.src=item.src;'
-            'vid.play().catch(function(e){console.error("[play] vid.play() erro:",e);});'
+            'vid.play().catch(function(e){'
+            'console.error("[play] vid.play() erro:",e.name,e.message);'
+            # AbortError por background throttle: retry após 800ms
+            'if(e.name==="AbortError"){'
+            'console.warn("[play] AbortError — retry em 800ms");'
+            'setTimeout(function(){vid.play().catch(function(e2){'
+            'console.error("[play] retry falhou:",e2.name,e2.message);'
+            # retry também falhou: avança para o próximo se autoAdv
+            'if(autoAdv){var n=nextVisible(idx);if(n>=0)setTimeout(function(){play(n);},200);}'
+            '});},800);'
+            '}});'
             '}else{'
             'console.log("[play] modo RESULTADO status="+item.status);'
             'vid.style.display="none";vid.pause();vid.removeAttribute("src");'
