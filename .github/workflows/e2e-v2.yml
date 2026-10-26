@@ -981,36 +981,31 @@ jobs:
             'vid.style.display="block";rp.style.display="none";novid.style.display="none";'
             'console.log("[play] antes do src — offsetWidth="+vid.offsetWidth+" offsetHeight="+vid.offsetHeight);'
             'var _playIdx=idx;'
+            # limpa handlers antigos e reseta estado — evita herdar play-state de vídeo anterior
             'vid.oncanplaythrough=null;vid.onloadeddata=null;'
+            'if(!vid.paused){vid.pause();}vid.currentTime=0;'
             'vid.src=item.src;'
             'vid.load();'
-            'console.log("[play] vid.src definido="+vid.src+" networkState="+vid.networkState+" readyState="+vid.readyState);'
-            # _onReady: handler único para canplaythrough + loadeddata + readyState já ok
-            'var _fired=false;'
-            'var _onReady=function(){'
-            'if(_fired)return;_fired=true;'
-            'if(idx!==_playIdx){console.log("[onReady] stale idx="+idx+" _playIdx="+_playIdx);return;}'
-            'console.log("[play] onReady src="+vid.src+" dur="+vid.duration+" readyState="+vid.readyState);'
-            'vid.oncanplaythrough=null;vid.onloadeddata=null;'
-            'vid.play().catch(function(e){'
-            'console.error("[play] vid.play() erro:",e.name,e.message);'
-            # AbortError por background throttle: retry após 800ms
+            'console.log("[play] src="+vid.src+" networkState="+vid.networkState+" readyState="+vid.readyState);'
+            # play() imediato no user-gesture context — browser aguarda buffer sem perder o gesture chain
+            # evita quebra do autoplay policy no mobile (setTimeout quebraria o chain)
+            'var _pp=vid.play();'
+            'if(_pp!==undefined){'
+            '_pp.catch(function(e){'
+            'console.error("[play] erro:",e.name,e.message);'
             'if(e.name==="AbortError"){'
-            'console.warn("[play] AbortError — retry em 800ms");'
-            'setTimeout(function(){vid.play().catch(function(e2){'
-            'console.error("[play] retry falhou:",e2.name,e2.message);'
-            # retry também falhou: avança para o próximo se autoAdv
+            # AbortError = src mudou antes de terminar (clique rápido em outro item) — ignorar
+            'console.warn("[play] AbortError — src mudou, ignorando");'
+            '}else if(e.name==="NotAllowedError"){'
+            # NotAllowedError = autoplay bloqueado pelo browser — controles nativos já visíveis
+            'console.warn("[play] NotAllowedError — autoplay bloqueado, usar controles nativos");'
+            '}else{'
+            'console.error("[play] erro inesperado:",e.name);'
+            'vid.style.display="none";novid.style.display="flex";rp.style.display="none";'
             'if(autoAdv){var n=nextVisible(idx);if(n>=0)setTimeout(function(){play(n);},200);}'
-            '});},800);'
-            '}});'
-            '};'
-            # registra ambos: oncanplaythrough (ideal) + onloadeddata (fallback)
-            'vid.oncanplaythrough=_onReady;'
-            'vid.onloadeddata=_onReady;'
-            # se vídeo já em cache (readyState >= 3), evento não vai mais disparar → chamar direto
-            'if(vid.readyState>=3){'
-            'console.log("[play] readyState já suficiente ("+vid.readyState+") — _onReady direto");'
-            'setTimeout(_onReady,0);}'
+            '}'
+            '});'
+            '}'
             '}else{'
             'console.log("[play] modo RESULTADO status="+item.status);'
             'vid.style.display="none";vid.pause();vid.removeAttribute("src");'
