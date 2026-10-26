@@ -1,6 +1,23 @@
 # 🗺️ Roadmap — Comprai
 
-## 🔜 V079 — Player: cards categoria + itens clicáveis + fix 400 API (próxima)
+## ✅ V079 — Player funcional: oncanplaythrough + AbortError retry + unified ALL[] (concluído)
+
+### Fixed
+- [x] `vid.src` → `vid.load()` → `oncanplaythrough` → `vid.play()` — vídeos tocam corretamente
+- [x] AbortError por background throttle — retry 800ms + fallback avança sequência
+- [x] `filterCat` não interrompe modo Todos — guard `if(!autoAdv)`
+- [x] `#vid{flex:1}` — vídeo visível no layout flex
+- [x] Array unificado `ALL[]` — API tests (painel resultado) + vídeos na mesma sequência
+
+### Commits
+- `ff9c4bf` fix: display vídeo + remove autoplay init
+- `b5f3b69` fix: filterCat não interrompe modo Todos
+- `ffee208` fix: retry AbortError background throttle
+- `224b8b8` fix: aguardar oncanplaythrough antes de vid.play()
+
+---
+
+## 🔜 V080 — Fix clique individual + Total PIX + CLAUDE.md (próxima)
 
 ### 🎬 Fix Player de Vídeos — Itens clicáveis (P0)
 - [ ] Itens da sidebar devem ter `onclick` explícito para selecionar e exibir o vídeo ao clicar (atualmente só o botão ▶ é clicável)

@@ -1433,7 +1433,7 @@ graphify cluster-only .
 | **~~V069v3 — Fix HTTP 500 Admin Orders~~** | ~~Causa dupla: conflito tipo Npgsql + `product_id` é VARCHAR(200), não UUID; fix: `string? productId` + `::text` uniforme~~ ✅ V069v3 | — |
 | **~~V073 — Linear Backfill V052–V072~~** | ~~Backfill retroativo Linear; scripts idempotentes; cleanup de duplicatas~~ ✅ V073 | — |
 | **~~V072 — Fix Email + OTP~~** | ~~`Brevo__From` corrigido em 3 arquivos; OTP alfanumérico garantido (mín. 2 dígitos); `appsettings.json` Brevo.From~~ ✅ V072 | — |
-| **V079 — Player: cards categoria + itens clicáveis + fix 400 API** | Cards de categoria no topo do player (igual report.html); itens da sidebar clicáveis para exibir vídeo; erros 400 em testes de API (sem vídeo) mostram resultado em vez de tentar carregar .webm | V079 |
+| **~~V079 — Player funcional: oncanplaythrough + AbortError retry + ALL[]~~** ✅ | `vid.load()` + `oncanplaythrough` antes de `vid.play()`; retry AbortError background throttle; `filterCat` não interrompe Todos; `#vid{flex:1}`; array unificado ALL[] com painel resultado para API tests | V079 |
 | **~~V078 — Fix Checkout 500 + Report erros duplicados + MIME webm~~** ✅ | `Results.BadRequest` no checkout (T18–T30); deduplicação de erros por retry no report.html; MIME `video/webm` no nginx; chevrons e botões ▶ Todos/Um por um no player | V078 |
 | **~~V077 — OpsWatch Categorias E2E + Player de Vídeos~~** ✅ | 9 cards de categoria com filtro AND no OpsWatch; player com 31 testes API na sidebar, download por vídeo, 404 placeholder | V077 |
 | **V076 — Fix Deploy SSH + E2E Checkout + Total PIX + Dashboard** | Fix firewall Hostinger SSH; fix checkout 500; fix total PIX; restaurar 4 botões dashboard OpsWatch | V076 |

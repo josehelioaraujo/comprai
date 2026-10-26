@@ -1,5 +1,52 @@
 # Changelog
 
+## [V079] — 2026-10-25
+
+### Fixed
+
+#### Player de Vídeos — `vid.play()` antes do carregamento (`e2e-v2.yml`)
+- `vid.play()` era chamado imediatamente após `vid.src = item.src`, causando `NotAllowedError`/`AbortError` pois o browser ainda não havia carregado o vídeo
+- Fluxo corrigido: `vid.src` → `vid.load()` → `oncanplaythrough` → `vid.play()`
+- Guard `_playIdx` evita race condition se `play()` for chamado novamente antes do carregamento terminar
+- Resultado (log 010): 001→005 tocaram em sequência perfeita com `oncanplaythrough → onplay → onended`
+- **Commit:** `224b8b8`
+
+#### Player de Vídeos — AbortError por background throttle (`e2e-v2.yml`)
+- Chrome pausa vídeos em background ("video-only background media paused to save power") durante os ~47s de API tests
+- `.catch` anterior apenas logava o erro, travando a sequência no segundo ciclo
+- Adicionado retry automático após 800ms; se retry falhar e `autoAdv=true`, avança para próximo item
+- **Commit:** `ffee208`
+
+#### Player de Vídeos — `filterCat` interrompia modo Todos (`e2e-v2.yml`)
+- `filterCat()` sempre resetava `autoAdv=false` e chamava `play(first)` independente do estado
+- Corrigido: `if(!autoAdv)` guard — clique em categoria durante modo Todos não interrompe a sequência
+- **Commit:** `b5f3b69`
+
+#### Player de Vídeos — vídeo invisível (`e2e-v2.yml`)
+- `#vid{height:100%}` dentro de flex container sem altura explícita = 0px efetivo
+- Corrigido para `flex:1;min-height:0` — vídeo ocupa o espaço correto
+- `#stage` recebeu `display:flex;flex-direction:column` para suportar o layout
+- Removido `play(firstVis)` automático no init que causava `play(0)` espúrio
+- **Commit:** `ff9c4bf`
+
+### Added
+
+#### Player de Vídeos — Array unificado ALL[] (`e2e-v2.yml`)
+- Array único `ALL[0..38]`: índices 0–30 são API tests (sem vídeo, exibem painel resultado), 31–38 são vídeos `.webm`
+- API tests avançam via `scheduleNext()` → `setTimeout(1500ms)`; vídeos avançam via `vid.onended` → `setTimeout(80ms)`
+- Painel resultado mostra ✅ PASSOU / ❌ FALHOU / ⏭ IGNORADO com cor correspondente
+
+### Known Issues — V080
+- **Player — clique individual**: ao clicar num vídeo individual (fora do modo Todos), exibição ainda pode não aparecer em alguns casos — investigar na próxima sessão
+- **Total PIX zerado**: `/orders/[id]` exibe R$ 0,00 — `OrderStatusDto.Total` não persistido/recuperado do Redis
+- **Deploy VPS SSH timeout**: firewall Hostinger pode bloquear IPs dos runners GitHub Actions na porta 22
+- **Link direto no email OTP**: email de verificação deve incluir link `/auth/verify?email=<email>`
+- **Web UI Redesign**: redesign completo `frontend/web/` (referência: Nixtio Marketplace)
+
+**Commits:** `ff9c4bf` · `b5f3b69` · `ffee208` · `224b8b8`
+
+---
+
 ## [V078] — 2026-10-24
 
 ### Fixed
