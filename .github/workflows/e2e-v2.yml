@@ -871,7 +871,7 @@ jobs:
             '.btn:hover{background:#334155;color:#e2e8f0}.btn.on{background:#1d4ed8;border-color:#1d4ed8;color:#fff}'
             '#lbl{font-size:13px;color:#94a3b8;padding:4px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}'
             '#lbl b{color:#f1f5f9}#lbl em{color:#475569;font-style:normal;font-size:11px;margin-left:10px}'
-            '#stage{flex:1;min-height:0;display:flex;flex-direction:column}'
+            '#stage{flex:1;min-height:0;display:flex;flex-direction:column;position:relative}'
             '#vid{flex:1;min-height:0;width:100%;border-radius:8px;background:#000;object-fit:contain;display:none}'
             '#result-panel{display:none;flex:1;align-items:center;justify-content:center;flex-direction:column;gap:14px;border-radius:8px;background:#0c1525;border:1px solid #1e293b;padding:24px}'
             '#result-panel .rp-icon{font-size:48px}'
@@ -906,6 +906,10 @@ jobs:
             '<div id="lbl">&#9654; <b id="ln">Selecione um item</b><em id="prog"></em></div>'
             '<div id="stage">'
             '<video id="vid" controls></video>'
+            '<div id="tap-overlay" onclick="tapPlay()" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,0.72);display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;cursor:pointer;z-index:10">'
+            '<div style="width:72px;height:72px;border-radius:50%;background:#3b82f6;display:flex;align-items:center;justify-content:center;font-size:32px">&#9654;</div>'
+            '<span style="color:#e2e8f0;font-size:14px;font-weight:600">Toque para assistir</span>'
+            '</div>'
             '<div id="result-panel">'
             '<div class="rp-icon" id="rp-icon">&#9203;</div>'
             '<div class="rp-title" id="rp-title">Teste de API</div>'
@@ -929,8 +933,10 @@ jobs:
             'var vid=document.getElementById("vid");'
             'var rp=document.getElementById("result-panel");'
             'var novid=document.getElementById("novid");'
+            'var tapOv=document.getElementById("tap-overlay");'
             'var btnNext=document.getElementById("btnNext");'
             'var activeCat=null;'
+            'function tapPlay(){tapOv.style.display="none";vid.play().catch(function(){});}'
 
             # toggleCat: expande/colapsa categoria na sidebar
             'function toggleCat(el){'
@@ -980,7 +986,7 @@ jobs:
             # exibe vídeo ou painel resultado
             'if(hasVid){'
             'console.log("[play] modo VÍDEO src="+item.src);'
-            'vid.style.display="block";rp.style.display="none";novid.style.display="none";'
+            'vid.style.display="block";rp.style.display="none";novid.style.display="none";tapOv.style.display="none";'
             'console.log("[play] antes do src — offsetWidth="+vid.offsetWidth+" offsetHeight="+vid.offsetHeight);'
             'var _playIdx=idx;'
             # limpa handlers antigos e reseta estado — evita herdar play-state de vídeo anterior
@@ -999,8 +1005,9 @@ jobs:
             # AbortError = src mudou antes de terminar (clique rápido em outro item) — ignorar
             'console.warn("[play] AbortError — src mudou, ignorando");'
             '}else if(e.name==="NotAllowedError"){'
-            # NotAllowedError = autoplay bloqueado pelo browser — controles nativos já visíveis
-            'console.warn("[play] NotAllowedError — autoplay bloqueado, usar controles nativos");'
+            # NotAllowedError = autoplay bloqueado — mostra overlay tap-to-play para criar novo gesture
+            'console.warn("[play] NotAllowedError — autoplay bloqueado, exibindo overlay tap-to-play");'
+            'tapOv.style.display="flex";'
             '}else{'
             'console.error("[play] erro inesperado:",e.name);'
             'vid.style.display="none";novid.style.display="flex";rp.style.display="none";'
@@ -1061,7 +1068,7 @@ jobs:
             'if(!autoAdv)return;'
             'var n=nextVisible(idx);'
             'console.log("[onended] nextVisible="+n);'
-            'if(n>=0){setTimeout(function(){play(n);},80);}' # pequeno delay para browser estabilizar
+            'if(n>=0){tapOv.style.display="none";play(n);}' # direto — sem setTimeout para preservar user gesture chain no mobile
             '};'
             'vid.onerror=function(e){'
             # ignora erros quando não há src real (API test, estado limpo)
