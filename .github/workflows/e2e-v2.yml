@@ -993,7 +993,10 @@ jobs:
             'vid.oncanplaythrough=null;vid.onloadeddata=null;'
             'if(!vid.paused){vid.pause();}vid.currentTime=0;'
             'vid.src=item.src;'
-            'vid.load();'
+            # NÃO chama vid.load() — setar src já dispara carregamento implícito no HTML5;
+            # chamar load() logo antes de play() causa AbortError no Chromium porque o
+            # load() interrompe o play-request que ainda está pendente de resolução.
+            # Referência: https://goo.gl/LdLk22 ("play() request was interrupted by a load()")
             'console.log("[play] src="+vid.src+" networkState="+vid.networkState+" readyState="+vid.readyState);'
             # play() imediato no user-gesture context — browser aguarda buffer sem perder o gesture chain
             # evita quebra do autoplay policy no mobile (setTimeout quebraria o chain)
@@ -1002,8 +1005,20 @@ jobs:
             '_pp.catch(function(e){'
             'console.error("[play] erro:",e.name,e.message);'
             'if(e.name==="AbortError"){'
-            # AbortError = src mudou antes de terminar (clique rápido em outro item) — ignorar
-            'console.warn("[play] AbortError — src mudou, ignorando");'
+            # AbortError residual (clique rápido em outro item enquanto carregava) — retenta após delay.
+            # SEM vid.load(): abortError vem apenas de race condition no clique rápido;
+            # retenta uma vez com guard no índice para não sobrepor item mais novo.
+            'console.warn("[play] AbortError — retentando play em 400ms (idx="+idx+")");'
+            'var _ri=idx;'
+            'setTimeout(function(){'
+            'if(idx!==_ri){console.log("[play-retry] idx mudou para "+idx+", cancela retry");return;}'
+            'console.log("[play-retry] tentando play novamente idx="+idx);'
+            'vid.play().catch(function(e2){'
+            'console.warn("[play-retry] falhou:",e2.name,e2.message);'
+            'if(e2.name==="NotAllowedError"){tapOv.style.display="flex";}'
+            'else if(e2.name!=="AbortError"){vid.style.display="none";novid.style.display="flex";}'
+            '});'
+            '},400);'
             '}else if(e.name==="NotAllowedError"){'
             # NotAllowedError = autoplay bloqueado — mostra overlay tap-to-play para criar novo gesture
             'console.warn("[play] NotAllowedError — autoplay bloqueado, exibindo overlay tap-to-play");'
