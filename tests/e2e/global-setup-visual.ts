@@ -46,6 +46,21 @@ async function globalSetup(_config: FullConfig) {
 
     await page.waitForURL(/\/chat/, { timeout: 20_000 });
     await page.waitForLoadState('networkidle');
+
+    // Visita /account para garantir que o token NextAuth (v5) seja validado/rotacionado
+    // nessa rota protegida ANTES de salvar o storageState. O (user)/layout.tsx usa
+    // useSession() que chama /api/auth/session — isso pode rotacionar o cookie.
+    // Salvar o storageState APÓS essa visita captura o token mais recente.
+    console.log('[visual-setup] Verificando autenticação em /account…');
+    await page.goto(`${BASE_URL}/account`, { timeout: 15_000 }).catch(() => {});
+    await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});
+    const accountUrl = page.url();
+    if (accountUrl.includes('/account') || accountUrl.includes('/profile')) {
+      console.log('[visual-setup] ✅ /account acessível — autenticação confirmada.');
+    } else {
+      console.warn(`[visual-setup] ⚠️  /account redirecionou para: ${accountUrl}`);
+    }
+
     await context.storageState({ path: 'storageState.json' });
     console.log('[visual-setup] ✅ Login OK — storageState.json salvo com sessão autenticada.');
 
