@@ -47,9 +47,16 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         viewport: { width: 1280, height: 720 },
-        ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
-          ? { launchOptions: { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } }
-          : {}),
+        launchOptions: {
+          ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+            ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH }
+            : {}),
+          // --no-sandbox é obrigatório em CI Linux sem user namespace (GitHub Actions, Docker)
+          // Sem isso, Chromium pode crashar silenciosamente e NÃO gerar os .webm
+          args: process.env.CI
+            ? ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+            : [],
+        },
       },
     },
   ],

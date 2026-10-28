@@ -19,7 +19,28 @@ const E2E_PASSWORD = process.env.E2E_USER_PASSWORD || 'E2eTest@2026!';
 
 async function globalSetup(_config: FullConfig) {
   const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
-  const browser = await chromium.launch(executablePath ? { executablePath } : {});
+
+  // --no-sandbox é obrigatório em CI Linux sem user namespace — sem isso o Chromium
+  // pode crashar silenciosamente, fazer browser.close() no finally lançar erro e
+  // encerrar o globalSetup com falha, fazendo TODOS os 8 testes visuais serem
+  // pulados (skipped) e nenhum .webm ser gerado.
+  const launchArgs = process.env.CI
+    ? ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+    : [];
+
+  let browser: import('@playwright/test').Browser | undefined;
+  try {
+    browser = await chromium.launch({
+      ...(executablePath ? { executablePath } : {}),
+      args: launchArgs,
+    });
+  } catch (launchErr: any) {
+    console.warn(`[visual-setup] ⚠️  chromium.launch falhou (${launchErr.message?.split('\n')[0]})`);
+    console.warn('[visual-setup] Salvando storageState vazio — testes visuais rodam sem autenticação.');
+    fs.writeFileSync('storageState.json', JSON.stringify({ cookies: [], origins: [] }, null, 2));
+    return; // sai limpo sem lançar exceção
+  }
+
   const context = await browser.newContext();
   const page    = await context.newPage();
 
@@ -71,7 +92,8 @@ async function globalSetup(_config: FullConfig) {
     fs.writeFileSync('storageState.json', JSON.stringify({ cookies: [], origins: [] }, null, 2));
 
   } finally {
-    await browser.close();
+    // browser pode ser undefined se o launch acima falhou antes do try/catch interno
+    await browser?.close().catch(() => {});
   }
 }
 

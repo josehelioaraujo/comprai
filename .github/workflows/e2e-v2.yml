@@ -917,7 +917,7 @@ jobs:
             '<div class="rp-status" id="rp-status" style="background:#1e293b;color:#94a3b8">-</div>'
             '<div style="font-size:11px;color:#475569;text-align:center">Este teste executa via HTTP<br>e n&#227;o gera grava&#231;&#227;o de v&#237;deo.</div>'
             '</div>'
-            '<div id="novid">&#128248;<span>V&#237;deo n&#227;o dispon&#237;vel</span><span style="font-size:11px;color:#334155">Nenhum item selecionado</span></div>'
+            '<div id="novid">&#128248;<span id="novid-title">V&#237;deo n&#227;o dispon&#237;vel</span><span id="novid-sub" style="font-size:11px;color:#334155">Nenhum item selecionado</span></div>'
             '</div>'
             '</div>'
             f'<div id="playlist" style="display:flex;flex-direction:column">'
@@ -929,7 +929,14 @@ jobs:
             '</div>'
             f'<script>'
             f'var ALL={ALL_json};'
-            'var idx=-1,autoAdv=false,autoTimer=null,_scheduling=false,_gen=0;'
+            'var idx=-1,autoAdv=false,autoTimer=null,vidTimeout=null,_scheduling=false,_gen=0;'
+            'function showNovid(t,s){'
+            'document.getElementById("novid-title").textContent=t;'
+            'document.getElementById("novid-sub").textContent=s||"";'
+            'vid.style.display="none";rp.style.display="none";'
+            'novid.style.display="flex";'
+            # tapOv é position:absolute;z-index:10 — esconde para não cobrir novid
+            'tapOv.style.display="none";}'
             'var API_DELAY=1500;'  # ms entre API tests no modo Todos
             'var vid=document.getElementById("vid");'
             'var rp=document.getElementById("result-panel");'
@@ -970,7 +977,7 @@ jobs:
             'function play(i){'
             'console.log("[play] i="+i+" ALL.length="+ALL.length+" caller="+(new Error().stack.split("\\n")[1]||"?").trim());'
             'if(i<0||i>=ALL.length){console.warn("[play] índice fora do range");return;}'
-            'clearTimeout(autoTimer);_scheduling=false;_gen++;'
+            'clearTimeout(autoTimer);clearTimeout(vidTimeout);vidTimeout=null;_scheduling=false;_gen++;'
             'idx=i;'
             'var item=ALL[i];'
             'var hasVid=!!(item.src);'  # usa src como fonte da verdade
@@ -987,13 +994,31 @@ jobs:
             # exibe vídeo ou painel resultado
             'if(hasVid){'
             'console.log("[play] modo VÍDEO src="+item.src);'
-            'vid.style.display="block";rp.style.display="none";novid.style.display="none";tapOv.style.display="none";'
-            'console.log("[play] antes do src — offsetWidth="+vid.offsetWidth+" offsetHeight="+vid.offsetHeight);'
+            # Mantém vídeo oculto até oncanplay disparar (1º quadro decodificado).
+            # "tocar" ≠ "exibir": onplay/oncanplay podem disparar mesmo com vídeo preto/sem dimensões.
+            # Apenas após oncanplay confirmado exibimos #vid; até lá mostramos "Carregando...".
+            'vid.style.display="none";rp.style.display="none";tapOv.style.display="none";'
+            'document.getElementById("novid-title").textContent="Carregando vídeo...";'
+            'document.getElementById("novid-sub").textContent="aguardando primeiro quadro";'
+            'novid.style.display="flex";'
             'var _playIdx=idx;'
             # limpa handlers antigos e reseta estado — evita herdar play-state de vídeo anterior
-            'vid.oncanplaythrough=null;vid.onloadeddata=null;'
+            'vid.oncanplay=null;vid.oncanplaythrough=null;vid.onloadeddata=null;'
             'if(!vid.paused){vid.pause();}vid.currentTime=0;'
             'vid.src=item.src;'
+            # oncanplay: 1º quadro pronto → esconde "carregando", exibe o vídeo real
+            'vid.oncanplay=function(){'
+            'if(idx!==_playIdx){return;}'  # guard: usuário já clicou em outro item
+            'clearTimeout(vidTimeout);vidTimeout=null;'
+            'console.log("[oncanplay] src="+vid.src+" dur="+vid.duration+" w="+vid.offsetWidth+" h="+vid.offsetHeight+" paused="+vid.paused);'
+            'novid.style.display="none";vid.style.display="block";'
+            '};'
+            # vidTimeout: se oncanplay não disparar em 10s → mostra erro (arquivo ausente / MIME errado)
+            'vidTimeout=setTimeout(function(){'
+            'if(idx!==_playIdx){return;}'
+            'console.warn("[vidTimeout] 10s sem oncanplay — networkState="+vid.networkState+" readyState="+vid.readyState);'
+            'if(vid.readyState<2){showNovid("Vídeo não disponível","Arquivo ausente ou sem resposta");}'
+            '},10000);'
             # NÃO chama vid.load() — setar src já dispara carregamento implícito no HTML5;
             # chamar load() logo antes de play() causa AbortError no Chromium porque o
             # load() interrompe o play-request que ainda está pendente de resolução.
@@ -1017,7 +1042,7 @@ jobs:
             'vid.play().catch(function(e2){'
             'console.warn("[play-retry] falhou:",e2.name,e2.message);'
             'if(e2.name==="NotAllowedError"){tapOv.style.display="flex";}'
-            'else if(e2.name!=="AbortError"){vid.style.display="none";novid.style.display="flex";}'
+            'else if(e2.name!=="AbortError"){showNovid("Vídeo não disponível","Erro ao retomar reprodução");}'
             '});'
             '},400);'
             '}else if(e.name==="NotAllowedError"){'
@@ -1026,7 +1051,7 @@ jobs:
             'tapOv.style.display="flex";'
             '}else{'
             'console.error("[play] erro inesperado:",e.name);'
-            'vid.style.display="none";novid.style.display="flex";rp.style.display="none";'
+            'showNovid("Vídeo não disponível","Erro: "+e.name);'
             'if(autoAdv){var n=nextVisible(idx);if(n>=0)setTimeout(function(){play(n);},200);}'
             '}'
             '});'
@@ -1118,10 +1143,11 @@ jobs:
             'var s=vid.getAttribute("src");'
             'if(!s||s===""||vid.src===window.location.href){console.log("[onerror] ignorado — sem src real");return;}'
             'console.error("[onerror] idx="+idx+" src="+vid.src,e);'
-            'vid.style.display="none";novid.style.display="flex";rp.style.display="none";'
+            'clearTimeout(vidTimeout);vidTimeout=null;'
+            'showNovid("Vídeo não disponível","Erro de rede ou formato inválido");'
             'if(autoAdv){var n=nextVisible(idx);if(n>=0)play(n);}'
             '};'
-            'vid.oncanplay=function(){console.log("[oncanplay] src="+vid.src+" dur="+vid.duration+" w="+vid.offsetWidth+" h="+vid.offsetHeight+" paused="+vid.paused);};'
+            # vid.oncanplay é configurado dinamicamente dentro de play() com guard _playIdx + timeout
             'vid.onplay=function(){console.log("[onplay] src="+vid.src+" currentTime="+vid.currentTime);};'
             'vid.onpause=function(){console.log("[onpause] src="+vid.src+" currentTime="+vid.currentTime+" ended="+vid.ended);};'
             'vid.ontimeupdate=function(){if(vid.duration&&vid.currentTime>vid.duration-0.5)console.log("[timeupdate] perto do fim: "+vid.currentTime+"/"+vid.duration);};'
