@@ -705,9 +705,9 @@ jobs:
             # Fallback por palavras-chave (Playwright trunca o dir e o número some)
             n = name.lower()
             if any(k in n for k in ('login', 'autent', 'bem-vindo', 'bem vindo')): return 'Autenticação'
-            if any(k in n for k in ('chat', 'assistente', 'ia /', 'ia chat')):     return 'IA / Chat'
+            if any(k in n for k in ('chat', 'assistente', 'ssistente', 'ia /', 'ia chat', 'com ia', 'com-ia')): return 'IA / Chat'
             if any(k in n for k in ('busca', 'notebook', 'encontr', 'intelig')):   return 'Busca'
-            if any(k in n for k in ('carrinho', 'adicion', 'selecion')):           return 'Carrinho'
+            if any(k in n for k in ('carrinho', 'adicion', 'selecion', 'rinho')):  return 'Carrinho'
             if any(k in n for k in ('checkout', 'entrega', 'dados de')):           return 'Checkout'
             if any(k in n for k in ('pix', 'pagamento', 'qr', 'código qr')):       return 'Pagamento'
             if any(k in n for k in ('pedido', 'confirmad', 'realizada')):          return 'Pedidos'
