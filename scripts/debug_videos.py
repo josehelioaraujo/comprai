@@ -57,23 +57,37 @@ else:
     print('playlist.json não encontrado — varrendo pasta videos/')
     webm_files = sorted(glob.glob(os.path.join(videos_subdir, '*.webm')))
     videos = []
-    # Mapa número da cena → categoria (espelha VISUAL_CAT_MAP do workflow)
+    # Mapa número da cena → categoria (espelha VISUAL_CAT_MAP do workflow V01-V31)
     CAT_BY_NUM = {
-        '01': 'Autenticação', '1': 'Autenticação',
-        '02': 'IA / Chat',    '2': 'IA / Chat',
-        '03': 'Busca',        '3': 'Busca',
-        '04': 'Carrinho',     '4': 'Carrinho',
-        '05': 'Checkout',     '5': 'Checkout',
-        '06': 'Pagamento',    '6': 'Pagamento',
-        '07': 'Pedidos',      '7': 'Pedidos',
-        '08': 'Outros',       '8': 'Outros',
+        # Health
+        '01': 'Outros',       '02': 'Outros',
+        # Autenticação
+        '03': 'Autenticação', '04': 'Autenticação', '05': 'Autenticação',
+        '06': 'Autenticação', '07': 'Autenticação', '08': 'Autenticação', '09': 'Autenticação',
+        # Busca
+        '10': 'Busca',        '11': 'Busca',        '12': 'Busca',
+        # Carrinho
+        '13': 'Carrinho',     '14': 'Carrinho',     '15': 'Carrinho',
+        '16': 'Carrinho',     '17': 'Carrinho',
+        # Checkout
+        '18': 'Checkout',     '19': 'Checkout',     '20': 'Checkout',
+        # Pagamento
+        '21': 'Pagamento',    '22': 'Pagamento',    '23': 'Pagamento',
+        # Pedidos
+        '24': 'Pedidos',      '25': 'Pedidos',      '26': 'Pedidos',     '27': 'Pedidos',
+        # E2E Smoke → IA / Chat
+        '28': 'IA / Chat',    '29': 'IA / Chat',    '30': 'IA / Chat',   '31': 'IA / Chat',
     }
     for path in webm_files:
         fname = os.path.basename(path)
-        m     = re.match(r'^0*(\d+)', fname)
-        num   = m.group(1) if m else ''
-        num2  = m.group(0).lstrip('0') or '0' if m else ''
-        cat   = CAT_BY_NUM.get(num, CAT_BY_NUM.get(f'0{num}', 'Outros'))
+        # Tenta extrair número: V01, v31, 01, 31, etc.
+        m = re.search(r'[Vv](\d+)', fname) or re.match(r'^(\d+)', fname)
+        if m:
+            raw = m.group(1).lstrip('0') or '0'
+            num = raw.zfill(2)   # "3" → "03", "31" → "31"
+        else:
+            num = ''
+        cat = CAT_BY_NUM.get(num, 'Outros')
         videos.append({
             'src':     f'videos/{fname}',
             'name':    fname,

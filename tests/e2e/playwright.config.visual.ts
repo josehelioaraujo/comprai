@@ -21,14 +21,14 @@ const API_URL  = process.env.E2E_API_URL  || 'http://2.25.122.11:5020';
 
 export default defineConfig({
   testDir:   './tests',
-  testMatch: ['**/full-flow-visual.spec.ts'],
+  testMatch: ['**/full-flow-visual-31.spec.ts'],
   fullyParallel: false,
   forbidOnly:    !!process.env.CI,
   retries:       0,   // Vídeos de retry são confusos; melhor falhar limpo
   workers:       1,
   reporter: [
     ['list'],
-    ['json', { outputFile: 'playwright-results-visual.json' }],
+    ['json', { outputFile: 'playwright-results-visual-31.json' }],
   ],
   use: {
     baseURL:           BASE_URL,

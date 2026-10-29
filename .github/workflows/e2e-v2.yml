@@ -614,7 +614,7 @@ jobs:
           fi
         continue-on-error: true
 
-      - name: Executar testes visuais (full-flow-visual.spec.ts)
+      - name: Executar testes visuais (full-flow-visual-31.spec.ts)
         if: always() && steps.check-frontend.outputs.FRONTEND_UP == 'true'
         working-directory: tests/e2e
         env:
@@ -624,7 +624,7 @@ jobs:
           E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
           CI: 'true'
         run: |
-          npx playwright test full-flow-visual.spec.ts \
+          npx playwright test \
             --config=playwright.config.visual.ts \
             --project=chromium
         continue-on-error: true
@@ -692,26 +692,46 @@ jobs:
             print(f'  [{i:03d}] {name}')
 
           n = len(playlist)
-          # Categorias de cenas visuais (por número da cena)
+          # Categorias de cenas visuais V01-V31 (1:1 com T01-T31)
           VISUAL_CAT_MAP = {
-            '01': 'Autenticação', '02': 'IA / Chat',  '03': 'Busca',
-            '04': 'Carrinho',     '05': 'Checkout',    '06': 'Pagamento',
-            '07': 'Pedidos',      '08': 'Outros',
+            # Health (T01-T02)
+            '01': 'Outros',       '02': 'Outros',
+            # Autenticação (T03-T09)
+            '03': 'Autenticação', '04': 'Autenticação', '05': 'Autenticação',
+            '06': 'Autenticação', '07': 'Autenticação', '08': 'Autenticação', '09': 'Autenticação',
+            # Busca (T10-T12)
+            '10': 'Busca',        '11': 'Busca',        '12': 'Busca',
+            # Carrinho (T13-T17)
+            '13': 'Carrinho',     '14': 'Carrinho',     '15': 'Carrinho',
+            '16': 'Carrinho',     '17': 'Carrinho',
+            # Checkout (T18-T20)
+            '18': 'Checkout',     '19': 'Checkout',     '20': 'Checkout',
+            # Pagamento (T21-T23)
+            '21': 'Pagamento',    '22': 'Pagamento',    '23': 'Pagamento',
+            # Pedidos (T24-T27)
+            '24': 'Pedidos',      '25': 'Pedidos',      '26': 'Pedidos',     '27': 'Pedidos',
+            # E2E Smoke (T28-T31) → IA / Chat (fluxo completo via chat)
+            '28': 'IA / Chat',    '29': 'IA / Chat',    '30': 'IA / Chat',   '31': 'IA / Chat',
           }
           def get_visual_cat(name):
-            # Tenta pelo número da cena (01-08) — pode ser cortado pelo Playwright
-            m = re.search(r'\b(0[1-8])\b', name)
-            if m: return VISUAL_CAT_MAP.get(m.group(1), 'Outros')
-            # Fallback por palavras-chave (Playwright trunca o dir e o número some)
+            # Tenta pelo número da cena V01-V31 ou 01-31
+            m = re.search(r'[Vv](\d+)|^(\d+)', name)
+            if not m:
+              m = re.search(r'\b(0[1-9]|[12]\d|3[01])\b', name)
+              num = m.group(1) if m else None
+            else:
+              num = (m.group(1) or m.group(2) or '').lstrip('0') or '0'
+              num = num.zfill(2)
+            if num and num in VISUAL_CAT_MAP: return VISUAL_CAT_MAP[num]
+            # Fallback por palavras-chave
             n = name.lower()
-            if any(k in n for k in ('login', 'autent', 'bem-vindo', 'bem vindo')): return 'Autenticação'
-            if any(k in n for k in ('chat', 'assistente', 'ssistente', 'ia /', 'ia chat', 'com ia', 'com-ia')): return 'IA / Chat'
-            if any(k in n for k in ('busca', 'notebook', 'encontr', 'intelig')):   return 'Busca'
-            if any(k in n for k in ('carrinho', 'adicion', 'selecion', 'rinho')):  return 'Carrinho'
-            if any(k in n for k in ('checkout', 'entrega', 'dados de')):           return 'Checkout'
-            if any(k in n for k in ('pix', 'pagamento', 'qr', 'código qr')):       return 'Pagamento'
-            if any(k in n for k in ('pedido', 'confirmad', 'realizada')):          return 'Pedidos'
-            if any(k in n for k in ('histórico', 'histórico', 'área do', 'area do', 'cliente')): return 'Outros'
+            if any(k in n for k in ('login', 'autent', 'registro', 'cadastro', 'senha', 'otp', 'token', 'verificac')): return 'Autenticação'
+            if any(k in n for k in ('chat', 'assistente', 'ia /', 'ia chat', 'smoke', 'fluxo completo', 'e2e')): return 'IA / Chat'
+            if any(k in n for k in ('busca', 'notebook', 'iphone', 'encontr', 'filtro', 'resultado')):            return 'Busca'
+            if any(k in n for k in ('carrinho', 'adicion', 'remov', 'item', 'duplicad', 'idempot')):              return 'Carrinho'
+            if any(k in n for k in ('checkout', 'entrega', 'dados', 'formulár')):                                 return 'Checkout'
+            if any(k in n for k in ('pix', 'pagamento', 'qr', 'provider')):                                       return 'Pagamento'
+            if any(k in n for k in ('pedido', 'confirmad', 'histórico', 'lista', 'order', 'acesso negado')):      return 'Pedidos'
             return 'Outros'
 
           # Categorias de testes de API (T01-T31) — mesma lógica do report
