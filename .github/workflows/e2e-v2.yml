@@ -696,11 +696,23 @@ jobs:
           VISUAL_CAT_MAP = {
             '01': 'Autenticação', '02': 'IA / Chat',  '03': 'Busca',
             '04': 'Carrinho',     '05': 'Checkout',    '06': 'Pagamento',
-            '07': 'Pedidos',      '08': 'Conta',
+            '07': 'Pedidos',      '08': 'Outros',
           }
           def get_visual_cat(name):
+            # Tenta pelo número da cena (01-08) — pode ser cortado pelo Playwright
             m = re.search(r'\b(0[1-8])\b', name)
-            return VISUAL_CAT_MAP.get(m.group(1), 'Outros') if m else 'Outros'
+            if m: return VISUAL_CAT_MAP.get(m.group(1), 'Outros')
+            # Fallback por palavras-chave (Playwright trunca o dir e o número some)
+            n = name.lower()
+            if any(k in n for k in ('login', 'autent', 'bem-vindo', 'bem vindo')): return 'Autenticação'
+            if any(k in n for k in ('chat', 'assistente', 'ia /', 'ia chat')):     return 'IA / Chat'
+            if any(k in n for k in ('busca', 'notebook', 'encontr', 'intelig')):   return 'Busca'
+            if any(k in n for k in ('carrinho', 'adicion', 'selecion')):           return 'Carrinho'
+            if any(k in n for k in ('checkout', 'entrega', 'dados de')):           return 'Checkout'
+            if any(k in n for k in ('pix', 'pagamento', 'qr', 'código qr')):       return 'Pagamento'
+            if any(k in n for k in ('pedido', 'confirmad', 'realizada')):          return 'Pedidos'
+            if any(k in n for k in ('histórico', 'histórico', 'área do', 'area do', 'cliente')): return 'Outros'
+            return 'Outros'
 
           # Categorias de testes de API (T01-T31) — mesma lógica do report
           def get_api_cat(title):
@@ -783,7 +795,7 @@ jobs:
           header_lbl  = f'{api_count} API + {n} visuais' if api_tests else f'{n} cenas'
 
           # ── Cards de categoria no topo (filtro por categoria) ─────────────────────
-          CAT_ORDER  = ['Healthcheck','Cadastro','Autenticação','Busca','Carrinho','Checkout','Pagamento','Pedidos','Fluxo E2E','Autenticação','IA / Chat','Outros']
+          CAT_ORDER  = ['Healthcheck','Cadastro','Autenticação','Busca','Carrinho','Checkout','Pagamento','Pedidos','Fluxo E2E','IA / Chat','Outros']
           CAT_COLORS = {
             'Healthcheck':'#38bdf8','Cadastro':'#06b6d4','Autenticação':'#a78bfa',
             'Busca':'#34d399','Carrinho':'#f59e0b','Checkout':'#fb923c',
