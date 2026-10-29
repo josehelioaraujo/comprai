@@ -5,25 +5,24 @@ debug_videos.py — Gera debug.html com todos os vídeos da pasta videos_latest.
 Uso:
   python3 debug_videos.py [caminho/para/videos_latest]
 
-Se o caminho não for passado, busca automaticamente.
+Funciona com ou sem playlist.json — lê direto os .webm da pasta videos/.
 """
-import json, os, sys, glob
+import json, os, sys, glob, re
 
 # ─── Localizar videos_latest ─────────────────────────────────────────────────
 def find_videos_dir(arg=None):
     if arg:
         return arg
     candidates = [
+        '/var/www/html/opswatch/results/e2e-v2/downloads/videos_latest',
         'e2e-v2-output/downloads/videos_latest',
         '/opt/comprai/e2e-v2-output/downloads/videos_latest',
         os.path.expanduser('~/comprai/e2e-v2-output/downloads/videos_latest'),
     ]
-    # busca dinâmica por playlist.json
-    for pattern in ['/opt/**/videos_latest', '/var/www/**/videos_latest', '/home/**/videos_latest']:
-        found = glob.glob(pattern, recursive=True)
-        candidates.extend(found)
+    for pattern in ['/var/www/**/videos_latest', '/opt/**/videos_latest', '/home/**/videos_latest']:
+        candidates.extend(glob.glob(pattern, recursive=True))
     for c in candidates:
-        if os.path.isdir(c) and os.path.exists(os.path.join(c, 'playlist.json')):
+        if os.path.isdir(c) and os.path.isdir(os.path.join(c, 'videos')):
             return c
     return None
 
@@ -31,29 +30,16 @@ arg = sys.argv[1] if len(sys.argv) > 1 else None
 videos_dir = find_videos_dir(arg)
 
 if not videos_dir:
-    print('ERRO: pasta videos_latest com playlist.json não encontrada.')
-    print('Passe o caminho como argumento: python3 debug_videos.py /caminho/videos_latest')
+    print('ERRO: pasta videos_latest com subpasta videos/ não encontrada.')
+    print('Passe o caminho: python3 debug_videos.py /caminho/videos_latest')
     sys.exit(1)
 
 print(f'Usando: {videos_dir}')
 
-# ─── Ler playlist.json ───────────────────────────────────────────────────────
+# ─── Ler itens: playlist.json (se existir) ou varrer .webm ───────────────────
 playlist_path = os.path.join(videos_dir, 'playlist.json')
-with open(playlist_path, encoding='utf-8') as f:
-    data = json.load(f)
+videos_subdir = os.path.join(videos_dir, 'videos')
 
-all_items = data.get('ALL', [])
-videos    = [x for x in all_items if x.get('hasVideo')]
-api_items = [x for x in all_items if not x.get('hasVideo')]
-
-print(f'Total: {len(all_items)} itens ({len(api_items)} API, {len(videos)} visuais)')
-for v in videos:
-    webm = v.get('src','').split('/')[-1]
-    path = os.path.join(videos_dir, 'videos', webm)
-    size = f'{os.path.getsize(path)/1024:.0f} KB' if os.path.exists(path) else '❌ não existe'
-    print(f'  [{v.get("cat","?"):15s}] {webm}  {size}  {v.get("name","")[:60]}')
-
-# ─── Gerar debug.html ────────────────────────────────────────────────────────
 CAT_COLORS = {
     'Autenticação': '#6366f1', 'IA / Chat': '#8b5cf6',
     'Busca': '#0ea5e9',        'Carrinho': '#f59e0b',
@@ -61,14 +47,43 @@ CAT_COLORS = {
     'Pedidos': '#ec4899',      'Outros': '#94a3b8',
 }
 
+if os.path.exists(playlist_path):
+    with open(playlist_path, encoding='utf-8') as f:
+        data = json.load(f)
+    all_items = data.get('ALL', [])
+    videos = [x for x in all_items if x.get('hasVideo')]
+    print(f'playlist.json: {len(all_items)} itens, {len(videos)} visuais')
+else:
+    print('playlist.json não encontrado — varrendo pasta videos/')
+    webm_files = sorted(glob.glob(os.path.join(videos_subdir, '*.webm')))
+    videos = []
+    for path in webm_files:
+        fname = os.path.basename(path)
+        idx   = re.match(r'^(\d+)', fname)
+        num   = idx.group(1) if idx else fname
+        videos.append({
+            'src':     f'videos/{fname}',
+            'name':    fname,
+            'cat':     'Outros',
+            'hasVideo': True,
+        })
+    print(f'Encontrados: {len(videos)} arquivos .webm')
+
+# ─── Mostrar resumo no terminal ───────────────────────────────────────────────
+for v in videos:
+    webm = v.get('src','').split('/')[-1]
+    path = os.path.join(videos_subdir, webm)
+    size = f'{os.path.getsize(path)/1024:.0f} KB' if os.path.exists(path) else '❌ arquivo não existe'
+    print(f'  [{v.get("cat","?"):15s}] {webm}  {size}  {v.get("name","")[:60]}')
+
+# ─── Gerar debug.html ────────────────────────────────────────────────────────
 cards = ''
 for v in videos:
     src  = v.get('src', '')
-    name = v.get('name', '')
+    name = v.get('name', src)
     cat  = v.get('cat', 'Outros')
-    webm = src.split('/')[-1]
     col  = CAT_COLORS.get(cat, '#94a3b8')
-    local_idx = v.get('idx', '')
+    webm = src.split('/')[-1]
     cards += f'''
   <div class="card" id="card-{webm}">
     <video src="{src}" controls preload="metadata"
@@ -104,7 +119,7 @@ video{{width:100%;display:block;background:#000;max-height:220px}}
 </head>
 <body>
 <h1>🎬 Debug Vídeos</h1>
-<div class="sub">{len(videos)} cenas visuais · {len(api_items)} testes API · gerado de: {videos_dir}</div>
+<div class="sub">{len(videos)} cenas · {videos_dir}</div>
 <div class="grid">
 {cards}
 </div>
@@ -112,13 +127,8 @@ video{{width:100%;display:block;background:#000;max-height:220px}}
 function mark(f,dur,ok){{
   var el=document.getElementById('meta-'+f);
   var card=document.getElementById('card-'+f);
-  if(ok){{
-    el.innerHTML='<span style="color:#22c55e">✅ '+Math.round(dur)+'s</span> — '+f;
-    card.classList.add('ok');
-  }}else{{
-    el.innerHTML='<span style="color:#ef4444">❌ erro ao carregar</span> — '+f;
-    card.classList.add('err');
-  }}
+  if(ok){{el.innerHTML='<span style="color:#22c55e">✅ '+Math.round(dur)+'s</span> — '+f;card.classList.add('ok');}}
+  else{{el.innerHTML='<span style="color:#ef4444">❌ erro ao carregar</span> — '+f;card.classList.add('err');}}
 }}
 </script>
 </body>
