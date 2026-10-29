@@ -786,33 +786,42 @@ jobs:
           except Exception as e:
             print(f'[VIDEO] Aviso: playwright-results.json nao disponivel: {e}')
 
-          # ── Array unificado ALL[] — API tests (sem vídeo) + visuais (com vídeo) ─────
-          ALL = []  # {name, src|None, status, cat, hasVideo}
+          # ── Array MESCLADO — 31 itens unificados (status API + vídeo visual) ───────
+          # Cada item T01-T31 tem status do teste de API E o vídeo da cena visual.
+          # Resultado: 31 itens (não 62), todos com vídeo quando disponível.
+          ALL = []  # {name, src|None, status, cat, hasVideo, scene}
 
-          # 1. Testes de API (T01–T31) — sem vídeo
-          for t in api_tests:
-            ALL.append({
-              'name':     t['title'],
-              'src':      None,
-              'status':   t['status'],
-              'cat':      get_api_cat(t['title']),
-              'hasVideo': False,
-            })
+          # Mapa índice (1-based) → item de playlist (playlist[0] = T01, etc.)
+          vid_map = {i+1: p for i, p in enumerate(playlist)}
 
-          # 2. Cenas visuais — com vídeo
-          for item in playlist:
-            ALL.append({
-              'name':     item['name'],
-              'src':      item['src'],
-              'status':   'visual',
-              'cat':      get_visual_cat(item['name']),
-              'hasVideo': True,
-            })
+          if api_tests:
+            for ti, t in enumerate(api_tests):
+              vd = vid_map.get(ti + 1)
+              ALL.append({
+                'name':     t['title'],
+                'src':      vd['src'] if vd else None,
+                'status':   t['status'],
+                'cat':      get_api_cat(t['title']),
+                'hasVideo': bool(vd),
+                'scene':    vd['name'] if vd else '',
+              })
+          else:
+            # Sem resultados de API — exibe apenas os vídeos visuais
+            for vd in playlist:
+              ALL.append({
+                'name':     vd['name'],
+                'src':      vd['src'],
+                'status':   'visual',
+                'cat':      get_visual_cat(vd['name']),
+                'hasVideo': True,
+                'scene':    vd['name'],
+              })
 
           ALL_json    = json.dumps(ALL, ensure_ascii=False)
           api_count   = len(api_tests)
           total_items = len(ALL)
-          header_lbl  = f'{api_count} API + {n} visuais' if api_tests else f'{n} cenas'
+          n_with_vid  = sum(1 for x in ALL if x['hasVideo'])
+          header_lbl  = f'{total_items} testes ({n_with_vid} c/ vídeo)' if api_tests else f'{n} cenas'
 
           # ── Cards de categoria no topo (filtro por categoria) ─────────────────────
           CAT_ORDER  = ['Healthcheck','Cadastro','Autenticação','Busca','Carrinho','Checkout','Pagamento','Pedidos','Fluxo E2E','IA / Chat','Outros']
@@ -840,57 +849,34 @@ jobs:
             cat_cards_html += f'<div class="ccard" onclick="filterCat(\'{cat}\',this)" id="{cid}" title="Filtrar: {cat}" style="--cc:{col}">{cat} <span class="cc-cnt">{cnt}</span></div>'
           cat_cards_html += '</div>'
 
-          # ── Sidebar: itens agrupados por categoria ────────────────────────────────
+          # ── Sidebar: itens MESCLADOS agrupados por categoria ──────────────────────
+          # 31 itens unificados (status badge + vídeo), agrupados por categoria.
           items_html = ''
-          # Seção API
-          if api_tests:
-            api_by_cat = {}; api_cat_order = []
-            for gi, item in enumerate(ALL):
-              if item['hasVideo']: continue
-              cat = item['cat']
-              if cat not in api_by_cat:
-                api_by_cat[cat] = []; api_cat_order.append(cat)
-              api_by_cat[cat].append((gi, item))
-            items_html += '<div class="ph">&#128203; Testes de API</div>\n'
-            for ci, cat in enumerate(api_cat_order):
-              col = CAT_COLORS.get(cat, '#94a3b8')
-              items_html += f'<div class="ph-cat" onclick="toggleCat(this)" data-cat="ac{ci}"><span class="ch">&#9660;</span><span style="color:{col}">{cat}</span></div>\n'
-              items_html += f'<div class="cat-items" id="ac{ci}">\n'
-              for gi, item in api_by_cat[cat]:
-                st  = item['status']
-                ic  = '✅' if st == 'passed' else '❌' if st == 'failed' else '⏭'
-                col2 = '#22c55e' if st == 'passed' else '#ef4444' if st == 'failed' else '#f59e0b'
-                items_html += (
-                  f'<div class="pi api-item" data-cat="{item["cat"]}" onclick="play({gi})" id="pi{gi}">'
-                  f'<span style="font-size:11px">{ic}</span>'
-                  f'<span class="pn" style="color:{col2}">{item["name"]}</span>'
-                  f'</div>\n'
-                )
-              items_html += '</div>\n'
-
-          # Seção Visual
-          vis_by_cat = {}; vis_cat_order2 = []
+          by_cat = {}; cat_order_items = []
           for gi, item in enumerate(ALL):
-            if not item['hasVideo']: continue
             cat = item['cat']
-            if cat not in vis_by_cat:
-              vis_by_cat[cat] = []; vis_cat_order2.append(cat)
-            vis_by_cat[cat].append((gi, item))
-          if vis_by_cat:
-            items_html += '<div class="ph">&#127916; Cenas Visuais</div>\n'
-            for ci, cat in enumerate(vis_cat_order2):
-              col = CAT_COLORS.get(cat, '#94a3b8')
-              items_html += f'<div class="ph-cat" onclick="toggleCat(this)" data-cat="vc{ci}"><span class="ch">&#9660;</span><span style="color:{col}">{cat}</span></div>\n'
-              items_html += f'<div class="cat-items" id="vc{ci}">\n'
-              for gi, item in vis_by_cat[cat]:
-                local_idx = gi - api_count
-                items_html += (
-                  f'<div class="pi" data-cat="{item["cat"]}" onclick="play({gi})" id="pi{gi}">'
-                  f'<span class="pn"><span class="idx">{local_idx+1:03d}</span> {item["name"]}</span>'
-                  f'<a class="dl" href="{item["src"]}" download onclick="event.stopPropagation()">&#11123;</a>'
-                  f'</div>\n'
-                )
-              items_html += '</div>\n'
+            if cat not in by_cat:
+              by_cat[cat] = []; cat_order_items.append(cat)
+            by_cat[cat].append((gi, item))
+
+          for ci, cat in enumerate(cat_order_items):
+            col = CAT_COLORS.get(cat, '#94a3b8')
+            items_html += f'<div class="ph-cat" onclick="toggleCat(this)" data-cat="tc{ci}"><span class="ch">&#9660;</span><span style="color:{col}">{cat}</span></div>\n'
+            items_html += f'<div class="cat-items" id="tc{ci}">\n'
+            for gi, item in by_cat[cat]:
+              st   = item['status']
+              ic   = '✅' if st == 'passed' else '❌' if st == 'failed' else '⏭'
+              col2 = '#22c55e' if st == 'passed' else '#ef4444' if st == 'failed' else '#f59e0b'
+              vid_icon = '&#127916;' if item['src'] else ''
+              dl_btn   = f'<a class="dl" href="{item["src"]}" download onclick="event.stopPropagation()">&#11123;</a>' if item['src'] else ''
+              items_html += (
+                f'<div class="pi" data-cat="{item["cat"]}" onclick="play({gi})" id="pi{gi}">'
+                f'<span style="font-size:11px">{ic}</span>'
+                f'<span class="pn" style="color:{col2}">{item["name"]}</span>'
+                f'{dl_btn}'
+                f'</div>\n'
+              )
+            items_html += '</div>\n'
 
           player_html = (
             '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">'
@@ -948,7 +934,7 @@ jobs:
             '<div class="rp-icon" id="rp-icon">&#9203;</div>'
             '<div class="rp-title" id="rp-title">Teste de API</div>'
             '<div class="rp-status" id="rp-status" style="background:#1e293b;color:#94a3b8">-</div>'
-            '<div style="font-size:11px;color:#475569;text-align:center">Este teste executa via HTTP<br>e n&#227;o gera grava&#231;&#227;o de v&#237;deo.</div>'
+            '<div style="font-size:11px;color:#475569;text-align:center">V&#237;deo n&#227;o dispon&#237;vel para este teste.<br>Execute o workflow para gerar os v&#237;deos.</div>'
             '</div>'
             '<div id="novid">&#128248;<span id="novid-title">V&#237;deo n&#227;o dispon&#237;vel</span><span id="novid-sub" style="font-size:11px;color:#334155">Nenhum item selecionado</span></div>'
             '</div>'
@@ -1154,25 +1140,20 @@ jobs:
             'activeCat=cat;'
             'document.querySelectorAll(".ccard").forEach(function(c){c.classList.remove("active");});'
             'el.classList.add("active");'
-            # Filtra apenas testes de API; cenas visuais ficam sempre visíveis
-            'document.querySelectorAll(".pi.api-item").forEach(function(r){'
+            # Filtra todos os itens mesclados por categoria
+            'document.querySelectorAll(".pi").forEach(function(r){'
             'var show=!cat||r.getAttribute("data-cat")===cat;'
             'r.style.display=show?"":"none";});'
-            # Destaca cena visual da categoria ativa; remove highlight das demais
-            'document.querySelectorAll(".pi:not(.api-item)").forEach(function(r){'
-            'r.classList.toggle("vis-active",!!cat&&r.getAttribute("data-cat")===cat);});'
-            # Oculta cabeçalhos e containers de categorias API sem itens visíveis
+            # Oculta cabeçalhos e containers de categorias sem itens visíveis
             'document.querySelectorAll(".ph-cat").forEach(function(h){'
             'var bid=h.getAttribute("data-cat");'
-            'if(!bid||bid.charAt(0)!=="a")return;'
             'var box=document.getElementById(bid);if(!box)return;'
-            'var any=false;box.querySelectorAll(".pi.api-item").forEach(function(r){if(r.style.display!=="none")any=true;});'
+            'var any=false;box.querySelectorAll(".pi").forEach(function(r){if(r.style.display!=="none")any=true;});'
             'var vis=any||!cat;h.style.display=vis?"":"none";box.style.display=vis?"":"none";});'
-            # Prioriza cena visual da categoria; fallback para primeiro item qualquer
+            # Reproduz primeiro item visível da categoria
             'if(!autoAdv){'
             'clearTimeout(autoTimer);'
-            'var first=ALL.findIndex(function(x){return x.hasVideo&&(!cat||x.cat===cat);});'
-            'if(first<0)first=ALL.findIndex(function(x){return !cat||x.cat===cat;});'
+            'var first=ALL.findIndex(function(x){return !cat||x.cat===cat;});'
             'if(first>=0)play(first);}}'
 
             # onended: vídeo terminou → avança para próximo
@@ -1207,7 +1188,7 @@ jobs:
 
           with open(f'{player_dir}/index.html', 'w', encoding='utf-8') as f:
             f.write(player_html)
-          print(f'index.html gerado: {api_count} API + {n} cenas visuais')
+          print(f'index.html gerado: {total_items} itens mesclados ({n_with_vid} com vídeo)')
 
           zip_name = 'videos_latest.zip'
           zip_path = f'e2e-v2-output/downloads/{zip_name}'
