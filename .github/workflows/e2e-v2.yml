@@ -904,6 +904,7 @@ jobs:
             '.pi{padding:8px 14px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px;color:#94a3b8;transition:background .12s;display:flex;align-items:center;gap:6px}'
             '.pi:hover{background:#334155;color:#e2e8f0}.pi.active{background:#1d4ed8;color:#fff !important}'
             '.pi.active .pn{color:#fff !important}'
+            '.vis-active{background:rgba(29,78,216,.18)!important;border-left:3px solid #3b82f6}'
             '.pn{flex:1;line-height:1.35}.idx{font-size:10px;opacity:.45;margin-right:4px}'
             '.dl{padding:2px 7px;border-radius:4px;background:rgba(255,255,255,.06);color:#475569;text-decoration:none;font-size:11px;transition:all .12s;flex-shrink:0;line-height:1.6}'
             '.dl:hover{background:#334155;color:#94a3b8}'
@@ -1133,13 +1134,25 @@ jobs:
             'activeCat=cat;'
             'document.querySelectorAll(".ccard").forEach(function(c){c.classList.remove("active");});'
             'el.classList.add("active");'
-            'document.querySelectorAll(".pi").forEach(function(r){'
+            # Filtra apenas testes de API; cenas visuais ficam sempre visíveis
+            'document.querySelectorAll(".pi.api-item").forEach(function(r){'
             'var show=!cat||r.getAttribute("data-cat")===cat;'
             'r.style.display=show?"":"none";});'
-            # só interrompe e salta para primeiro se não estiver em modo Todos
+            # Destaca cena visual da categoria ativa; remove highlight das demais
+            'document.querySelectorAll(".pi:not(.api-item)").forEach(function(r){'
+            'r.classList.toggle("vis-active",!!cat&&r.getAttribute("data-cat")===cat);});'
+            # Oculta cabeçalhos e containers de categorias API sem itens visíveis
+            'document.querySelectorAll(".ph-cat").forEach(function(h){'
+            'var bid=h.getAttribute("data-cat");'
+            'if(!bid||bid.charAt(0)!=="a")return;'
+            'var box=document.getElementById(bid);if(!box)return;'
+            'var any=false;box.querySelectorAll(".pi.api-item").forEach(function(r){if(r.style.display!=="none")any=true;});'
+            'var vis=any||!cat;h.style.display=vis?"":"none";box.style.display=vis?"":"none";});'
+            # Prioriza cena visual da categoria; fallback para primeiro item qualquer
             'if(!autoAdv){'
             'clearTimeout(autoTimer);'
-            'var first=ALL.findIndex(function(x){return !cat||x.cat===cat;});'
+            'var first=ALL.findIndex(function(x){return x.hasVideo&&(!cat||x.cat===cat);});'
+            'if(first<0)first=ALL.findIndex(function(x){return !cat||x.cat===cat;});'
             'if(first>=0)play(first);}}'
 
             # onended: vídeo terminou → avança para próximo
