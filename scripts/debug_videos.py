@@ -57,14 +57,27 @@ else:
     print('playlist.json não encontrado — varrendo pasta videos/')
     webm_files = sorted(glob.glob(os.path.join(videos_subdir, '*.webm')))
     videos = []
+    # Mapa número da cena → categoria (espelha VISUAL_CAT_MAP do workflow)
+    CAT_BY_NUM = {
+        '01': 'Autenticação', '1': 'Autenticação',
+        '02': 'IA / Chat',    '2': 'IA / Chat',
+        '03': 'Busca',        '3': 'Busca',
+        '04': 'Carrinho',     '4': 'Carrinho',
+        '05': 'Checkout',     '5': 'Checkout',
+        '06': 'Pagamento',    '6': 'Pagamento',
+        '07': 'Pedidos',      '7': 'Pedidos',
+        '08': 'Outros',       '8': 'Outros',
+    }
     for path in webm_files:
         fname = os.path.basename(path)
-        idx   = re.match(r'^(\d+)', fname)
-        num   = idx.group(1) if idx else fname
+        m     = re.match(r'^0*(\d+)', fname)
+        num   = m.group(1) if m else ''
+        num2  = m.group(0).lstrip('0') or '0' if m else ''
+        cat   = CAT_BY_NUM.get(num, CAT_BY_NUM.get(f'0{num}', 'Outros'))
         videos.append({
             'src':     f'videos/{fname}',
             'name':    fname,
-            'cat':     'Outros',
+            'cat':     cat,
             'hasVideo': True,
         })
     print(f'Encontrados: {len(videos)} arquivos .webm')
