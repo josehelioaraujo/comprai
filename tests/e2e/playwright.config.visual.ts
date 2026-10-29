@@ -16,7 +16,7 @@
  */
 import { defineConfig, devices } from '@playwright/test';
 
-const BASE_URL = process.env.E2E_BASE_URL || 'http://2.25.122.11:3002';
+const BASE_URL = process.env.E2E_BASE_URL || 'http://2.25.122.11:3005';
 const API_URL  = process.env.E2E_API_URL  || 'http://2.25.122.11:5020';
 
 export default defineConfig({

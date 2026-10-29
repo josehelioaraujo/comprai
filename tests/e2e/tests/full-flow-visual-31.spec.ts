@@ -21,7 +21,7 @@ import { test, expect } from '@playwright/test';
 import type { Page, APIRequestContext } from '@playwright/test';
 
 const API_URL      = process.env.E2E_API_URL       || 'http://2.25.122.11:5020';
-const BASE_URL     = process.env.E2E_BASE_URL       || 'http://2.25.122.11:3002';
+const BASE_URL     = process.env.E2E_BASE_URL       || 'http://2.25.122.11:3005';
 const E2E_EMAIL    = process.env.E2E_USER_EMAIL    || 'e2e@comprai.test';
 const E2E_PASSWORD = process.env.E2E_USER_PASSWORD || 'E2eTest@2026!';
 const E2E_NAME     = process.env.E2E_USER_NAME     || 'E2E Tester';
