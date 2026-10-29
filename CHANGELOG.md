@@ -1,5 +1,42 @@
 # Changelog
 
+## [V081] — 2026-10-29
+
+### Fixed
+
+#### OpsWatch Player — ALL[] 62 itens → 31 unificados (`e2e-v2.yml`)
+- Player exibia 62 itens (31 API sem vídeo + 31 visual com vídeo) em vez de 31 itens unificados
+- Causa raiz: dois loops separados construíam ALL[] — um para API tests (sem `src`) e outro para visuais (com `src`)
+- Fix: loop único com `vid_map = {i+1: playlist[i]}` faz merge por índice — cada item T01–T31 carrega `status` (API) + `src` (vídeo visual)
+- Vídeos não tocavam ao clicar em item verde (API passed): `src: None` em todos os API items — corrigido para `src: vd['src']`
+- `filterCat` não filtrava após merge: seletor `.pi.api-item` inexistente — corrigido para `.pi`
+- IDs de categoria sidebar: `ac{ci}`/`vc{ci}` → `tc{ci}` (unified) em sidebar HTML e filterCat JS
+- Subtítulo painel resultado: "Este teste executa via HTTP" → "Vídeo não disponível para este teste."
+- **Commit:** `8d36689`
+
+### Known Issues — V082
+- **404 em vídeos**: muitos testes exibem "404" dentro do player — investigar rota/porta no próximo run
+- **T21, T22, T24 skipped**: testes de Pagamento/Pedidos sendo ignorados — investigar causa
+- **Total PIX zerado**: `/orders/[id]` exibe R$ 0,00 — `OrderStatusDto.Total` não persistindo no Redis
+
+---
+
+## [V080] — 2026-10-28
+
+### Fixed
+
+#### E2E v2 — Frontend port 3002 → 3005 (`e2e-v2.yml`)
+- Workflow E2E v2 apontava para `comprai-web` porta 3002 em vez de `comprai-mobile-v2` porta 3005
+- Testes validavam rotas do frontend errado — corrigido `BASE_URL` no workflow
+- **Commit:** `16e80fb`
+
+#### OpsWatch Player — Clique individual em itens da sidebar (`e2e-v2.yml`)
+- Itens da sidebar não respondiam ao clique — apenas o botão ▶ era funcional
+- Adicionado `onclick="play(gi)"` em cada `<div class="pi">` — qualquer clique no item seleciona e exibe vídeo/painel
+- Highlight `class="on"` marca o item ativo na sidebar
+
+---
+
 ## [V079] — 2026-10-25
 
 ### Fixed

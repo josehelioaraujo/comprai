@@ -1231,7 +1231,7 @@ O **OpsWatch** é um portal operacional integrado ao pipeline CI/CD que consolid
 | 🛡️ **Segurança** | Dependency Scanner (CVEs NuGet) |
 | 🔥 **Análise K6** | Resultados detalhados por cenário |
 | ⚙️ **Infra** | Status Page · Health Map · Monitor de Containers · Admin Restart |
-| 📋 **E2E v2** | 31 testes de API (T01–T31) com **9 cards de categoria** (filtro AND status+categoria) · Player de vídeos com seção API tests na sidebar · download por cena · placeholder 404 |
+| 📋 **E2E v2** | **31 itens unificados** (API status + vídeo visual mesclados via `vid_map`) · **9 cards de categoria** (filtro AND status+categoria) · Player toca `.webm` quando disponível ou exibe painel resultado · download por vídeo · filtro por categoria unificado |
 
 
 
@@ -1433,6 +1433,8 @@ graphify cluster-only .
 | **~~V069v3 — Fix HTTP 500 Admin Orders~~** | ~~Causa dupla: conflito tipo Npgsql + `product_id` é VARCHAR(200), não UUID; fix: `string? productId` + `::text` uniforme~~ ✅ V069v3 | — |
 | **~~V073 — Linear Backfill V052–V072~~** | ~~Backfill retroativo Linear; scripts idempotentes; cleanup de duplicatas~~ ✅ V073 | — |
 | **~~V072 — Fix Email + OTP~~** | ~~`Brevo__From` corrigido em 3 arquivos; OTP alfanumérico garantido (mín. 2 dígitos); `appsettings.json` Brevo.From~~ ✅ V072 | — |
+| **~~V081 — OpsWatch Player: 62→31 itens unificados + vídeos funcionais~~** ✅ | ALL[] merge via `vid_map`: cada T01–T31 carrega `status` API + `src` vídeo visual; `filterCat` corrigido para `.pi`; IDs categoria `tc{ci}` unificados | V081 |
+| **~~V080 — Fix Port 3005 + Player clique individual~~** ✅ | Frontend E2E v2 porta 3002→3005; `onclick="play(gi)"` em cada item da sidebar | V080 |
 | **~~V079 — Player funcional: oncanplaythrough + AbortError retry + ALL[]~~** ✅ | `vid.load()` + `oncanplaythrough` antes de `vid.play()`; retry AbortError background throttle; `filterCat` não interrompe Todos; `#vid{flex:1}`; array unificado ALL[] com painel resultado para API tests | V079 |
 | **~~V078 — Fix Checkout 500 + Report erros duplicados + MIME webm~~** ✅ | `Results.BadRequest` no checkout (T18–T30); deduplicação de erros por retry no report.html; MIME `video/webm` no nginx; chevrons e botões ▶ Todos/Um por um no player | V078 |
 | **~~V077 — OpsWatch Categorias E2E + Player de Vídeos~~** ✅ | 9 cards de categoria com filtro AND no OpsWatch; player com 31 testes API na sidebar, download por vídeo, 404 placeholder | V077 |

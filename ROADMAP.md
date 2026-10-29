@@ -17,37 +17,56 @@
 
 ---
 
-## 🔜 V080 — Fix clique individual + Total PIX + CLAUDE.md (próxima)
+## 🔜 V082 — Investigar 404 em vídeos + Total PIX + T21/T22/T24 skipped (próxima)
 
-### 🎬 Fix Player de Vídeos — Itens clicáveis (P0)
-- [ ] Itens da sidebar devem ter `onclick` explícito para selecionar e exibir o vídeo ao clicar (atualmente só o botão ▶ é clicável)
-- [ ] Highlight do item ativo na sidebar quando o vídeo é selecionado
+### 🎬 Fix 404 em vídeos E2E (P0)
+- [ ] Identificar quais testes mostram 404 no player após merge ALL[]
+- [ ] Verificar se frontend na porta 3005 está acessível durante o workflow (health check)
+- [ ] Confirmar que `BASE_URL` do Playwright aponta para `http://localhost:3005`
+- [ ] Re-executar workflow e inspecionar os `.webm` gerados — verificar se são gravações válidas ou 404 em vídeo
 
-### 🎬 Fix Player de Vídeos — Erros 400 em testes de API (P0)
-- [ ] Testes de API (T01–T31 sem gravação visual) retornam 400 ao tentar carregar `.webm`
-- [ ] Para esses testes: exibir resultado (`status`, `erro`, `duração`) em vez de tentar carregar vídeo
-- [ ] Separar claramente itens "com vídeo" de itens "só resultado" na sidebar
-
-### 🃏 Player de Vídeos — Cards de categoria no topo (P1)
-- [ ] Adicionar cards de categoria no topo do player (igual ao `report.html`) — Healthcheck, Cadastro, Autenticação, Busca, Carrinho, Checkout, Pagamento, Pedidos, Fluxo E2E
-- [ ] Clicar em card de categoria filtra itens da sidebar
+### ⏭ Fix T21, T22, T24 skipped (P1)
+- [ ] Identificar causa dos testes de Pagamento/Pedidos sendo ignorados
+- [ ] Verificar se há `test.skip()` explícito ou dependência de fixture não satisfeita
 
 ### 🐛 Fix Valor PIX zerado (P2)
 - [ ] Investigar por que `Total` aparece R$ 0,00 na tela `/orders/[id]` após pagamento PIX
 - [ ] Verificar `RedisOrderRepository` — campo `Total` pode estar sendo descartado na serialização
 
-### 🔥 Fix Deploy VPS SSH (P3)
-- [ ] Acessar Hostinger hPanel → VPS → Firewall → verificar se porta 22 está liberada para `0.0.0.0/0`
-- [ ] Se bloqueada: adicionar regra `Allow TCP 22 from anywhere`
-
-### 🔗 Link direto no email OTP (P4)
+### 🔗 Link direto no email OTP (P3)
 - [ ] Email de verificação deve incluir link direto `/auth/verify?email=<email>` para pré-preencher o campo
 
-### 🎨 Web UI Redesign (P5 — após fixes)
+### 🎨 Web UI Redesign (P4 — após fixes)
 - [ ] Redesign completo da interface web (`frontend/web/`) — referência visual: Nixtio Marketplace Web UI
 
-### 📦 Dependabot (P6 — futura)
+### 📦 Dependabot (P5 — futura)
 - [ ] `.github/dependabot.yml` cobrindo npm, nuget e github-actions quando esteira estiver estável
+
+---
+
+## ✅ V081 — OpsWatch Player: 62 → 31 itens unificados + vídeos funcionais (concluído)
+
+### Fixed
+- [x] **Player 62 → 31 itens**: ALL[] construído com dois loops separados — substituído por loop único com `vid_map` (índice 1-based → playlist entry)
+- [x] **Vídeos não tocavam ao clicar item verde**: `src: None` em todos os API items — corrigido para `src: vd['src']` via `vid_map`
+- [x] **filterCat sem efeito**: seletor `.pi.api-item` inexistente após merge — corrigido para `.pi`
+- [x] **IDs de categoria sidebar**: `ac{ci}`/`vc{ci}` → `tc{ci}` (unified) em sidebar HTML e filterCat JS
+- [x] **Subtítulo painel resultado**: atualizado para "Vídeo não disponível para este teste."
+
+### Commits
+- `8d36689` feat: OpsWatch player — merge ALL[] 62→31 itens unificados (vid_map)
+
+---
+
+## ✅ V080 — Fix Port 3005 + Player clique individual (concluído)
+
+### Fixed
+- [x] Frontend E2E v2 apontava para porta 3002 — corrigido para `comprai-mobile-v2` porta 3005
+- [x] Itens da sidebar com `onclick="play(gi)"` — clique em qualquer item seleciona e exibe vídeo/painel
+- [x] Highlight `class="on"` no item ativo da sidebar
+
+### Commits
+- `16e80fb` fix: e2e-v2 frontend port 3002→3005
 
 ---
 
