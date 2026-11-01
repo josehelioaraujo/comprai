@@ -35,13 +35,13 @@ public static class SherlockEndpoints
             var useGroq = config.GetValue<bool>("Sherlock:UseGroq", true);
 
             return Results.Stream(
-                async stream =>
+                (Func<Stream, Task>)(async stream =>
                 {
                     if (useGroq)
                         await StreamGroq(stream, systemPrompt, userMessage, config, factory, ct);
                     else
                         await StreamOllama(stream, systemPrompt, userMessage, config, factory, ct);
-                },
+                }),
                 contentType: "text/event-stream",
                 enableRangeProcessing: false);
         })
@@ -161,10 +161,9 @@ public static class SherlockEndpoints
         await using var stream = await resp.Content.ReadAsStreamAsync(ct);
         using var reader = new StreamReader(stream);
 
-        while (!reader.EndOfStream && !ct.IsCancellationRequested)
+        string? line;
+        while ((line = await reader.ReadLineAsync(ct)) is not null && !ct.IsCancellationRequested)
         {
-            var line = await reader.ReadLineAsync(ct);
-            if (line is null) break;
             if (!line.StartsWith("data: ")) continue;
 
             var data = line[6..];
@@ -227,9 +226,9 @@ public static class SherlockEndpoints
         await using var stream = await resp.Content.ReadAsStreamAsync(ct);
         using var reader = new StreamReader(stream);
 
-        while (!reader.EndOfStream && !ct.IsCancellationRequested)
+        string? line;
+        while ((line = await reader.ReadLineAsync(ct)) is not null && !ct.IsCancellationRequested)
         {
-            var line = await reader.ReadLineAsync(ct);
             if (string.IsNullOrWhiteSpace(line)) continue;
 
             try
