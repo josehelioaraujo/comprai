@@ -1,0 +1,3 @@
+[submodule ".claude/skills/sherlock"]
+	path = .claude/skills/sherlock
+	url = https://github.com/josehelioaraujo/sherlock-skill

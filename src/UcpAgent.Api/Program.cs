@@ -854,6 +854,7 @@ app.MapGet("/api/cart/{sessionId}/snapshot", async (
 app.MapIntentEndpoints();
 app.MapOrdersEndpoints();  // F4+F5
 app.MapObservabilityEndpoints();
+app.MapSherlockEndpoints();
 app.MapNewRelicEndpoints();
 app.MapContainerEndpoints();
 app.MapFakeCatalogEndpoints();

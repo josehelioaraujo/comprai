@@ -113,7 +113,7 @@ let verInfo = {};
 let _rnTotal = 1, _rnCurrent = 0, _rnStop = false, _rnOnDone = null;
 
 // IDs das secoes navegaveis (exceto detalhes que e fixo)
-const NAV_SECTIONS = ['stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','codeMetricsBlock','mutacaoBlock','sonarBlock','owaspBlock','pciBlock','depBlock','secScanBlock','pentestBlock','evolucaoBlock','integrationBlock','e2eBlock','e2eV2Block','obsMetricasBlock','obsLogsBlock','obsAcessoBlock','obsTracesBlock','obsErrosBlock','obsContainersBlock','healthMapBlock','newRelicBlock','qualityScoreBlock','correlacaoBlock'];
+const NAV_SECTIONS = ['sherlockBlock','stressBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock','codeMetricsBlock','mutacaoBlock','sonarBlock','owaspBlock','pciBlock','depBlock','secScanBlock','pentestBlock','evolucaoBlock','integrationBlock','e2eBlock','e2eV2Block','obsMetricasBlock','obsLogsBlock','obsAcessoBlock','obsTracesBlock','obsErrosBlock','obsContainersBlock','healthMapBlock','newRelicBlock','qualityScoreBlock','correlacaoBlock'];
 let activeSection = null; // null = nenhuma extra visivel
 
 const TYPE_ORDER = ['smoke','load','stress','spike','soak'];
@@ -9271,6 +9271,16 @@ tr:hover td { background: rgba(255,255,255,.02); }
         </div>
       </div>
     </div>
+    <div class="nav-group" id="group-sherlock">
+      <div class="nav-label" onclick="toggleNavGroup('group-sherlock')">
+        <span class="nav-text">&#x1F50D; Sherlock</span><span class="nav-group-chevron">&#9660;</span>
+      </div>
+      <div class="nav-group-items">
+        <div class="nav-item" id="nav-sherlock" onclick="showSection('sherlockBlock', this); sherlockInit();" title="Investigador de Causa Raiz — Sherlock">
+          <span class="nav-icon">&#128269;</span><span class="nav-text">Investigar Bug</span>
+        </div>
+      </div>
+    </div>
     <div class="nav-group" id="group-k6">
       <div class="nav-label" onclick="toggleNavGroup('group-k6')">
         <span class="nav-text">&#x1F525; Análise K6</span><span class="nav-group-chevron">&#9660;</span>
@@ -9360,6 +9370,63 @@ tr:hover td { background: rgba(255,255,255,.02); }
             <div class="scenario-tabs" id="scenarioTabs"></div>
             <div id="scenarioPanel"></div>
           </div>
+        </div>
+      </div>
+
+      <!-- ── SHERLOCK ──────────────────────────────────────────────────────── -->
+      <div class="section-block" id="sherlockBlock" style="display:none">
+        <div class="section-header" onclick="toggleSection(this)">
+          <span class="section-title-text">&#128269; Sherlock — Investigador de Causa Raiz</span>
+          <span class="section-chevron">&#9660;</span>
+        </div>
+        <div class="section-content" style="padding:16px">
+
+          <!-- Intro -------------------------------------------------------- -->
+          <div style="background:rgba(6,182,212,.06);border:1px solid rgba(6,182,212,.2);border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:var(--muted)">
+            <strong style="color:var(--accent2)">&#128269; Como usar:</strong>
+            Descreva o problema em linguagem natural — cole logs, stack traces, commit SHAs, PRs ou código.
+            Sherlock abre uma investigação em rounds: levanta hipóteses, pede evidências e entrega a causa raiz com
+            <em>confidence score</em>, blast radius e checklist de prevenção.
+            Use <code>--express</code> para P0/P1: 3 perguntas → 1 ação imediata.
+          </div>
+
+          <!-- Input area --------------------------------------------------- -->
+          <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
+            <label style="font-size:12px;color:var(--muted);white-space:nowrap">Modo:</label>
+            <select id="sherlock-mode" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-size:12px">
+              <option value="">Normal (investigação completa)</option>
+              <option value="express">--express (P0/P1 — resposta rápida)</option>
+            </select>
+            <button onclick="sherlockClear()" style="margin-left:auto;background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer">&#128465; Limpar</button>
+          </div>
+
+          <textarea id="sherlock-input"
+            placeholder="Ex: O pagamento está duplicando em produção desde 14:32. Veja o log:&#10;&#10;[ERROR] DuplicateFulfillmentException: order_id=8821 já existe&#10;  at Comprai.Fulfillment.FulfillmentService.CreateAsync&#10;  ...&#10;&#10;Ou cole um commit SHA: a3f2c1d&#10;Ou um número de PR: #247"
+            style="width:100%;min-height:160px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:12px;font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box;line-height:1.5"
+          ></textarea>
+
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <button id="sherlock-btn" onclick="sherlockInvestigate()"
+              style="background:var(--accent2);color:#0f172a;border:none;border-radius:8px;padding:9px 20px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">
+              &#128269; Investigar
+            </button>
+            <button id="sherlock-stop-btn" onclick="sherlockStop()" style="display:none;background:none;border:1px solid #ef4444;color:#ef4444;border-radius:8px;padding:9px 16px;font-size:13px;cursor:pointer">
+              &#9632; Parar
+            </button>
+            <span id="sherlock-status" style="font-size:12px;color:var(--muted);align-self:center"></span>
+          </div>
+
+          <!-- Output ------------------------------------------------------- -->
+          <div id="sherlock-output" style="display:none;margin-top:16px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <span style="font-size:12px;color:var(--muted)">&#128196; Investigação</span>
+              <button onclick="sherlockCopyOutput()" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer">&#128203; Copiar</button>
+            </div>
+            <div id="sherlock-result"
+              style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:16px;font-size:13px;line-height:1.7;white-space:pre-wrap;font-family:'Fira Code',monospace,sans-serif;max-height:600px;overflow-y:auto;color:var(--text)">
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -10702,6 +10769,125 @@ tr:hover td { background: rgba(255,255,255,.02); }
         else                add('sec','Segurança OWASP+PCI','&#128737;','#22c55e','ok','Adicione DAST (OWASP ZAP) para validação dinâmica.','Todos os controles OWASP+PCI OK!');
         return r;
       }
+    })();
+    </script>
+
+    <!-- ── SHERLOCK JS ──────────────────────────────────────────────────── -->
+    <script>
+    (function() {
+      var _sherlockAbort = null;
+      var _sherlockText  = '';
+      var _sherlockReady = false;
+
+      window.sherlockInit = function() {
+        _sherlockReady = true;
+      };
+
+      window.sherlockInvestigate = function() {
+        var input = (document.getElementById('sherlock-input').value || '').trim();
+        if (!input) {
+          document.getElementById('sherlock-status').textContent = 'Digite o problema antes de investigar.';
+          return;
+        }
+
+        var mode   = document.getElementById('sherlock-mode').value;
+        var btn    = document.getElementById('sherlock-btn');
+        var stop   = document.getElementById('sherlock-stop-btn');
+        var status = document.getElementById('sherlock-status');
+        var out    = document.getElementById('sherlock-output');
+        var result = document.getElementById('sherlock-result');
+
+        btn.disabled = true;
+        btn.innerHTML = '<span style="display:inline-block;animation:spin .7s linear infinite">&#8635;</span>&nbsp;Investigando…';
+        stop.style.display = 'inline-flex';
+        status.textContent = 'Conectando ao Sherlock…';
+        out.style.display  = 'block';
+        result.textContent = '';
+        _sherlockText      = '';
+
+        var ctrl = new AbortController();
+        _sherlockAbort = ctrl;
+
+        var apiBase = (window.API_BASE || '').replace(/\/$/, '');
+
+        fetch(apiBase + '/api/sherlock/investigate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ input: input, mode: mode || null }),
+          signal: ctrl.signal
+        })
+        .then(function(resp) {
+          if (!resp.ok) return resp.text().then(function(t) { throw new Error(t); });
+          status.textContent = 'Investigando…';
+          var reader = resp.body.getReader();
+          var dec    = new TextDecoder();
+
+          function pump() {
+            return reader.read().then(function(r) {
+              if (r.done) { sherlockDone(); return; }
+              var lines = dec.decode(r.value, { stream: true }).split('\n');
+              lines.forEach(function(line) {
+                if (!line.startsWith('data: ')) return;
+                var data = line.slice(6).trim();
+                if (data === '[DONE]') { sherlockDone(); return; }
+                try {
+                  var obj = JSON.parse(data);
+                  if (obj.chunk) {
+                    _sherlockText += obj.chunk;
+                    result.textContent = _sherlockText;
+                    result.scrollTop = result.scrollHeight;
+                    status.textContent = '&#128269; Analisando…';
+                  }
+                  if (obj.error) {
+                    result.textContent += '\n\n[ERRO] ' + obj.error;
+                    sherlockDone();
+                  }
+                } catch(e) {}
+              });
+              return pump();
+            });
+          }
+          return pump();
+        })
+        .catch(function(err) {
+          if (err.name !== 'AbortError')
+            result.textContent += '\n\n[ERRO] ' + err.message;
+          sherlockDone();
+        });
+      };
+
+      function sherlockDone() {
+        var btn  = document.getElementById('sherlock-btn');
+        var stop = document.getElementById('sherlock-stop-btn');
+        var status = document.getElementById('sherlock-status');
+        btn.disabled = false;
+        btn.innerHTML = '&#128269; Investigar';
+        stop.style.display = 'none';
+        status.textContent = _sherlockText ? '&#10003; Investigação concluída' : '';
+        _sherlockAbort = null;
+      }
+
+      window.sherlockStop = function() {
+        if (_sherlockAbort) { _sherlockAbort.abort(); _sherlockAbort = null; }
+        sherlockDone();
+      };
+
+      window.sherlockClear = function() {
+        document.getElementById('sherlock-input').value  = '';
+        document.getElementById('sherlock-output').style.display = 'none';
+        document.getElementById('sherlock-result').textContent   = '';
+        document.getElementById('sherlock-status').textContent   = '';
+        _sherlockText = '';
+      };
+
+      window.sherlockCopyOutput = function() {
+        var text = document.getElementById('sherlock-result').textContent;
+        navigator.clipboard.writeText(text).then(function() {
+          var btn = event.target;
+          btn.textContent = '&#10003; Copiado!';
+          setTimeout(function() { btn.innerHTML = '&#128203; Copiar'; }, 2000);
+        });
+      };
     })();
     </script>
 
