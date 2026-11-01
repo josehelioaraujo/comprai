@@ -133,6 +133,12 @@ public static class SherlockEndpoints
         var model  = config["Sherlock:Groq:Model"]  ?? "llama-3.3-70b-versatile";
         var client = factory.CreateClient("groq");
 
+        // diagnóstico: loga primeiros/últimos 4 chars da key (nunca a key completa)
+        var keyHint = apiKey.Length >= 8
+            ? apiKey[..4] + "…" + apiKey[^4..]
+            : apiKey.Length == 0 ? "(vazia)" : "(curta)";
+        Console.WriteLine($"[Sherlock] model={model} key={keyHint}");
+
         var body = JsonSerializer.Serialize(new
         {
             model,
@@ -154,9 +160,10 @@ public static class SherlockEndpoints
 
         if (!resp.IsSuccessStatusCode)
         {
-            var err = await resp.Content.ReadAsStringAsync(ct);
-            var msg = $"data: {{\"error\":\"Groq retornou {(int)resp.StatusCode}: {err.Replace("\"", "\\\"")}\"}}\n\n";
-            await output.WriteAsync(Encoding.UTF8.GetBytes(msg), ct);
+            var err     = await resp.Content.ReadAsStringAsync(ct);
+            var summary = $"Groq HTTP {(int)resp.StatusCode} — {err.Length > 200 ? err[..200] + "…" : err}";
+            var msg     = JsonSerializer.Serialize(new { error = summary });
+            await output.WriteAsync(Encoding.UTF8.GetBytes($"data: {msg}\n\n"), ct);
             return;
         }
 
