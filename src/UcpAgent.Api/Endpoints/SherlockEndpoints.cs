@@ -130,7 +130,9 @@ public static class SherlockEndpoints
         CancellationToken ct)
     {
         var apiKey = config["Sherlock:Groq:ApiKey"] ?? "";
-        var model  = config["Sherlock:Groq:Model"]  ?? "llama-3.3-70b-versatile";
+        var model  = !string.IsNullOrWhiteSpace(req.Model)
+                     ? req.Model
+                     : (config["Sherlock:Groq:Model"] ?? "openai/gpt-oss-120b");
         var client = factory.CreateClient("groq");
 
         // diagnóstico: loga primeiros/últimos 4 chars da key (nunca a key completa)
@@ -268,5 +270,6 @@ public static class SherlockEndpoints
 // ── DTOs ─────────────────────────────────────────────────────────────────────
 public record SherlockRequest(
     string Input,
-    string? Mode   // "express" para P0/P1
+    string? Mode,   // "express" para P0/P1
+    string? Model   // override do modelo Groq (ex: "openai/gpt-oss-120b")
 );

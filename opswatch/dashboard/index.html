@@ -9400,6 +9400,12 @@ tr:hover td { background: rgba(255,255,255,.02); }
               <option value="">Normal (investigação completa)</option>
               <option value="express">--express (P0/P1 — resposta rápida)</option>
             </select>
+            <label style="font-size:12px;color:var(--muted);white-space:nowrap;margin-left:4px">Modelo:</label>
+            <select id="sherlock-model" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-size:12px">
+              <option value="openai/gpt-oss-120b">GPT-OSS 120B (padrão)</option>
+              <option value="openai/gpt-oss-20b">GPT-OSS 20B (rápido)</option>
+              <option value="qwen/qwen3.8-27b">Qwen 3.8 27B</option>
+            </select>
             <button onclick="sherlockClear()" style="margin-left:auto;background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer">&#128465; Limpar</button>
           </div>
 
@@ -10825,7 +10831,8 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
         var apiBase = (typeof API_BASE !== 'undefined' ? API_BASE : '').replace(/\/$/, '');
         var sherlockUrl = apiBase + '/api/sherlock/investigate';
-        var sherlockPayload = { input: input, mode: mode || null };
+        var model  = document.getElementById('sherlock-model').value;
+        var sherlockPayload = { input: input, mode: mode || null, model: model || null };
         console.log('[Sherlock] POST', sherlockUrl, sherlockPayload);
 
         fetch(sherlockUrl, {
