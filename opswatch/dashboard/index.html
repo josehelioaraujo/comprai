@@ -8224,6 +8224,9 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', syste
 }
 .nav-item:hover { background: var(--surface2); color: var(--text); }
 .nav-item.active { color: var(--accent2); border-left-color: var(--accent2); background: rgba(6,182,212,.06); }
+.sherlock-badge { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); border-radius: 20px; padding: 4px 11px; font-size: 12px; cursor: pointer; transition: background .15s, color .15s, border-color .15s; white-space: nowrap; }
+.sherlock-badge:hover { background: rgba(6,182,212,.1); border-color: var(--accent2); color: var(--accent2); }
+.sherlock-badge.active { background: rgba(6,182,212,.15); border-color: var(--accent2); color: var(--accent2); font-weight: 600; }
 .nav-icon { font-size: 15px; flex-shrink: 0; width: 20px; text-align: center; }
 .nav-text { opacity: 1; transition: opacity .15s; display: flex; align-items: center; gap: 6px; }
 .sidebar.collapsed .nav-text { opacity: 0; pointer-events: none; }
@@ -9398,6 +9401,18 @@ tr:hover td { background: rgba(255,255,255,.02); }
               <option value="express">--express (P0/P1 — resposta rápida)</option>
             </select>
             <button onclick="sherlockClear()" style="margin-left:auto;background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer">&#128465; Limpar</button>
+          </div>
+
+          <!-- Badges de prompt rápido -->
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px" id="sherlock-badges">
+            <button onclick="sherlockBadge('saude')"   class="sherlock-badge">🏥 Saúde geral</button>
+            <button onclick="sherlockBadge('latencia')" class="sherlock-badge">⏱ Latência alta</button>
+            <button onclick="sherlockBadge('erros500')" class="sherlock-badge">🔥 Erros 500</button>
+            <button onclick="sherlockBadge('kafka')"    class="sherlock-badge">📨 Kafka parado</button>
+            <button onclick="sherlockBadge('redis')"    class="sherlock-badge">🗄 Redis lento</button>
+            <button onclick="sherlockBadge('memoria')"  class="sherlock-badge">🧠 Memória alta</button>
+            <button onclick="sherlockBadge('db')"       class="sherlock-badge">🐘 Postgres</button>
+            <button onclick="sherlockBadge('deploy')"   class="sherlock-badge">🚀 Pós-deploy</button>
           </div>
 
           <textarea id="sherlock-input"
@@ -10808,7 +10823,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
         var ctrl = new AbortController();
         _sherlockAbort = ctrl;
 
-        var apiBase = (window.API_BASE || '').replace(/\/$/, '');
+        var apiBase = (typeof API_BASE !== 'undefined' ? API_BASE : '').replace(/\/$/, '');
 
         fetch(apiBase + '/api/sherlock/investigate', {
           method: 'POST',
@@ -10878,6 +10893,27 @@ tr:hover td { background: rgba(255,255,255,.02); }
         document.getElementById('sherlock-result').textContent   = '';
         document.getElementById('sherlock-status').textContent   = '';
         _sherlockText = '';
+        document.querySelectorAll('.sherlock-badge').forEach(function(b){ b.classList.remove('active'); });
+      };
+
+      var _SHERLOCK_PROMPTS = {
+        saude:    'Faça uma análise geral da saúde do sistema Comprai. Considere: disponibilidade dos serviços (.NET API, Redis, PostgreSQL, Kafka, RabbitMQ), erros recentes, latência dos endpoints críticos (/api/orders, /api/intent, /api/catalog) e uso de recursos nos pods AKS. O que pode estar degradado ou em risco?',
+        latencia: 'Os endpoints da API estão com latência acima do normal (p95 > 2s). Stack: .NET 10, AKS, PostgreSQL + Dapper, Redis. Investigue as causas mais prováveis: queries lentas, contenção de pool de conexões, cold start de pods, ou gargalo no Redis. Cole aqui qualquer trace do Jaeger ou métrica do Grafana que tiver.',
+        erros500: 'A taxa de erros HTTP 500 aumentou nas últimas horas. Investigue as causas mais comuns no contexto do Comprai (.NET 10, PostgreSQL, Redis, Kafka). Quais são os pontos de falha mais prováveis? O que verificar primeiro nos logs do Loki e traces do Jaeger?',
+        kafka:    'O consumer Kafka parou de processar mensagens. Fila acumulando. Stack: Confluent.Kafka no .NET 10, AKS, tópicos de pedidos e catálogo. Investigue: consumer group em rebalancing, lag crescente, exceção não tratada no handler, ou problema de conectividade com o broker.',
+        redis:    'O Redis está com latência alta ou erros de timeout. Impacto: cache de catálogo e sessões falhando. Configuração: StackExchange.Redis, connection string com connectTimeout=2000. Investigue: pool de conexões esgotado, memória do Redis, comandos lentos, ou problema de rede no AKS.',
+        memoria:  'Os pods da API no AKS estão com uso de memória crescente e próximos do limit. Stack: .NET 10, AOT desabilitado. Investigue: memory leak em HttpClient, IDistributedCache sem expiração, objetos grandes não coletados pelo GC, ou vazamento em plugins de catálogo (Shopify, ML, Vtex).',
+        db:       'O PostgreSQL está com lentidão — queries demorando mais que o normal, conexões acumulando, ou deadlocks. Stack: Dapper + Npgsql no .NET 10. Investigue: queries sem índice, transações abertas demais, pool de conexões esgotado (max_connections), ou VACUUM atrasado em tabelas grandes.',
+        deploy:   'Após o último deploy houve degradação no sistema. Investigue o que pode ter mudado: nova migração de banco com lock, configuração diferente, aumento de uso de memória/CPU, incompatibilidade de versão de dependência, ou endpoint novo com N+1. O que verificar primeiro para confirmar ou descartar regressão?'
+      };
+
+      window.sherlockBadge = function(key) {
+        var prompt = _SHERLOCK_PROMPTS[key];
+        if (!prompt) return;
+        document.getElementById('sherlock-input').value = prompt;
+        document.querySelectorAll('.sherlock-badge').forEach(function(b){ b.classList.remove('active'); });
+        event.currentTarget.classList.add('active');
+        document.getElementById('sherlock-input').focus();
       };
 
       window.sherlockCopyOutput = function() {
