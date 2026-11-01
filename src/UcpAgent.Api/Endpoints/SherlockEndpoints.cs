@@ -34,14 +34,16 @@ public static class SherlockEndpoints
 
             var useGroq = config.GetValue<bool>("Sherlock:UseGroq", true);
 
+            Func<Stream, Task> writeStream = async stream =>
+            {
+                if (useGroq)
+                    await StreamGroq(stream, systemPrompt, userMessage, config, factory, ct);
+                else
+                    await StreamOllama(stream, systemPrompt, userMessage, config, factory, ct);
+            };
+
             return Results.Stream(
-                (Func<Stream, Task>)(async stream =>
-                {
-                    if (useGroq)
-                        await StreamGroq(stream, systemPrompt, userMessage, config, factory, ct);
-                    else
-                        await StreamOllama(stream, systemPrompt, userMessage, config, factory, ct);
-                }),
+                writeStream,
                 contentType: "text/event-stream",
                 enableRangeProcessing: false);
         })
