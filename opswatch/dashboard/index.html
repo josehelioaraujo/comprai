@@ -9387,10 +9387,10 @@ tr:hover td { background: rgba(255,255,255,.02); }
           <!-- Intro -------------------------------------------------------- -->
           <div style="background:rgba(6,182,212,.06);border:1px solid rgba(6,182,212,.2);border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:var(--muted)">
             <strong style="color:var(--accent2)">&#128269; Como usar:</strong>
-            Descreva o problema em linguagem natural — cole logs, stack traces, commit SHAs, PRs ou código.
-            Sherlock abre uma investigação em rounds: levanta hipóteses, pede evidências e entrega a causa raiz com
-            <em>confidence score</em>, blast radius e checklist de prevenção.
-            Use <code>--express</code> para P0/P1: 3 perguntas → 1 ação imediata.
+            Use os <strong>badges</strong> para análise automática com dados dos painéis, ou <strong>cole diretamente</strong> qualquer evidência:
+            logs de aplicação, stack traces, output de pods, mensagens de erro, queries lentas, métricas do Grafana.
+            Sherlock investiga em rounds, levanta hipóteses com <em>confidence score</em> e entrega causa raiz + checklist.
+            Use <code>--express</code> para P0/P1: diagnóstico imediato.
           </div>
 
           <!-- Input area --------------------------------------------------- -->
@@ -9409,8 +9409,9 @@ tr:hover td { background: rgba(255,255,255,.02); }
             <button onclick="sherlockClear()" style="margin-left:auto;background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer">&#128465; Limpar</button>
           </div>
 
-          <!-- Badges de prompt rápido -->
-          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px" id="sherlock-badges">
+          <!-- Badges de análise automática -->
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px">&#9889; Análise rápida — OpsWatch coleta os dados automaticamente:</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px" id="sherlock-badges">
             <button onclick="sherlockBadge('saude')"   class="sherlock-badge">🏥 Saúde geral</button>
             <button onclick="sherlockBadge('latencia')" class="sherlock-badge">⏱ Latência alta</button>
             <button onclick="sherlockBadge('erros500')" class="sherlock-badge">🔥 Erros 500</button>
@@ -9421,8 +9422,10 @@ tr:hover td { background: rgba(255,255,255,.02); }
             <button onclick="sherlockBadge('deploy')"   class="sherlock-badge">🚀 Pós-deploy</button>
           </div>
 
+          <!-- Input manual -->
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px">&#128196; Ou cole evidências manualmente e clique Investigar:</div>
           <textarea id="sherlock-input"
-            placeholder="Ex: O pagamento está duplicando em produção desde 14:32. Veja o log:&#10;&#10;[ERROR] DuplicateFulfillmentException: order_id=8821 já existe&#10;  at Comprai.Fulfillment.FulfillmentService.CreateAsync&#10;  ...&#10;&#10;Ou cole um commit SHA: a3f2c1d&#10;Ou um número de PR: #247"
+            placeholder="Cole aqui qualquer evidência — Sherlock investiga:&#10;&#10;• Log de aplicação:&#10;  [ERROR] 2026-11-01 14:32 DuplicateFulfillmentException: order_id=8821&#10;    at Comprai.Fulfillment.FulfillmentService.CreateAsync&#10;&#10;• Output de pod Kafka:&#10;  ERROR ConsumerRebalanceException: group coordinator unavailable&#10;  WARN  Lag crescente no tópico comprai.orders: 15.842 msgs&#10;&#10;• Mensagem de erro do usuário:&#10;  Checkout travando em produção desde 14h — timeout na etapa de pagamento&#10;&#10;• Trace do Jaeger, query lenta, métrica do Grafana..."
             style="width:100%;min-height:160px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:12px;font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box;line-height:1.5"
           ></textarea>
 
