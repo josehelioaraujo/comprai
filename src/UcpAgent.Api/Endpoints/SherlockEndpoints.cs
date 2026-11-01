@@ -23,10 +23,15 @@ public static class SherlockEndpoints
             IConfiguration config,
             IHttpClientFactory factory,
             IDistributedCache cache,
+            HttpContext http,
             CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(req.Input))
-                return Results.BadRequest(new { error = "Input é obrigatório." });
+            {
+                http.Response.StatusCode = 400;
+                await http.Response.WriteAsJsonAsync(new { error = "Input é obrigatório." }, ct);
+                return;
+            }
 
             var skillMd = await GetSkillMdAsync(config, factory, cache, ct);
             var systemPrompt = BuildSystemPrompt(skillMd);
@@ -34,18 +39,13 @@ public static class SherlockEndpoints
 
             var useGroq = config.GetValue<bool>("Sherlock:UseGroq", true);
 
-            Func<Stream, Task> writeStream = async stream =>
-            {
-                if (useGroq)
-                    await StreamGroq(stream, systemPrompt, userMessage, config, factory, ct);
-                else
-                    await StreamOllama(stream, systemPrompt, userMessage, config, factory, ct);
-            };
+            http.Response.ContentType  = "text/event-stream";
+            http.Response.Headers.CacheControl = "no-cache";
 
-            return Results.Stream(
-                writeStream,
-                contentType: "text/event-stream",
-                enableRangeProcessing: false);
+            if (useGroq)
+                await StreamGroq(http.Response.Body, systemPrompt, userMessage, config, factory, ct);
+            else
+                await StreamOllama(http.Response.Body, systemPrompt, userMessage, config, factory, ct);
         })
         .WithTags("Sherlock")
         .WithName("SherlockInvestigate")
