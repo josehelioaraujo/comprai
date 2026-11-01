@@ -10876,8 +10876,25 @@ tr:hover td { background: rgba(255,255,255,.02); }
                   }
                   if (obj.error) {
                     console.error('[Sherlock] Erro na resposta:', obj.error);
-                    result.textContent += '\n\n[ERRO] ' + obj.error;
-                    sherlockDone();
+                    var errMsg = obj.error || '';
+                    if (errMsg.indexOf('429') !== -1 || errMsg.indexOf('Rate limit') !== -1) {
+                      var waitSec = 15;
+                      var m = errMsg.match(/try again in ([0-9.]+)s/i);
+                      if (m) waitSec = Math.ceil(parseFloat(m[1])) + 2;
+                      status.textContent = '⏳ Limite de tokens/min atingido — tentando novamente em ' + waitSec + 's…';
+                      result.textContent = '⚠️ Groq TPM limit atingido. Aguardando ' + waitSec + 's para retentar…\n\n' +
+                                           'Dica: aguarde alguns segundos entre análises diferentes.';
+                      setTimeout(function() {
+                        result.textContent = '';
+                        _sherlockText = '';
+                        status.textContent = '🔄 Retentando…';
+                        sherlockDone();
+                        sherlockInvestigate();
+                      }, waitSec * 1000);
+                    } else {
+                      result.textContent += '\n\n[ERRO] ' + errMsg;
+                      sherlockDone();
+                    }
                   }
                 } catch(e) { console.warn('[Sherlock] Parse falhou para linha:', line, e); }
               });

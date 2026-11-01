@@ -100,16 +100,15 @@ public static class SherlockEndpoints
     private static bool TemDadosConcretos(string input)
     {
         if (string.IsNullOrWhiteSpace(input)) return false;
-        // Formato estruturado do OpsWatch (Health Map, K6, erros, SINTOMA)
+        // Dados reais dos painéis OpsWatch — só conta se tem métricas/componentes/erros reais
+        // SINTOMA e STACK sozinhos NÃO são dados concretos — usam modo proativo
         if (input.Contains("=== HEALTH MAP") || input.Contains("=== K6") ||
-            input.Contains("=== ERROS") || input.Contains("=== SINTOMA") ||
-            input.Contains("SINTOMA:") || input.Contains("latência="))
+            input.Contains("=== ERROS") || input.Contains("latência="))
             return true;
-        // Dados brutos de observabilidade
+        // Dados brutos colados manualmente (logs, stack traces, queries)
         return input.Contains("Exception") || input.Contains("ERROR") ||
-               input.Contains("stack") || input.Contains("trace") ||
-               input.Contains("SELECT") || input.Contains("timeout") ||
-               input.Length > 300;
+               input.Contains("StackTrace") || input.Contains("stack trace") ||
+               input.Contains("SELECT") || input.Contains("timeout");
     }
 
     // ── Monta system prompt — modo investigação (com dados) ──────────────────
