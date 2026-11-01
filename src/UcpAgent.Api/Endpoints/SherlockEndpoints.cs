@@ -34,7 +34,10 @@ public static class SherlockEndpoints
             }
 
             var skillMd = await GetSkillMdAsync(config, factory, cache, ct);
-            var systemPrompt = BuildSystemPrompt(skillMd);
+            var temDados = TemDadosConcretos(req.Input ?? "");
+            var systemPrompt = temDados
+                ? BuildSystemPrompt(skillMd)
+                : BuildProativeSystemPrompt();
             var userMessage  = BuildUserMessage(req);
 
             var useGroq    = config.GetValue<bool>("Sherlock:UseGroq", true);
@@ -93,7 +96,19 @@ public static class SherlockEndpoints
         return skillMd;
     }
 
-    // ── Monta system prompt combinando SKILL.md + contexto Comprai ───────────
+    // ── Detecta se o input contém dados observáveis concretos ────────────────
+    private static bool TemDadosConcretos(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return false;
+        return input.Contains("Exception") || input.Contains("ERROR") ||
+               input.Contains("stack") || input.Contains("trace") ||
+               input.Contains("log") || input.Contains("http") ||
+               input.Contains("curl") || input.Contains("SELECT") ||
+               input.Contains("timeout") || input.Contains("latência") ||
+               input.Length > 300;
+    }
+
+    // ── Monta system prompt — modo investigação (com dados) ──────────────────
     private static string BuildSystemPrompt(string skillMd)
     {
         return $"""
@@ -106,7 +121,40 @@ public static class SherlockEndpoints
         - Repositório: github.com/josehelioaraujo/comprai
         - Responda sempre em português BR.
         - Use Markdown com headers ## para cada fase.
-        - Emita eventos SSE: `data: <chunk>\n\n`
+        """;
+    }
+
+    // ── System prompt alternativo — modo proativo (sem dados) ────────────────
+    private static string BuildProativeSystemPrompt()
+    {
+        return """
+        Você é o Sherlock, especialista em SRE e diagnóstico de sistemas distribuídos.
+
+        ## Contexto do sistema Comprai
+        - Stack: .NET 10 / C#, Azure AKS, PostgreSQL + Dapper, Redis, Kafka, RabbitMQ
+        - Observabilidade: Jaeger (tracing), Grafana + Prometheus (métricas), Loki (logs)
+        - Repositório: github.com/josehelioaraujo/comprai
+
+        ## Sua missão agora
+        O operador não forneceu logs, métricas ou erros concretos.
+        Você deve fazer uma **análise proativa de saúde** com base no conhecimento do ambiente.
+
+        ## Formato obrigatório da resposta
+
+        ### 1. Estado atual estimado por serviço
+        Para cada serviço (.NET API, Redis, PostgreSQL, Kafka, RabbitMQ, AKS/pods):
+        - Principais hipóteses de risco (2-3 por serviço)
+        - Confidence score em % para cada hipótese
+        - Comando de diagnóstico para confirmar
+
+        ### 2. Mapa de risco
+        Tabela markdown: Serviço | Hipótese | Confidence | Comando
+
+        ### 3. Resumo executivo
+        Estado geral do sistema (Verde/Amarelo/Vermelho), top 3 riscos, recomendação imediata.
+
+        Responda SEMPRE em português BR com Markdown.
+        NÃO peça dados adicionais. Execute a análise diretamente.
         """;
     }
 
@@ -117,25 +165,6 @@ public static class SherlockEndpoints
 
         if (!string.IsNullOrWhiteSpace(req.Mode) && req.Mode == "express")
             sb.Insert(0, "--express\n\n");
-
-        // Se o input não contém dados concretos (logs, traces, erros), instrui análise proativa
-        var input = req.Input ?? "";
-        bool temDados = input.Contains("Exception") || input.Contains("ERROR") ||
-                        input.Contains("stack") || input.Contains("trace") ||
-                        input.Contains("log") || input.Contains("http") ||
-                        input.Contains("curl") || input.Contains("SELECT") ||
-                        input.Contains("timeout") || input.Contains("latência") ||
-                        input.Length > 300;
-
-        if (!temDados)
-        {
-            sb.AppendLine("\n\n---");
-            sb.AppendLine("⚠️ Nenhum log ou métrica foi fornecido. Faça uma análise proativa:");
-            sb.AppendLine("1. Liste as hipóteses de risco mais prováveis para cada serviço");
-            sb.AppendLine("2. Dê um confidence score (%) para cada hipótese");
-            sb.AppendLine("3. Indique os comandos de diagnóstico para confirmar cada uma");
-            sb.AppendLine("4. Ao final, apresente um resumo executivo do estado provável do sistema");
-        }
 
         return sb.ToString();
     }
