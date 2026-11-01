@@ -10928,13 +10928,100 @@ tr:hover td { background: rgba(255,255,255,.02); }
         deploy:   'Após o último deploy houve degradação no sistema. Investigue o que pode ter mudado: nova migração de banco com lock, configuração diferente, aumento de uso de memória/CPU, incompatibilidade de versão de dependência, ou endpoint novo com N+1. O que verificar primeiro para confirmar ou descartar regressão?'
       };
 
+      // Coleta snapshot real dos painéis OpsWatch para alimentar o Sherlock
+      function collectOpsWatchSnapshot(key) {
+        var lines = [];
+
+        // === Health Map (dados reais dos componentes) ===
+        try {
+          if (typeof hmLastData !== 'undefined' && hmLastData && hmLastData.components) {
+            lines.push('=== HEALTH MAP — Estado dos componentes ===');
+            hmLastData.components.forEach(function(c) {
+              var lat = c.latencyMs != null ? c.latencyMs + 'ms' : '—';
+              var uptime = c.uptime_percent != null ? c.uptime_percent.toFixed(1) + '%' : '—';
+              lines.push('• ' + c.name + ': ' + (c.status || 'unknown').toUpperCase() +
+                         ' | latência=' + lat + ' | uptime=' + uptime);
+            });
+            lines.push('');
+          }
+        } catch(e) {}
+
+        // === Métricas K6 visíveis (última execução) ===
+        try {
+          var stressTable = document.querySelector('#stressBlock table tbody tr');
+          if (stressTable) {
+            var cells = stressTable.querySelectorAll('td');
+            if (cells.length >= 6) {
+              lines.push('=== K6 STRESS TEST — Última execução ===');
+              lines.push('• Cenário: ' + (cells[1] ? cells[1].textContent.trim() : '—'));
+              lines.push('• p50=' + (cells[2] ? cells[2].textContent.trim() : '—') +
+                         ' p95=' + (cells[3] ? cells[3].textContent.trim() : '—') +
+                         ' p99=' + (cells[4] ? cells[4].textContent.trim() : '—'));
+              lines.push('• Taxa de erro: ' + (cells[6] ? cells[6].textContent.trim() : '—'));
+              lines.push('');
+            }
+          }
+        } catch(e) {}
+
+        // === Erros recentes visíveis no painel ===
+        try {
+          var errRows = document.querySelectorAll('#obsErrosBlock table tbody tr');
+          if (errRows && errRows.length > 0) {
+            lines.push('=== ERROS RECENTES (últimas ocorrências) ===');
+            var maxErr = Math.min(5, errRows.length);
+            for (var i = 0; i < maxErr; i++) {
+              var row = errRows[i];
+              lines.push('• ' + row.textContent.replace(/\s+/g, ' ').trim());
+            }
+            lines.push('');
+          }
+        } catch(e) {}
+
+        // === Score de qualidade (se visível) ===
+        try {
+          var qualScore = document.getElementById('qs-overall-score');
+          if (qualScore && qualScore.textContent) {
+            lines.push('=== QUALITY SCORE ===');
+            lines.push('• Score geral: ' + qualScore.textContent.trim());
+            lines.push('');
+          }
+        } catch(e) {}
+
+        // === Contexto do badge específico como descrição do sintoma ===
+        var badgeContext = {
+          saude:    'SINTOMA: Análise geral de saúde do sistema sem incidente específico reportado.',
+          latencia: 'SINTOMA: Latência acima do normal detectada — p95 elevado nos endpoints críticos.',
+          erros500: 'SINTOMA: Taxa de erros HTTP 500 aumentou nas últimas horas.',
+          kafka:    'SINTOMA: Consumer Kafka parou de processar — lag crescente nos tópicos de pedidos.',
+          redis:    'SINTOMA: Redis com timeouts — cache de catálogo e sessões falhando.',
+          memoria:  'SINTOMA: Pods AKS com uso de memória crescente, próximos do limit configurado.',
+          db:       'SINTOMA: PostgreSQL lento — queries demorando mais, conexões acumulando.',
+          deploy:   'SINTOMA: Degradação observada após último deploy (possível regressão).'
+        };
+
+        lines.push('=== SINTOMA REPORTADO ===');
+        lines.push(badgeContext[key] || 'SINTOMA: Investigação geral solicitada.');
+        lines.push('');
+        lines.push('=== STACK DO SISTEMA ===');
+        lines.push('• Backend: .NET 10 / C#, Vertical Slice Architecture');
+        lines.push('• Infraestrutura: Azure AKS (Kubernetes), PostgreSQL + Dapper, Redis, Kafka, RabbitMQ');
+        lines.push('• Observabilidade: Jaeger (traces), Grafana/Prometheus (métricas), Loki (logs)');
+        lines.push('• Endpoints críticos: /api/orders, /api/intent, /api/catalog, /api/cart');
+
+        return lines.join('\n');
+      }
+
       window.sherlockBadge = function(key) {
-        var prompt = _SHERLOCK_PROMPTS[key];
-        if (!prompt) return;
-        document.getElementById('sherlock-input').value = prompt;
+        if (!_SHERLOCK_PROMPTS[key]) return;
         document.querySelectorAll('.sherlock-badge').forEach(function(b){ b.classList.remove('active'); });
         event.currentTarget.classList.add('active');
-        document.getElementById('sherlock-input').focus();
+
+        // Coleta dados reais dos painéis + contexto do sintoma
+        var snapshot = collectOpsWatchSnapshot(key);
+        document.getElementById('sherlock-input').value = snapshot;
+
+        // Auto-dispara a investigação
+        sherlockInvestigate();
       };
 
       window.sherlockCopyOutput = function() {

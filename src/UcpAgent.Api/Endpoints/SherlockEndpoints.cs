@@ -100,11 +100,15 @@ public static class SherlockEndpoints
     private static bool TemDadosConcretos(string input)
     {
         if (string.IsNullOrWhiteSpace(input)) return false;
+        // Formato estruturado do OpsWatch (Health Map, K6, erros, SINTOMA)
+        if (input.Contains("=== HEALTH MAP") || input.Contains("=== K6") ||
+            input.Contains("=== ERROS") || input.Contains("=== SINTOMA") ||
+            input.Contains("SINTOMA:") || input.Contains("latência="))
+            return true;
+        // Dados brutos de observabilidade
         return input.Contains("Exception") || input.Contains("ERROR") ||
                input.Contains("stack") || input.Contains("trace") ||
-               input.Contains("log") || input.Contains("http") ||
-               input.Contains("curl") || input.Contains("SELECT") ||
-               input.Contains("timeout") || input.Contains("latência") ||
+               input.Contains("SELECT") || input.Contains("timeout") ||
                input.Length > 300;
     }
 
