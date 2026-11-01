@@ -118,6 +118,25 @@ public static class SherlockEndpoints
         if (!string.IsNullOrWhiteSpace(req.Mode) && req.Mode == "express")
             sb.Insert(0, "--express\n\n");
 
+        // Se o input não contém dados concretos (logs, traces, erros), instrui análise proativa
+        var input = req.Input ?? "";
+        bool temDados = input.Contains("Exception") || input.Contains("ERROR") ||
+                        input.Contains("stack") || input.Contains("trace") ||
+                        input.Contains("log") || input.Contains("http") ||
+                        input.Contains("curl") || input.Contains("SELECT") ||
+                        input.Contains("timeout") || input.Contains("latência") ||
+                        input.Length > 300;
+
+        if (!temDados)
+        {
+            sb.AppendLine("\n\n---");
+            sb.AppendLine("⚠️ Nenhum log ou métrica foi fornecido. Faça uma análise proativa:");
+            sb.AppendLine("1. Liste as hipóteses de risco mais prováveis para cada serviço");
+            sb.AppendLine("2. Dê um confidence score (%) para cada hipótese");
+            sb.AppendLine("3. Indique os comandos de diagnóstico para confirmar cada uma");
+            sb.AppendLine("4. Ao final, apresente um resumo executivo do estado provável do sistema");
+        }
+
         return sb.ToString();
     }
 
