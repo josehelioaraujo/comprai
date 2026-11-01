@@ -161,7 +161,7 @@ public static class SherlockEndpoints
         if (!resp.IsSuccessStatusCode)
         {
             var err     = await resp.Content.ReadAsStringAsync(ct);
-            var summary = $"Groq HTTP {(int)resp.StatusCode} — {err.Length > 200 ? err[..200] + "…" : err}";
+            var summary = $"Groq HTTP {(int)resp.StatusCode} — {(err.Length > 200 ? err[..200] + "…" : err)}";
             var msg     = JsonSerializer.Serialize(new { error = summary });
             await output.WriteAsync(Encoding.UTF8.GetBytes($"data: {msg}\n\n"), ct);
             return;
