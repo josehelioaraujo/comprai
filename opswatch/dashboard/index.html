@@ -10824,40 +10824,52 @@ tr:hover td { background: rgba(255,255,255,.02); }
         _sherlockAbort = ctrl;
 
         var apiBase = (typeof API_BASE !== 'undefined' ? API_BASE : '').replace(/\/$/, '');
+        var sherlockUrl = apiBase + '/api/sherlock/investigate';
+        var sherlockPayload = { input: input, mode: mode || null };
+        console.log('[Sherlock] POST', sherlockUrl, sherlockPayload);
 
-        fetch(apiBase + '/api/sherlock/investigate', {
+        fetch(sherlockUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ input: input, mode: mode || null }),
+          body: JSON.stringify(sherlockPayload),
           signal: ctrl.signal
         })
         .then(function(resp) {
-          if (!resp.ok) return resp.text().then(function(t) { throw new Error(t); });
+          console.log('[Sherlock] HTTP', resp.status, resp.statusText, 'Content-Type:', resp.headers.get('content-type'));
+          if (!resp.ok) return resp.text().then(function(t) {
+            console.error('[Sherlock] Erro HTTP', resp.status, t);
+            throw new Error('HTTP ' + resp.status + ': ' + t);
+          });
           status.textContent = 'Investigando…';
           var reader = resp.body.getReader();
           var dec    = new TextDecoder();
+          var chunkCount = 0;
 
           function pump() {
             return reader.read().then(function(r) {
-              if (r.done) { sherlockDone(); return; }
-              var lines = dec.decode(r.value, { stream: true }).split('\n');
+              if (r.done) { console.log('[Sherlock] Stream encerrado (done). Chunks recebidos:', chunkCount); sherlockDone(); return; }
+              var raw = dec.decode(r.value, { stream: true });
+              var lines = raw.split('\n');
               lines.forEach(function(line) {
                 if (!line.startsWith('data: ')) return;
                 var data = line.slice(6).trim();
-                if (data === '[DONE]') { sherlockDone(); return; }
+                if (data === '[DONE]') { console.log('[Sherlock] [DONE] recebido. Chunks:', chunkCount); sherlockDone(); return; }
                 try {
                   var obj = JSON.parse(data);
                   if (obj.chunk) {
+                    chunkCount++;
+                    if (chunkCount <= 3) console.log('[Sherlock] chunk #' + chunkCount + ':', JSON.stringify(obj.chunk));
                     _sherlockText += obj.chunk;
                     result.textContent = _sherlockText;
                     result.scrollTop = result.scrollHeight;
                     status.textContent = '&#128269; Analisando…';
                   }
                   if (obj.error) {
+                    console.error('[Sherlock] Erro na resposta:', obj.error);
                     result.textContent += '\n\n[ERRO] ' + obj.error;
                     sherlockDone();
                   }
-                } catch(e) {}
+                } catch(e) { console.warn('[Sherlock] Parse falhou para linha:', line, e); }
               });
               return pump();
             });
@@ -10865,8 +10877,10 @@ tr:hover td { background: rgba(255,255,255,.02); }
           return pump();
         })
         .catch(function(err) {
-          if (err.name !== 'AbortError')
+          if (err.name !== 'AbortError') {
+            console.error('[Sherlock] Fetch falhou:', err.name, err.message);
             result.textContent += '\n\n[ERRO] ' + err.message;
+          }
           sherlockDone();
         });
       };
