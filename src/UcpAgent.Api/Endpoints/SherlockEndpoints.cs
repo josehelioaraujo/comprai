@@ -37,13 +37,14 @@ public static class SherlockEndpoints
             var systemPrompt = BuildSystemPrompt(skillMd);
             var userMessage  = BuildUserMessage(req);
 
-            var useGroq = config.GetValue<bool>("Sherlock:UseGroq", true);
+            var useGroq    = config.GetValue<bool>("Sherlock:UseGroq", true);
+            var modelOverride = !string.IsNullOrWhiteSpace(req.Model) ? req.Model : null;
 
             http.Response.ContentType  = "text/event-stream";
             http.Response.Headers.CacheControl = "no-cache";
 
             if (useGroq)
-                await StreamGroq(http.Response.Body, systemPrompt, userMessage, config, factory, ct);
+                await StreamGroq(http.Response.Body, systemPrompt, userMessage, config, factory, ct, modelOverride);
             else
                 await StreamOllama(http.Response.Body, systemPrompt, userMessage, config, factory, ct);
         })
@@ -127,12 +128,11 @@ public static class SherlockEndpoints
         string userMessage,
         IConfiguration config,
         IHttpClientFactory factory,
-        CancellationToken ct)
+        CancellationToken ct,
+        string? modelOverride = null)
     {
         var apiKey = config["Sherlock:Groq:ApiKey"] ?? "";
-        var model  = !string.IsNullOrWhiteSpace(req.Model)
-                     ? req.Model
-                     : (config["Sherlock:Groq:Model"] ?? "openai/gpt-oss-120b");
+        var model  = modelOverride ?? config["Sherlock:Groq:Model"] ?? "openai/gpt-oss-120b";
         var client = factory.CreateClient("groq");
 
         // diagnóstico: loga primeiros/últimos 4 chars da key (nunca a key completa)
