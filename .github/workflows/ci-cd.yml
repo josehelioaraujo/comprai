@@ -486,11 +486,12 @@ jobs:
           BREVO_SMTP_KEY: ${{ secrets.BREVO_SMTP_KEY }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           PII_ENCRYPTION_KEY: ${{ secrets.PII_ENCRYPTION_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         with:
           host: ${{ env.VPS_HOST }}
           username: ${{ env.VPS_USER }}
           key: ${{ secrets.VPS_HOSTINGER_SSH_KEY }}
-          envs: DATADOG_API_KEY,BUILD_VERSION,GH_PAT,ADMIN_RESTART_PASSWORD,ML_CLIENT_ID,ML_CLIENT_SECRET,NEW_RELIC_LICENSE_KEY,NEW_RELIC_USER_KEY,NEW_RELIC_ACCOUNT_ID,RESEND_API_KEY,BREVO_SMTP_KEY,POSTGRES_PASSWORD,PII_ENCRYPTION_KEY
+          envs: DATADOG_API_KEY,BUILD_VERSION,GH_PAT,ADMIN_RESTART_PASSWORD,ML_CLIENT_ID,ML_CLIENT_SECRET,NEW_RELIC_LICENSE_KEY,NEW_RELIC_USER_KEY,NEW_RELIC_ACCOUNT_ID,RESEND_API_KEY,BREVO_SMTP_KEY,POSTGRES_PASSWORD,PII_ENCRYPTION_KEY,GROQ_API_KEY
           command_timeout: 15m
           script: |
             set -e
@@ -532,6 +533,11 @@ jobs:
             grep -q '^ADMIN_RESTART_PASSWORD=' .env \
               && sed -i "s|^ADMIN_RESTART_PASSWORD=.*|ADMIN_RESTART_PASSWORD=${ADMIN_RESTART_PASSWORD}|" .env \
               || echo "ADMIN_RESTART_PASSWORD=${ADMIN_RESTART_PASSWORD}" >> .env
+
+            # Injetar GROQ_API_KEY no .env (Sherlock Skill)
+            grep -q '^GROQ_API_KEY=' .env \
+              && sed -i "s|^GROQ_API_KEY=.*|GROQ_API_KEY=${GROQ_API_KEY}|" .env \
+              || echo "GROQ_API_KEY=${GROQ_API_KEY}" >> .env
 
             # Injetar credenciais MercadoLivre no .env
             grep -q '^ML_CLIENT_ID=' .env \

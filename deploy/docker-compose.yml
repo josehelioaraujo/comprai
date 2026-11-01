@@ -38,6 +38,9 @@ services:
       Brevo__ApiKey: ${BREVO_SMTP_KEY:-}
       Brevo__Login: ${BREVO_SMTP_LOGIN:-}
       Brevo__From: ${BREVO_FROM_EMAIL:-helioandrade@hotmail.com}
+      Sherlock__UseGroq: "true"
+      Sherlock__Groq__ApiKey: ${GROQ_API_KEY:-}
+      Sherlock__Groq__Model: "llama-3.3-70b-versatile"
       Jwt__ExpirationMinutes: ${JWT_EXPIRATION_MINUTES:-1440}
       App__AdminUrl: ${ADMIN_APP_URL:-http://2.25.122.11:3004}
       App__WebUrl: ${WEB_APP_URL:-http://2.25.122.11:3005}
