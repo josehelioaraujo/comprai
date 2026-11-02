@@ -10884,7 +10884,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
           if (/^#{1,6}\s/.test(line)) {
             flushLists();
             var lvl = line.match(/^(#+)/)[1].length;
-            var txt = line.replace(/^#+\s+/,'');
+            var txt = line.replace(/^#+\s+/,'').replace(/^#+\s*/,''); // strip residual ## se LLM emitir duplo hash
             if (lvl <= 2) {
               html += '<h3 style="font-size:14px;font-weight:700;color:var(--accent2,#06b6d4);margin:18px 0 6px;border-bottom:1px solid var(--border);padding-bottom:4px">'+_shInline(txt)+'</h3>';
             } else {
@@ -11166,17 +11166,20 @@ tr:hover td { background: rgba(255,255,255,.02); }
         var result = document.getElementById('sherlock-result');
         if (!result || !_sherlockText) return;
 
-        // Extrai "Tipo detectado: ..."
-        var tipoMatch = _sherlockText.match(/Tipo detectado\s*[:\-–]\s*\*{0,2}([^\n*]+)\*{0,2}/i);
-        var tipo = tipoMatch ? tipoMatch[1].trim() : null;
+        // Extrai "Tipo detectado: ..." — várias formatações do LLM
+        var tipoMatch = _sherlockText.match(/Tipo detectado\s*[:\-–]+\s*\*{0,2}([^\n*\(]{3,120})/i);
+        var tipo = tipoMatch ? tipoMatch[1].trim().replace(/\*+$/, '').trim() : null;
 
-        // Extrai subtítulo entre parênteses logo abaixo do tipo detectado
-        var subMatch = _sherlockText.match(/Tipo detectado[^\n]*\n+\(([^)]{10,200})\)/i);
+        // Extrai subtítulo: linha em itálico ou entre parênteses após tipo detectado
+        var subMatch = _sherlockText.match(/Tipo detectado[^\n]*\n+[_\(]([^_\)\n]{10,200})[_\)]/i)
+                    || _sherlockText.match(/Tipo detectado[^\n]*\n+>?\s*\(?([^\n]{20,200}componentes?[^\n]*)\)?/i);
         var sub = subMatch ? subMatch[1].trim() : null;
 
-        // Extrai hipótese principal (H1 – ... com maior %)
-        var hMatch = _sherlockText.match(/\|\s*H1\s*[–\-]\s*\*{0,2}([^|*\n]{5,120})/i);
-        var hip = hMatch ? hMatch[1].trim().replace(/\*\*/g,'').substring(0, 150) : null;
+        // Extrai hipótese principal — tenta tabela |H1..| ou lista **H1** ou "H1 –"
+        var hMatch = _sherlockText.match(/\|\s*\*{0,2}H1\s*[–\-]\s*\*{0,2}([^|*\n]{5,150})/i)
+                  || _sherlockText.match(/\*\*H1\s*[–\-]\s*([^*\n]{5,150})\*\*/i)
+                  || _sherlockText.match(/H1\s*[–\-]\s*(.{5,150}?)(?:\n|$)/i);
+        var hip = hMatch ? hMatch[1].trim().replace(/\*\*/g,'').replace(/\|.*$/,'').trim().substring(0, 160) : null;
 
         if (!tipo && !hip) return;
 
