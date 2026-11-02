@@ -1232,6 +1232,7 @@ O **OpsWatch** é um portal operacional integrado ao pipeline CI/CD que consolid
 | 🔥 **Análise K6** | Resultados detalhados por cenário |
 | ⚙️ **Infra** | Status Page · Health Map · Monitor de Containers · Admin Restart |
 | 📋 **E2E v2** | **31 itens unificados** (API status + vídeo visual mesclados via `vid_map`) · **9 cards de categoria** (filtro AND status+categoria) · Player toca `.webm` quando disponível ou exibe painel resultado · download por vídeo · filtro por categoria unificado |
+| 🔍 **Sherlock** | **Investigador de Bugs Distribuídos** — 12 badges de sintoma (Saúde Geral · Memória · Latência · Erros · Mensageria · Secretos · Deploy · Cache · Throughput · p99 · Cascata · Segurança) · streaming SSE via Groq AI · input manual de logs/erros · seções colapsáveis por Fase e Round · **download Postmortem** (`.md`) · **integração Linear** (deeplink pré-preenchido com hipóteses e ações) |
 
 
 
@@ -1433,6 +1434,9 @@ graphify cluster-only .
 | **~~V069v3 — Fix HTTP 500 Admin Orders~~** | ~~Causa dupla: conflito tipo Npgsql + `product_id` é VARCHAR(200), não UUID; fix: `string? productId` + `::text` uniforme~~ ✅ V069v3 | — |
 | **~~V073 — Linear Backfill V052–V072~~** | ~~Backfill retroativo Linear; scripts idempotentes; cleanup de duplicatas~~ ✅ V073 | — |
 | **~~V072 — Fix Email + OTP~~** | ~~`Brevo__From` corrigido em 3 arquivos; OTP alfanumérico garantido (mín. 2 dígitos); `appsettings.json` Brevo.From~~ ✅ V072 | — |
+| **~~V084 — Sherlock: collapsible sections + Postmortem + Linear + 4 badges~~** ✅ | `collapseSherlockSections()` DOM-based two-pass (H2 Fase + H3 Round); download `.md` postmortem; deeplink Linear pré-preenchido; 4 badges novos (Throughput, p99, Cascata, Segurança); total 12 badges testados | V084 |
+| **~~V083 — Sherlock TemDadosConcretos fix + 429 UX~~** ✅ | Condição `TemDadosConcretos` revisada; UX 429 com spinner amigável e retry automático | V083 |
+| **~~V082 — Sherlock SSE streaming + 8 badges iniciais~~** ✅ | Investigador de bugs distribuídos via SSE (Groq AI); 8 badges; snapshot do sistema; input manual | V082 |
 | **~~V081 — OpsWatch Player: 62→31 itens unificados + vídeos funcionais~~** ✅ | ALL[] merge via `vid_map`: cada T01–T31 carrega `status` API + `src` vídeo visual; `filterCat` corrigido para `.pi`; IDs categoria `tc{ci}` unificados | V081 |
 | **~~V080 — Fix Port 3005 + Player clique individual~~** ✅ | Frontend E2E v2 porta 3002→3005; `onclick="play(gi)"` em cada item da sidebar | V080 |
 | **~~V079 — Player funcional: oncanplaythrough + AbortError retry + ALL[]~~** ✅ | `vid.load()` + `oncanplaythrough` antes de `vid.play()`; retry AbortError background throttle; `filterCat` não interrompe Todos; `#vid{flex:1}`; array unificado ALL[] com painel resultado para API tests | V079 |

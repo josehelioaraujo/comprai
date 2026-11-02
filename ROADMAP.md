@@ -1,5 +1,63 @@
 # 🗺️ Roadmap — Comprai
 
+## 🔜 V085 — Fix 429 retry + P0/P1/P2/P3 backlog + Video Demo TLC Elevate (próxima)
+
+### 🔥 P0 — Fix 429 retry cascade
+- [ ] `_sherlockRetryTimer` + `clearTimeout` + exponential backoff no Sherlock
+- [ ] Evitar chamadas simultâneas ao Groq durante retry
+
+### 🎬 P1 — Fix 404 em vídeos E2E
+- [ ] Identificar quais testes mostram 404 no player após merge ALL[]
+- [ ] Verificar rota/porta no próximo workflow run
+
+### ⏭ P2 — Fix T21, T22, T24 skipped
+- [ ] Identificar causa dos testes de Pagamento/Pedidos sendo ignorados
+
+### 🐛 P3 — Fix Total PIX zerado
+- [ ] `/orders/[id]` exibe R$ 0,00 — `OrderStatusDto.Total` não persistindo no Redis
+
+### 🔗 P4 — Link direto no email OTP
+- [ ] Email de verificação com link `/auth/verify?email=<email>` pré-preenchido
+
+### 🎥 Video Demo TLC Elevate
+- [ ] Gravar SOMENTE quando tudo estiver funcionando no OpsWatch + dentro do Claude Desktop (ou outra LLM)
+- [ ] Submeter em `https://forms.gle/fHXTRxEoDwV4c3beA`
+- [ ] **Deadline: 06/11/2026**
+
+---
+
+## ✅ V084 — Sherlock Collapsible + Postmortem + Linear + 4 novos badges (concluído)
+
+### Added
+- [x] **Seções colapsáveis DOM-based**: `collapseSherlockSections()` two-pass — H2 (Fase) + H3 (Round) com `<details>/<summary>` animados; Fase 0/1 e Round 0 abertos por padrão
+- [x] **Postmortem download**: `sherlockDownloadPostmortem()` gera `.md` com header + investigação completa
+- [x] **Linear integration**: modal com deeplink `linear.app/new` pré-preenchido com hipóteses e ações extraídas automaticamente
+- [x] **4 novos badges** (total: 12): 📊 Throughput baixo · 📈 p99 alto · 🌊 Falha em cascata · 🔒 Segurança
+- [x] Todos os 12 badges testados: 1292–2083 chunks SSE, HTTP 200 + `[DONE]` confirmados
+
+### Commits
+- `48ac5ee` feat: Sherlock collapsible sections + postmortem + linear + 4 badges
+- `2a77a1c` fix: collapseSherlockSections DOM-based rewrite (regex → DOM)
+
+---
+
+## ✅ V083 — Sherlock TemDadosConcretos fix + 429 UX (concluído)
+
+### Fixed
+- [x] `TemDadosConcretos` não interrompe investigação
+- [x] UX 429: spinner amigável + retry automático
+
+---
+
+## ✅ V082 — Sherlock SSE streaming + 8 badges iniciais (concluído)
+
+### Added
+- [x] Investigador de bugs distribuídos via SSE (`/api/sherlock/investigate`)
+- [x] 8 badges: Saúde Geral · Memória · Latência · Erros · Mensageria · Secretos · Deploy · Cache
+- [x] Snapshot do sistema + input manual
+
+---
+
 ## ✅ V079 — Player funcional: oncanplaythrough + AbortError retry + unified ALL[] (concluído)
 
 ### Fixed

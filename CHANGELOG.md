@@ -1,5 +1,48 @@
 # Changelog
 
+## [V084] — 2026-11-02
+
+### Added
+
+#### Sherlock — Seções Colapsáveis (DOM-based) + Postmortem + Linear + 4 novos badges (`opswatch/dashboard/index.html`)
+- **Chevrons colapsáveis (DOM-based)**: `collapseSherlockSections()` reescrita — two-pass DOM manipulation substitui abordagem regex frágil; Fase 0/1 abertas por padrão, Round 0 aberto, demais retraídos; arrow `▶` animado com rotate 90° via CSS transition; funciona com emojis, markdown nested e qualquer conteúdo do marked.js
+- **Botão Postmortem**: `sherlockDownloadPostmortem()` gera `.md` com header (data, sintoma, Sherlock Score) + texto completo da investigação; download automático via Blob URL; exibido somente após `[DONE]`
+- **Integração Linear**: modal `sherlockOpenLinear()` extrai hipóteses (H1:, H2:, "hipótese") e ações (verificar, kubectl, SELECT…) do output Sherlock; deeplink `linear.app/new?title=...&description=...` pré-preenchido; botão `🔗 Linear` exibido somente após `[DONE]`; overlay fecha modal ao clicar fora
+- **4 novos badges** (total: 12 badges): 📊 Throughput baixo (`throughput`) · 📈 p99 alto (`p99alto`) · 🌊 Falha em cascata (`cascade`) · 🔒 Segurança (`seguranca`)
+- `sherlockClear()` atualizado para ocultar botões Postmortem/Linear ao limpar investigação
+
+### Fixed
+- **Double `display:none` no modal Linear**: CSS duplicado removido; adicionado `onclick` no overlay para fechar modal
+
+### Tested
+- Todos os 12 badges testados e confirmados: 1292–2083 chunks SSE por análise, HTTP 200 com `[DONE]` (logs `d137bd11-sherlock_logs_102.log`)
+- Groq API modelo `openai/gpt-oss-120b` estável
+- **Commits:** `48ac5ee` (4 features), `2a77a1c` (collapseSherlockSections DOM rewrite)
+
+---
+
+## [V083] — 2026-10-31
+
+### Fixed
+
+#### Sherlock — TemDadosConcretos fix + 429 UX (`opswatch/dashboard/index.html`)
+- Condição `TemDadosConcretos` revisada — Sherlock não interrompe investigação por falta de dados concretos
+- UX 429: spinner com mensagem amigável durante rate limit; retry automático com backoff
+
+---
+
+## [V082] — 2026-10-30
+
+### Fixed
+
+#### Sherlock — SSE streaming + 8 badges iniciais (`opswatch/dashboard/index.html`)
+- Investigador de bugs distribuídos integrado ao OpsWatch via SSE (`/api/sherlock/investigate`)
+- 8 badges: 🏥 Saúde Geral · 💾 Memória · 🐢 Latência · 💥 Erros · 📡 Mensageria · 🔒 Secretos · 🚀 Deploy · 📦 Cache
+- Coleta de snapshot do sistema (`collectOpsWatchSnapshot`) antes da investigação
+- Input manual: usuário pode digitar log/descrição de erro diretamente no campo
+
+---
+
 ## [V081] — 2026-10-29
 
 ### Fixed
