@@ -9446,6 +9446,14 @@ tr:hover td { background: rgba(255,255,255,.02); }
               <span style="font-size:12px;color:var(--muted)">&#128196; Investigação</span>
               <button onclick="sherlockCopyOutput()" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer">&#128203; Copiar</button>
             </div>
+            <!-- Contexto enviado ao Sherlock (colapsável) -->
+            <details id="sherlock-context-details" style="display:none;margin-bottom:10px">
+              <summary style="cursor:pointer;font-size:12px;color:var(--muted);padding:7px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;list-style:none;display:flex;align-items:center;gap:6px;user-select:none">
+                <span>&#128202;</span><span>Dados capturados pelo OpsWatch</span>
+                <span style="margin-left:auto;opacity:.5;font-size:10px">&#9660; expandir</span>
+              </summary>
+              <pre id="sherlock-context-pre" style="background:var(--surface0,#0b0f19);border:1px solid var(--border);border-top:none;border-radius:0 0 6px 6px;padding:12px;font-size:11px;font-family:'Fira Code',monospace;color:#94a3b8;white-space:pre-wrap;word-break:break-word;max-height:280px;overflow-y:auto;margin:0"></pre>
+            </details>
             <div id="sherlock-result"
               style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:16px;font-size:13px;line-height:1.7;max-height:600px;overflow-y:auto;color:var(--text)">
             </div>
@@ -10927,6 +10935,15 @@ tr:hover td { background: rgba(255,255,255,.02); }
         result.textContent = '';
         _sherlockText      = '';
 
+        // Popula a seção "Dados capturados" com o input enviado
+        var ctxDetails = document.getElementById('sherlock-context-details');
+        var ctxPre = document.getElementById('sherlock-context-pre');
+        if (ctxDetails && ctxPre) {
+          ctxPre.textContent = input;
+          ctxDetails.style.display = '';
+          ctxDetails.open = false; // colapsado por padrão
+        }
+
         var ctrl = new AbortController();
         _sherlockAbort = ctrl;
 
@@ -11046,7 +11063,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       };
 
       // Coleta snapshot real dos painéis OpsWatch para alimentar o Sherlock
-      function collectOpsWatchSnapshot(key) {
+      function collectOpsWatchSnapshot(key, containersData) {
         var lines = [];
         var getText = function(id) {
           var el = document.getElementById(id);
@@ -11067,16 +11084,21 @@ tr:hover td { background: rgba(255,255,255,.02); }
         lines.push('SINTOMA: ' + (badgeSintoma[key] || 'Investigação geral solicitada.'));
         lines.push('');
 
-        // === Health Map (variável global hmLastData) ===
+        // === Health Map — statusLastData (atualizado a cada 30s) ou hmLastData ===
         try {
-          if (typeof hmLastData !== 'undefined' && hmLastData && hmLastData.components) {
+          var healthSrc = (typeof statusLastData !== 'undefined' && statusLastData && statusLastData.components)
+            ? statusLastData
+            : (typeof hmLastData !== 'undefined' ? hmLastData : null);
+          if (healthSrc && healthSrc.components && healthSrc.components.length > 0) {
             lines.push('=== HEALTH MAP ===');
-            hmLastData.components.forEach(function(c) {
+            healthSrc.components.forEach(function(c) {
               var lat    = c.latencyMs    != null ? c.latencyMs + 'ms' : '—';
               var uptime = c.uptime_percent != null ? c.uptime_percent.toFixed(1) + '%' : '—';
-              var status = (c.status || 'unknown').toUpperCase();
-              lines.push('• ' + c.name + ': ' + status + ' | latência=' + lat + ' | uptime=' + uptime);
+              var st     = (c.status || 'unknown').toUpperCase();
+              lines.push('• ' + c.name + ' [' + (c.id || '') + ']: ' + st + ' | latência=' + lat + ' | uptime=' + uptime);
             });
+            var overall = healthSrc.status && healthSrc.status.indicator ? healthSrc.status.indicator.toUpperCase() : '';
+            if (overall) lines.push('• Status geral: ' + overall);
             lines.push('');
           }
         } catch(e) {}
@@ -11141,6 +11163,46 @@ tr:hover td { background: rgba(255,255,255,.02); }
           }
         } catch(e) {}
 
+        // === Containers (passados via parâmetro do fetch async) ===
+        try {
+          if (containersData && containersData.length > 0) {
+            lines.push('=== CONTAINERS ===');
+            containersData.forEach(function(c) {
+              var st = c.healthy ? 'UP' : 'DOWN';
+              lines.push('• ' + c.name + ': ' + st + ' | ' + (c.status || '—'));
+            });
+            lines.push('');
+          }
+        } catch(e) {}
+
+        // === Métricas de Funil (se painel carregado) ===
+        var fSearch   = getText('met-f-search');
+        var fCart     = getText('met-f-cart');
+        var fCheckout = getText('met-f-checkout');
+        var fOrders   = getText('met-f-orders');
+        if (fSearch && fSearch !== '—') {
+          lines.push('=== FUNIL DE CONVERSÃO ===');
+          if (fSearch   && fSearch   !== '—') lines.push('• Buscas: '   + fSearch);
+          if (fCart     && fCart     !== '—') lines.push('• Carrinho: ' + fCart   + ' (conv % buscas)');
+          if (fCheckout && fCheckout !== '—') lines.push('• Checkout: ' + fCheckout + ' (conv % buscas)');
+          if (fOrders   && fOrders   !== '—') lines.push('• Pedidos: '  + fOrders  + ' (conv % buscas)');
+          lines.push('');
+        }
+
+        // === Métricas de LLM/Ollama (se painel carregado) ===
+        var llmIntents = getText('met-llm-intents');
+        var llmCalls   = getText('met-llm-calls');
+        var llmErrors  = getText('met-llm-errors');
+        var llmLat     = getText('met-llm-lat');
+        if (llmIntents && llmIntents !== '—') {
+          lines.push('=== LLM / OLLAMA ===');
+          if (llmIntents && llmIntents !== '—') lines.push('• Intenções detectadas: ' + llmIntents);
+          if (llmCalls   && llmCalls   !== '—') lines.push('• Chamadas Ollama: '      + llmCalls);
+          if (llmErrors  && llmErrors  !== '—') lines.push('• Erros Ollama: '          + llmErrors);
+          if (llmLat     && llmLat     !== '—') lines.push('• Latência média: '        + llmLat + 'ms');
+          lines.push('');
+        }
+
         // === Quality Score ===
         var qs = getText('qs-overall-score');
         if (qs && qs !== '—') {
@@ -11158,13 +11220,24 @@ tr:hover td { background: rgba(255,255,255,.02); }
         return lines.join('\n');
       }
 
-      window.sherlockBadge = function(key) {
+      window.sherlockBadge = async function(key) {
         if (!_SHERLOCK_PROMPTS[key]) return;
         document.querySelectorAll('.sherlock-badge').forEach(function(b){ b.classList.remove('active'); });
         event.currentTarget.classList.add('active');
 
+        // Busca dados de containers em paralelo (enriquece o snapshot)
+        var containersData = null;
+        try {
+          var apiBase = (typeof API_BASE !== 'undefined' ? API_BASE : '').replace(/\/$/, '');
+          var cr = await fetch(apiBase + '/api/containers');
+          if (cr.ok) {
+            var cd = await cr.json();
+            containersData = cd.containers || [];
+          }
+        } catch(e) {}
+
         // Coleta dados reais dos painéis + contexto do sintoma
-        var snapshot = collectOpsWatchSnapshot(key);
+        var snapshot = collectOpsWatchSnapshot(key, containersData);
         document.getElementById('sherlock-input').value = snapshot;
 
         // Auto-dispara a investigação
