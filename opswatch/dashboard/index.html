@@ -146,7 +146,7 @@ function showSection(id, navEl) {
     document.getElementById(id).style.display = 'none';
     activeSection = null;
     document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
-    document.getElementById('nav-detalhes').classList.add('active');
+    document.getElementById('nav-carga').classList.add('active');
     return;
   }
 
@@ -187,6 +187,16 @@ function showSection(id, navEl) {
   setTimeout(function() {
     Object.values(charts).forEach(function(c) { if (c) c.resize(); });
   }, 100);
+}
+
+// ── Teste de Carga — mostra execução + todos os blocos K6 ────
+function showCarga(navEl) {
+  showSection('stressBlock', navEl);
+  // Exibe também os blocos de resultados K6 logo abaixo
+  ['detailsBlock','resumoBlock','timelineBlock','configBlock','chartsBlock','routesBlock'].forEach(function(id) {
+    var b = document.getElementById(id);
+    if (b) b.style.display = '';
+  });
 }
 
 // ── Version modal ────────────────────────────────────────────
@@ -612,7 +622,7 @@ function openRunPanel(msg) {
     sb.style.display = '';
     // Ativar nav item sem chamar showSection (evita limpar o painel)
     document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
-    var navStress = document.getElementById('nav-stress');
+    var navStress = document.getElementById('nav-carga');
     if (navStress) navStress.classList.add('active');
     activeSection = 'stressBlock';
     // Esconder outras seções
@@ -9178,8 +9188,8 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <span class="nav-text">&#x1F9EA; Testes</span><span class="nav-group-chevron">&#9660;</span>
       </div>
       <div class="nav-group-items">
-        <div class="nav-item" id="nav-stress" onclick="showSection('stressBlock', this)" title="Stress Test K6">
-          <span class="nav-icon">&#128293;</span><span class="nav-text">Stress Test</span>
+        <div class="nav-item" id="nav-carga" onclick="showCarga(this)" title="Teste de Carga — K6 (executar e analisar resultados)">
+          <span class="nav-icon">&#128293;</span><span class="nav-text">Teste de Carga</span>
         </div>
         <div class="nav-item" id="nav-integration" onclick="showSection('integrationBlock', this)" title="Testes Integrados">
           <span class="nav-icon">&#128260;</span><span class="nav-text">Testes Integrados</span>
@@ -9192,24 +9202,6 @@ tr:hover td { background: rgba(255,255,255,.02); }
         </div>
         <div class="nav-item" id="nav-e2e-v2" onclick="showSection('e2eV2Block', this); loadE2eV2Data();" title="E2E Mobile — Fluxo Completo T01-T31">
           <span class="nav-icon">&#127381;</span><span class="nav-text">E2E Mobile</span>
-        </div>
-        <div class="nav-item" id="nav-detalhes" onclick="showSection('detailsBlock', this)" title="Detalhes por Tipo — K6">
-          <span class="nav-icon">&#128269;</span><span class="nav-text">K6 Detalhes</span>
-        </div>
-        <div class="nav-item" id="nav-resumo" onclick="showSection('resumoBlock', this)" title="Resumo de Resultados — K6">
-          <span class="nav-icon">&#128202;</span><span class="nav-text">K6 Resumo</span>
-        </div>
-        <div class="nav-item" id="nav-timeline" onclick="showSection('timelineBlock', this)" title="Timeline de Latencia — K6">
-          <span class="nav-icon">&#128200;</span><span class="nav-text">K6 Timeline</span>
-        </div>
-        <div class="nav-item" id="nav-graficos" onclick="showSection('chartsBlock', this)" title="Graficos de Performance — K6">
-          <span class="nav-icon">&#128201;</span><span class="nav-text">K6 Graficos</span>
-        </div>
-        <div class="nav-item" id="nav-rotas" onclick="showSection('routesBlock', this)" title="Rotas Chamadas — K6">
-          <span class="nav-icon">&#127760;</span><span class="nav-text">K6 Rotas</span>
-        </div>
-        <div class="nav-item" id="nav-config" onclick="showSection('configBlock', this)" title="Configuracao dos Testes — K6">
-          <span class="nav-icon">&#9881;</span><span class="nav-text">K6 Config</span>
         </div>
       </div>
     </div>
@@ -9345,7 +9337,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       <!-- FIXO: Detalhes por Tipo -->
       <div class="section-block" id="detailsBlock" style="display:none">
         <div class="section-header" onclick="toggleSection(this)">
-          <span class="section-title-text">&#128293; Stress Test &#8212; Tipos de Teste
+          <span class="section-title-text">&#128202; Resultados por Tipo de Teste
             <span class="info-hint-wrap" onclick="event.stopPropagation()" style="position:relative">
               <span class="info-hint-btn">i</span>
               <span class="info-hint-box" style="position:fixed;width:300px;z-index:9999;line-height:1.8">
@@ -9483,7 +9475,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       <!-- Stress Test K6 -->
       <div class="section-block" id="stressBlock" style="display:none">
         <div class="section-header" onclick="toggleSection(this)">
-          <span class="section-title-text">&#128293; Stress Test — K6</span>
+          <span class="section-title-text">&#128293; Teste de Carga — K6</span>
           <span class="section-count" id="stress-count"></span>
           <span class="section-chevron">&#9660;</span>
         </div>
