@@ -1,0 +1,9 @@
+[allowlist]
+description = "Fingerprints históricos já corrigidos — SONAR_TOKEN era hardcoded em set/2026, agora usa secrets"
+
+# curl -s -u "$SONAR_TOKEN:" — commits de 2026-09-18, token já rotacionado
+# arquivo atual usa ${{ secrets.SONAR_TOKEN }} corretamente
+fingerprints = [
+  "3a7f7d23d63278f4fa307808e6e4201ef2f65708:.github/workflows/ci-cd.yml:curl-auth-user:308",
+  "d3681664961b6bdf1ff9e346786e7c5270982d2d:.github/workflows/ci-cd.yml:curl-auth-user:312",
+]
