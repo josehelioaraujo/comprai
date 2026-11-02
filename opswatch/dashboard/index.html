@@ -9442,7 +9442,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
             <details id="sherlock-context-details" style="display:none;margin-bottom:10px">
               <summary style="cursor:pointer;font-size:12px;color:var(--muted);padding:7px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;list-style:none;display:flex;align-items:center;gap:6px;user-select:none">
                 <span>&#128202;</span><span>Dados capturados pelo OpsWatch</span>
-                <span style="margin-left:auto;opacity:.5;font-size:10px">&#9660; expandir</span>
+                <span style="margin-left:auto;opacity:.5;font-size:10px">&#9656; ver contexto enviado ao Sherlock</span>
               </summary>
               <pre id="sherlock-context-pre" style="background:var(--surface0,#0b0f19);border:1px solid var(--border);border-top:none;border-radius:0 0 6px 6px;padding:12px;font-size:11px;font-family:'Fira Code',monospace;color:#94a3b8;white-space:pre-wrap;word-break:break-word;max-height:280px;overflow-y:auto;margin:0"></pre>
             </details>
@@ -10957,8 +10957,8 @@ tr:hover td { background: rgba(255,255,255,.02); }
         var ctxPre = document.getElementById('sherlock-context-pre');
         if (ctxDetails && ctxPre) {
           ctxPre.textContent = input;
+          ctxDetails.removeAttribute('open'); // garante fechado
           ctxDetails.style.display = '';
-          ctxDetails.open = false; // colapsado por padrão
         }
 
         var ctrl = new AbortController();
@@ -11144,16 +11144,17 @@ tr:hover td { background: rgba(255,255,255,.02); }
           });
         }
 
-        // Passa 1 — H2 (## Fase X): Fase 0 e Fase 1 abertas
-        wrapHeadings(result, 'h2',
-          function(t){ return /Fase\s*[01](\b|$)/i.test(t); },
+        // Passa 1 — sherlockMarkdown converte # e ## → <h3>, ### → <h4>
+        // Todos os h3 viram seções colapsáveis (fechadas por default)
+        wrapHeadings(result, 'h3',
+          function(){ return false; }, // tudo fechado por default
           true
         );
 
-        // Passa 2 — H3 (### Round X) dentro de cada corpo de Fase: Round 0 aberto
+        // Passa 2 — h4 dentro de cada corpo de Fase/Round: também fechados
         result.querySelectorAll('details > div').forEach(function(body){
-          wrapHeadings(body, 'h3',
-            function(t){ return /Round\s*0(\b|$)/i.test(t); },
+          wrapHeadings(body, 'h4',
+            function(){ return false; },
             false
           );
         });
