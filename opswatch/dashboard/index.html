@@ -11070,52 +11070,96 @@ tr:hover td { background: rgba(255,255,255,.02); }
         }
       }
 
-      // ── Colapsa seções Fase/Round no resultado Sherlock ──────────────────
+      // ── Colapsa seções Fase/Round no resultado Sherlock (DOM-based) ──────
       function collapseSherlockSections() {
         var result = document.getElementById('sherlock-result');
         if (!result) return;
-        var html = result.innerHTML;
-        // Wrap h2 (## Fase X) blocks
-        html = html.replace(
-          /(<h2[^>]*>)(.*?<\/h2>)([\s\S]*?)(?=<h2|<h3 [^>]*>.*?Round|$)/g,
-          function(match, tag, heading, body, offset, str) {
-            var headText = heading.replace(/<[^>]+>/g, '').trim();
-            // Fase 0 e Fase 1 abertas por padrão, resto colapsado
-            var open = /Fase\s*[01]/i.test(headText) ? ' open' : '';
-            return '<details' + open + ' style="margin:8px 0;border:1px solid var(--border);border-radius:8px;overflow:hidden">'
-              + '<summary style="cursor:pointer;padding:10px 14px;background:var(--surface3,#0f172a);display:flex;align-items:center;gap:8px;user-select:none;list-style:none;font-weight:600;font-size:13px">'
-              + '<span style="font-size:11px;opacity:.6;transition:transform .2s">&#9654;</span>'
-              + headText
-              + '</summary>'
-              + '<div style="padding:12px 16px">' + body + '</div>'
-              + '</details>';
-          }
-        );
-        // Wrap h3 (### Round X) blocks dentro de seções que NÃO foram já colapsadas em h2
-        html = html.replace(
-          /(<h3[^>]*>)(.*?Round.*?<\/h3>)([\s\S]*?)(?=<h3[^>]*>.*?Round|<\/div>|<details|$)/g,
-          function(match, tag, heading, body) {
-            var headText = heading.replace(/<[^>]+>/g, '').trim();
-            var open = /Round\s*0/i.test(headText) ? ' open' : '';
-            return '<details' + open + ' style="margin:6px 0;border:1px solid var(--border);border-radius:6px;overflow:hidden">'
-              + '<summary style="cursor:pointer;padding:8px 12px;background:var(--surface2);display:flex;align-items:center;gap:8px;user-select:none;list-style:none;font-size:12px;font-weight:600">'
-              + '<span style="font-size:10px;opacity:.6">&#9654;</span>'
-              + headText
-              + '</summary>'
-              + '<div style="padding:10px 14px">' + body + '</div>'
-              + '</details>';
-          }
-        );
-        result.innerHTML = html;
-        // Animação do chevron via CSS ao abrir/fechar
-        result.querySelectorAll('details').forEach(function(d) {
-          d.addEventListener('toggle', function() {
-            var arrow = d.querySelector('summary > span');
-            if (arrow) arrow.style.transform = d.open ? 'rotate(90deg)' : 'rotate(0deg)';
+
+        // Agrupa nós do container pelo heading (H2 ou H3) que os precede
+        function wrapHeadings(container, headTag, isOpenFn, isH2) {
+          var nodes = Array.from(container.childNodes);
+          var HT = headTag.toUpperCase();
+          if (!nodes.some(function(n){ return n.nodeName === HT; })) return;
+
+          var groups = []; // [{type:'pre'|'section', headNode, nodes[]}]
+          var preNodes = [];
+          var cur = null;
+
+          nodes.forEach(function(n) {
+            if (n.nodeName === HT) {
+              if (cur) groups.push(cur);
+              else if (preNodes.length) { groups.push({type:'pre', nodes: preNodes.slice()}); preNodes = []; }
+              cur = {type:'section', headNode: n, nodes: []};
+            } else if (cur) {
+              cur.nodes.push(n);
+            } else {
+              preNodes.push(n);
+            }
           });
-          // Estado inicial
-          var arrow = d.querySelector('summary > span');
-          if (arrow) arrow.style.transform = d.open ? 'rotate(90deg)' : 'rotate(0deg)';
+          if (cur) groups.push(cur);
+          if (preNodes.length) groups.push({type:'pre', nodes: preNodes});
+
+          // Limpa e reconstrói
+          while (container.firstChild) container.removeChild(container.firstChild);
+
+          groups.forEach(function(g) {
+            if (g.type === 'pre') {
+              g.nodes.forEach(function(n){ container.appendChild(n); });
+              return;
+            }
+
+            var headText = g.headNode.textContent.trim();
+            var open = isOpenFn(headText);
+
+            var details = document.createElement('details');
+            if (open) details.open = true;
+            details.style.cssText = 'margin:' + (isH2 ? '10px' : '5px') + ' 0;'
+              + 'border:1px solid var(--border);border-radius:' + (isH2 ? '8px' : '6px') + ';overflow:hidden';
+
+            var summary = document.createElement('summary');
+            summary.style.cssText = 'cursor:pointer;padding:' + (isH2 ? '10px 14px' : '7px 12px') + ';'
+              + 'background:' + (isH2 ? 'var(--surface3,#0f172a)' : 'var(--surface2)') + ';'
+              + 'display:flex;align-items:center;gap:8px;user-select:none;list-style:none;'
+              + 'font-weight:600;font-size:' + (isH2 ? '13px' : '12px') + ';color:var(--text)';
+
+            var arrow = document.createElement('span');
+            arrow.textContent = '▶';
+            arrow.style.cssText = 'font-size:' + (isH2 ? '10px' : '9px')
+              + ';opacity:.5;transition:transform .2s;display:inline-block;flex-shrink:0';
+            arrow.style.transform = open ? 'rotate(90deg)' : 'rotate(0deg)';
+
+            var label = document.createElement('span');
+            label.innerHTML = g.headNode.innerHTML;
+
+            summary.appendChild(arrow);
+            summary.appendChild(label);
+            details.appendChild(summary);
+
+            var body = document.createElement('div');
+            body.style.padding = isH2 ? '12px 16px' : '8px 12px';
+            g.nodes.forEach(function(n){ body.appendChild(n); });
+            details.appendChild(body);
+
+            details.addEventListener('toggle', function(){
+              arrow.style.transform = details.open ? 'rotate(90deg)' : 'rotate(0deg)';
+            });
+
+            container.appendChild(details);
+          });
+        }
+
+        // Passa 1 — H2 (## Fase X): Fase 0 e Fase 1 abertas
+        wrapHeadings(result, 'h2',
+          function(t){ return /Fase\s*[01](\b|$)/i.test(t); },
+          true
+        );
+
+        // Passa 2 — H3 (### Round X) dentro de cada corpo de Fase: Round 0 aberto
+        result.querySelectorAll('details > div').forEach(function(body){
+          wrapHeadings(body, 'h3',
+            function(t){ return /Round\s*0(\b|$)/i.test(t); },
+            false
+          );
         });
       }
 
