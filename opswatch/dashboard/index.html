@@ -10833,9 +10833,11 @@ tr:hover td { background: rgba(255,255,255,.02); }
     <!-- ── SHERLOCK JS ──────────────────────────────────────────────────── -->
     <script>
     (function() {
-      var _sherlockAbort = null;
-      var _sherlockText  = '';
-      var _sherlockReady = false;
+      var _sherlockAbort      = null;
+      var _sherlockText       = '';
+      var _sherlockReady      = false;
+      var _sherlockRetryTimer = null;
+      var _sherlockRetryCount = 0;
 
       // ── Markdown → HTML (renderiza resposta do Sherlock) ──────────────────
       function _shEsc(t) {
@@ -10939,7 +10941,12 @@ tr:hover td { background: rgba(255,255,255,.02); }
         _sherlockReady = true;
       };
 
-      window.sherlockInvestigate = function() {
+      window.sherlockInvestigate = function(isRetry) {
+        // Cancela timer de retry pendente (evita cascade se badge clicado antes do retry disparar)
+        clearTimeout(_sherlockRetryTimer);
+        _sherlockRetryTimer = null;
+        if (!isRetry) _sherlockRetryCount = 0;
+
         var input = (document.getElementById('sherlock-input').value || '').trim();
         if (!input) {
           document.getElementById('sherlock-status').textContent = 'Digite o problema antes de investigar.';
@@ -11019,17 +11026,22 @@ tr:hover td { background: rgba(255,255,255,.02); }
                     console.error('[Sherlock] Erro na resposta:', obj.error);
                     var errMsg = obj.error || '';
                     if (errMsg.indexOf('429') !== -1 || errMsg.indexOf('Rate limit') !== -1) {
-                      var waitSec = 15;
+                      var baseWait = 15;
                       var m = errMsg.match(/try again in ([0-9.]+)s/i);
-                      if (m) waitSec = Math.ceil(parseFloat(m[1])) + 2;
-                      status.textContent = '⏳ Limite de tokens/min atingido — tentando novamente em ' + waitSec + 's…';
-                      result.innerHTML = '<p style="color:#f59e0b">⚠️ Groq TPM limit atingido. Aguardando ' + waitSec + 's para retentar…</p><p style="color:var(--muted);font-size:12px">Dica: aguarde alguns segundos entre análises diferentes.</p>';
-                      setTimeout(function() {
+                      if (m) baseWait = Math.ceil(parseFloat(m[1])) + 2;
+                      _sherlockRetryCount++;
+                      // Exponential backoff: cada retry adiciona 5s (max 60s)
+                      var waitSec = Math.min(baseWait + (_sherlockRetryCount - 1) * 5, 60);
+                      status.textContent = '⏳ Limite de tokens/min atingido — retentando em ' + waitSec + 's… (tentativa ' + _sherlockRetryCount + ')';
+                      result.innerHTML = '<p style="color:#f59e0b">⚠️ Groq TPM limit atingido. Aguardando ' + waitSec + 's para retentar… (tentativa ' + _sherlockRetryCount + ')</p><p style="color:var(--muted);font-size:12px">Dica: clique em ⏹ Parar para cancelar o retry.</p>';
+                      clearTimeout(_sherlockRetryTimer); // garante que só 1 timer corre
+                      _sherlockRetryTimer = setTimeout(function() {
+                        _sherlockRetryTimer = null;
                         result.textContent = '';
                         _sherlockText = '';
                         status.textContent = '🔄 Retentando…';
                         sherlockDone();
-                        sherlockInvestigate();
+                        sherlockInvestigate(true); // isRetry=true → mantém contador
                       }, waitSec * 1000);
                     } else {
                       result.innerHTML += '<p style="color:#ef4444;margin-top:8px">[ERRO] ' + errMsg + '</p>';
@@ -11269,11 +11281,18 @@ tr:hover td { background: rgba(255,255,255,.02); }
       }
 
       window.sherlockStop = function() {
+        clearTimeout(_sherlockRetryTimer);
+        _sherlockRetryTimer = null;
+        _sherlockRetryCount = 0;
         if (_sherlockAbort) { _sherlockAbort.abort(); _sherlockAbort = null; }
         sherlockDone();
       };
 
       window.sherlockClear = function() {
+        clearTimeout(_sherlockRetryTimer);
+        _sherlockRetryTimer = null;
+        _sherlockRetryCount = 0;
+        if (_sherlockAbort) { _sherlockAbort.abort(); _sherlockAbort = null; }
         document.getElementById('sherlock-input').value  = '';
         document.getElementById('sherlock-output').style.display = 'none';
         document.getElementById('sherlock-result').textContent   = '';
@@ -11467,6 +11486,12 @@ tr:hover td { background: rgba(255,255,255,.02); }
         if (!_SHERLOCK_PROMPTS[key]) return;
         document.querySelectorAll('.sherlock-badge').forEach(function(b){ b.classList.remove('active'); });
         event.currentTarget.classList.add('active');
+
+        // Cancela qualquer investigação ativa ou retry pendente antes de iniciar nova
+        clearTimeout(_sherlockRetryTimer);
+        _sherlockRetryTimer = null;
+        _sherlockRetryCount = 0;
+        if (_sherlockAbort) { _sherlockAbort.abort(); _sherlockAbort = null; }
 
         // Busca dados de containers em paralelo (enriquece o snapshot)
         var containersData = null;
