@@ -11063,6 +11063,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
           if (pmBtn) pmBtn.style.display = '';
           if (liBtn) liBtn.style.display = '';
           collapseSherlockSections();
+          addSherlockSummary();
         }
       }
 
@@ -11158,6 +11159,74 @@ tr:hover td { background: rgba(255,255,255,.02); }
             false
           );
         });
+      }
+
+      // ── Banner de resumo no topo do resultado Sherlock ───────────────────
+      function addSherlockSummary() {
+        var result = document.getElementById('sherlock-result');
+        if (!result || !_sherlockText) return;
+
+        // Extrai "Tipo detectado: ..."
+        var tipoMatch = _sherlockText.match(/Tipo detectado\s*[:\-–]\s*\*{0,2}([^\n*]+)\*{0,2}/i);
+        var tipo = tipoMatch ? tipoMatch[1].trim() : null;
+
+        // Extrai subtítulo entre parênteses logo abaixo do tipo detectado
+        var subMatch = _sherlockText.match(/Tipo detectado[^\n]*\n+\(([^)]{10,200})\)/i);
+        var sub = subMatch ? subMatch[1].trim() : null;
+
+        // Extrai hipótese principal (H1 – ... com maior %)
+        var hMatch = _sherlockText.match(/\|\s*H1\s*[–\-]\s*\*{0,2}([^|*\n]{5,120})/i);
+        var hip = hMatch ? hMatch[1].trim().replace(/\*\*/g,'').substring(0, 150) : null;
+
+        if (!tipo && !hip) return;
+
+        var banner = document.createElement('div');
+        banner.id = 'sherlock-summary-banner';
+        banner.style.cssText = [
+          'background:rgba(15,23,42,.85)',
+          'border:1px solid var(--border)',
+          'border-left:3px solid #38bdf8',
+          'border-radius:8px',
+          'padding:10px 14px',
+          'margin-bottom:14px',
+          'font-size:12px',
+          'line-height:1.7'
+        ].join(';');
+
+        var html = '';
+        if (tipo) {
+          html += '<div style="font-weight:700;color:#38bdf8;margin-bottom:3px;font-size:13px">🎯 ' + tipo.replace(/</g,'&lt;') + '</div>';
+        }
+        if (sub) {
+          html += '<div style="color:var(--muted);font-style:italic;margin-bottom:6px;font-size:11px">' + sub.replace(/</g,'&lt;') + '</div>';
+        }
+        if (hip) {
+          html += '<div style="color:var(--text)"><span style="color:var(--muted);font-size:11px">Hipótese principal: </span>' + hip.replace(/</g,'&lt;') + '</div>';
+        }
+
+        // Link expandir tudo
+        html += '<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:6px">'
+          + '<a href="#" onclick="event.preventDefault();'
+          + 'document.getElementById(\'sherlock-result\').querySelectorAll(\'details\').forEach(function(d){'
+          + 'd.open=true;'
+          + 'd.querySelectorAll(\'summary span\').forEach(function(s){if(s.textContent===\'▶\')s.style.transform=\'rotate(90deg)\'});'
+          + '});return false;" '
+          + 'style="font-size:11px;color:#38bdf8;text-decoration:none;opacity:.7;margin-right:16px">▼ expandir análise completa</a>'
+          + '<a href="#" onclick="event.preventDefault();'
+          + 'document.getElementById(\'sherlock-result\').querySelectorAll(\'details\').forEach(function(d){'
+          + 'd.open=false;'
+          + 'd.querySelectorAll(\'summary span\').forEach(function(s){if(s.textContent===\'▶\')s.style.transform=\'rotate(0deg)\'});'
+          + '});return false;" '
+          + 'style="font-size:11px;color:var(--muted);text-decoration:none;opacity:.7">▲ recolher tudo</a>'
+          + '</div>';
+
+        banner.innerHTML = html;
+
+        // Remove banner anterior se existir (re-run)
+        var old = result.querySelector('#sherlock-summary-banner');
+        if (old) old.remove();
+
+        result.insertBefore(banner, result.firstChild);
       }
 
       // ── Download Postmortem (.md) ─────────────────────────────────────────
