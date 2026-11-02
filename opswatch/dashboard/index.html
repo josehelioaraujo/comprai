@@ -9447,7 +9447,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
               <button onclick="sherlockCopyOutput()" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer">&#128203; Copiar</button>
             </div>
             <div id="sherlock-result"
-              style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:16px;font-size:13px;line-height:1.7;white-space:pre-wrap;font-family:'Fira Code',monospace,sans-serif;max-height:600px;overflow-y:auto;color:var(--text)">
+              style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:16px;font-size:13px;line-height:1.7;max-height:600px;overflow-y:auto;color:var(--text)">
             </div>
           </div>
 
@@ -10803,6 +10803,104 @@ tr:hover td { background: rgba(255,255,255,.02); }
       var _sherlockText  = '';
       var _sherlockReady = false;
 
+      // ── Markdown → HTML (renderiza resposta do Sherlock) ──────────────────
+      function _shEsc(t) {
+        return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      }
+      function _shInline(t) {
+        t = _shEsc(t);
+        t = t.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        t = t.replace(/\*(.+?)\*/g,   '<em>$1</em>');
+        t = t.replace(/`([^`]+)`/g,
+          '<code style="background:var(--surface3,#0f172a);border-radius:3px;padding:1px 5px;font-family:\'Fira Code\',monospace;font-size:11px">$1</code>');
+        return t;
+      }
+      function _shTable(rows) {
+        if (!rows.length) return '';
+        var h = '<table style="width:100%;border-collapse:collapse;margin:8px 0;font-size:12px">';
+        var hdrDone = false;
+        rows.forEach(function(row) {
+          if (/^\|[\s\-|:]+\|$/.test(row.trim())) return; // separador
+          var cells = row.split('|').slice(1,-1);
+          var tag = !hdrDone ? 'th' : 'td';
+          var bg  = !hdrDone ? 'background:var(--surface3,#0f172a);font-weight:600;' : '';
+          h += '<tr>' + cells.map(function(c){
+            return '<'+tag+' style="border:1px solid var(--border);padding:5px 8px;text-align:left;'+bg+'">'+_shInline(c.trim())+'</'+tag+'>';
+          }).join('') + '</tr>';
+          hdrDone = true;
+        });
+        return h + '</table>';
+      }
+      function sherlockMarkdown(text) {
+        var lines  = (text||'').split('\n');
+        var html   = '';
+        var inUl   = false, inOl = false, inCode = false;
+        var tblBuf = [];
+        function flushLists() {
+          if (inUl)  { html += '</ul>'; inUl = false; }
+          if (inOl)  { html += '</ol>'; inOl = false; }
+        }
+        function flushTable() {
+          if (tblBuf.length) { html += _shTable(tblBuf); tblBuf = []; }
+        }
+        lines.forEach(function(line) {
+          // ── código fenced ──
+          if (line.startsWith('```')) {
+            if (inCode) { html += '</code></pre>'; inCode = false; }
+            else {
+              flushLists(); flushTable();
+              html += '<pre style="background:var(--surface3,#0f172a);border-radius:6px;padding:12px;overflow-x:auto;margin:8px 0"><code style="font-family:\'Fira Code\',monospace;font-size:12px;color:var(--accent2,#06b6d4)">';
+              inCode = true;
+            }
+            return;
+          }
+          if (inCode) { html += _shEsc(line) + '\n'; return; }
+
+          // ── tabela ──
+          if (line.startsWith('|')) { tblBuf.push(line); return; }
+          else { flushTable(); }
+
+          // ── cabeçalhos ──
+          if (/^#{1,6}\s/.test(line)) {
+            flushLists();
+            var lvl = line.match(/^(#+)/)[1].length;
+            var txt = line.replace(/^#+\s+/,'');
+            if (lvl <= 2) {
+              html += '<h3 style="font-size:14px;font-weight:700;color:var(--accent2,#06b6d4);margin:18px 0 6px;border-bottom:1px solid var(--border);padding-bottom:4px">'+_shInline(txt)+'</h3>';
+            } else {
+              html += '<h4 style="font-size:13px;font-weight:600;color:var(--text);margin:12px 0 4px">'+_shInline(txt)+'</h4>';
+            }
+            return;
+          }
+
+          // ── lista não-ordenada ──
+          if (/^[\-\*•]\s/.test(line)) {
+            if (inOl) { html += '</ol>'; inOl = false; }
+            if (!inUl) { html += '<ul style="margin:4px 0 8px;padding-left:20px">'; inUl = true; }
+            html += '<li style="margin:3px 0">'+_shInline(line.replace(/^[\-\*•]\s+/,''))+'</li>';
+            return;
+          }
+
+          // ── lista ordenada ──
+          if (/^\d+[.)]\s/.test(line)) {
+            if (inUl) { html += '</ul>'; inUl = false; }
+            if (!inOl) { html += '<ol style="margin:4px 0 8px;padding-left:20px">'; inOl = true; }
+            html += '<li style="margin:3px 0">'+_shInline(line.replace(/^\d+[.)]\s+/,''))+'</li>';
+            return;
+          }
+
+          // ── linha vazia ──
+          if (!line.trim()) { flushLists(); html += '<div style="margin:4px 0"></div>'; return; }
+
+          // ── parágrafo normal ──
+          flushLists();
+          html += '<p style="margin:4px 0">'+_shInline(line)+'</p>';
+        });
+        flushLists(); flushTable();
+        if (inCode) html += '</code></pre>';
+        return html;
+      }
+
       window.sherlockInit = function() {
         _sherlockReady = true;
       };
@@ -10870,7 +10968,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
                     chunkCount++;
                     if (chunkCount <= 3) console.log('[Sherlock] chunk #' + chunkCount + ':', JSON.stringify(obj.chunk));
                     _sherlockText += obj.chunk;
-                    result.textContent = _sherlockText;
+                    result.innerHTML = sherlockMarkdown(_sherlockText);
                     result.scrollTop = result.scrollHeight;
                     status.textContent = '&#128269; Analisando…';
                   }
@@ -10882,8 +10980,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
                       var m = errMsg.match(/try again in ([0-9.]+)s/i);
                       if (m) waitSec = Math.ceil(parseFloat(m[1])) + 2;
                       status.textContent = '⏳ Limite de tokens/min atingido — tentando novamente em ' + waitSec + 's…';
-                      result.textContent = '⚠️ Groq TPM limit atingido. Aguardando ' + waitSec + 's para retentar…\n\n' +
-                                           'Dica: aguarde alguns segundos entre análises diferentes.';
+                      result.innerHTML = '<p style="color:#f59e0b">⚠️ Groq TPM limit atingido. Aguardando ' + waitSec + 's para retentar…</p><p style="color:var(--muted);font-size:12px">Dica: aguarde alguns segundos entre análises diferentes.</p>';
                       setTimeout(function() {
                         result.textContent = '';
                         _sherlockText = '';
@@ -10892,7 +10989,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
                         sherlockInvestigate();
                       }, waitSec * 1000);
                     } else {
-                      result.textContent += '\n\n[ERRO] ' + errMsg;
+                      result.innerHTML += '<p style="color:#ef4444;margin-top:8px">[ERRO] ' + errMsg + '</p>';
                       sherlockDone();
                     }
                   }
@@ -10906,7 +11003,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
         .catch(function(err) {
           if (err.name !== 'AbortError') {
             console.error('[Sherlock] Fetch falhou:', err.name, err.message);
-            result.textContent += '\n\n[ERRO] ' + err.message;
+            result.innerHTML += '<p style="color:#ef4444;margin-top:8px">[ERRO] ' + err.message + '</p>';
           }
           sherlockDone();
         });
@@ -10951,82 +11048,112 @@ tr:hover td { background: rgba(255,255,255,.02); }
       // Coleta snapshot real dos painéis OpsWatch para alimentar o Sherlock
       function collectOpsWatchSnapshot(key) {
         var lines = [];
+        var getText = function(id) {
+          var el = document.getElementById(id);
+          return el ? el.textContent.trim() : null;
+        };
 
-        // === Health Map (dados reais dos componentes) ===
+        // === SINTOMA ===
+        var badgeSintoma = {
+          saude:    'Análise geral de saúde do sistema — sem incidente específico reportado.',
+          latencia: 'Latência acima do normal detectada — p95 elevado nos endpoints críticos.',
+          erros500: 'Taxa de erros HTTP 500 aumentou nas últimas horas.',
+          kafka:    'Consumer Kafka parou de processar — lag crescente nos tópicos de pedidos.',
+          redis:    'Redis com timeouts — cache de catálogo e sessões falhando.',
+          memoria:  'Pods AKS com uso de memória crescente, próximos do limit configurado.',
+          db:       'PostgreSQL lento — queries demorando mais, conexões acumulando.',
+          deploy:   'Degradação observada após último deploy (possível regressão).'
+        };
+        lines.push('SINTOMA: ' + (badgeSintoma[key] || 'Investigação geral solicitada.'));
+        lines.push('');
+
+        // === Health Map (variável global hmLastData) ===
         try {
           if (typeof hmLastData !== 'undefined' && hmLastData && hmLastData.components) {
-            lines.push('=== HEALTH MAP — Estado dos componentes ===');
+            lines.push('=== HEALTH MAP ===');
             hmLastData.components.forEach(function(c) {
-              var lat = c.latencyMs != null ? c.latencyMs + 'ms' : '—';
+              var lat    = c.latencyMs    != null ? c.latencyMs + 'ms' : '—';
               var uptime = c.uptime_percent != null ? c.uptime_percent.toFixed(1) + '%' : '—';
-              lines.push('• ' + c.name + ': ' + (c.status || 'unknown').toUpperCase() +
-                         ' | latência=' + lat + ' | uptime=' + uptime);
+              var status = (c.status || 'unknown').toUpperCase();
+              lines.push('• ' + c.name + ': ' + status + ' | latência=' + lat + ' | uptime=' + uptime);
             });
             lines.push('');
           }
         } catch(e) {}
 
-        // === Métricas K6 visíveis (última execução) ===
+        // === Métricas de Observabilidade em tempo real (Prometheus/Grafana) ===
+        var rps  = getText('obs-met-rps');
+        var p99  = getText('obs-met-p99');
+        var err  = getText('obs-met-err');
+        var up   = getText('obs-met-up');
+        if (rps || p99 || err) {
+          lines.push('=== MÉTRICAS EM TEMPO REAL ===');
+          if (rps  && rps  !== '—') lines.push('• req/s: ' + rps);
+          if (p99  && p99  !== '—') lines.push('• Latência p99: ' + p99 + 'ms');
+          if (err  && err  !== '—') lines.push('• Taxa de erro 5xx: ' + err);
+          if (up   && up   !== '—') lines.push('• Uptime: ' + up);
+          lines.push('');
+        }
+
+        // === Cache Redis (hit/miss rate) ===
+        var cacheHits   = getText('met-cache-hits');
+        var cacheMisses = getText('met-cache-misses');
+        var cacheRate   = getText('met-cache-rate');
+        if (cacheRate && cacheRate !== '—') {
+          lines.push('=== CACHE REDIS ===');
+          if (cacheHits)   lines.push('• Hits: '     + cacheHits);
+          if (cacheMisses) lines.push('• Misses: '   + cacheMisses);
+          if (cacheRate)   lines.push('• Hit rate: ' + cacheRate);
+          lines.push('');
+        }
+
+        // === K6 Stress Test — última linha da tabela ===
         try {
-          var stressTable = document.querySelector('#stressBlock table tbody tr');
-          if (stressTable) {
-            var cells = stressTable.querySelectorAll('td');
-            if (cells.length >= 6) {
-              lines.push('=== K6 STRESS TEST — Última execução ===');
-              lines.push('• Cenário: ' + (cells[1] ? cells[1].textContent.trim() : '—'));
-              lines.push('• p50=' + (cells[2] ? cells[2].textContent.trim() : '—') +
-                         ' p95=' + (cells[3] ? cells[3].textContent.trim() : '—') +
-                         ' p99=' + (cells[4] ? cells[4].textContent.trim() : '—'));
-              lines.push('• Taxa de erro: ' + (cells[6] ? cells[6].textContent.trim() : '—'));
-              lines.push('');
+          var rows = document.querySelectorAll('#stressBlock table tbody tr');
+          if (rows && rows.length > 0) {
+            lines.push('=== K6 STRESS TEST (última execução) ===');
+            var maxRows = Math.min(3, rows.length);
+            for (var ri = 0; ri < maxRows; ri++) {
+              var cells = rows[ri].querySelectorAll('td');
+              if (cells.length >= 6) {
+                var cenario = cells[1] ? cells[1].textContent.trim() : '—';
+                var p50v    = cells[2] ? cells[2].textContent.trim() : '—';
+                var p95v    = cells[3] ? cells[3].textContent.trim() : '—';
+                var p99v    = cells[4] ? cells[4].textContent.trim() : '—';
+                var errV    = cells[6] ? cells[6].textContent.trim() : '—';
+                lines.push('• ' + cenario + ': p50=' + p50v + ' p95=' + p95v + ' p99=' + p99v + ' erro=' + errV);
+              }
             }
+            lines.push('');
           }
         } catch(e) {}
 
-        // === Erros recentes visíveis no painel ===
+        // === Erros recentes do painel ===
         try {
           var errRows = document.querySelectorAll('#obsErrosBlock table tbody tr');
           if (errRows && errRows.length > 0) {
-            lines.push('=== ERROS RECENTES (últimas ocorrências) ===');
+            lines.push('=== ERROS RECENTES ===');
             var maxErr = Math.min(5, errRows.length);
             for (var i = 0; i < maxErr; i++) {
-              var row = errRows[i];
-              lines.push('• ' + row.textContent.replace(/\s+/g, ' ').trim());
+              lines.push('• ' + errRows[i].textContent.replace(/\s+/g, ' ').trim());
             }
             lines.push('');
           }
         } catch(e) {}
 
-        // === Score de qualidade (se visível) ===
-        try {
-          var qualScore = document.getElementById('qs-overall-score');
-          if (qualScore && qualScore.textContent) {
-            lines.push('=== QUALITY SCORE ===');
-            lines.push('• Score geral: ' + qualScore.textContent.trim());
-            lines.push('');
-          }
-        } catch(e) {}
+        // === Quality Score ===
+        var qs = getText('qs-overall-score');
+        if (qs && qs !== '—') {
+          lines.push('=== QUALITY SCORE: ' + qs + ' ===');
+          lines.push('');
+        }
 
-        // === Contexto do badge específico como descrição do sintoma ===
-        var badgeContext = {
-          saude:    'SINTOMA: Análise geral de saúde do sistema sem incidente específico reportado.',
-          latencia: 'SINTOMA: Latência acima do normal detectada — p95 elevado nos endpoints críticos.',
-          erros500: 'SINTOMA: Taxa de erros HTTP 500 aumentou nas últimas horas.',
-          kafka:    'SINTOMA: Consumer Kafka parou de processar — lag crescente nos tópicos de pedidos.',
-          redis:    'SINTOMA: Redis com timeouts — cache de catálogo e sessões falhando.',
-          memoria:  'SINTOMA: Pods AKS com uso de memória crescente, próximos do limit configurado.',
-          db:       'SINTOMA: PostgreSQL lento — queries demorando mais, conexões acumulando.',
-          deploy:   'SINTOMA: Degradação observada após último deploy (possível regressão).'
-        };
-
-        lines.push('=== SINTOMA REPORTADO ===');
-        lines.push(badgeContext[key] || 'SINTOMA: Investigação geral solicitada.');
-        lines.push('');
-        lines.push('=== STACK DO SISTEMA ===');
-        lines.push('• Backend: .NET 10 / C#, Vertical Slice Architecture');
-        lines.push('• Infraestrutura: Azure AKS (Kubernetes), PostgreSQL + Dapper, Redis, Kafka, RabbitMQ');
+        // === Stack do sistema ===
+        lines.push('=== STACK ===');
+        lines.push('• Backend: .NET 10 / C#, Vertical Slice + Hexagonal, Minimal API');
+        lines.push('• Infra: Azure AKS, PostgreSQL + Dapper, Redis, Kafka, RabbitMQ');
         lines.push('• Observabilidade: Jaeger (traces), Grafana/Prometheus (métricas), Loki (logs)');
-        lines.push('• Endpoints críticos: /api/orders, /api/intent, /api/catalog, /api/cart');
+        lines.push('• Endpoints críticos: /api/orders, /api/intent, /api/catalog, /api/cart, /api/checkout');
 
         return lines.join('\n');
       }
@@ -11045,7 +11172,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
       };
 
       window.sherlockCopyOutput = function() {
-        var text = document.getElementById('sherlock-result').textContent;
+        var text = _sherlockText; // markdown cru, não o innerHTML renderizado
         navigator.clipboard.writeText(text).then(function() {
           var btn = event.target;
           btn.textContent = '&#10003; Copiado!';
