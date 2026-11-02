@@ -3018,11 +3018,11 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
   }
 
   function collapseAllGroups() {
-    var allCollapsed = ['group-testes', 'group-qualidade', 'group-observabilidade', 'group-seguranca', 'group-k6'].every(function(id) {
+    var allCollapsed = ['group-testes', 'group-qualidade', 'group-observabilidade', 'group-seguranca', 'group-agentes-ia'].every(function(id) {
       var g = document.getElementById(id);
       return g && g.classList.contains('collapsed');
     });
-    ['group-testes', 'group-qualidade', 'group-observabilidade', 'group-seguranca', 'group-k6'].forEach(function(id) {
+    ['group-testes', 'group-qualidade', 'group-observabilidade', 'group-seguranca', 'group-agentes-ia'].forEach(function(id) {
       var g = document.getElementById(id);
       if (!g) return;
       if (allCollapsed) g.classList.remove('collapsed');
@@ -3034,7 +3034,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
   function updateCollapseBtn() {
     var btn = document.getElementById('btn-collapse-all');
     if (!btn) return;
-    var allCollapsed = ['group-testes', 'group-qualidade', 'group-observabilidade', 'group-seguranca', 'group-k6'].every(function(id) {
+    var allCollapsed = ['group-testes', 'group-qualidade', 'group-observabilidade', 'group-seguranca', 'group-agentes-ia'].every(function(id) {
       var g = document.getElementById(id);
       return g && g.classList.contains('collapsed');
     });
@@ -3753,7 +3753,7 @@ document.addEventListener('DOMContentLoaded', function() { initInfoHints(); init
   // Iniciar polling ao carregar
   window.addEventListener('load', () => {
     // Colapsar todos os grupos por default
-    ['group-testes','group-qualidade','group-observabilidade','group-seguranca','group-k6'].forEach(function(id) {
+    ['group-testes','group-qualidade','group-observabilidade','group-seguranca','group-agentes-ia'].forEach(function(id) {
       var g = document.getElementById(id);
       if (g) g.classList.add('collapsed');
     });
@@ -9193,7 +9193,24 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <div class="nav-item" id="nav-e2e-v2" onclick="showSection('e2eV2Block', this); loadE2eV2Data();" title="E2E Mobile — Fluxo Completo T01-T31">
           <span class="nav-icon">&#127381;</span><span class="nav-text">E2E Mobile</span>
         </div>
-
+        <div class="nav-item" id="nav-detalhes" onclick="showSection('detailsBlock', this)" title="Detalhes por Tipo — K6">
+          <span class="nav-icon">&#128269;</span><span class="nav-text">K6 Detalhes</span>
+        </div>
+        <div class="nav-item" id="nav-resumo" onclick="showSection('resumoBlock', this)" title="Resumo de Resultados — K6">
+          <span class="nav-icon">&#128202;</span><span class="nav-text">K6 Resumo</span>
+        </div>
+        <div class="nav-item" id="nav-timeline" onclick="showSection('timelineBlock', this)" title="Timeline de Latencia — K6">
+          <span class="nav-icon">&#128200;</span><span class="nav-text">K6 Timeline</span>
+        </div>
+        <div class="nav-item" id="nav-graficos" onclick="showSection('chartsBlock', this)" title="Graficos de Performance — K6">
+          <span class="nav-icon">&#128201;</span><span class="nav-text">K6 Graficos</span>
+        </div>
+        <div class="nav-item" id="nav-rotas" onclick="showSection('routesBlock', this)" title="Rotas Chamadas — K6">
+          <span class="nav-icon">&#127760;</span><span class="nav-text">K6 Rotas</span>
+        </div>
+        <div class="nav-item" id="nav-config" onclick="showSection('configBlock', this)" title="Configuracao dos Testes — K6">
+          <span class="nav-icon">&#9881;</span><span class="nav-text">K6 Config</span>
+        </div>
       </div>
     </div>
     <div class="nav-group" id="group-qualidade">
@@ -9274,38 +9291,13 @@ tr:hover td { background: rgba(255,255,255,.02); }
         </div>
       </div>
     </div>
-    <div class="nav-group" id="group-sherlock">
-      <div class="nav-label" onclick="toggleNavGroup('group-sherlock')">
-        <span class="nav-text">&#x1F50D; Sherlock</span><span class="nav-group-chevron">&#9660;</span>
+    <div class="nav-group" id="group-agentes-ia">
+      <div class="nav-label" onclick="toggleNavGroup('group-agentes-ia')">
+        <span class="nav-text">&#x1F916; Agentes IA</span><span class="nav-group-chevron">&#9660;</span>
       </div>
       <div class="nav-group-items">
-        <div class="nav-item" id="nav-sherlock" onclick="showSection('sherlockBlock', this); sherlockInit();" title="Investigador de Causa Raiz — Sherlock">
-          <span class="nav-icon">&#128269;</span><span class="nav-text">Investigar Bug</span>
-        </div>
-      </div>
-    </div>
-    <div class="nav-group" id="group-k6">
-      <div class="nav-label" onclick="toggleNavGroup('group-k6')">
-        <span class="nav-text">&#x1F525; Análise K6</span><span class="nav-group-chevron">&#9660;</span>
-      </div>
-      <div class="nav-group-items">
-        <div class="nav-item" id="nav-detalhes" onclick="showSection('detailsBlock', this)" title="Detalhes por Tipo">
-          <span class="nav-icon">&#128269;</span><span class="nav-text">Detalhes</span>
-        </div>
-        <div class="nav-item" id="nav-resumo" onclick="showSection('resumoBlock', this)" title="Resumo de Resultados">
-          <span class="nav-icon">&#128202;</span><span class="nav-text">Resumo</span>
-        </div>
-        <div class="nav-item" id="nav-timeline" onclick="showSection('timelineBlock', this)" title="Timeline de Latencia">
-          <span class="nav-icon">&#128200;</span><span class="nav-text">Timeline</span>
-        </div>
-        <div class="nav-item" id="nav-graficos" onclick="showSection('chartsBlock', this)" title="Graficos de Performance">
-          <span class="nav-icon">&#128201;</span><span class="nav-text">Graficos</span>
-        </div>
-        <div class="nav-item" id="nav-rotas" onclick="showSection('routesBlock', this)" title="Rotas Chamadas">
-          <span class="nav-icon">&#127760;</span><span class="nav-text">Rotas</span>
-        </div>
-        <div class="nav-item" id="nav-config" onclick="showSection('configBlock', this)" title="Configuracao dos Testes">
-          <span class="nav-icon">&#9881;</span><span class="nav-text">Configuracao</span>
+        <div class="nav-item" id="nav-sherlock" onclick="showSection('sherlockBlock', this); sherlockInit();" title="Sherlock — Diagnóstico IA de sistemas distribuídos">
+          <span class="nav-icon">&#128269;</span><span class="nav-text">Sherlock</span>
         </div>
       </div>
     </div>
