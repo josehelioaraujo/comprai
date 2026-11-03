@@ -11217,7 +11217,30 @@ tr:hover td { background: rgba(255,255,255,.02); }
           }
         }
 
-        if (!tipo && !hip) return;
+        // Extrai solução — texto: "Próximos passos", "Ação imediata", "Solução"
+        var sol = null;
+        var solMatch = _sherlockText && (
+          _sherlockText.match(/Ação imediata[:\s*]*([^\n]{10,200})/i)
+          || _sherlockText.match(/Próximos passos[^\n]*\n+\d+[\.)]\s*([^\n]{10,200})/i)
+          || _sherlockText.match(/Solução[:\s*]*\n+[*\-]?\s*([^\n]{10,200})/i)
+        );
+        if (solMatch) sol = solMatch[1].trim().replace(/\*\*/g,'').substring(0, 180);
+        // Fallback DOM: seção "Próximos passos" ou último <details> — primeiro <li>
+        if (!sol) {
+          var allDet = result.querySelectorAll('details');
+          for (var si = 0; si < allDet.length; si++) {
+            var sSum = allDet[si].querySelector('summary');
+            if (sSum && /próximos|proximos|diagnós|diagnos|preven|checklist/i.test(sSum.textContent)) {
+              var sBody = allDet[si].querySelector('div');
+              if (sBody) {
+                var sLi = sBody.querySelector('li, p');
+                if (sLi) { sol = sLi.textContent.trim().replace(/^\d+[\.)]\s*/,'').substring(0, 180); break; }
+              }
+            }
+          }
+        }
+
+        if (!tipo && !hip && !sol) return;
 
         var banner = document.createElement('div');
         banner.id = 'sherlock-summary-banner';
@@ -11234,13 +11257,16 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
         var html = '';
         if (tipo) {
-          html += '<div style="font-weight:700;color:#38bdf8;margin-bottom:3px;font-size:13px">🎯 ' + tipo.replace(/</g,'&lt;') + '</div>';
+          html += '<div style="font-weight:700;color:#38bdf8;margin-bottom:4px;font-size:13px">🎯 ' + tipo.replace(/</g,'&lt;') + '</div>';
         }
         if (sub) {
           html += '<div style="color:var(--muted);font-style:italic;margin-bottom:6px;font-size:11px">' + sub.replace(/</g,'&lt;') + '</div>';
         }
         if (hip) {
-          html += '<div style="color:var(--text)"><span style="color:var(--muted);font-size:11px">Hipótese principal: </span>' + hip.replace(/</g,'&lt;') + '</div>';
+          html += '<div style="color:var(--text);margin-bottom:3px"><span style="color:var(--muted);font-size:11px">🔍 Hipótese: </span>' + hip.replace(/</g,'&lt;') + '</div>';
+        }
+        if (sol) {
+          html += '<div style="color:#4ade80"><span style="color:var(--muted);font-size:11px">✅ Solução: </span>' + sol.replace(/</g,'&lt;') + '</div>';
         }
 
         // Link expandir tudo
