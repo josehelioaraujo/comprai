@@ -9364,12 +9364,13 @@ tr:hover td { background: rgba(255,255,255,.02); }
       <div class="section-block" id="sherlockBlock" style="display:none">
         <div class="section-header" onclick="toggleSection(this)">
           <span class="section-title-text">&#128269; Sherlock — Investigador de Causa Raiz</span>
+          <button onclick="event.stopPropagation();var h=document.getElementById('sherlock-howto');h.style.display=h.style.display==='none'?'block':'none'" title="Como usar" style="background:none;border:1px solid rgba(6,182,212,.4);color:var(--accent2);border-radius:50%;width:20px;height:20px;font-size:11px;font-weight:700;cursor:pointer;line-height:1;padding:0;margin-left:8px;flex-shrink:0">i</button>
           <span class="section-chevron">&#9660;</span>
         </div>
         <div class="section-content" style="padding:16px">
 
-          <!-- Intro -------------------------------------------------------- -->
-          <div style="background:rgba(6,182,212,.06);border:1px solid rgba(6,182,212,.2);border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:var(--muted)">
+          <!-- Intro — oculto por default, abre via botão ⓘ ------------------- -->
+          <div id="sherlock-howto" style="display:none;background:rgba(6,182,212,.06);border:1px solid rgba(6,182,212,.2);border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:var(--muted)">
             <strong style="color:var(--accent2)">&#128269; Como usar:</strong>
             Use os <strong>badges</strong> para análise automática com dados dos painéis, ou <strong>cole diretamente</strong> qualquer evidência:
             logs de aplicação, stack traces, output de pods, mensagens de erro, queries lentas, métricas do Grafana.
@@ -9439,10 +9440,11 @@ tr:hover td { background: rgba(255,255,255,.02); }
               </div>
             </div>
             <!-- Contexto enviado ao Sherlock (colapsável) -->
-            <details id="sherlock-context-details" style="display:none;margin-bottom:10px">
+            <details id="sherlock-context-details" style="display:none;margin-bottom:10px" ontoggle="var a=this.querySelector('.ctx-arrow');if(a)a.style.transform=this.open?'rotate(90deg)':'rotate(0deg)'">
               <summary style="cursor:pointer;font-size:12px;color:var(--muted);padding:7px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;list-style:none;display:flex;align-items:center;gap:6px;user-select:none">
+                <span class="ctx-arrow" style="font-size:9px;opacity:.5;transition:transform .2s;display:inline-block">&#9656;</span>
                 <span>&#128202;</span><span>Dados capturados pelo OpsWatch</span>
-                <span style="margin-left:auto;opacity:.5;font-size:10px">&#9656; ver contexto enviado ao Sherlock</span>
+                <span style="margin-left:auto;opacity:.4;font-size:10px">ver contexto enviado ao Sherlock</span>
               </summary>
               <pre id="sherlock-context-pre" style="background:var(--surface0,#0b0f19);border:1px solid var(--border);border-top:none;border-radius:0 0 6px 6px;padding:12px;font-size:11px;font-family:'Fira Code',monospace;color:#94a3b8;white-space:pre-wrap;word-break:break-word;max-height:280px;overflow-y:auto;margin:0"></pre>
             </details>
@@ -10925,11 +10927,13 @@ tr:hover td { background: rgba(255,255,255,.02); }
         _sherlockReady = true;
       };
 
+      var _sherlockRound = 0; // rastreia round atual
+
       window.sherlockInvestigate = function(isRetry) {
         // Cancela timer de retry pendente (evita cascade se badge clicado antes do retry disparar)
         clearTimeout(_sherlockRetryTimer);
         _sherlockRetryTimer = null;
-        if (!isRetry) _sherlockRetryCount = 0;
+        if (!isRetry) { _sherlockRetryCount = 0; _sherlockRound = 0; }
 
         var input = (document.getElementById('sherlock-input').value || '').trim();
         if (!input) {
@@ -11055,7 +11059,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
         btn.disabled = false;
         btn.innerHTML = '&#128269; Investigar';
         stop.style.display = 'none';
-        status.textContent = _sherlockText ? '&#10003; Investigação concluída' : '';
+        status.innerHTML = _sherlockText ? '<span style="color:#22c55e">&#10003;</span> Investigação concluída' : '';
         _sherlockAbort = null;
         if (_sherlockText) {
           var pmBtn = document.getElementById('sherlock-postmortem-btn');
@@ -11064,6 +11068,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
           if (liBtn) liBtn.style.display = '';
           collapseSherlockSections();
           addSherlockSummary();
+          addRoundPanel();
         }
       }
 
@@ -11293,6 +11298,78 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
         result.insertBefore(banner, result.firstChild);
       }
+
+      // ── Painel interativo de continuação de Round ─────────────────────────
+      function addRoundPanel() {
+        var result = document.getElementById('sherlock-result');
+        if (!result || !_sherlockText) return;
+
+        // Verifica se a investigação está aguardando evidências (não chegou ao diagnóstico final)
+        var isDone = /diagnóstico final|causa.raiz.identificada|prevention checklist|investigação concluída|CONCLUSÃO/i.test(_sherlockText.slice(-800));
+        var isAwaiting = /aguardando|próximos passos|round\s*\d|forneça.*output|cole.*resultado/i.test(_sherlockText.slice(-1200));
+        if (isDone || !isAwaiting) return;
+
+        _sherlockRound++;
+        var rn = _sherlockRound;
+
+        // Remove painel anterior
+        var old = document.getElementById('sherlock-round-panel');
+        if (old) old.remove();
+
+        var panel = document.createElement('div');
+        panel.id = 'sherlock-round-panel';
+        panel.style.cssText = [
+          'margin-top:16px',
+          'background:rgba(251,191,36,.07)',
+          'border:1px solid rgba(251,191,36,.35)',
+          'border-left:3px solid #fbbf24',
+          'border-radius:8px',
+          'padding:14px 16px'
+        ].join(';');
+
+        panel.innerHTML = ''
+          + '<div style="font-weight:700;color:#fbbf24;font-size:13px;margin-bottom:6px">'
+          + '  📋 Sherlock precisa de mais dados para continuar'
+          + '</div>'
+          + '<div style="color:var(--muted);font-size:12px;margin-bottom:10px">'
+          + '  Rode os comandos indicados em <strong style="color:var(--text)">Próximos Passos</strong> acima e cole o output aqui:'
+          + '</div>'
+          + '<textarea id="sherlock-round-input"'
+          + '  placeholder="Cole aqui o output dos comandos solicitados pelo Sherlock...\n\nExemplo:\n$ kubectl top nodes\nNAME       CPU(cores) MEMORY(bytes)\nnode-1     850m       3.2Gi\n..."'
+          + '  style="width:100%;min-height:110px;background:var(--surface0,#0b0f19);border:1px solid var(--border);'
+          + '  color:var(--text);border-radius:6px;padding:10px;font-size:12px;'
+          + '  font-family:\'Fira Code\',monospace;resize:vertical;box-sizing:border-box;line-height:1.5">'
+          + '</textarea>'
+          + '<div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">'
+          + '  <button onclick="sherlockContinueRound()" '
+          + '    style="background:#fbbf24;color:#0f172a;border:none;border-radius:7px;padding:8px 20px;'
+          + '    font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px">'
+          + '    &#9654; Continuar investigação'
+          + '  </button>'
+          + '  <span style="font-size:11px;color:var(--muted)">Sherlock analisará as evidências e avançará ao diagnóstico</span>'
+          + '</div>';
+
+        result.appendChild(panel);
+
+        // Rola até o painel
+        setTimeout(function(){ panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 100);
+      }
+
+      window.sherlockContinueRound = function() {
+        var roundInput = document.getElementById('sherlock-round-input');
+        if (!roundInput || !roundInput.value.trim()) {
+          roundInput && roundInput.focus();
+          return;
+        }
+        var currentInput = document.getElementById('sherlock-input').value.trim();
+        var newEvidence  = roundInput.value.trim();
+
+        // Acumula evidências no textarea principal com separador claro
+        document.getElementById('sherlock-input').value =
+          currentInput + '\n\n=== EVIDÊNCIAS COLETADAS (Round ' + _sherlockRound + ') ===\n' + newEvidence;
+
+        sherlockInvestigate();
+      };
 
       // ── Download Postmortem (.md) ─────────────────────────────────────────
       function sherlockDownloadPostmortem() {
