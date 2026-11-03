@@ -11181,6 +11181,42 @@ tr:hover td { background: rgba(255,255,255,.02); }
                   || _sherlockText.match(/H1\s*[–\-]\s*(.{5,150}?)(?:\n|$)/i);
         var hip = hMatch ? hMatch[1].trim().replace(/\*\*/g,'').replace(/\|.*$/,'').trim().substring(0, 160) : null;
 
+        // Fallback DOM: extrai da Fase 0 já renderizada se regex não achou
+        if (!tipo) {
+          var fase0 = result.querySelector('details');
+          if (fase0) {
+            var fase0Body = fase0.querySelector('div');
+            if (fase0Body) {
+              // Tenta primeiro strong/bold
+              var boldEl = fase0Body.querySelector('strong, b');
+              if (boldEl) tipo = boldEl.textContent.trim().substring(0, 140);
+              // Fallback: primeiro parágrafo com conteúdo real
+              if (!tipo) {
+                var paras = fase0Body.querySelectorAll('p, li');
+                for (var pi = 0; pi < paras.length; pi++) {
+                  var pt = paras[pi].textContent.trim();
+                  if (pt.length > 10) { tipo = pt.substring(0, 140); break; }
+                }
+              }
+            }
+          }
+        }
+        // Fallback hipótese: primeira linha de FASE 1 (Hipóteses)
+        if (!hip) {
+          var allDetails = result.querySelectorAll('details');
+          for (var di = 0; di < allDetails.length; di++) {
+            var sumText = allDetails[di].querySelector('summary');
+            if (sumText && /hipótes|hipotes/i.test(sumText.textContent)) {
+              var hBody = allDetails[di].querySelector('div');
+              if (hBody) {
+                var hLi = hBody.querySelector('li, p, td');
+                if (hLi) hip = hLi.textContent.trim().replace(/^\d+[\.)]\s*/,'').substring(0, 160);
+              }
+              break;
+            }
+          }
+        }
+
         if (!tipo && !hip) return;
 
         var banner = document.createElement('div');
