@@ -11340,20 +11340,22 @@ tr:hover td { background: rgba(255,255,255,.02); }
           html += '<div style="color:#4ade80"><span style="color:var(--muted);font-size:11px">✅ Próximo passo: </span>' + sol.replace(/</g,'&lt;') + '</div>';
         }
 
-        // Links expandir/recolher
-        html += '<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:6px">'
-          + '<a href="#" onclick="event.preventDefault();'
+        // Botão expandir + link recolher
+        html += '<div style="margin-top:10px;display:flex;align-items:center;gap:10px">'
+          + '<button onclick="'
           + 'document.getElementById(\'sherlock-result\').querySelectorAll(\'details:not(#sherlock-summary-banner)\').forEach(function(d){'
           + 'd.open=true;'
           + 'd.querySelectorAll(\'summary span\').forEach(function(s){if(s.textContent===\'▶\')s.style.transform=\'rotate(90deg)\'});'
-          + '});return false;" '
-          + 'style="font-size:11px;color:#38bdf8;text-decoration:none;opacity:.7;margin-right:16px">▼ expandir análise completa</a>'
+          + '});" '
+          + 'style="background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.35);color:#38bdf8;'
+          + 'padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:600">'
+          + '▼ Ver análise completa</button>'
           + '<a href="#" onclick="event.preventDefault();'
           + 'document.getElementById(\'sherlock-result\').querySelectorAll(\'details:not(#sherlock-summary-banner)\').forEach(function(d){'
           + 'd.open=false;'
           + 'd.querySelectorAll(\'summary span\').forEach(function(s){if(s.textContent===\'▶\')s.style.transform=\'rotate(0deg)\'});'
           + '});return false;" '
-          + 'style="font-size:11px;color:var(--muted);text-decoration:none;opacity:.7">▲ recolher tudo</a>'
+          + 'style="font-size:11px;color:var(--muted);text-decoration:none;opacity:.6">▲ recolher</a>'
           + '</div>';
 
         bannerBody.innerHTML = html;
