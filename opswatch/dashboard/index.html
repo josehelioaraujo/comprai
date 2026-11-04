@@ -9435,6 +9435,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
               <span style="font-size:12px;color:var(--muted)">&#128196; Investigação</span>
               <div style="display:flex;gap:6px;align-items:center">
                 <button onclick="sherlockCopyOutput()" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer">&#128203; Copiar</button>
+                <button id="sherlock-metrics-btn" onclick="sherlockToggleMetrics(this)" style="display:none;background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer" title="Ver métricas capturadas pelo OpsWatch">&#128202; Métricas</button>
                 <button id="sherlock-postmortem-btn" onclick="sherlockDownloadPostmortem()" style="display:none;background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer">&#128196; Postmortem</button>
                 <button id="sherlock-linear-btn" onclick="sherlockOpenLinear()" style="display:none;background:none;border:1px solid #6366f1;color:#6366f1;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer">&#128279; Linear</button>
               </div>
@@ -11064,8 +11065,10 @@ tr:hover td { background: rgba(255,255,255,.02); }
         if (_sherlockText) {
           var pmBtn = document.getElementById('sherlock-postmortem-btn');
           var liBtn = document.getElementById('sherlock-linear-btn');
+          var mtBtn = document.getElementById('sherlock-metrics-btn');
           if (pmBtn) pmBtn.style.display = '';
           if (liBtn) liBtn.style.display = '';
+          if (mtBtn) mtBtn.style.display = '';
           collapseSherlockSections();
           addSherlockSummary();
           addRoundPanel();
@@ -11566,8 +11569,81 @@ tr:hover td { background: rgba(255,255,255,.02); }
         document.querySelectorAll('.sherlock-badge').forEach(function(b){ b.classList.remove('active'); });
         var pmBtn = document.getElementById('sherlock-postmortem-btn');
         var liBtn = document.getElementById('sherlock-linear-btn');
+        var mtBtn = document.getElementById('sherlock-metrics-btn');
         if (pmBtn) pmBtn.style.display = 'none';
         if (liBtn) liBtn.style.display = 'none';
+        if (mtBtn) mtBtn.style.display = 'none';
+      };
+
+      // ── Modal Métricas: exibe dados de entrada do OpsWatch de forma visual ──
+      window.sherlockToggleMetrics = function(btn) {
+        var existing = document.getElementById('sherlock-metrics-modal');
+        if (existing) { existing.remove(); btn.style.borderColor = ''; btn.style.color = ''; return; }
+
+        var ctxPre = document.getElementById('sherlock-context-pre');
+        var raw = ctxPre ? ctxPre.textContent : '';
+
+        // Parse básico do snapshot: extrai blocos de serviços, containers, latências
+        function parseSection(text, sectionRe) {
+          var m = text.match(sectionRe);
+          return m ? m[1].trim() : null;
+        }
+
+        var healthBlock  = parseSection(raw, /health map[^\n]*\n([\s\S]*?)(?:\n\n|\n==|\n--|\Z)/i)
+                        || parseSection(raw, /serviços[^\n]*\n([\s\S]*?)(?:\n\n|\n==|\n--)/i);
+        var containerBlock = parseSection(raw, /containers?[^\n]*\n([\s\S]*?)(?:\n\n|\n==|\n--)/i)
+                          || parseSection(raw, /pods?[^\n]*\n([\s\S]*?)(?:\n\n|\n==|\n--)/i);
+        var latencyBlock = parseSection(raw, /latên[^\n]*\n([\s\S]*?)(?:\n\n|\n==|\n--)/i)
+                        || parseSection(raw, /endpoint[^\n]*\n([\s\S]*?)(?:\n\n|\n==|\n--)/i);
+        var errorBlock   = parseSection(raw, /erros?[^\n]*\n([\s\S]*?)(?:\n\n|\n==|\n--)/i);
+
+        // Cria modal overlay (position:absolute dentro do output para não usar fixed)
+        var output = document.getElementById('sherlock-output');
+        var modal = document.createElement('div');
+        modal.id = 'sherlock-metrics-modal';
+        modal.style.cssText = 'margin-top:12px;background:var(--surface1,#0f172a);border:1px solid #38bdf8;'
+          + 'border-radius:10px;overflow:hidden;';
+
+        var header = '<div style="display:flex;align-items:center;padding:10px 14px;'
+          + 'background:rgba(56,189,248,.08);border-bottom:1px solid var(--border);gap:8px">'
+          + '<span style="font-size:13px;font-weight:700;color:#38bdf8;flex:1">📊 Dados capturados pelo OpsWatch</span>'
+          + '<span style="font-size:11px;color:var(--muted);opacity:.7">dados enviados ao Sherlock como contexto</span>'
+          + '<button onclick="document.getElementById(\'sherlock-metrics-modal\').remove();'
+          + 'var b=document.getElementById(\'sherlock-metrics-btn\');if(b){b.style.borderColor=\'\';b.style.color=\'\'}"'
+          + ' style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;line-height:1;padding:0 4px">&times;</button>'
+          + '</div>';
+
+        function makeSection(title, content, color) {
+          if (!content) return '';
+          return '<div style="padding:10px 14px;border-bottom:1px solid var(--border)">'
+            + '<div style="font-size:11px;font-weight:700;color:' + color + ';text-transform:uppercase;'
+            + 'letter-spacing:.06em;margin-bottom:6px">' + title + '</div>'
+            + '<pre style="font-family:monospace;font-size:11px;color:#94a3b8;white-space:pre-wrap;'
+            + 'word-break:break-word;margin:0;line-height:1.6;max-height:180px;overflow-y:auto">'
+            + content.replace(/</g,'&lt;').substring(0, 1200) + '</pre>'
+            + '</div>';
+        }
+
+        var body = '';
+        body += makeSection('🟢 Health Map — Serviços', healthBlock, '#4ade80');
+        body += makeSection('📦 Containers / Pods', containerBlock, '#38bdf8');
+        body += makeSection('⏱ Latências & Endpoints', latencyBlock, '#f59e0b');
+        body += makeSection('🔴 Erros recentes', errorBlock, '#f87171');
+
+        // Se nenhum bloco parseado, exibe raw completo
+        if (!healthBlock && !containerBlock && !latencyBlock && !errorBlock) {
+          body = '<div style="padding:12px 14px"><pre style="font-family:monospace;font-size:11px;color:#94a3b8;'
+            + 'white-space:pre-wrap;word-break:break-word;margin:0;line-height:1.6;max-height:400px;overflow-y:auto">'
+            + (raw || '(sem dados capturados)').replace(/</g,'&lt;') + '</pre></div>';
+        }
+
+        modal.innerHTML = header + body;
+        output.appendChild(modal);
+
+        // Destaca o botão como ativo
+        btn.style.borderColor = '#38bdf8';
+        btn.style.color = '#38bdf8';
+        modal.scrollIntoView({behavior:'smooth', block:'nearest'});
       };
 
       var _SHERLOCK_PROMPTS = {
