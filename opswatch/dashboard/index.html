@@ -11135,6 +11135,53 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
             summary.appendChild(arrow);
             summary.appendChild(label);
+
+            // ⓘ tooltip explicativo para cada fase/seção
+            var tooltips = {
+              'fase 0': 'Triagem inicial: o Sherlock classifica o tipo do problema, gravidade e serviços afetados. Ponto de partida da investigação.',
+              'triagem': 'Triagem inicial: o Sherlock classifica o tipo do problema, gravidade e serviços afetados. Ponto de partida da investigação.',
+              'fase 1': 'Hipóteses rankeadas: lista de causas possíveis ordenadas por probabilidade. O Sherlock analisa padrões e histórico para rankear cada hipótese.',
+              'hipótese': 'Hipóteses rankeadas: lista de causas possíveis ordenadas por probabilidade. O Sherlock analisa padrões e histórico para rankear cada hipótese.',
+              'fase 2': 'Coleta de evidências: comandos para rodar no terminal e coletar dados que confirmam ou refutam as hipóteses. Cole o output no painel abaixo.',
+              'coleta': 'Coleta de evidências: comandos para rodar no terminal e coletar dados que confirmam ou refutam as hipóteses. Cole o output no painel abaixo.',
+              'round': 'Rodada de evidências: o Sherlock pediu mais dados. Rode os comandos indicados, cole o output e clique Continuar para avançar.',
+              'próximos passos': 'Plano de ação: próximas etapas recomendadas pelo Sherlock para resolver o problema detectado.',
+              'diagnóstico': 'Conclusão da investigação com causa-raiz identificada, nível de confiança e plano de remediação.',
+              'prevention': 'Checklist de prevenção: ações para evitar recorrência do problema identificado.',
+            };
+            var htLower = headText.toLowerCase();
+            var tooltipText = null;
+            Object.keys(tooltips).forEach(function(k){ if (!tooltipText && htLower.indexOf(k) >= 0) tooltipText = tooltips[k]; });
+            if (tooltipText && isH2) {
+              var infoBtn = document.createElement('button');
+              infoBtn.textContent = 'i';
+              infoBtn.title = tooltipText;
+              infoBtn.setAttribute('data-tip', tooltipText);
+              infoBtn.style.cssText = 'background:none;border:1px solid rgba(100,116,139,.4);color:var(--muted);border-radius:50%;'
+                + 'width:16px;height:16px;font-size:10px;font-weight:700;cursor:pointer;line-height:1;padding:0;'
+                + 'margin-left:auto;flex-shrink:0;font-style:italic;';
+              infoBtn.onclick = function(e) {
+                e.stopPropagation(); e.preventDefault();
+                var tip = document.getElementById('sherlock-fase-tip');
+                if (!tip) {
+                  tip = document.createElement('div');
+                  tip.id = 'sherlock-fase-tip';
+                  tip.style.cssText = 'position:fixed;z-index:9999;background:#1e293b;border:1px solid #38bdf8;'
+                    + 'border-radius:8px;padding:10px 14px;font-size:12px;color:var(--text);max-width:320px;'
+                    + 'line-height:1.6;box-shadow:0 8px 24px rgba(0,0,0,.5);pointer-events:none';
+                  document.body.appendChild(tip);
+                }
+                tip.textContent = this.getAttribute('data-tip');
+                var r = this.getBoundingClientRect();
+                tip.style.display = 'block';
+                tip.style.top  = (r.bottom + 6) + 'px';
+                tip.style.left = Math.min(r.left, window.innerWidth - 340) + 'px';
+                clearTimeout(tip._t);
+                tip._t = setTimeout(function(){ tip.style.display = 'none'; }, 4000);
+              };
+              summary.appendChild(infoBtn);
+            }
+
             details.appendChild(summary);
 
             var body = document.createElement('div');
@@ -11247,22 +11294,41 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
         if (!tipo && !hip && !sol) return;
 
-        var banner = document.createElement('div');
+        // Banner como <details> colapsável com chevron
+        var banner = document.createElement('details');
         banner.id = 'sherlock-summary-banner';
+        banner.open = true;
         banner.style.cssText = [
           'background:rgba(15,23,42,.85)',
           'border:1px solid var(--border)',
           'border-left:3px solid #38bdf8',
           'border-radius:8px',
-          'padding:10px 14px',
           'margin-bottom:14px',
           'font-size:12px',
-          'line-height:1.7'
+          'overflow:hidden'
         ].join(';');
+
+        // Header colapsável
+        var bannerSummary = document.createElement('summary');
+        bannerSummary.style.cssText = 'cursor:pointer;padding:9px 14px;display:flex;align-items:center;gap:8px;'
+          + 'list-style:none;user-select:none;background:rgba(56,189,248,.08);'
+          + 'font-weight:700;font-size:13px;color:#38bdf8';
+        var bArrow = document.createElement('span');
+        bArrow.id = 'sherlock-banner-arrow';
+        bArrow.textContent = '▶';
+        bArrow.style.cssText = 'font-size:9px;opacity:.6;transition:transform .2s;display:inline-block;flex-shrink:0;transform:rotate(90deg)';
+        bannerSummary.appendChild(bArrow);
+        bannerSummary.appendChild(Object.assign(document.createElement('span'), {textContent: '🎯 Diagnóstico resumido'}));
+        banner.addEventListener('toggle', function(){ bArrow.style.transform = banner.open ? 'rotate(90deg)' : 'rotate(0deg)'; });
+        banner.appendChild(bannerSummary);
+
+        // Corpo do banner
+        var bannerBody = document.createElement('div');
+        bannerBody.style.cssText = 'padding:10px 14px;line-height:1.7';
 
         var html = '';
         if (tipo) {
-          html += '<div style="font-weight:700;color:#38bdf8;margin-bottom:4px;font-size:13px">🎯 ' + tipo.replace(/</g,'&lt;') + '</div>';
+          html += '<div style="font-weight:700;color:#38bdf8;margin-bottom:4px;font-size:13px">' + tipo.replace(/</g,'&lt;') + '</div>';
         }
         if (sub) {
           html += '<div style="color:var(--muted);font-style:italic;margin-bottom:6px;font-size:11px">' + sub.replace(/</g,'&lt;') + '</div>';
@@ -11271,26 +11337,27 @@ tr:hover td { background: rgba(255,255,255,.02); }
           html += '<div style="color:var(--text);margin-bottom:3px"><span style="color:var(--muted);font-size:11px">🔍 Hipótese: </span>' + hip.replace(/</g,'&lt;') + '</div>';
         }
         if (sol) {
-          html += '<div style="color:#4ade80"><span style="color:var(--muted);font-size:11px">✅ Solução: </span>' + sol.replace(/</g,'&lt;') + '</div>';
+          html += '<div style="color:#4ade80"><span style="color:var(--muted);font-size:11px">✅ Próximo passo: </span>' + sol.replace(/</g,'&lt;') + '</div>';
         }
 
-        // Link expandir tudo
+        // Links expandir/recolher
         html += '<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:6px">'
           + '<a href="#" onclick="event.preventDefault();'
-          + 'document.getElementById(\'sherlock-result\').querySelectorAll(\'details\').forEach(function(d){'
+          + 'document.getElementById(\'sherlock-result\').querySelectorAll(\'details:not(#sherlock-summary-banner)\').forEach(function(d){'
           + 'd.open=true;'
           + 'd.querySelectorAll(\'summary span\').forEach(function(s){if(s.textContent===\'▶\')s.style.transform=\'rotate(90deg)\'});'
           + '});return false;" '
           + 'style="font-size:11px;color:#38bdf8;text-decoration:none;opacity:.7;margin-right:16px">▼ expandir análise completa</a>'
           + '<a href="#" onclick="event.preventDefault();'
-          + 'document.getElementById(\'sherlock-result\').querySelectorAll(\'details\').forEach(function(d){'
+          + 'document.getElementById(\'sherlock-result\').querySelectorAll(\'details:not(#sherlock-summary-banner)\').forEach(function(d){'
           + 'd.open=false;'
           + 'd.querySelectorAll(\'summary span\').forEach(function(s){if(s.textContent===\'▶\')s.style.transform=\'rotate(0deg)\'});'
           + '});return false;" '
           + 'style="font-size:11px;color:var(--muted);text-decoration:none;opacity:.7">▲ recolher tudo</a>'
           + '</div>';
 
-        banner.innerHTML = html;
+        bannerBody.innerHTML = html;
+        banner.appendChild(bannerBody);
 
         // Remove banner anterior se existir (re-run)
         var old = result.querySelector('#sherlock-summary-banner');
